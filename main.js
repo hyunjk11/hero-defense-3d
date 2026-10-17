@@ -1,3 +1,4 @@
+import { Snd } from './audio.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -184,7 +185,7 @@ function refreshTile(t) {
   const i = t.c * GH + t.r, x = tileX(t.c), z = tileZ(t.r);
   const jx = t.shk > 0 ? rnd(-.09, .09) : 0, jz = t.shk > 0 ? rnd(-.09, .09) : 0, low = t.t === T.CARVED;
   setI(groundIM, i, x, low ? -.88 : -.4, z, 1);
-  if (low) groundIM.setColorAt(i, tmpC.setHSL(.07, .45, .25 + t.s * .05));
+  if (low) groundIM.setColorAt(i, tmpC.setHSL(.09, .55, .56 + t.s * .05));
   else if (t.t === T.SPAWN) groundIM.setColorAt(i, tmpC.set(0x5a4a7a));
   else if (t.t === T.CORE) groundIM.setColorAt(i, tmpC.set(0xc8c0d8));
   else groundIM.setColorAt(i, tmpC.setHSL(.25 + t.s * .04, .55, .44 + t.ck + t.s2 * .04));
@@ -247,7 +248,7 @@ function buildCore() {
   const c1 = mk(new THREE.OctahedronGeometry(.8, 0), crystalMat, 0, 0, 0, crystal); c1.scale.set(1, 1.7, 1);
   for (let k = 0; k < 4; k++) { const s = mk(new THREE.OctahedronGeometry(.3, 0), crystalMat, Math.cos(k * 1.57) * 1, -.4, Math.sin(k * 1.57) * 1, crystal); s.scale.y = 1.6; }
   for (let k = 0; k < 2; k++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(1.4 + k * .35, .05, 8, 48), glow(k ? 0xffe06a : 0x7af6ff, .9)); ring.rotation.x = Math.PI / 2 + k * .5; crystal.add(ring); coreRings.push(ring); }
-  crystal.position.y = 3.6; core.add(crystal); coreLight.position.y = 3.6; core.add(coreLight);
+  crystal.position.y = 3.6; core.add(crystal); coreLight.position.y = 3.6; core.add(coreLight); G.coreHb = hpBar(core, 6.2, 3.2, 0x5af0ff, { grade: false, h: .2 });
 }
 
 // ================= 파티클 =================
@@ -310,12 +311,30 @@ function flyCoinDom(p) {
 const coinGeo = new THREE.CylinderGeometry(.24, .24, .07, 16).rotateX(Math.PI / 2), coinMat = glow(0xffc828, .6);
 function popCoins(p, n) { for (let k = 0; k < Math.min(n, 6); k++) { const m = mk(coinGeo, coinMat, p.x, p.y, p.z, scene, .02); G.coins.push({ m, v: new THREE.Vector3(rnd(-2.5, 2.5), rnd(6, 9), rnd(-2.5, 2.5)), t: .55 + k * .05 }); } }
 function updCoins(dt) { for (let i = G.coins.length - 1; i >= 0; i--) { const c = G.coins[i]; c.t -= dt; c.v.y -= 22 * dt; c.m.position.addScaledVector(c.v, dt); c.m.rotation.y += dt * 12; if (c.m.position.y < .3) { c.m.position.y = .3; c.v.y *= -.4; }
-  if (c.t <= 0) { flyCoinDom(c.m.position); scene.remove(c.m); G.coins.splice(i, 1); } } }
+  if (c.t <= 0) { flyCoinDom(c.m.position); later(.45, () => Snd.play('coin', { rate: 1 + Math.random() * .2 })); scene.remove(c.m); G.coins.splice(i, 1); } } }
 function banner(text, color = '#fff', ms = 1600) { const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.add('show'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), ms); }
-function hpBar(parent, y, w = 1.4, color = 0x55ff77) {
-  const bg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x000000, opacity: .7, transparent: true, depthTest: false })); bg.scale.set(w, .16, 1); bg.position.y = y; bg.renderOrder = 10;
-  const fg = new THREE.Sprite(new THREE.SpriteMaterial({ color, depthTest: false })); fg.scale.set(w, .12, 1); fg.position.y = y; fg.renderOrder = 11; fg.center.set(0, .5); fg.position.x = -w / 2;
-  parent.add(bg, fg); return { bg, fg, w, set(r) { fg.scale.x = Math.max(.001, w * r); }, show(v) { bg.visible = fg.visible = v; }, dispose() { bg.material.dispose(); fg.material.dispose(); } };
+// HP 바: 카메라를 향하는 하나의 그룹 안에 프레임/배경/잔상/체력이 모두 같은 왼쪽 기준점에서 늘어남
+const barGeo = new THREE.PlaneGeometry(1, 1).translate(.5, 0, 0), BARS = [], barV = new THREE.Vector3(), barLow = new THREE.Color(0xff4a3a), barMid = new THREE.Color(0xffd23a);
+function hpBar(parent, y, w = 1.4, color = 0x55ff77, opt = {}) {
+  const g = new THREE.Group(); scene.add(g); const h = opt.h || .16, pad = .045;
+  const part = (c, op, ww, hh, x, ro) => { const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthTest: false, depthWrite: false, toneMapped: false }));
+    m.scale.set(ww, hh, 1); m.position.set(x, 0, 0); m.renderOrder = ro; m.frustumCulled = false; g.add(m); return m; };
+  const frame = part(0x0b0816, .85, w + pad * 2, h + pad * 2, -w / 2 - pad, 20), back = part(0x3a1420, .95, w, h, -w / 2, 21),
+    trail = part(0xfff0b0, 1, w, h, -w / 2, 22), fg = part(color, 1, w, h, -w / 2, 23);
+  const base = new THREE.Color(color), b = { g, parent, y, w, r: 1, tr: 1, hold: 0, vis: true, auto: !!opt.auto, grade: opt.grade !== false && color === 0x55ff77, fg, trail, frame,
+    set(r) { r = Math.max(0, Math.min(1, r)); if (r < this.r - 1e-4) this.hold = .35; if (r > this.tr) this.tr = r; this.r = r; },
+    show(v) { this.vis = v; }, dispose() { scene.remove(g); g.children.forEach(m => m.material.dispose()); const i = BARS.indexOf(this); if (i >= 0) BARS.splice(i, 1); } , base };
+  BARS.push(b); return b;
+}
+function updBars(dt) {
+  for (const b of BARS) {
+    const alive = b.vis && b.parent.parent && b.parent.visible !== false && !(b.auto && b.r >= .999 && b.tr >= .999);
+    b.g.visible = alive && !G.heroShot; if (!b.g.visible) continue;
+    if (b.hold > 0) b.hold -= dt; else b.tr = Math.max(b.r, b.tr - dt * (.25 + (b.tr - b.r) * 2.2));
+    b.parent.getWorldPosition(barV); b.g.position.set(barV.x, barV.y + b.y, barV.z); b.g.quaternion.copy(camera.quaternion);
+    b.fg.scale.x = Math.max(1e-4, b.w * b.r); b.trail.scale.x = Math.max(1e-4, b.w * b.tr); b.trail.visible = b.tr > b.r + 1e-3;
+    if (b.grade) b.fg.material.color.copy(b.r > .5 ? b.base : b.r > .25 ? barMid : barLow);
+  }
 }
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
@@ -403,16 +422,72 @@ function nextStep(c, r) {
   for (const [dc, dr] of DIRS) { const nc = c + dc, nr = r + dr; if (!inGrid(nc, nr)) continue; const t = tileAt(nc, nr), ec = enterCost(t); if (ec === Infinity) continue; const s = ec + dAt(nc, nr); if (s < bs) { bs = s; best = [nc, nr]; } }
   return best;
 }
-const routeIM = IM(new THREE.SphereGeometry(.2, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), 200, 0, false);
-let routeN = 0; const routeP = [];
-function drawRoute() {
-  for (let i = 0; i < routeN; i++) hideI(routeIM, i); routeN = 0; let cur = SPAWN.slice(), k = 0;
-  while (cur && k++ < 199) { const t = tileAt(cur[0], cur[1]), dig = isBlock(t.t) || t.bar; routeIM.setColorAt(routeN, tmpC.set(dig ? 0xff7a3a : 0xffe066));
-    routeP[routeN] = [tileX(cur[0]), dig ? (t.t === T.ROCK ? 1.4 : t.t === T.FOREST ? 2.6 : 1.2) : t.t === T.CARVED ? -.2 : .3, tileZ(cur[1])];
-    routeN++; if (cur[0] === CORE[0] && cur[1] === CORE[1]) break; cur = nextStep(cur[0], cur[1]); }
-  routeIM.instanceColor.needsUpdate = true;
+// ---- 몬스터 길 시각화: 참호 가장자리 빛 + 예상 경로(점선) + 코어로 흐르는 화살표 ----
+const pathT = t => t.t === T.CARVED || t.t === T.SPAWN || t.t === T.CORE;
+const edgeMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffb84a).multiplyScalar(2.2), toneMapped: false, transparent: true, opacity: .9 });
+const edgeIM = IM(new THREE.BoxGeometry(S, .1, .16), edgeMat, NT * 4, 0, false);
+const floorTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 10, 64, 64, 90);
+  g.addColorStop(0, 'rgba(255,220,150,.55)'); g.addColorStop(.7, 'rgba(255,200,120,.25)'); g.addColorStop(1, 'rgba(255,170,80,.7)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  x.strokeStyle = 'rgba(255,230,170,.9)'; x.lineWidth = 5; x.strokeRect(4, 4, 120, 120); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const floorMat = new THREE.MeshBasicMaterial({ map: floorTex, color: 0xffd890, transparent: true, opacity: .3, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
+const floorIM = IM(new THREE.PlaneGeometry(S * .96, S * .96).rotateX(-Math.PI / 2), floorMat, NT, 0, false);
+function refreshEdges() {
+  for (let c = 0; c < GW; c++) for (let r = 0; r < GH; r++) { const t = tileAt(c, r), i = c * GH + r;
+    if (t.t === T.CARVED) setI(floorIM, i, tileX(c), -.455, tileZ(r), 1); else hideI(floorIM, i);
+    DIRS.forEach(([dc, dr], k) => { const n = inGrid(c + dc, r + dr) ? tileAt(c + dc, r + dr) : null, j = i * 4 + k;
+      if (t.t === T.CARVED && !(n && pathT(n))) setI(edgeIM, j, tileX(c) + dc * (S / 2 - .05), -.43, tileZ(r) + dr * (S / 2 - .05), 1, 1, 1, dc ? Math.PI / 2 : 0);
+      else hideI(edgeIM, j); }); }
 }
-function updRoute() { const show = G.phase === 'build' || G.phase === 'wave'; for (let i = 0; i < routeN; i++) { const [x, y, z] = routeP[i]; const k = (G.t * 5 - i * .5) % 8, s = show ? (k > 0 && k < 1 ? 1.8 : 1) * (G.phase === 'wave' ? .6 : 1) : 0; setI(routeIM, i, x, y, z, s); } }
+const chevGeo = (() => { const sh = new THREE.Shape(); sh.moveTo(.32, 0); sh.lineTo(-.18, .3); sh.lineTo(-.05, 0); sh.lineTo(-.18, -.3); sh.closePath(); return new THREE.ShapeGeometry(sh).rotateX(-Math.PI / 2); })();
+const flowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+const dashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, opacity: .85, depthWrite: false });
+const olMat = new THREE.MeshBasicMaterial({ color: 0x140a04, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide });
+const NCH = 60, NDASH = 260, chevIM = IM(chevGeo, flowMat, NCH, 0, false), dashIM = IM(new THREE.BoxGeometry(.4, .07, .2), dashMat, NDASH, 0, false);
+const chevOL = IM(chevGeo, olMat, NCH, 0, false), dashOL = IM(new THREE.BoxGeometry(.4, .07, .2), olMat, NDASH, 0, false);
+chevIM.renderOrder = dashIM.renderOrder = 6; chevOL.renderOrder = dashOL.renderOrder = 5;
+const olM = new THREE.Matrix4(), olS = new THREE.Matrix4();
+function olWrite(im, i, k) { olS.makeScale(k, 1, k); olM.copy(dummy.matrix).multiply(olS); olM.elements[13] -= .015; im.setMatrixAt(i, olM); }
+let routeCurve = null, routeLen = 0, routeDig = []; const C_DASHO = new THREE.Color(0xfffbe8).multiplyScalar(1.5), C_DASHD = new THREE.Color(0xffe0b0).multiplyScalar(1.5); const C_OPEN = new THREE.Color(0xfff07a).multiplyScalar(1.5), C_DIG = new THREE.Color(0xff6a3a).multiplyScalar(1.5), C_FLOW = new THREE.Color(0xffe27a).multiplyScalar(1.6), C_FLOWD = new THREE.Color(0xff7a3a).multiplyScalar(1.6);
+G.route = [];
+// 경로 리본 (테두리 어두운 띠 + 빛나는 띠), 경로가 바뀔 때마다 다시 만듦
+const ribbonMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: .7, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+const ribbonOLMat = new THREE.MeshBasicMaterial({ color: 0x1a0c04, transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide });
+const ribbon = new THREE.Mesh(new THREE.BufferGeometry(), ribbonMat), ribbonOL = new THREE.Mesh(new THREE.BufferGeometry(), ribbonOLMat);
+ribbon.renderOrder = 4; ribbonOL.renderOrder = 3; ribbon.frustumCulled = ribbonOL.frustumCulled = false; scene.add(ribbonOL, ribbon);
+function ribbonGeo(curve, dig, w, dy, colored) {
+  const N = Math.max(8, Math.ceil(curve.getLength() * 3)), pos = [], col = [], idx = [], p = new THREE.Vector3(), t = new THREE.Vector3(), c = new THREE.Color();
+  for (let i = 0; i <= N; i++) { const u = i / N; curve.getPointAt(u, p); curve.getTangentAt(u, t); const nx = -t.z, nz = t.x, l = Math.hypot(nx, nz) || 1;
+    pos.push(p.x + nx / l * w, p.y + dy, p.z + nz / l * w, p.x - nx / l * w, p.y + dy, p.z - nz / l * w);
+    if (colored) { const d = dig[Math.min(dig.length - 1, Math.round(u * (dig.length - 1)))]; c.copy(d ? C_DIG : C_OPEN).multiplyScalar(.75); col.push(c.r, c.g, c.b, c.r, c.g, c.b); }
+    if (i < N) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); if (colored) g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); return g;
+}
+function drawRoute() {
+  const pts = [], dig = []; let cur = SPAWN.slice(), k = 0; G.route = [];
+  while (cur && k++ < 199) { const t = tileAt(cur[0], cur[1]), d = isBlock(t.t) || !!t.bar; G.route.push(cur);
+    pts.push(new THREE.Vector3(tileX(cur[0]), d ? (t.bar ? 1.6 : t.t === T.ROCK ? 1.25 : t.t === T.FOREST ? 2.3 : 1.15) : t.t === T.CARVED ? -.32 : .14, tileZ(cur[1]))); dig.push(d);
+    if (cur[0] === CORE[0] && cur[1] === CORE[1]) break; cur = nextStep(cur[0], cur[1]); }
+  routeDig = dig; if (pts.length < 2) { routeCurve = null; return; }
+  routeCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', .5); routeLen = routeCurve.getLength(); refreshEdges();
+  ribbon.geometry.dispose(); ribbon.geometry = ribbonGeo(routeCurve, dig, .36, .02, true); ribbonOL.geometry.dispose(); ribbonOL.geometry = ribbonGeo(routeCurve, dig, .56, 0, false);
+}
+const rv = new THREE.Vector3(), rt = new THREE.Vector3();
+function updRoute() {
+  const show = (G.phase === 'build' || G.phase === 'wave') && routeCurve, build = G.phase === 'build';
+  let n = 0; edgeMat.opacity = .75 + Math.sin(G.t * 3) * .15; floorMat.opacity = .2 + G.night * .22 + Math.sin(G.t * 2.2) * .05;
+  if (show) { // 점선: 건설 단계에선 선명하게, 전투 중엔 은은하게. 천천히 코어 쪽으로 흐름
+    const gap = .85, off = (G.t * 1.2) % gap;
+    for (let s = off; s < routeLen && n < NDASH; s += gap) { const u = s / routeLen; routeCurve.getPointAt(u, rv); routeCurve.getTangentAt(u, rt); rv.y += .05;
+      const di = routeDig[Math.min(routeDig.length - 1, Math.round(u * (routeDig.length - 1)))]; dashIM.setColorAt(n, di ? C_DASHD : C_DASHO);
+      dummy.position.copy(rv); dummy.rotation.set(0, Math.atan2(-rt.z, rt.x), Math.asin(Math.max(-1, Math.min(1, rt.y)))); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); dashIM.setMatrixAt(n, dummy.matrix); olWrite(dashOL, n, 1.45); n++; } }
+  for (let i = n; i < NDASH; i++) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); dashIM.setMatrixAt(i, dummy.matrix); dashOL.setMatrixAt(i, dummy.matrix); } dashOL.instanceMatrix.needsUpdate = true;
+  dashMat.opacity = build ? 1 : .85; ribbon.visible = ribbonOL.visible = !!show; ribbonMat.opacity = (build ? .8 : .6) + Math.sin(G.t * 3) * .08; ribbonOLMat.opacity = build ? .5 : .35; dashIM.instanceMatrix.needsUpdate = true; if (dashIM.instanceColor) dashIM.instanceColor.needsUpdate = true;
+  let m = 0; if (show) { const gap = 2.6, off = (G.t * 3.4) % gap;
+    for (let s = off; s < routeLen && m < NCH; s += gap) { const u = s / routeLen; routeCurve.getPointAt(u, rv); routeCurve.getTangentAt(u, rt); const fade = Math.min(1, s / 2, (routeLen - s) / 2);
+      dummy.position.set(rv.x, rv.y + .1 + Math.sin(G.t * 5 + s) * .04, rv.z); dummy.rotation.set(0, Math.atan2(-rt.z, rt.x), 0); const sc = (build ? 1.6 : 1.25) * Math.max(.05, fade); dummy.scale.set(sc, 1, sc); dummy.updateMatrix(); chevIM.setMatrixAt(m, dummy.matrix); olWrite(chevOL, m, 1.4); chevIM.setColorAt(m++, routeDig[Math.min(routeDig.length - 1, Math.round(u * (routeDig.length - 1)))] ? C_FLOWD : C_FLOW); } }
+  for (let i = m; i < NCH; i++) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); chevIM.setMatrixAt(i, dummy.matrix); chevOL.setMatrixAt(i, dummy.matrix); } chevOL.instanceMatrix.needsUpdate = true; olMat.opacity = build ? .6 : .4;
+  chevIM.instanceMatrix.needsUpdate = true; if (chevIM.instanceColor) chevIM.instanceColor.needsUpdate = true; flowMat.opacity = build ? .95 : .8;
+}
 
 // ================= 바리케이드 =================
 const barMaxHp = () => 320 * (1 + .25 * G.ups.bar);
@@ -425,11 +500,11 @@ function addBarricade(t) {
   for (let i = -2; i <= 2; i++) { const s = mk(new THREE.CylinderGeometry(.1, .12, 1.3, 7), woodM, i * .4, .75, 0, inner); s.rotation.x = (i % 2 ? .3 : -.2); mk(new THREE.ConeGeometry(.1, .35, 7), toon(0xe8c890), 0, .82, 0, s, .02); }
   for (const sx of [-1, 1]) { const x2 = mk(new THREE.CylinderGeometry(.09, .09, 1.6, 7), woodD, sx * .55, .8, .22, inner); x2.rotation.z = sx * .7; }
   mk(new THREE.TorusGeometry(.15, .04, 6, 12), ropeM, -.4, 1, -.1, inner, 0);
-  const hb = hpBar(g, 2, 1.6, 0xffb03a); const b = { t, g, hp: barMaxHp(), max: barMaxHp(), hb, kind: 'bar' }; t.bar = b; refreshTile(t); return b;
+  const hb = hpBar(g, 2, 1.6, 0xffb03a, { auto: true }); const b = { t, g, hp: barMaxHp(), max: barMaxHp(), hb, kind: 'bar' }; t.bar = b; refreshTile(t); return b;
 }
 function removeBarricade(t, broken) {
   const b = t.bar; if (!b) return; scene.remove(b.g); b.hb.dispose(); t.bar = null; if (G.sel === b) select(null);
-  if (broken) { debris(b.g.position.x, 1, b.g.position.z, 18, [0xa8703a, 0x6a4422, 0xe0c890], 7); emit(P, b.g.position.x, 1, b.g.position.z, 30, 0xc08a4a, 6, .8, -12, 3); banner('바리케이드 파괴!', '#ffb03a', 900); SFX.tone(110, .25, 'sawtooth', .04); }
+  if (broken) { debris(b.g.position.x, 1, b.g.position.z, 18, [0xa8703a, 0x6a4422, 0xe0c890], 7); emit(P, b.g.position.x, 1, b.g.position.z, 30, 0xc08a4a, 6, .8, -12, 3); banner('바리케이드 파괴!', '#ffb03a', 900); Snd.play('breakWood', { pos: b.g.position }); }
   computeDist();
 }
 
@@ -473,15 +548,15 @@ function towerModel(type, lvl) {
 }
 function placeTower(t, type) {
   const D = TOWERS[type], tw = { kind: 'tower', type, lvl: 1, t, c: t.c, r: t.r, cd: .5, invest: D.cost, pop: 0, recoil: 0 };
-  tw.m = towerModel(type, 1); tw.m.g.position.set(tileX(t.c), 0, tileZ(t.r)); scene.add(tw.m.g); t.tower = tw; G.towers.push(tw); refreshTile(t); return tw;
+  tw.m = towerModel(type, 1); tw.m.g.position.set(tileX(t.c), 0, tileZ(t.r)); Snd.play('build', { pos: tw.m.g.position }); Snd.play('place', { delay: .12 }); scene.add(tw.m.g); t.tower = tw; G.towers.push(tw); refreshTile(t); return tw;
 }
 function upgradeTower(tw) {
-  if (tw.lvl >= 3) return; const c = TOWERS[tw.type].up[tw.lvl - 1]; if (G.gold < c) return SFX.tone(120, .1); G.gold -= c; tw.invest += c; tw.lvl++;
+  if (tw.lvl >= 3) return; const c = TOWERS[tw.type].up[tw.lvl - 1]; if (G.gold < c) return Snd.play('error'); G.gold -= c; tw.invest += c; tw.lvl++; Snd.play('upgrade', { pos: { x: tileX(tw.c), z: tileZ(tw.r) } }); Snd.play('levelUp', { vol: .7 });
   const ry = tw.m.head.rotation.y; scene.remove(tw.m.g); tw.m = towerModel(tw.type, tw.lvl); tw.m.head.rotation.y = ry; tw.m.g.position.set(tileX(tw.c), 0, tileZ(tw.r)); scene.add(tw.m.g); tw.pop = 0;
-  const p = tw.m.g.position; emit(P, p.x, 1, p.z, 50, 0xffe066, 6, .9, -4, 2); emit(PB, p.x, 2, p.z, 10, 0xffd23a, 3, .8, 2, 1); ringFx(p, 2.5, 0xffd23a, .6); banner(`${TOWERS[tw.type].n} Lv.${tw.lvl}!`, '#ffe066', 900); SFX.tone(880, .15, 'triangle', .05, 300); refreshHud();
+  const p = tw.m.g.position; emit(P, p.x, 1, p.z, 50, 0xffe066, 6, .9, -4, 2); emit(PB, p.x, 2, p.z, 10, 0xffd23a, 3, .8, 2, 1); ringFx(p, 2.5, 0xffd23a, .6); banner(`${TOWERS[tw.type].n} Lv.${tw.lvl}!`, '#ffe066', 900); refreshHud();
 }
 function sellTower(tw) {
-  const v = Math.floor(tw.invest * .7); G.gold += v; scene.remove(tw.m.g); G.towers.splice(G.towers.indexOf(tw), 1); tw.t.tower = null; refreshTile(tw.t);
+  const v = Math.floor(tw.invest * .7); G.gold += v; Snd.play('sell'); Snd.play('breakWood', { pos: { x: tileX(tw.c), z: tileZ(tw.r) }, vol: .5 }); scene.remove(tw.m.g); G.towers.splice(G.towers.indexOf(tw), 1); tw.t.tower = null; refreshTile(tw.t);
   const p = tw.m.g.position; debris(p.x, 1, p.z, 14, [0xe0dacb, 0x9e98ae, 0xa8703a], 6); popCoins(p.clone().setY(1.5), 4); dmgText(p.clone().setY(2.5), `+${v}G`, '#ffe066', true); select(null); computeDist(); refreshHud();
 }
 function enemyAim(e) { return e.g.position.clone().setY(e.E.fly ? e.m.inner.position.y : e.E.h * .55 + e.g.position.y); }
@@ -499,10 +574,10 @@ function updTowers(dt) {
     const want = Math.atan2(best.g.position.x - p.x, best.g.position.z - p.z); let d = want - m.head.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.head.rotation.y += d * Math.min(1, dt * 10);
     if (tw.type === 'cannon') { const k = tw.recoil * .25; m.head.position.x = -Math.sin(m.head.rotation.y) * k; m.head.position.z = -Math.cos(m.head.rotation.y) * k; }
     if (tw.cd > 0) continue; tw.cd = 1 / D.rate[L]; const from = new THREE.Vector3(); m.muzzle.getWorldPosition(from);
-    if (tw.type === 'arrow') { shoot('arrow', from, best, D.dmg[L], { spd: 34, color: L >= 2 ? 0x9affff : 0xfff0c0 }); SFX.tone(1100, .04, 'triangle', .012, -300); }
+    if (tw.type === 'arrow') { shoot('arrow', from, best, D.dmg[L], { spd: 34, color: L >= 2 ? 0x9affff : 0xfff0c0 }); Snd.play('arrow', { pos: from, rate: 1.15 }); }
     else if (tw.type === 'cannon') { const dest = best.g.position.clone(); if (best.next) { const v = new THREE.Vector3(tileX(best.next[0]) - dest.x, 0, tileZ(best.next[1]) - dest.z); if (v.length() > .01) dest.addScaledVector(v.normalize(), Math.min(1.5, best.E.spd * .6)); }
       const ball = mk(new THREE.SphereGeometry(.22 + L * .04, 12, 8), toon(0x26282e), from.x, from.y, from.z, scene, .02); G.projs.push({ kind: 'ball', m: ball, from: from.clone(), dest, t: 0, dur: .7, dmg: D.dmg[L], r: D.splash[L] });
-      tw.recoil = 1; emit(P, from.x, from.y, from.z, 14, 0xffaa4a, 4, .35, 0, .5); emit(P, from.x, from.y, from.z, 8, 0x8a8a8a, 2, .8, 1.5, .5); SFX.tone(90, .18, 'sawtooth', .04, -40); }
+      tw.recoil = 1; emit(P, from.x, from.y, from.z, 14, 0xffaa4a, 4, .35, 0, .5); emit(P, from.x, from.y, from.z, 8, 0x8a8a8a, 2, .8, 1.5, .5); Snd.play('cannon', { pos: from }); }
     else chainLightning(from, best, D.dmg[L], D.chain[L], D.slow[L]);
   }
 }
@@ -510,7 +585,7 @@ function chainLightning(from, first, dmg, n, slow) {
   const hit = new Set(); let cur = first, a = from.clone();
   for (let k = 0; k < n && cur; k++) { const b = enemyAim(cur); bolt(a, b, k ? 0xc0a0ff : 0x9ae8ff); const ce = cur; hit.add(ce); ce.slowT = 1.3; ce.slowAmt = slow; hurt(ce, dmg * Math.pow(.85, k), '#c8b8ff'); emit(P, b.x, b.y, b.z, 8, 0xb8a0ff, 4, .35, 0, .5);
     a = b; let nb = null, nd = 3.8 * 3.8; for (const e of G.enemies) { if (e.dead || hit.has(e)) continue; const d = e.g.position.distanceToSquared(ce.g.position); if (d < nd) { nd = d; nb = e; } } cur = nb; }
-  SFX.tone(1400, .08, 'sawtooth', .015, -900);
+  Snd.crackle(first.g.position);
 }
 function bolt(a, b, color) {
   for (let w = 0; w < 2; w++) { const pts = [], n = 9; for (let i = 0; i <= n; i++) { const p = a.clone().lerp(b, i / n); if (i > 0 && i < n) p.add(new THREE.Vector3(rnd(-.4, .4), rnd(-.4, .4), rnd(-.4, .4))); pts.push(p); }
@@ -530,7 +605,7 @@ function spawnHero(cls) {
   $('heroName').textContent = `${C.n} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill;
 }
 function heroDamage(d) {
-  if (hero.dead > 0) return; d *= 1 - hero.C.armor; hero.hp -= d; hero.flash = .1;
+  if (hero.dead > 0) return; d *= 1 - hero.C.armor; hero.hp -= d; hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 });
   if (hero.hp <= 0) { hero.hp = 0; hero.dead = 5; hero.spinT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
 }
 const heroPass = (c, r) => { if (!inGrid(c, r)) return false; const t = tileAt(c, r); return (t.t === T.GRASS || t.t === T.CARVED || t.t === T.SPAWN || t.t === T.CORE) && !t.tower && !t.bar; };
@@ -568,20 +643,20 @@ function spawnEnemy(type, hpMul) {
   m.g.position.set(tileX(SPAWN[0]) + .4, 0, tileZ(SPAWN[1]) + rnd(-.5, .5)); m.g.rotation.y = Math.PI / 2;
   const e = { type, E, m, g: m.g, hp, max: hp, tile: SPAWN.slice(), next: null, off: [rnd(-.45, .45), rnd(-.45, .45)], slowT: 0, slowAmt: 0, flash: 0, atkCd: rnd(0, .5), hitT: rnd(0, .3), state: 'walk', spawnT: 0, dead: false, bob: Math.random() * 6 };
   if (!E.fly) { const a = play(m, 'Spawn_Ground_Skeletons', { once: true, speed: 2, fade: 0 }); e.state = 'spawn'; e.spawnT = a ? Math.min(1.4, a.getClip().duration / 2) : 0; emit(P, m.g.position.x, .3, m.g.position.z, 12, 0x9a7a5a, 3, .6, -6, 1.5); }
-  e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, E.boss ? 3 : Math.max(1.1, E.h * .55), E.boss ? 0xff3a4a : 0x55ff77);
-  if (E.boss) { G.shake = .7; banner('⚠ 보스 출현: 해골 군주 ⚠', '#ff4a5a', 2200); emit(PB, m.g.position.x, 2, m.g.position.z, 40, 0xff3a3a, 8, 1, -2, 2); }
+  e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, E.boss ? 3 : Math.max(1.1, E.h * .55), E.boss ? 0xff3a4a : 0x55ff77, { auto: !E.boss, h: E.boss ? .22 : .15 });
+  if (E.boss) { G.shake = .7; Snd.roar(m.g.position); banner('⚠ 보스 출현: 해골 군주 ⚠', '#ff4a5a', 2200); emit(PB, m.g.position.x, 2, m.g.position.z, 40, 0xff3a3a, 8, 1, -2, 2); }
   emit(P, m.g.position.x, 1.5, m.g.position.z, 14, 0xc07aff, 4, .5); G.enemies.push(e); return e;
 }
 function hurt(e, dmg, color = '#fff', big = false) {
-  if (e.dead) return; dmg *= 1 - (e.E.armor || 0); e.hp -= dmg; e.flash = .09; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, dmg, color, big);
+  if (e.dead) return; Snd.play(e.E.armor ? 'hitArmor' : 'hit', { pos: e.g.position }); dmg *= 1 - (e.E.armor || 0); e.hp -= dmg; e.flash = .09; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, dmg, color, big);
   if (e.hp <= 0) killEnemy(e);
 }
 function killEnemy(e) {
   e.dead = true; e.hb.show(false); const p = enemyAim(e);
   emit(P, p.x, p.y, p.z, e.E.boss ? 160 : 22, e.E.fly ? 0xb08aff : 0xe8e0d0, e.E.boss ? 10 : 5, .8, -10, 1.5); emit(P, p.x, p.y, p.z, 10, 0xffe066, 4, .6);
   if (!e.E.fly) debris(p.x, p.y, p.z, e.E.boss ? 30 : 5, [0xf0ead8, 0xd8d0c0], 5);
-  if (e.E.boss) { G.shake = 1.1; emit(PB, p.x, p.y, p.z, 60, 0xff8a3a, 12, 1.2, -3, 3); banner('해골 군주 처치!', '#ffd23a'); }
-  G.gold += e.E.gold; popCoins(p, Math.ceil(e.E.gold / 2)); e.dying = e.E.fly ? .7 : 1.6;
+  if (e.E.boss) { G.shake = 1.1; emit(PB, p.x, p.y, p.z, 60, 0xff8a3a, 12, 1.2, -3, 3); banner('해골 군주 처치!', '#ffd23a'); Snd.play('boom', { pos: p, force: true }); later(.6, () => Snd.play('victory', { force: true, exact: true })); }
+  G.gold += e.E.gold; popCoins(p, Math.ceil(e.E.gold / 2)); Snd.play(e.E.fly ? 'poof' : 'bones', { pos: p, rate: e.E.boss ? .6 : 1, force: e.E.boss }); e.dying = e.E.fly ? .7 : 1.6;
   if (!e.E.fly) play(e.m, 'Death_A', { once: true, fade: .1 });
 }
 function damageTile(t, dmg) {
@@ -591,12 +666,12 @@ function damageTile(t, dmg) {
 function carve(t) {
   const B = BLK[t.t], x = tileX(t.c), z = tileZ(t.r); debris(x, .8, z, t.t === T.ROCK ? 26 : 18, B.deb, 7.5); emit(P, x, .8, z, 30, t.t === T.ROCK ? 0x9a9aaa : 0x9a7048, 4, .9, -3, 2.5);
   if (t.t === T.FOREST) emit(P, x, 2.4, z, 30, 0x6ad05a, 4, 1, -3, 2);
-  if (t.t === T.ROCK) G.shake = Math.max(G.shake, .22); SFX.tone(t.t === T.ROCK ? 70 : 120, .2, 'sawtooth', .035, -40);
+  if (t.t === T.ROCK) G.shake = Math.max(G.shake, .22); Snd.play(t.t === T.ROCK ? 'breakRock' : t.t === T.FOREST ? 'breakWood' : 'breakDirt', { pos: { x, z }, force: true });
   t.t = T.CARVED; t.hp = t.max = 0; t.shk = 0; G.dirty.add(t); G.carved = (G.carved || 0) + 1; computeDist();
 }
 function reachCore(e) {
   G.coreHp -= e.E.core; e.dead = true; removeEnemy(e); G.shake = Math.max(G.shake, .35);
-  emit(P, core.position.x, 3, core.position.z, 30, 0xff3a5a, 6, .7); crystalMat.emissive.setHex(0xff2a3a); later(.22, () => crystalMat.emissive.setHex(0x1890c0)); SFX.tone(90, .3, 'sawtooth', .05);
+  emit(P, core.position.x, 3, core.position.z, 30, 0xff3a5a, 6, .7); crystalMat.emissive.setHex(0xff2a3a); later(.22, () => crystalMat.emissive.setHex(0x1890c0)); Snd.play('coreHit', { force: true }); Snd.play('glass', { vol: .6 });
   banner(`코어 피격! -${e.E.core}`, '#ff6a7a', 700); if (G.coreHp <= 0) gameOver();
 }
 function removeEnemy(e) { scene.remove(e.g); e.hb.dispose(); if (e.m.mats) e.m.mats.forEach(m => m.dispose()); if (e.m.mixer) e.m.mixer.stopAllAction(); const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1); }
@@ -629,7 +704,7 @@ function updEnemies(dt) {
       else { if (d > .05) { const mv = Math.min(d, spd * dt * .5); g.position.x += ddx / d * mv; g.position.z += ddz / d * mv; } faceTo(g, tileX(nt.c), tileZ(nt.r), dt, 12); play(e.m, E.dig, { speed: 1.15 * slowK + .1 }); e.digging = true;
         damageTile(nt, E.dps * dt); e.hitT -= dt;
         if (e.hitT <= 0) { e.hitT = .55; const hx = (g.position.x + tileX(nt.c)) / 2, hz = (g.position.z + tileZ(nt.r)) / 2;
-          if (nt.bar || isBlock(nt.t)) { const cols = nt.bar ? [0xa8703a, 0x6a4422] : BLK[nt.t].deb; debris(hx, .9, hz, E.boss ? 5 : 2, cols, 4); emit(P, hx, .9, hz, 6, nt.t === T.ROCK ? 0xffffff : 0xc8a070, 3, .4, -6, .6); }
+          if (nt.bar || isBlock(nt.t)) { const cols = nt.bar ? [0xa8703a, 0x6a4422] : BLK[nt.t].deb; debris(hx, .9, hz, E.boss ? 5 : 2, cols, 4); emit(P, hx, .9, hz, 6, nt.t === T.ROCK ? 0xffffff : 0xc8a070, 3, .4, -6, .6); Snd.play(nt.bar || nt.t === T.FOREST ? 'digWood' : nt.t === T.ROCK ? 'dig' : 'digSoft', { pos: g.position, rate: E.boss ? .7 : 1 }); }
           if (E.boss) G.shake = Math.max(G.shake, .15); } }
     } else {
       e.digging = false;
@@ -637,12 +712,12 @@ function updEnemies(dt) {
       if (d < spd * dt + .03) { g.position.x = tx; g.position.z = tz; e.tile = e.next; e.next = null; if (e.tile[0] === CORE[0] && e.tile[1] === CORE[1]) { reachCore(e); continue; } }
       else { g.position.x += dx / d * spd * dt; g.position.z += dz / d * spd * dt; faceTo(g, tx, tz, dt); }
       play(e.m, E.walk, { speed: spd * E.ws });
-      if (E.boss && Math.sin(G.t * 4.5) * Math.sin((G.t - dt) * 4.5) < 0) { G.shake = Math.max(G.shake, .16); emit(P, g.position.x, .2, g.position.z, 6, 0x8a7a6a, 3, .4); }
+      if (E.boss && Math.sin(G.t * 4.5) * Math.sin((G.t - dt) * 4.5) < 0) { G.shake = Math.max(G.shake, .16); Snd.play('stomp', { pos: g.position, rate: .55, force: true }); emit(P, g.position.x, .2, g.position.z, 6, 0x8a7a6a, 3, .4); }
     }
     g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8);
   }
 }
-function gameOver() { if (G.phase === 'over') return; G.phase = 'over'; $('over').classList.remove('hidden'); $('overTxt').textContent = `웨이브 ${G.wave}에서 코어가 파괴되었습니다 · 최고 기록 ${Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)}`; }
+function gameOver() { if (G.phase === 'over') return; G.phase = 'over'; Snd.setMusic('none'); Snd.play('gameOver', { force: true, exact: true }); Snd.play('breakRock', { force: true }); Snd.play('glass', { force: true }); $('over').classList.remove('hidden'); $('overTxt').textContent = `웨이브 ${G.wave}에서 코어가 파괴되었습니다 · 최고 기록 ${Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)}`; }
 
 // ================= 투사체 =================
 const arrowGeo = new THREE.CylinderGeometry(.035, .035, 1, 5).rotateX(Math.PI / 2), arrowHead = new THREE.ConeGeometry(.08, .22, 6).rotateX(Math.PI / 2);
@@ -665,20 +740,20 @@ function updProjs(dt) {
     const p = G.projs[i], m = p.m;
     if (p.kind === 'ball') { p.t += dt; const k = Math.min(1, p.t / p.dur); m.position.lerpVectors(p.from, p.dest, k); m.position.y = p.from.y + (p.dest.y + .3 - p.from.y) * k + Math.sin(k * Math.PI) * 3.2;
       if (Math.random() < .5) emit(P, m.position.x, m.position.y, m.position.z, 1, 0x9a9a9a, .5, .5, 1, 0);
-      if (k >= 1) { killProj(i); aoe(p.dest, p.r, p.dmg, '#ffc07a', { groundOnly: true }); ringFx(p.dest, p.r, 0xff8a2a, .35); emit(P, p.dest.x, .4, p.dest.z, 40, 0xffa04a, 7, .6, -8, 1.5); emit(PB, p.dest.x, .6, p.dest.z, 6, 0xff7a2a, 3, .5, 0, 1); debris(p.dest.x, .3, p.dest.z, 4, [0x8a6a4a, 0x5a5a5a], 4); G.shake = Math.max(G.shake, .08); }
+      if (k >= 1) { killProj(i); aoe(p.dest, p.r, p.dmg, '#ffc07a', { groundOnly: true }); ringFx(p.dest, p.r, 0xff8a2a, .35); emit(P, p.dest.x, .4, p.dest.z, 40, 0xffa04a, 7, .6, -8, 1.5); emit(PB, p.dest.x, .6, p.dest.z, 6, 0xff7a2a, 3, .5, 0, 1); debris(p.dest.x, .3, p.dest.z, 4, [0x8a6a4a, 0x5a5a5a], 4); G.shake = Math.max(G.shake, .08); Snd.play('boom', { pos: p.dest, vol: .6 }); }
       continue; }
     if (p.kind === 'rain' || p.kind === 'meteor') {
       const d = p.dest.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
       if (p.kind === 'meteor') { emit(P, m.position.x, m.position.y, m.position.z, 8, 0xff8a2a, 2, .5, 2, 2); m.rotation.x += dt * 5; }
       if (len <= mv) { killProj(i);
         if (p.kind === 'rain') { aoe(p.dest, 1.3, p.dmg, '#9affb0'); emit(P, p.dest.x, .3, p.dest.z, 5, 0x9affb0, 3, .35); }
-        else { aoe(p.dest, 4.8, p.dmg, '#ffb05a', { big: true, slow: true }); G.shake = .9; ringFx(p.dest, 6, 0xff8a2a, .6); emit(PB, p.dest.x, .5, p.dest.z, 50, 0xff7a2a, 10, 1, -4, 3); emit(P, p.dest.x, .5, p.dest.z, 160, 0xffcc5a, 14, 1.1, -14, 3); debris(p.dest.x, .5, p.dest.z, 30, [0x3a2a2a, 0xff6a2a, 0x6a4a3a], 10); SFX.tone(70, .6, 'sawtooth', .07, -30); }
+        else { aoe(p.dest, 4.8, p.dmg, '#ffb05a', { big: true, slow: true }); G.shake = .9; ringFx(p.dest, 6, 0xff8a2a, .6); emit(PB, p.dest.x, .5, p.dest.z, 50, 0xff7a2a, 10, 1, -4, 3); emit(P, p.dest.x, .5, p.dest.z, 160, 0xffcc5a, 14, 1.1, -14, 3); debris(p.dest.x, .5, p.dest.z, 30, [0x3a2a2a, 0xff6a2a, 0x6a4a3a], 10); Snd.play('meteor', { pos: p.dest, force: true }); Snd.play('boom', { pos: p.dest }); }
         continue; }
       m.position.addScaledVector(d.normalize(), mv); continue;
     }
     if (p.target.dead) { killProj(i); continue; }
     const tp = enemyAim(p.target), d = tp.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
-    if (len <= mv) { killProj(i); SFX.hit();
+    if (len <= mv) { killProj(i);
       if (p.kind === 'arrow') { hurt(p.target, p.dmg, '#ffffff'); emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
       else { aoe(tp, p.aoe, p.dmg, '#d0a0ff', { slow: true }); emit(P, tp.x, tp.y, tp.z, 18, 0xb07aff, 5, .5, -4, 1.5); ringFx(tp, p.aoe, 0xb07aff, .3); }
       continue; }
@@ -711,13 +786,14 @@ function castSkill() {
     if (!hero.swirl) { hero.swirl = new THREE.Mesh(new THREE.TorusGeometry(2.8, .25, 8, 40), new THREE.MeshBasicMaterial({ color: 0xffa04a, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); hero.swirl.rotation.x = Math.PI / 2; hero.swirl.position.y = 1.2; hero.g.add(hero.swirl); }
     hero.swirl.visible = true; hero.spinTick = 0;
   }
-  SFX.skill();
+  if (hero.cls === 'archer') { Snd.play('draw', { pos: hp }); Snd.whoosh(tgt, .9, 300, 3000, .35); for (let k = 1; k < 7; k++) Snd.play('arrow', { pos: tgt, delay: k * .12, force: true, vol: .7 }); }
+  else if (hero.cls === 'mage') { Snd.play('meteorCast', { pos: hp, rate: .8 }); Snd.whoosh(tgt, 1.1, 150, 900, .5); }
+  else { Snd.whoosh(hp, .5, 400, 1600, .5); for (let k = 0; k < 4; k++) Snd.play('sword', { pos: hp, delay: k * .3, force: true, rate: 1.1 }); }
 }
 
 // ================= 사운드 =================
-const SFX = { ctx: null, init() { if (!this.ctx) try { this.ctx = new AudioContext(); } catch (e) {} },
-  tone(f, d = .08, type = 'square', v = .03, slide = 0) { const c = this.ctx; if (!c) return; const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f; if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), c.currentTime + d); g.gain.value = v; g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d); },
-  shot() { this.tone(hero ? { archer: 900, mage: 500, warrior: 200 }[hero.cls] : 400, .06, 'triangle', .02, -200); }, skill() { this.tone(220, .5, 'sawtooth', .05, 400); }, hit() { this.tone(140, .05, 'square', .012); } };
+const SFX = { init() { Snd.unlock(); }, tone(f, d, type, v, slide) { Snd.beep(f, d, type, v, slide); } };
+const sndProj = new THREE.Vector3(); Snd.project = p => sndProj.set(p.x, p.y || 0, p.z).project(camera).x;
 
 // ================= 웨이브 =================
 function startWave() {
@@ -725,10 +801,10 @@ function startWave() {
   const n = G.wave, boss = n % 5 === 0, hpMul = Math.pow(1.16, n - 1), q = [], count = 8 + n * 3;
   for (let i = 0; i < count; i++) { let t = 'grunt'; const r = Math.random(); if (r < .32) t = 'imp'; else if (n >= 3 && r > .86) t = 'golem'; else if (n >= 4 && r > .73 && r <= .86) t = 'bat'; q.push(t); }
   if (boss) q.splice(Math.floor(count / 2), 0, 'boss');
-  G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul; banner(boss ? `웨이브 ${n} · 보스 웨이브!` : `웨이브 ${n}`, boss ? '#ff5a6a' : '#ffffff'); setPhaseUI();
+  G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul; Snd.horn(); Snd.duck(.4, 2.2); banner(boss ? `웨이브 ${n} · 보스 웨이브!` : `웨이브 ${n}`, boss ? '#ff5a6a' : '#ffffff'); setPhaseUI();
 }
 function endWave() {
-  G.phase = 'build'; G.nightTarget = 0; const bonus = 25 + G.wave * 6; G.gold += bonus; banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
+  G.phase = 'build'; G.nightTarget = 0; const bonus = 25 + G.wave * 6; G.gold += bonus; Snd.play('waveClear', { force: true, exact: true }); Snd.play('coins', { delay: .3 }); Snd.duck(.4, 1.6); banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
   if (hero && hero.dead <= 0) { hero.hp = hero.max; play(hero.ch, 'Cheer', { once: true }); hero.atkT = 1.5; } computeDist(); setPhaseUI();
   try { localStorage.setItem('hd3d_best', Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)); } catch (e) {}
 }
@@ -777,7 +853,7 @@ addEventListener('pointerup', () => rdrag = null);
 cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e.deltaY * .03)); }, { passive: true });
 addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-$('rotL').onclick = () => cam.theta += Math.PI / 4; $('rotR').onclick = () => cam.theta -= Math.PI / 4;
+$('rotL').onclick = () => { cam.theta += Math.PI / 4; Snd.play('ui'); }; $('rotR').onclick = () => { cam.theta -= Math.PI / 4; Snd.play('ui'); };
 function occupied(c, r) {
   if (G.enemies.some(e => !e.dead && !e.E.fly && ((e.tile[0] === c && e.tile[1] === r) || (e.next && e.next[0] === c && e.next[1] === r)))) return true;
   if (hero && hero.dead <= 0) { const [hc, hr] = toTile(hero.g.position.x, hero.g.position.z); if (hc === c && hr === r) return true; } return false;
@@ -790,25 +866,33 @@ function canBuild(c, r) {
   return false;
 }
 function build(c, r) {
-  if (!canBuild(c, r)) { SFX.tone(120, .1); if (inGrid(c, r) && TOWERS[G.tool] && tileAt(c, r).t === T.GRASS && G.gold >= TOWERS[G.tool].cost && !occupied(c, r)) banner('길을 완전히 막을 수 없습니다', '#ff8a9a', 900); return false; }
+  if (!canBuild(c, r)) { Snd.play('error'); if (inGrid(c, r) && TOWERS[G.tool] && tileAt(c, r).t === T.GRASS && G.gold >= TOWERS[G.tool].cost && !occupied(c, r)) banner('길을 완전히 막을 수 없습니다', '#ff8a9a', 900); return false; }
   const t = tileAt(c, r), p = new THREE.Vector3(tileX(c), .5, tileZ(r));
   if (TOWERS[G.tool]) { G.gold -= TOWERS[G.tool].cost; placeTower(t, G.tool); emit(P, p.x, .5, p.z, 30, 0xffe066, 5, .6, -6, 2); debris(p.x, .3, p.z, 8, [0xe0dacb, 0x9e98ae], 4); ringFx(p, 2, 0xffe066, .4); }
   else if (G.tool === 'barricade') { G.gold -= 30; addBarricade(t); emit(P, p.x, .6, p.z, 16, 0xffb03a, 4, .5); }
   else if (G.tool === 'clear') { const B = BLK[t.t]; G.gold -= B.clear; debris(p.x, .8, p.z, 16, B.deb, 6); emit(P, p.x, .8, p.z, 24, 0x8ad05a, 4, .7); t.t = T.GRASS; t.hp = t.max = 0; refreshTile(t); }
-  SFX.tone(600, .05, 'triangle'); computeDist(); refreshHud(); return true;
+  if (!TOWERS[G.tool]) Snd.play(G.tool === 'barricade' ? 'build' : 'breakDirt', { pos: { x: tileX(c), z: tileZ(r) }, force: true }); computeDist(); refreshHud(); return true;
 }
-function setTool(t) { G.tool = t; document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
+function setTool(t) { if (G.tool !== t) Snd.play('ui'); G.tool = t; document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
 document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+(function sndUI() { const C = Snd.cfg; $('bgmOn').checked = C.bgmOn; $('sfxOn').checked = C.sfxOn; $('bgmVol').value = Math.round(C.bgm * 100); $('sfxVol').value = Math.round(C.sfx * 100);
+  const upd = () => { C.bgmOn = $('bgmOn').checked; C.sfxOn = $('sfxOn').checked; C.bgm = $('bgmVol').value / 100; C.sfx = $('sfxVol').value / 100; Snd.apply(); Snd.save(); $('sndBtn').classList.toggle('muted', !C.bgmOn && !C.sfxOn); };
+  ['bgmOn', 'sfxOn', 'bgmVol', 'sfxVol'].forEach(id => $(id).addEventListener('input', upd)); $('sfxVol').addEventListener('change', () => Snd.play('coin', { force: true }));
+  $('sndBtn').onclick = () => { Snd.unlock(); $('sndPanel').classList.toggle('hidden'); Snd.play('ui'); }; upd();
+  addEventListener('keydown', e => { if (e.key.toLowerCase() === 'm' && !e.repeat) { const on = !(C.bgmOn || C.sfxOn); $('bgmOn').checked = $('sfxOn').checked = on; upd(); } });
+})();
 $('startWave').onclick = startWave; $('skillBtn').onclick = castSkill;
 const upCost = k => Math.round(UPS[k].base * Math.pow(1.45, G.ups[k]));
-document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.dataset.up, c = upCost(k); if (G.gold < c) return SFX.tone(120, .1); G.gold -= c; G.ups[k]++;
+document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.dataset.up, c = upCost(k); if (G.gold < c) return Snd.play('error'); G.gold -= c; G.ups[k]++;
   if (k === 'bar') for (const col of G.tiles) for (const t of col) if (t.bar) { const r = t.bar.hp / t.bar.max; t.bar.max = barMaxHp(); t.bar.hp = t.bar.max * r; }
-  SFX.tone(880, .12, 'triangle', .04); if (hero) emit(P, hero.g.position.x, 1.5, hero.g.position.z, 24, 0xffe066, 4, .7); refreshHud(); });
+  Snd.play('upgrade'); Snd.play('levelUp', { vol: .6 }); if (hero) emit(P, hero.g.position.x, 1.5, hero.g.position.z, 24, 0xffe066, 4, .7); refreshHud(); });
 function select(o) { G.sel = o; $('tinfo').classList.toggle('hidden', !o); if (o && o.kind === 'tower') showRange(tileX(o.c), tileZ(o.r), TOWERS[o.type].range[o.lvl - 1], 0xffe066); else rangeRing.visible = false; refreshHud(); }
 $('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { upgradeTower(G.sel); select(G.sel); } };
 $('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += 15; removeBarricade(s.t, false); refreshHud(); } };
+function setBar(f, t, r) { const w = Math.max(0, Math.min(1, r)) * 100 + '%', a = $(f), b = $(t); if (a.style.width !== w) { a.style.width = w; b.style.width = w; } }
+function updBossBar() { const b = G.enemies.find(e => e.E.boss && !e.dead); $('bossHud').classList.toggle('hidden', !b); if (b) setBar('bossFill', 'bossTr', b.hp / b.max); }
 function refreshHud() {
-  $('gold').textContent = G.gold; $('wave').textContent = G.wave; $('coreBar').style.width = Math.max(0, G.coreHp / G.coreMax * 100) + '%'; $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
+  $('gold').textContent = G.gold; $('wave').textContent = G.wave; setBar('coreBar', 'coreTr', G.coreHp / G.coreMax); if (G.coreHb) G.coreHb.set(G.coreHp / G.coreMax); $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
   $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
   document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); b.innerHTML = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; b.disabled = G.gold < c; });
   document.querySelectorAll('.tool').forEach(b => { const T2 = TOWERS[b.dataset.tool]; if (T2) b.disabled = G.gold < T2.cost; if (b.dataset.tool === 'barricade') b.disabled = G.gold < 30; });
@@ -818,7 +902,7 @@ function refreshHud() {
     const u = $('tUp'); if (s.lvl < 3) { const c = D.up[L]; u.textContent = `강화 → Lv.${s.lvl + 1} (${c}G)`; u.disabled = G.gold < c; } else { u.textContent = '최대 레벨'; u.disabled = true; }
     $('tSell').textContent = `판매 (+${Math.floor(s.invest * .7)}G)`; }
   else if (s && s.kind === 'bar') { $('tName').textContent = '바리케이드'; $('tStats').innerHTML = `내구도 ${Math.ceil(s.hp)}/${Math.ceil(s.max)}<br>몬스터가 돌아가거나 부숴야 합니다`; $('tUp').textContent = '-'; $('tUp').disabled = true; $('tSell').textContent = '철거 (+15G)'; }
-  if (hero) { $('heroBar').style.width = hero.hp / hero.max * 100 + '%'; const cdp = hero.skillCd > 0 ? hero.skillCd / stat.skillCd() * 100 : 0; $('skillCd').style.setProperty('--p', cdp + '%'); $('skillCd').textContent = hero.skillCd > 0 ? Math.ceil(hero.skillCd) : ''; $('skillBtn').classList.toggle('ready', hero.skillCd <= 0); }
+  if (hero) { setBar('heroBar', 'heroTr', hero.hp / hero.max); const cdp = hero.skillCd > 0 ? hero.skillCd / stat.skillCd() * 100 : 0; $('skillCd').style.setProperty('--p', cdp + '%'); $('skillCd').textContent = hero.skillCd > 0 ? Math.ceil(hero.skillCd) : ''; $('skillBtn').classList.toggle('ready', hero.skillCd <= 0); }
 }
 
 // ================= 영웅 선택 =================
@@ -830,7 +914,7 @@ function showSelect() {
   for (let k = 0; k < 14; k++) { const a = k / 14 * 6.28; mk(new THREE.IcosahedronGeometry(.2, 1), toon([0xff8ac0, 0xffe05a, 0xffffff][k % 3]), Math.cos(a) * 5.6, .1, Math.sin(a) * 5.6, podium, .015); }
   ['archer', 'mage', 'warrior'].forEach((cls, i) => { const ch = makeHeroModel(cls); ch.g.position.set((i - 1) * 2.7, 0, i === 1 ? -.4 : 0); ch.g.rotation.y = (1 - i) * .25; podium.add(ch.g); ch.cls = cls; play(ch, 'Idle'); ch.mixer.update(i * .7); ch.nextCheer = 1.5 + i * 2.2; ch.cheerT = 0; preview.push(ch); });
   cam.target.set(0, 1.5, GH + 6); cam.r = 13.5; cam.phi = 1.3; cam.theta = 0;
-  document.querySelectorAll('.card').forEach(c => { c.onclick = () => { SFX.init(); choose(c.dataset.cls); }; c.onmouseenter = () => { hoverCls = c.dataset.cls; const p = preview.find(p => p.cls === hoverCls); if (p) { play(p, 'Cheer', { once: true }); p.cheerT = 1.8; } }; c.onmouseleave = () => hoverCls = null; });
+  document.querySelectorAll('.card').forEach(c => { c.onclick = () => { SFX.init(); Snd.play('confirm'); choose(c.dataset.cls); }; c.onmouseenter = () => { hoverCls = c.dataset.cls; Snd.play('select'); const p = preview.find(p => p.cls === hoverCls); if (p) { play(p, 'Cheer', { once: true }); p.cheerT = 1.8; } }; c.onmouseleave = () => hoverCls = null; });
 }
 function updSelect(dt) {
   for (const p of preview) { p.mixer.update(dt); p.nextCheer -= dt; if (p.cheerT > 0) { p.cheerT -= dt; if (p.cheerT <= 0) play(p, 'Idle', { fade: .3 }); }
@@ -880,7 +964,7 @@ function updHero(dt) {
 }
 function heroTip() { const p = hero.g.position, f = hero.g.rotation.y; return new THREE.Vector3(p.x + Math.sin(f) * .6, p.y + (hero.cls === 'mage' ? 2.2 : 1.5), p.z + Math.cos(f) * .6); }
 function attack(t) {
-  const h = hero, from = heroTip(); SFX.shot();
+  const h = hero, from = heroTip(); if (h.cls === 'archer') Snd.play('bolt', { pos: from }); else if (h.cls === 'mage') Snd.play('magic', { pos: from, rate: .8 }); else { Snd.play('sword', { pos: from }); Snd.whoosh(from, .22, 700, 2200, .25); }
   if (h.cls === 'archer') shoot('arrow', from, t, stat.dmg(), { color: 0xb0ffb8 });
   else if (h.cls === 'mage') { shoot('orb', from, t, stat.dmg(), { aoe: h.C.aoe }); emit(P, from.x, from.y, from.z, 10, 0xc07aff, 3, .3); }
   else { const fx2 = Math.sin(h.face), fz2 = Math.cos(h.face);
@@ -898,7 +982,7 @@ function updLighting(dt) {
 }
 let lastT = performance.now(), hudT = 0;
 function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; step(Math.min(raw, .05)); composer.render(); }
-G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
+G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
 function step(dt) {
   G.t += dt;
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
@@ -910,7 +994,7 @@ function step(dt) {
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }
   for (const t of G.dirty) { refreshTile(t); if (t.shk > 0) t.shk -= dt; else G.dirty.delete(t); }
-  updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute();
+  updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
   portalDisk.rotation.z -= dt * 2.5; if (Math.random() < .6) emit(P, portal.position.x + rnd(-.3, .3), rnd(.6, 3.2), portal.position.z + rnd(-1.4, 1.4), 1, 0xc07aff, 1.5, .8, 2, .3);
   crystal.rotation.y += dt * 1.2; crystal.position.y = 3.6 + Math.sin(G.t * 2) * .2; coreRings.forEach((r, k) => r.rotation.z += dt * (k ? -1.5 : 1));
   if (moveMark.visible) { moveMark.scale.multiplyScalar(1 - dt * 3); moveMark.material.opacity = moveMark.scale.x; if (moveMark.scale.x < .2) moveMark.visible = false; }

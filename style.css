@@ -54,3 +54,13 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #loading{position:fixed;inset:0;background:radial-gradient(#1c1830,#05060c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#e8c86a;font-size:16px;z-index:20}
 .spin{width:46px;height:46px;border-radius:50%;border:4px solid #c9a24a33;border-top-color:#ffd23a;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 .card.hot{transform:translateY(-8px);box-shadow:0 0 28px #ffd23a88}
+
+.bar{position:relative}.bar i{position:absolute;left:0;top:0;bottom:0;height:auto!important;transition:none}
+.bar i.tr{background:linear-gradient(#fff6c8,#ffc860)!important;transition:width .55s cubic-bezier(.3,.1,.3,1) .3s}
+#bossHud{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:6;text-align:center;pointer-events:none;filter:drop-shadow(0 2px 6px #000a)}
+#bossHud.hidden{display:none}#bossName{color:#ffb0b8;font-weight:800;font-size:15px;letter-spacing:2px;margin-bottom:3px;text-shadow:0 0 8px #ff2a3a}
+.bar.boss{width:420px;height:16px;border:2px solid #ffcf6a;border-radius:9px}.bar.boss i{background:linear-gradient(#ff7a8a,#b01030)}
+
+#sndPanel{position:absolute;right:12px;bottom:64px;width:250px;padding:10px 12px;background:linear-gradient(#1c1830f2,#0c0a16f2);border:1px solid #c9a24a;border-radius:12px;box-shadow:0 4px 16px #000a;pointer-events:auto}
+#sndPanel.hidden{display:none}#sndPanel .snd{display:flex;align-items:center;gap:6px;font-size:13px;margin:8px 0;white-space:nowrap}#sndPanel input[type=range]{flex:1;accent-color:#ffcf6a;min-width:0}
+#sndPanel input[type=checkbox]{accent-color:#ffcf6a}.sndHint{font-size:11px;color:#a9a0c0}#sndBtn.muted{opacity:.45;text-decoration:line-through}

@@ -3,13 +3,14 @@
 <title>히어로 디펜스 3D</title><link rel="stylesheet" href="style.css">
 <script type="importmap">{"imports":{"three":"./lib/three.module.js","three/addons/":"./lib/addons/"}}</script>
 </head><body>
+  <div id="bossHud" class="hidden"><div id="bossName">해골 군주</div><div class="bar boss"><i class="tr" id="bossTr"></i><i id="bossFill"></i></div></div>
 <div id="app"></div>
 <div id="fx"></div>
 <div id="hud" class="hidden">
   <div id="top">
     <div class="pill gold"><span class="coin"></span><b id="gold">0</b></div>
     <div class="pill"><span class="lbl">웨이브</span><b id="wave">0</b></div>
-    <div class="pill core"><span class="lbl">코어</span><div class="bar"><i id="coreBar"></i></div><b id="coreTxt"></b></div>
+    <div class="pill core"><span class="lbl">코어</span><div class="bar"><i class="tr" id="coreTr"></i><i id="coreBar"></i></div><b id="coreTxt"></b></div>
     <div class="pill phase" id="phase">건설 단계</div>
     <div class="pill" id="enemyCnt">적 0</div>
   </div>
@@ -40,10 +41,16 @@
     <button id="tSell"></button>
   </div>
   <div id="bottom">
-    <div id="heroBox"><div id="heroName"></div><div class="bar hp"><i id="heroBar"></i></div></div>
+    <div id="heroBox"><div id="heroName"></div><div class="bar hp"><i class="tr" id="heroTr"></i><i id="heroBar"></i></div></div>
     <button id="skillBtn"><span id="skillName"></span><small>Q</small><div id="skillCd"></div></button>
   </div>
-  <div id="cam"><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button></div>
+  <div id="sndPanel" class="hidden">
+    <div class="ptitle">소리 설정</div>
+    <label class="snd"><input type="checkbox" id="bgmOn"> 배경음악 <input type="range" id="bgmVol" min="0" max="100"></label>
+    <label class="snd"><input type="checkbox" id="sfxOn"> 효과음 <input type="range" id="sfxVol" min="0" max="100"></label>
+    <div class="sndHint">M 키: 전체 음소거</div>
+  </div>
+  <div id="cam"><button id="sndBtn" title="소리 설정">&#9835;</button><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button></div>
   <div id="help">좌클릭 이동/건설/선택 · WASD 이동 · Q 스킬 · 1~5 도구 · 우클릭 드래그 회전 · 휠 확대 · Space 웨이브</div>
   <div id="banner"></div>
 </div>

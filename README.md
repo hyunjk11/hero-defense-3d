@@ -16,8 +16,12 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 - **영웅**(궁수/마법사/전사)을 직접 조종하며 싸움 · 스킬 Q · 사망 시 5초 후 부활
 - 해골 도적/병사/기사, 유령 박쥐(비행), 5웨이브마다 해골 군주 보스
 - 툰 셰이딩 + 외곽선, 블룸, 그림자, 낮(건설)/밤(전투), 파티클, 데미지 숫자, 코인 연출
+- 몬스터 길 표시: 파낸 참호 바닥 발광 + 가장자리 빛 테두리, 예상 경로 리본(점선, 파야 할 구간은 주황), 코어로 흐르는 화살표
+- HP 바: 영웅/적/보스/바리케이드/코어 공통 빌보드 바 (같은 왼쪽 기준점, 피해 잔상 바), 화면 상단 보스 체력 바
+- 사운드: 건설(평화) / 전투(긴장) / 보스(격렬) BGM 크로스페이드, 공격·스킬·피격·파괴·채굴·코인·건설·강화·판매·웨이브 뿔나팔·보스 포효·코어 피격·게임오버 효과음
+  - 우하단 ♪ 버튼에서 BGM/효과음 볼륨·음소거 따로 설정(localStorage 저장), M 키 전체 음소거. 첫 클릭/키 입력 때 오디오 시작
 
-조작: 좌클릭 이동/건설/선택 · WASD 이동 · Q 스킬 · 1~5 도구 · 우클릭 드래그 회전 · 휠 확대 · Space 웨이브 시작 · Esc 취소
+조작: 좌클릭 이동/건설/선택 · WASD 이동 · Q 스킬 · 1~5 도구 · 우클릭 드래그 회전 · 휠 확대 · Space 웨이브 시작 · Esc 취소 · M 음소거
 
 ![heroes](heroes.png)
 ![gameplay](screenshot.png)
@@ -25,4 +29,10 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 ## 크레딧
 - 캐릭터·무기 모델: **KayKit Adventurers & KayKit Skeletons Character Packs** by Kay Lousberg
   (https://www.kaylousberg.com) — **CC0 1.0**. `models/`에 용량을 줄여 포함했습니다.
+- 효과음: Kenney (https://www.kenney.nl) — RPG Audio, Impact Sounds, Interface Sounds, Sci-fi Sounds, Music Jingles, **CC0 1.0** (`audio/sfx/`, `audio/KENNEY_LICENSE.txt`)
+- BGM (모두 **CC0**, OpenGameArt.org):
+  - 건설 단계: "Town Theme RPG" by cynicmusic — https://opengameart.org/content/town-theme-rpg (`audio/bgm/town.mp3`)
+  - 전투: "Battle Theme A" by cynicmusic — https://opengameart.org/content/battle-theme-a (`audio/bgm/battle.mp3`)
+  - 보스: "Boss Battle Theme" by CleytonKauffman — https://opengameart.org/content/boss-battle-theme (`audio/bgm/boss.mp3`)
+- 웨이브 뿔나팔·보스 포효·번개 지직 소리는 WebAudio로 직접 합성
 - 엔진: [three.js](https://threejs.org) (MIT)
