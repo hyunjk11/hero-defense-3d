@@ -41,3 +41,16 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .card:hover{transform:translateY(-8px);box-shadow:0 0 28px #ffd23a88}.card h2{margin:0;color:#ffe08a}.card .role{color:#9fe8ff;font-size:13px;margin:2px 0 6px}.card ul{margin:0;padding-left:18px;font-size:13px;color:#ddd;line-height:1.6}
 .card[data-cls=archer]{border-color:#6aff8a}.card[data-cls=mage]{border-color:#b07aff}.card[data-cls=warrior]{border-color:#ff7a5a}
 #over{position:fixed;inset:0;background:#000b;display:flex;flex-direction:column;align-items:center;justify-content:center}#over h1{font-size:60px;color:#ff4a5a;margin:0}#over button{margin-top:16px;padding:12px 30px;font:inherit;font-size:18px;border-radius:10px;border:2px solid #c9a24a;background:#3a1a2a;color:#fff;cursor:pointer}
+.ptitle.sub{margin-top:4px;font-size:12px;color:#c9a24a}
+.ico{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--c);box-shadow:0 0 8px var(--c);margin-right:7px;vertical-align:middle;transform:rotate(45deg)}
+#build{width:180px}
+#routeMsg{color:#d8c8a0!important;font-size:11px!important;line-height:1.4}
+#tinfo{left:204px;top:70px;width:190px}
+#tStats{font-size:12px;color:#ddd;line-height:1.6}
+#tinfo button{justify-content:center}
+#tSell{background:linear-gradient(#5a2a2a,#2a1212)!important}
+#tip{position:fixed;pointer-events:none;background:#0c0a16e8;border:1px solid #c9a24a99;border-radius:8px;padding:5px 9px;font-size:12px;color:#f0e6c8;white-space:nowrap;transform:translate(14px,14px);z-index:5}
+#tip b{color:#ffe08a}
+#loading{position:fixed;inset:0;background:radial-gradient(#1c1830,#05060c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#e8c86a;font-size:16px;z-index:20}
+.spin{width:46px;height:46px;border-radius:50%;border:4px solid #c9a24a33;border-top-color:#ffd23a;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+.card.hot{transform:translateY(-8px);box-shadow:0 0 28px #ffd23a88}

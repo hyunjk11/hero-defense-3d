@@ -14,38 +14,49 @@
     <div class="pill" id="enemyCnt">적 0</div>
   </div>
   <div id="build" class="panel">
-    <div class="ptitle">건설</div>
-    <button data-tool="path" class="tool">길 놓기<small>5G</small></button>
-    <button data-tool="barricade" class="tool">바리케이드<small>30G</small></button>
-    <button data-tool="remove" class="tool">제거<small>환불</small></button>
-    <button data-tool="move" class="tool sel">이동 모드</button>
-    <button id="startWave" class="big">⚔ 웨이브 시작</button>
-    <div id="routeMsg"></div>
+    <div class="ptitle">타워 건설</div>
+    <button data-tool="arrow" class="tool"><span><i class="ico" style="--c:#5aa8ff"></i>화살탑</span><small>60G</small></button>
+    <button data-tool="cannon" class="tool"><span><i class="ico" style="--c:#ff8a4a"></i>대포탑</span><small>90G</small></button>
+    <button data-tool="magic" class="tool"><span><i class="ico" style="--c:#c07aff"></i>마법탑</span><small>100G</small></button>
+    <div class="ptitle sub">지형</div>
+    <button data-tool="barricade" class="tool"><span><i class="ico" style="--c:#c8904a"></i>바리케이드</span><small>30G</small></button>
+    <button data-tool="clear" class="tool"><span><i class="ico" style="--c:#8ad05a"></i>개간</span><small>10~35G</small></button>
+    <button data-tool="move" class="tool sel"><span><i class="ico" style="--c:#ffe066"></i>이동 / 선택</span><small>Esc</small></button>
+    <button id="startWave" class="big">웨이브 시작</button>
+    <div id="routeMsg">몬스터는 지형을 부수며 코어로 길을 냅니다</div>
   </div>
   <div id="ups" class="panel">
-    <div class="ptitle">강화</div>
+    <div class="ptitle">영웅 강화</div>
     <button data-up="atk" class="up"></button>
     <button data-up="spd" class="up"></button>
     <button data-up="rng" class="up"></button>
     <button data-up="skill" class="up"></button>
     <button data-up="bar" class="up"></button>
   </div>
+  <div id="tinfo" class="panel hidden">
+    <div class="ptitle" id="tName"></div>
+    <div id="tStats"></div>
+    <button id="tUp"></button>
+    <button id="tSell"></button>
+  </div>
   <div id="bottom">
     <div id="heroBox"><div id="heroName"></div><div class="bar hp"><i id="heroBar"></i></div></div>
     <button id="skillBtn"><span id="skillName"></span><small>Q</small><div id="skillCd"></div></button>
   </div>
-  <div id="cam"><button id="rotL">⟲</button><button id="rotR">⟳</button></div>
-  <div id="help">좌클릭: 이동/건설 · WASD 이동 · Q 스킬 · 우클릭 드래그: 회전 · 휠: 확대</div>
+  <div id="cam"><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button></div>
+  <div id="help">좌클릭 이동/건설/선택 · WASD 이동 · Q 스킬 · 1~5 도구 · 우클릭 드래그 회전 · 휠 확대 · Space 웨이브</div>
   <div id="banner"></div>
 </div>
-<div id="select">
-  <h1>히어로 디펜스 3D</h1><p>영웅을 선택하세요</p>
+<div id="tip" class="hidden"></div>
+<div id="select" class="hidden">
+  <h1>히어로 디펜스 3D</h1><p>몬스터가 땅을 파고 온다! 영웅을 선택하세요</p>
   <div id="cards">
-    <div class="card" data-cls="archer"><h2>궁수</h2><div class="role">원거리 · 연사</div><ul><li>긴 사거리, 빠른 화살</li><li>스킬: <b>화살비</b> — 지정 범위에 화살 폭우</li></ul></div>
+    <div class="card" data-cls="archer"><h2>궁수</h2><div class="role">원거리 · 연사</div><ul><li>긴 사거리, 빠른 석궁</li><li>스킬: <b>화살비</b> — 지정 범위에 화살 폭우</li></ul></div>
     <div class="card" data-cls="mage"><h2>마법사</h2><div class="role">광역 · 둔화</div><ul><li>마법구 광역 피해 + 둔화</li><li>스킬: <b>메테오</b> — 거대한 운석 낙하</li></ul></div>
     <div class="card" data-cls="warrior"><h2>전사</h2><div class="role">근접 · 탱커</div><ul><li>높은 체력, 부채꼴 베기</li><li>스킬: <b>회오리 베기</b> — 주변을 휩쓰는 회전</li></ul></div>
   </div>
 </div>
+<div id="loading"><div class="spin"></div><div id="loadTxt">모델 불러오는 중…</div></div>
 <div id="over" class="hidden"><h1 id="overTitle">게임 오버</h1><p id="overTxt"></p><button onclick="location.reload()">다시 시작</button></div>
 <script type="module" src="main.js"></script>
 </body></html>
