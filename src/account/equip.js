@@ -1,0 +1,90 @@
+// 장비 시스템 (순수 로직, DOM·네트워크 없음 → node 테스트 가능)
+// item = { id, s: 'weapon'|'armor'|'acc', h?: 영웅(무기만), g: 등급 0..4, n: 이름, m: [스탯, 값], sub: [[스탯, 값]...], e: 강화 0..10 }
+export const GRADES = [
+  { k: 'common', n: '일반', c: '#b8b8c4' }, { k: 'uncommon', n: '고급', c: '#5ad85a' }, { k: 'rare', n: '희귀', c: '#4aa8ff' },
+  { k: 'epic', n: '영웅', c: '#c06aff' }, { k: 'legend', n: '전설', c: '#ff9a2a' }];
+export const SLOTS = { weapon: '무기', armor: '방어구', acc: '장신구' };
+export const SLOT_KEYS = ['weapon', 'armor', 'acc'];
+// 실제로 영웅 코드에 적용되는 스탯만 (단위 %)
+export const STAT = { atk: '공격력', hp: '최대 체력', spd: '공격 속도', rng: '사거리', crit: '치명타 확률', critD: '치명타 피해', skill: '스킬 위력', cdr: '스킬 쿨타임 감소' };
+export const MAIN = { atk: [6, 9, 13, 18, 25], hp: [8, 12, 17, 24, 32], crit: [3, 4, 6, 8, 11], spd: [4, 6, 9, 12, 16], skill: [8, 12, 17, 24, 32], cdr: [3, 5, 7, 9, 12] };
+const SUBV = { atk: 4, hp: 5, spd: 4, rng: 3, crit: 3, critD: 10, skill: 6, cdr: 3 }; // 서브 스탯 기준값(등급마다 +40%)
+export const SUBN = [0, 1, 1, 2, 2];
+export const CAP = 40, MAXE = 10;
+const ACC_MAIN = ['crit', 'spd', 'skill', 'cdr'];
+const NAMES = {
+  archer: [['낡은 사냥 활', '참나무 활'], ['숲지기의 장궁', '바람결 활'], ['은월의 활', '매의 눈 장궁'], ['폭풍추적자', '별빛 사수의 활'], ['세계수의 활 이그드라', '태양궁 아폴리아']],
+  mage: [['견습생 지팡이', '참나무 지팡이'], ['수정 지팡이', '불씨 지팡이'], ['비전의 홀', '서리꽃 지팡이'], ['심연의 지팡이', '성운의 홀'], ['대현자의 지팡이 아르카나', '별을 삼킨 홀']],
+  warrior: [['녹슨 장검', '병사의 검'], ['기사의 장검', '강철 대검'], ['푸른 서약의 검', '사자심장 대검'], ['용살자의 대검', '폭군의 검'], ['성검 엑스칼리온', '파멸의 대검 라그나']],
+  armor: [['천 갑옷', '가죽 조끼'], ['사슬 갑옷', '수호자의 가죽갑옷'], ['미스릴 흉갑', '은빛 판금'], ['용비늘 갑옷', '성기사의 판금'], ['여신의 가호 갑주', '불사조 깃털 망토']],
+  acc: [['구리 반지', '나무 부적'], ['은 반지', '행운의 부적'], ['사파이어 목걸이', '마력의 귀걸이'], ['용의 눈 펜던트', '시간의 모래시계'], ['여신의 눈물', '영원의 성배 목걸이']],
+};
+export const MATS = { steel: '강철', crystal: '마력석' };
+const rid = r => (Math.floor(r() * 2176782336)).toString(36).padStart(6, '0') + (Date.now() % 1296).toString(36);
+const pick = (a, r) => a[Math.floor(r() * a.length) % a.length];
+export function rollGrade(w, r = Math.random) { const t = w.reduce((a, b) => a + b, 0); let x = r() * t; for (let i = 0; i < w.length; i++) { if ((x -= w[i]) < 0) return i; } return w.length - 1; }
+export function makeItem(slot, hero, g, r = Math.random) {
+  const s = SLOT_KEYS.includes(slot) ? slot : 'armor'; const it = { id: rid(r), s, g, e: 0, sub: [] };
+  if (s === 'weapon') { it.h = hero; it.m = ['atk', MAIN.atk[g]]; it.n = pick(NAMES[hero][g], r); }
+  else if (s === 'armor') { it.m = ['hp', MAIN.hp[g]]; it.n = pick(NAMES.armor[g], r); }
+  else { const k = pick(ACC_MAIN, r); it.m = [k, MAIN[k][g]]; it.n = pick(NAMES.acc[g], r); }
+  const pool = Object.keys(SUBV).filter(k => k !== it.m[0]);
+  for (let i = 0; i < SUBN[g]; i++) { const k = pool.splice(Math.floor(r() * pool.length), 1)[0]; it.sub.push([k, Math.round(SUBV[k] * (1 + .4 * g) * (.7 + r() * .6))]); }
+  return it;
+}
+export const mainVal = it => Math.round(it.m[1] * (1 + .1 * it.e) * 10) / 10;
+export function itemStats(it) { const o = {}; if (!it) return o; o[it.m[0]] = mainVal(it); for (const [k, v] of it.sub) o[k] = (o[k] || 0) + v; return o; }
+export function power(it) { const s = itemStats(it); return Math.round(Object.values(s).reduce((a, b) => a + b, 0) * 10 + it.g * 20); }
+// 영웅이 장착한 장비 합산 보너스 (%)
+export function bonus(save, hero) { const o = {}; const eq = (save.eq || {})[hero] || {}; for (const sl of SLOT_KEYS) { const it = (save.inv || []).find(x => x.id === eq[sl]); for (const [k, v] of Object.entries(itemStats(it))) o[k] = Math.round(((o[k] || 0) + v) * 10) / 10; } return o; }
+export const canEquip = (it, hero) => it && (it.s !== 'weapon' || it.h === hero);
+export function isEquipped(save, id) { return Object.values(save.eq || {}).some(e => Object.values(e || {}).includes(id)); }
+
+// ---------- 보상 ----------
+// 출정 보상 상자: 5웨이브마다 1개 (도달 웨이브 기준), 오래 버틸수록 좋은 등급
+export function chestOdds(tier) { const t = Math.max(0, tier - 1); return [Math.max(8, 60 - 10 * t), 28 + 2 * t, 9 + 3 * t, 2.6 + 1.8 * t, .4 + .7 * t]; }
+export const BOSS_DROP = .5; // 보스 처치 시 장비 드롭 확률
+export function bossOdds(wave) { const o = chestOdds(Math.floor(wave / 5) + 1); o[0] = 0; return o; } // 보스 드롭은 최소 고급
+export function randomItem(hero, odds, r = Math.random, slot) { return makeItem(slot || pick(SLOT_KEYS, r), hero, rollGrade(odds, r), r); }
+export function chestsFor(wave, hero, r = Math.random) { const out = []; for (let w = 5; w <= wave; w += 5) out.push(randomItem(hero, chestOdds(w / 5), r)); return out; }
+// 가방에 넣기 (가득 차면 자동 분해 → 재료). 반환: [save, 결과목록{it, auto}]
+export function addItems(save, items) { const res = []; for (const it of items) { if (save.inv.length < CAP) { save.inv.push(it); res.push({ it, auto: false }); } else { const y = dismantleYield(it); for (const k in y) save.mat[k] += y[k]; res.push({ it, auto: true, y }); } } return res; }
+
+// ---------- 대장간 ----------
+export const ENH_RATE = [100, 95, 90, 80, 70, 60, 50, 40, 30, 25];
+export function enhCost(it) { const e = it.e; return { souls: Math.round(20 * (e + 1) * (1 + it.g * .5)), steel: 2 + e * 2, crystal: e >= 5 ? e - 4 : 0 }; }
+export function dismantleYield(it) { const b = [[2, 0], [4, 0], [8, 1], [12, 3], [20, 8]][it.g]; return { steel: b[0] + it.e * 2, crystal: b[1] + Math.floor(it.e / 3) }; }
+export const RECIPES = [
+  { k: 'basic', n: '기본 제작', cost: { souls: 30, steel: 15, crystal: 0 }, odds: [55, 32, 11, 2, 0] },
+  { k: 'fine', n: '정교한 제작', cost: { souls: 80, steel: 40, crystal: 2 }, odds: [0, 50, 35, 13, 2] },
+  { k: 'master', n: '명장의 제작', cost: { souls: 200, steel: 80, crystal: 8 }, odds: [0, 0, 50, 38, 12] }];
+const afford = (s, c) => s.souls >= c.souls && s.mat.steel >= c.steel && s.mat.crystal >= c.crystal;
+const pay = (s, c) => { s.souls -= c.souls; s.mat.steel -= c.steel; s.mat.crystal -= c.crystal; };
+// 반환 [save, 결과]  결과: 'ok' | 'fail' | 'max' | 'poor' | 'none'
+export function enhance(save, id, r = Math.random) { const it = save.inv.find(x => x.id === id); if (!it) return [save, 'none']; if (it.e >= MAXE) return [save, 'max']; const c = enhCost(it); if (!afford(save, c)) return [save, 'poor']; pay(save, c); if (r() * 100 < ENH_RATE[it.e]) { it.e++; return [save, 'ok']; } return [save, 'fail']; }
+export function dismantle(save, ids) { const got = { steel: 0, crystal: 0 }; let n = 0; for (const id of ids) { const i = save.inv.findIndex(x => x.id === id); if (i < 0 || isEquipped(save, id)) continue; const y = dismantleYield(save.inv[i]); got.steel += y.steel; got.crystal += y.crystal; save.inv.splice(i, 1); n++; } save.mat.steel += got.steel; save.mat.crystal += got.crystal; return [save, got, n]; }
+export function craft(save, recipe, slot, hero, r = Math.random) { const R = RECIPES.find(x => x.k === recipe); if (!R) return [save, 'none']; if (save.inv.length >= CAP) return [save, 'full']; if (!afford(save, R.cost)) return [save, 'poor']; pay(save, R.cost); const it = randomItem(hero, R.odds, r, slot); save.inv.push(it); return [save, 'ok', it]; }
+export function equip(save, hero, id) { const it = save.inv.find(x => x.id === id); if (!canEquip(it, hero)) return [save, false]; for (const h in save.eq) for (const sl in save.eq[h]) if (save.eq[h][sl] === id) delete save.eq[h][sl]; save.eq[hero] = { ...(save.eq[hero] || {}), [it.s]: id }; return [save, true]; }
+export function unequip(save, hero, slot) { if (save.eq[hero]) delete save.eq[hero][slot]; return save; }
+
+// ---------- 저장 정리/병합 ----------
+const fin = (v, lo, hi, d = lo) => { v = Math.floor(+v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+export function cleanItem(x, heroes) {
+  if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !SLOT_KEYS.includes(x.s)) return null; const g = fin(x.g, 0, 4);
+  const okStat = k => Object.prototype.hasOwnProperty.call(STAT, k), m = Array.isArray(x.m) && okStat(x.m[0]) ? [x.m[0], Math.max(0, Math.min(100, +x.m[1] || 0))] : null; if (!m) return null;
+  const it = { id: x.id.slice(0, 16), s: x.s, g, n: String(x.n || '장비').slice(0, 24), m, sub: (Array.isArray(x.sub) ? x.sub : []).filter(p => Array.isArray(p) && okStat(p[0])).slice(0, 3).map(p => [p[0], Math.max(0, Math.min(100, +p[1] || 0))]), e: fin(x.e, 0, MAXE) };
+  if (x.s === 'weapon') { if (!heroes.includes(x.h)) return null; it.h = x.h; } return it;
+}
+export function cleanEquip(d, e, heroes) {
+  const seen = new Set(); e.inv = (Array.isArray(d.inv) ? d.inv : []).map(x => cleanItem(x, heroes)).filter(x => x && !seen.has(x.id) && seen.add(x.id)).slice(0, CAP + 20);
+  const m = d.mat && typeof d.mat === 'object' ? d.mat : {}; e.mat = { steel: fin(m.steel, 0, 1e7, 0), crystal: fin(m.crystal, 0, 1e7, 0) };
+  e.eq = {}; const eq = d.eq && typeof d.eq === 'object' ? d.eq : {};
+  for (const h of heroes) { e.eq[h] = {}; for (const sl of SLOT_KEYS) { const id = (eq[h] || {})[sl], it = e.inv.find(x => x.id === id); if (it && it.s === sl && canEquip(it, h) && !isEquipped(e, id)) e.eq[h][sl] = id; } }
+  return e;
+}
+// 병합: 아이템은 id 기준 합집합(중복 없음), 장착은 기기(local) 우선 후 계정 값으로 빈 칸 채움, 재료는 큰 값
+export function mergeEquip(a, b, m, heroes) {
+  const inv = [...b.inv]; for (const it of a.inv) if (!inv.some(x => x.id === it.id)) inv.push(it);
+  const eq = {}; for (const h of heroes) eq[h] = { ...(b.eq[h] || {}), ...(a.eq[h] || {}) };
+  return cleanEquip({ inv, eq, mat: { steel: Math.max(a.mat.steel, b.mat.steel), crystal: Math.max(a.mat.crystal, b.mat.crystal) } }, m, heroes);
+}

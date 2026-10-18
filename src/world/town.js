@@ -223,7 +223,7 @@ function gate() {
   banner(-4.2, PORTAL.y + 1.5, 0xb03050, 5); banner(4.2, PORTAL.y + 1.5, 0x3050b0, 5);
 }
 // ---------- 호수광장 + 여신탑 ----------
-export const tower = new THREE.Group();
+export const tower = new THREE.Group(); export let smith = null; export const SMITH = new THREE.Vector2(-9, -12);
 function lakePlaza() {
   const LX = LAKE.x, LZ = LAKE.y, wm = waterMat(LR);
   const lake = new THREE.Mesh(new THREE.CircleGeometry(LR, 64), wm); lake.rotation.x = -Math.PI / 2; lake.position.set(LX, .07, LZ); T.add(lake);
@@ -319,7 +319,7 @@ export function buildTown(parent) {
   house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: '💰 상점<small>준비 중</small>',
     extra: (g, w, d, h, B) => { for (let k = 0; k < 6; k++) { const aw = mk(Box(w / 6, .1, 1.3), toon(k % 2 ? 0xffffff : 0xff5a5a), -w / 2 + w / 12 + k * w / 6, B + h * .8, d / 2 + .6, g, 0); aw.rotation.x = .38; }
       for (const [x, c] of [[-1.4, 0xffa83a], [1.4, 0x7ad85a]]) { mk(Box(1, .5, .6), toon(0x9a6a3a), x, .65, d / 2 + .9, g, .015); for (let k = 0; k < 5; k++) mk(new THREE.SphereGeometry(.12, 8, 6), toon(c), x - .3 + (k % 3) * .3, .98, d / 2 + .8 + (k > 2) * .2, g, 0); } } });
-  house({ x: -9, z: -12, w: 4, d: 3.6, wall: 0xa89880, roof: 0x4a4a5a, trim: 0x3a2a1a, shutter: 0x8a4a2a, sign: '대장간', signBg: '#3a3a44', smoke: 0x6a6a72, label: '🔨 대장간<small>준비 중</small>',
+  smith = house({ x: -9, z: -12, w: 4, d: 3.6, wall: 0xa89880, roof: 0x4a4a5a, trim: 0x3a2a1a, shutter: 0x8a4a2a, sign: '대장간', signBg: '#3a3a44', smoke: 0x6a6a72, label: '🔨 대장간<small>강화 · 분해 · 제작</small>', cls: 'smith',
     extra: (g, w, d) => { mk(Box(1.1, .5, .6), toon(0x3a3a44), -w / 2 - .4, .55, d / 2 + 1, g, .02); mk(Box(.5, .5, .4), toon(0x5a5a64), -w / 2 - .4, .2, d / 2 + 1, g, .02);
       const forge = mk(Box(1.2, .9, 1), toon(0x6a5a5a), w / 2 + .9, .45, d / 2 - .3, g, .02); const fire = mk(new THREE.IcosahedronGeometry(.32, 0), glow(0xff7a2a, 3), w / 2 + .9, 1.05, d / 2 - .3, g, 0); halo(0xff8a3a, 2, g, w / 2 + .9, 1.2, d / 2 - .3); anims.push(t => fire.scale.setScalar(1 + Math.sin(t * 15) * .15)); } });
   house({ x: -10, z: 9, w: 5, d: 4, h: 4.4, rh: 2.4, wall: 0xf0dcb0, roof: 0x3a7a4a, shutter: 0xc05a3a, sign: '여관', signBg: '#2a5a3a', label: '🍺 여관<small>준비 중</small>',

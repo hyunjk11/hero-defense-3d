@@ -20,6 +20,7 @@ import { GL, loadAssets, makeEnemyModel, play } from './render/characters.js';
 import { carve, damageTile, buildCore, buildPortal, coreLight, coreRings, crystal, genMap, initTerrainColors, portal, portalDisk, portalLight, refreshAll, refreshTile, tileAt } from './world/terrain.js';
 import { computeDist, enterCost, field, fieldInfo, nextStep, pathStats } from './world/pathfinding.js';
 import { updRoute } from './render/route.js';
+import { updLoot } from './render/loot.js';
 import { damageTower, repairAll, repairTower, sellTower, updTowers, upgradeTower } from './world/towers.js';
 import { updProjs } from './combat/projectiles.js';
 import { hurt, spawnEnemy } from './monsters/enemy.js';
@@ -50,7 +51,7 @@ function updLighting(dt) {
   sun.color.setHSL(.1, .6 - n * .3, .88 - n * .2); bloom.strength = .32 + n * .22; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
 }
 let lastT = performance.now(), hudT = 0;
-function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05)); composer.render(); }
+function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05)); if (!G.pauseRender) composer.render(); }
 G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
 function step(dt) {
   G.t += dt;
@@ -65,7 +66,7 @@ function step(dt) {
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }
   for (const t of G.dirty) { refreshTile(t); if (t.shk > 0) t.shk -= dt; else G.dirty.delete(t); }
-  updFlow(dt); updPreview(dt); updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.screenMusic) Snd.setMusic(G.screenMusic); else if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
+  updFlow(dt); updLoot(dt); updPreview(dt); updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.screenMusic) Snd.setMusic(G.screenMusic); else if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
   portalDisk.rotation.z -= dt * 2.5; if (rand() < .6) emit(P, portal.position.x + rnd(-.3, .3), rnd(.6, 3.2), portal.position.z + rnd(-1.4, 1.4), 1, 0xc07aff, 1.5, .8, 2, .3);
   crystal.rotation.y += dt * 1.2; crystal.position.y = 3.6 + Math.sin(G.t * 2) * .2; coreRings.forEach((r, k) => r.rotation.z += dt * (k ? -1.5 : 1));
   if (moveMark.visible) { moveMark.scale.multiplyScalar(1 - dt * 3); moveMark.material.opacity = moveMark.scale.x; if (moveMark.scale.x < .2) moveMark.visible = false; }

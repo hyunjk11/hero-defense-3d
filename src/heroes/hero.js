@@ -19,13 +19,15 @@ import { keys } from '../ui/input.js';
 // ================= 영웅 =================
 let hero = null;
 const stat = {
-  dmg: () => hero.C.dmg * (1 + .15 * G.ups.atk), rate: () => hero.C.rate * (1 + .1 * G.ups.spd), range: () => hero.C.range * (1 + .08 * G.ups.rng),
-  skillMul: () => 1 + .25 * G.ups.skill, skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill),
+  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
+  rate: () => hero.C.rate * (1 + .1 * G.ups.spd), range: () => hero.C.range * (1 + .08 * G.ups.rng),
+  skillMul: () => (1 + .25 * G.ups.skill) * (1 + ((hero.eq && hero.eq.skill) || 0) / 100), skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100),
 };
 function spawnHero(cls) {
   let C = CLASSES[cls]; if (G.perm) C = { ...C, hp: Math.round(C.hp * (1 + .06 * (G.perm.hp || 0))), dmg: C.dmg * (1 + .05 * (G.perm.atk || 0)) }; // 마을 영구 강화
+  const q = G.perm && G.equip ? G.equip : null; if (q) C = { ...C, hp: Math.round(C.hp * (1 + (q.hp || 0) / 100)), dmg: C.dmg * (1 + (q.atk || 0) / 100), rate: C.rate * (1 + (q.spd || 0) / 100), range: C.range * (1 + (q.rng || 0) / 100) }; // 장비
   const ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
-  hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
+  hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle');
   $('heroName').textContent = `${C.n} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill;
 }
