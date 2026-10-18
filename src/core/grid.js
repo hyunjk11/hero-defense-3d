@@ -1,0 +1,12 @@
+
+// ================= 기본 설정 =================
+const GW = 24, GH = 16, S = 2, DIGK = 30;
+const T = { GRASS: 0, CARVED: 1, DIRT: 2, FOREST: 3, ROCK: 4, BEDROCK: 5, SPAWN: 6, CORE: 7 };
+const SPAWN = [0, 8], CORE = [22, 7];
+const tileX = c => (c - GW / 2 + .5) * S, tileZ = r => (r - GH / 2 + .5) * S;
+const toTile = (x, z) => [Math.floor(x / S + GW / 2), Math.floor(z / S + GH / 2)];
+const inGrid = (c, r) => c >= 0 && r >= 0 && c < GW && r < GH;
+const isBlock = t => t === T.DIRT || t === T.FOREST || t === T.ROCK;
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+export { GW, GH, S, DIGK, T, SPAWN, CORE, tileX, tileZ, toTile, inGrid, isBlock, DIRS };

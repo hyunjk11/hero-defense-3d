@@ -18,9 +18,10 @@
   "bgm_playing": [
    "build"
   ],
-  "audio_requests": 53,
   "audio_bad": [],
-  "http_bad": []
+  "http_bad": [],
+  "audio_sfx_requests": 50,
+  "bgm_requested": true
  },
  "hero_archer": {
   "hp": 380,

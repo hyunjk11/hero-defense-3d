@@ -51,7 +51,7 @@ def sc_boot(pw, url, M, errs):
     pg.click('.card[data-cls="archer"]'); pg.wait_for_timeout(3500)
     m['audio_ctx'] = S(pg, '()=>G.Snd.ctx&&G.Snd.ctx.state'); m['sfx_buffers'] = S(pg, '()=>Object.keys(G.Snd.buf).length')
     m['bgm_playing'] = S(pg, "()=>Object.entries(G.Snd.tracks).filter(([k,t])=>!t.a.paused).map(([k])=>k)")
-    aud = [(s, u) for s, u in resp if '/audio/' in u]; m['audio_requests'] = len(set(u for s, u in aud)); m['audio_bad'] = sorted(set(u for s, u in aud if s >= 400))
+    aud = [(s, u) for s, u in resp if '/audio/' in u]; m['audio_sfx_requests'] = len(set(u for s, u in aud if '/sfx/' in u)); m['bgm_requested'] = 'town.mp3' in ' '.join(u for s, u in aud); m['audio_bad'] = sorted(set(u for s, u in aud if s >= 400))
     m['http_bad'] = sorted(set(u.split('/')[-1] for s, u in resp if s >= 400))
     M['boot'] = m; b.close()
 

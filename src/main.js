@@ -1,4 +1,4 @@
-import { Snd } from './audio.js';
+import { Snd } from './audio/audio.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -8,58 +8,13 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-
-// ================= 기본 설정 =================
-const GW = 24, GH = 16, S = 2, DIGK = 30;
-const T = { GRASS: 0, CARVED: 1, DIRT: 2, FOREST: 3, ROCK: 4, BEDROCK: 5, SPAWN: 6, CORE: 7 };
-const SPAWN = [0, 8], CORE = [22, 7];
-const BLK = {
-  [T.DIRT]: { n: '흙더미', hp: 140, clear: 10, deb: [0xa86a3a, 0x7a4a26, 0x8ccf5a] },
-  [T.FOREST]: { n: '숲', hp: 240, clear: 20, deb: [0x7a4a26, 0x5cc05a, 0x3f9a48] },
-  [T.ROCK]: { n: '바위', hp: 480, clear: 35, deb: [0xb8bed0, 0x8a90a6, 0x6a7088] },
-};
-const TNAME = { [T.GRASS]: '풀밭', [T.CARVED]: '파인 길', [T.BEDROCK]: '수정 암반', [T.SPAWN]: '몬스터 포털', [T.CORE]: '수정 코어' };
-const $ = id => document.getElementById(id);
-const QS = new URLSearchParams(location.search);
-// 게임 로직 전용 난수 (?rng= 로 고정 가능 → 회귀 테스트 결정성). three.js/오디오의 Math.random과 분리
-let rngState = (+QS.get('rng') || (Math.random() * 1e9 | 0)) >>> 0;
-const rand = () => { rngState = rngState + 0x6D2B79F5 | 0; let t = Math.imul(rngState ^ rngState >>> 15, 1 | rngState); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-const rnd = (a, b) => a + rand() * (b - a);
-const tileX = c => (c - GW / 2 + .5) * S, tileZ = r => (r - GH / 2 + .5) * S;
-const toTile = (x, z) => [Math.floor(x / S + GW / 2), Math.floor(z / S + GH / 2)];
-const inGrid = (c, r) => c >= 0 && r >= 0 && c < GW && r < GH;
-const isBlock = t => t === T.DIRT || t === T.FOREST || t === T.ROCK;
-const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-
-const CLASSES = {
-  archer:  { n: '궁수', model: 'archer', hp: 380, dmg: 24, rate: 2.0, range: 11, speed: 7.5, armor: 0, skill: '화살비', cd: 12, color: 0x6aff8a, atk: '2H_Ranged_Shoot', atkSpd: 1.8 },
-  mage:    { n: '마법사', model: 'mage', hp: 330, dmg: 34, rate: .95, range: 9, speed: 7, armor: 0, skill: '메테오', cd: 14, color: 0xb07aff, aoe: 2, atk: 'Spellcast_Shoot', atkSpd: 1.5 },
-  warrior: { n: '전사', model: 'warrior', hp: 1000, dmg: 50, rate: 1.3, range: 2.8, speed: 7, armor: .4, skill: '회오리 베기', cd: 10, color: 0xff7a5a, atk: '1H_Melee_Attack_Chop', atkSpd: 1.6 },
-};
-const ETYPES = {
-  imp:   { n: '해골 도적', model: 'sk_rogue', w: 'w_blade', h: 1.75, hp: 40, spd: 4.0, gold: 2, core: 1, dps: 14, walk: 'Running_C', ws: .55, dig: '1H_Melee_Attack_Chop' },
-  grunt: { n: '해골 병사', model: 'sk_minion', w: 'w_axe', h: 2.1, hp: 80, spd: 2.6, gold: 3, core: 1, dps: 20, walk: 'Walking_D_Skeletons', ws: .55, dig: '1H_Melee_Attack_Chop' },
-  golem: { n: '해골 기사', model: 'sk_warrior', w: 'w_axe', sh: 'w_shield_large_a', h: 2.6, hp: 300, spd: 1.7, gold: 8, core: 3, dps: 50, walk: 'Walking_D_Skeletons', ws: .5, dig: '2H_Melee_Attack_Chop', armor: .25 },
-  bat:   { n: '유령 박쥐', fly: true, h: 1.2, hp: 60, spd: 3.2, gold: 5, core: 2, dps: 0 },
-  boss:  { n: '해골 군주', model: 'sk_warrior', w: 'w_axe', sh: 'w_shield_large_a', h: 5.2, hp: 3200, spd: 1.25, gold: 120, core: 10, dps: 170, walk: 'Walking_D_Skeletons', ws: .32, dig: '2H_Melee_Attack_Chop', armor: .2, boss: true },
-};
-const TOWERS = {
-  arrow:  { n: '화살탑', cost: 60, up: [55, 95], dmg: [16, 26, 42], rate: [2.0, 2.4, 2.9], range: [8, 8.8, 9.6], air: true, d: '빠른 단일 공격' },
-  cannon: { n: '대포탑', cost: 90, up: [80, 130], dmg: [45, 75, 120], rate: [.55, .62, .7], range: [7, 7.5, 8], splash: [2.2, 2.5, 2.9], air: false, d: '광역 포격 (지상)' },
-  magic:  { n: '마법탑', cost: 100, up: [90, 150], dmg: [20, 32, 50], rate: [.9, 1.0, 1.15], range: [7.5, 8, 8.8], chain: [3, 4, 6], slow: [.35, .42, .5], air: true, d: '연쇄 번개 + 둔화' },
-};
-const UPS = {
-  atk: { n: '공격력', d: '+15% 피해', base: 40 }, spd: { n: '공격 속도', d: '+10% 속도', base: 40 }, rng: { n: '사거리', d: '+8% 사거리', base: 45 },
-  skill: { n: '스킬 강화', d: '+25% 위력 · -8% 쿨', base: 60 }, bar: { n: '바리케이드', d: '+25% 체력', base: 35 },
-};
-const G = window.G = {
-  phase: 'loading', gold: 220, wave: 0, coreHp: 30, coreMax: 30, ups: { atk: 0, spd: 0, rng: 0, skill: 0, bar: 0 },
-  tool: 'move', enemies: [], projs: [], towers: [], fxs: [], coins: [], tiles: [], D: null, spawnQ: [], t: 0, shake: 0, night: 0, nightTarget: 0,
-  sel: null, timers: [], ready: false, distT: 0, distDirty: false, dirty: new Set(),
-  manual: QS.has('test'), stats: { kills: {}, leaked: 0, goldEarned: 0, carvedTiles: 0, distCalcs: 0 },
-};
-const later = (t, fn) => G.timers.push({ t, fn });
+import { $, mulberry32, rand, rnd } from './core/util.js';
+import { CORE, DIGK, DIRS, GH, GW, S, SPAWN, T, inGrid, isBlock, tileX, tileZ, toTile } from './core/grid.js';
+import { BLK, TNAME } from './data/terrain.js';
+import { CLASSES, UPS } from './data/heroes.js';
+import { ETYPES } from './data/monsters.js';
+import { TOWERS } from './data/towers.js';
+import { G, later } from './core/state.js';
 
 // ================= 렌더러/씬 =================
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
