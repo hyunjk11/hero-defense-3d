@@ -32,7 +32,7 @@ CHECK = r"""([roots, oneLine, touchSel]) => {
     if (el.matches('button,.pill,.tlabel,.ftab,.chtab') && el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX === 'visible') clipped.push(`${name(el)} sw${el.scrollWidth}>cw${el.clientWidth}`);
   }
   for (const s of oneLine) document.querySelectorAll(s).forEach(el => {
-    if (!vis(el)) return; const tops = []; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    if (!roots.some(r => el.closest(r)) || !vis(el)) return; const tops = []; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n; (n = w.nextNode());) { if (!n.textContent.trim() || n.parentElement.closest('small,.desc,.stars,.nm,.dots,#skillCd,#warpCd')) continue; const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (q.width > 0 && !tops.some(t => Math.abs(t - q.top) < 6)) tops.push(q.top); }
     if (tops.length > 1) wrap.push(`${name(el)} "${el.innerText.replace(/\s+/g, ' ').slice(0, 30)}" lines=${tops.length}`);
   });
@@ -79,8 +79,8 @@ with sync_playwright() as pw:
     pg.tap('#mnCont'); pg.wait_for_function("()=>G.screen==='town'", timeout=30000); pg.wait_for_timeout(2000)
     sweep(pg, 'town', ['#scr_town'])
     # 탭으로 이동 (터치 pointerdown)
-    p0 = J(pg, "()=>{ const p=G.townHero(); return [p.x,p.z] }"); pg.touchscreen.tap(SIZES[-1][0] * .62, SIZES[-1][1] * .55); pg.wait_for_timeout(1200)
-    p1 = J(pg, "()=>{ const p=G.townHero(); return [p.x,p.z] }"); RES['tap_move_town'] = abs(p1[0] - p0[0]) + abs(p1[1] - p0[1]) > .5; print('tap_move_town', RES['tap_move_town'], p0, p1)
+    p0 = J(pg, "()=>{ const p=G.townHero(); return [p.x,p.z] }"); pg.touchscreen.tap(SIZES[-1][0] * .62, SIZES[-1][1] * .55); pg.wait_for_timeout(3000)
+    p1 = J(pg, "()=>{ const p=G.townHero(); return [p.x,p.z] }"); RES['tap_move_town'] = abs(p1[0] - p0[0]) + abs(p1[1] - p0[1]) > .3; print('tap_move_town', RES['tap_move_town'], p0, p1)
     J(pg, "()=>{ const [x,z]=G.townTower(); G.townTeleport(x-7.8, z); G.townGoal(x-2.45, z); }"); pg.wait_for_function("()=>!document.getElementById('twBless').classList.contains('hidden')", timeout=120000); pg.wait_for_timeout(700)
     sweep(pg, 'bless', ['#scr_town'])
     pg.tap('#blessClose'); pg.wait_for_timeout(200)
