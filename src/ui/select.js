@@ -25,7 +25,7 @@ function showSelect() {
 }
 function updSelect(dt) {
   for (const p of preview) { p.mixer.update(dt); p.nextCheer -= dt; if (p.cheerT > 0) { p.cheerT -= dt; if (p.cheerT <= 0) play(p, 'Idle', { fade: .3 }); }
-    else if (p.nextCheer <= 0) { p.nextCheer = rnd(5, 9); play(p, p.cls === 'mage' ? 'Spellcast_Raise' : p.cls === 'archer' ? '2H_Ranged_Shoot' : '1H_Melee_Attack_Slice_Horizontal', { once: true }); p.cheerT = 1.6; }
+    else if (p.nextCheer <= 0) { p.nextCheer = rnd(5, 9); play(p, p.cls === 'mage' ? 'Spellcast_Raise' : p.cls === 'archer' ? '2H_Ranged_Shoot' : (p.acts.Melee_Show ? 'Melee_Show' : '1H_Melee_Attack_Slice_Horizontal'), { once: true }); p.cheerT = 1.6; }
     p.ring.material.opacity = hoverCls === p.cls ? .95 : .45; p.ring.scale.setScalar(hoverCls === p.cls ? 1.2 + Math.sin(G.t * 6) * .05 : 1); }
   if (!G.heroShot) cam.theta = Math.sin(G.t * .2) * .18;
 }

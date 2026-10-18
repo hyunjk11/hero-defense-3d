@@ -8,10 +8,10 @@ import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer', 'mage_meshy', 'warrior', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
 async function loadAssets() {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); let n = 0;
-  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (k === 'mage_meshy') lockRoot(g.animations); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
+  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (MESHY[k]) lockRoot(g.animations); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
 }
 function prep(g) {
   g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; } });
@@ -24,7 +24,19 @@ function staffTop(ch, hp) { let best = null; const v = new THREE.Vector3();
   ch.root.traverse(o => { if (!o.isSkinnedMesh || o.userData.ol) return; const n = o.geometry.attributes.position.count;
     for (let i = 0; i < n; i += 2) { o.getVertexPosition(i, v); o.localToWorld(v); if (Math.hypot(v.x - hp.x, v.z - hp.z) < .35 && v.y > hp.y && (!best || v.y > best.y)) best = v.clone(); } });
   return best ? best.add(new THREE.Vector3(0, -.12, 0)) : hp.clone().add(new THREE.Vector3(0, .9, 0)); }
+// 바인드 포즈에서 왼손 주변(0.45 이내) 정점들의 중심 = 활 손잡이 근처 → 화살 발사 지점
+function bowGrip(ch, hp) { const v = new THREE.Vector3(), c = new THREE.Vector3(); let n = 0;
+  ch.root.traverse(o => { if (!o.isSkinnedMesh || o.userData.ol) return; const cnt = o.geometry.attributes.position.count;
+    for (let i = 0; i < cnt; i += 2) { o.getVertexPosition(i, v); o.localToWorld(v); if (v.distanceTo(hp) < .45) { c.add(v); n++; } } });
+  return n ? c.divideScalar(n) : hp.clone(); }
 const MAGE_ALIAS = { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', Spellcast_Shoot: 'Cast', Spellcast_Long: 'CastCharged' };
+// Meshy 궁수/전사: 기존 KayKit 동작 이름 → 새 클립. hitAt = 클립 내 타격 시점(초, 오른손 속도 최대 = 칼 휘두름 정점)
+const MESHY = {
+  mage_meshy: { alias: MAGE_ALIAS },
+  archer_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '2H_Ranged_Shoot': 'Shoot', Ranged_Skill: 'ShootQuick' },
+    aim: { Shoot: -2.15, ShootQuick: -1.7, ShootCharged: -1.75 } }, // 사격 클립은 몸이 옆으로 서서 활이 왼쪽(+X)을 겨눔 → 활 방향이 정면(목표)이 되게 모델 회전
+  warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
+};
 const wsV = new THREE.Vector3();
 function makeChar(key, height, clips, olW = .03) {
   const tpl = GL[key], root = SkeletonUtils.clone(tpl.scene), k = height / tpl.userData.h; root.scale.setScalar(k);
@@ -42,15 +54,18 @@ function play(ch, name, o = {}) {
   const a = ch.acts && ch.acts[name]; if (!a) return null; const { fade = .18, once = false, speed = 1, force = false } = o;
   if (ch.cur === a) { if (force) { a.reset(); a.timeScale = speed; a.play(); } else a.timeScale = speed; return a; }
   a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once; a.timeScale = speed; a.setEffectiveWeight(1); a.fadeIn(fade).play();
-  if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; return a;
+  if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; if (ch.aim) ch.yawT = ch.aim[a.getClip().name] || 0; return a;
 }
 function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
-const heroClips = () => GL.warrior.animations, skClips = () => GL.sk_minion.animations;
+const heroClips = () => (GL.warrior || GL.warrior_meshy).animations, skClips = () => GL.sk_minion.animations;
 function makeHeroModel(cls) {
-  const key = CLASSES[cls].model, meshy = key === 'mage_meshy', ch = makeChar(key, meshy ? 2.8 : 2.5, meshy ? GL[key].animations : heroClips(), .032);
-  if (meshy) { for (const [a, b] of Object.entries(MAGE_ALIAS)) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
-    const hand = ch.root.getObjectByName('RightHand'); if (hand) { ch.root.updateMatrixWorld(true); const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
+  const key = CLASSES[cls].model, M = MESHY[key], ch = makeChar(key, M ? 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
+  if (M) { for (const [a, b] of Object.entries(M.alias)) if (ch.acts[b]) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
+    ch.hitAt = M.hitAt || 0; ch.root.updateMatrixWorld(true);
+    if (M.aim) { ch.aim = M.aim; ch.yawT = 0; const up = ch.mixer.update.bind(ch.mixer); ch.mixer.update = dt => { ch.root.rotation.y += (ch.yawT - ch.root.rotation.y) * Math.min(1, dt * 16); return up(dt); }; }
+    if (key === 'mage_meshy') { const hand = ch.root.getObjectByName('RightHand'); if (hand) { const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
       tip.position.copy(hand.worldToLocal(staffTop(ch, hp))); hand.add(tip); ch.tip = tip; } } // 지팡이 수정 위치
+    else if (key === 'archer_meshy') { const hand = ch.root.getObjectByName('LeftHand'); if (hand) { const tip = new THREE.Object3D(); tip.position.copy(hand.worldToLocal(bowGrip(ch, hand.getWorldPosition(new THREE.Vector3())))); hand.add(tip); ch.tip = tip; } } } // 활 손잡이(왼손에 스킨된 활) = 화살 발사 지점
   const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
   return ch;
 }

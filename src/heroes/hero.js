@@ -111,8 +111,10 @@ function updHero(dt) {
   h.cd -= dt; h.atkT -= dt;
   if (tgt && h.spinT <= 0) { const want = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); if (!moving) h.face = want;
     if (h.cd <= 0) { h.cd = 1 / stat.rate();
-      if (!moving) { const nm = h.cls === 'warrior' && rand() < .5 ? '1H_Melee_Attack_Slice_Horizontal' : h.C.atk; play(h.ch, nm, { once: true, force: true, speed: h.C.atkSpd * Math.max(1, stat.rate() / h.C.rate) }); h.atkT = Math.min(.55, 1 / stat.rate()); }
-      const t0 = tgt; later(h.cls === 'warrior' ? .12 : .08, () => { if (!t0.dead && hero.dead <= 0) attack(t0); }); } }
+      let hitD = h.cls === 'warrior' ? .12 : .08;
+      if (!moving) { const nm = h.cls === 'warrior' && rand() < .5 ? '1H_Melee_Attack_Slice_Horizontal' : h.C.atk, spd = h.C.atkSpd * Math.max(1, stat.rate() / h.C.rate); play(h.ch, nm, { once: true, force: true, speed: spd }); h.atkT = Math.min(.55, 1 / stat.rate());
+        if (h.ch.hitAt) hitD = h.ch.hitAt / spd; } // Meshy 전사: 칼 휘두름 정점에 타격
+      const t0 = tgt; later(hitD, () => { if (!t0.dead && hero.dead <= 0) attack(t0); }); } }
   if (h.spinT > 0) { h.spinT -= dt; h.spinTick -= dt; h.g.rotation.y += dt * 9;
     if (h.spinTick <= 0) { h.spinTick = .25; aoe(h.g.position, 3.6, stat.dmg() * 1.3 * stat.skillMul(), '#ffb07a', { groundOnly: true }); emit(P, h.g.position.x, 1.2, h.g.position.z, 20, 0xffa04a, 7, .4, 0, 4); }
     h.swirl.rotation.z += dt * 15; if (h.spinT <= 0) { h.swirl.visible = false; play(h.ch, 'Idle'); } }

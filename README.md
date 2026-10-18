@@ -27,13 +27,15 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 조작: 좌클릭 이동/건설/선택 · WASD 이동 · Q 스킬 · T 워프 · 1~5 도구 · 우클릭 드래그 회전 · 휠 확대 · Space 웨이브 시작 · Esc 취소 · M 음소거
 
 ![heroes](heroes.png)
+![select](select.png)
+![heroes in game](heroes_ingame.png)
 ![gameplay](screenshot.png)
 ![monsters](monsters.png)
 ![build preview](build_preview.png)
 ![warp](warp.png)
 
 ## 크레딧
-- 마법사 영웅 모델·애니메이션: **Meshy**로 생성한 AI 생성 에셋 (meshopt 압축, three.js MeshoptDecoder로 로드)
+- 영웅 모델·애니메이션(궁수·마법사·전사, 모두 여성 치비 캐릭터): **Meshy**로 생성한 AI 생성 에셋 (Image to 3D + 자동 리깅 + 애니메이션 라이브러리, meshopt 압축 + 1024 WebP, three.js MeshoptDecoder로 로드)
 - 캐릭터·무기 모델: **KayKit Adventurers & KayKit Skeletons Character Packs** by Kay Lousberg
   (https://www.kaylousberg.com) — **CC0 1.0**. `models/`에 용량을 줄여 포함했습니다.
 - 효과음: Kenney (https://www.kenney.nl) — RPG Audio, Impact Sounds, Interface Sounds, Sci-fi Sounds, Music Jingles, **CC0 1.0** (`audio/sfx/`, `audio/KENNEY_LICENSE.txt`)

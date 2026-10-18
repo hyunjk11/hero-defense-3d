@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-10-18 (밤) — 궁수·전사 모델 교체 (여성 Meshy 모델)
+- 궁수(`models/archer_meshy.glb`, 금발 포니테일·초록 망토·장궁)·전사(`models/warrior_meshy.glb`, 붉은 머리·은빛/붉은 갑옷·대검)를 Meshy 생성 여성 모델로 교체 — 마법사와 같은 파이프라인(meshy-7.1, 약 25k 삼각형, 24본 휴머노이드 리그, meshopt + 1024 WebP), 툰 셰이딩+외곽선, 높이 2.8, Hips X/Z 루트 모션 잠금
+- 무기는 메시에 포함되어 손에 스킨됨(궁수 활 = 왼손, 전사 대검 = 오른손). A-포즈 생성은 활/검을 등에 메거나 없애서 포즈 없이 생성, 궁수는 활이 왼손에 오도록 좌우 반전 후 리깅
+- 궁수 클립: 대기 Idle · 이동 Run · 공격 Shoot(Archery Shot 1) · Q(화살비) ShootQuick(Archery Shot 3) · 피격 Hit · 사망 Death · 웨이브 종료/부활 IdleLookAround (+ ShootCharged 포함)
+  - 사격 클립은 몸을 옆으로 돌려 활이 옆을 겨누므로 사격 중에만 모델을 돌려 활 방향을 목표 쪽으로 맞춤, 화살 발사 지점 = 왼손 활 손잡이
+- 전사 클립: 공격 Slash(Right-hand Sword Slash, 두 공격 이름 모두) · Q(회오리 베기) Spin(Axe Spin Attack) · 선택 화면 SlashHeavy(Charged Slash) · 나머지 공통
+  - 근접 타격 시점 = 칼 휘두름 정점(클립 0.53초 ÷ 재생 속도, 기본 약 0.33초; 이동 중 공격은 기존 0.12초)
+- 회귀: 모델 키 이름만 다름(archer/warrior → *_meshy), 기존에 있던 영웅 이동 거리 차이 3건 그대로, 피해·사운드 수치 동일
+
 ## 2026-10-18 (저녁) — 마법사 모델 교체
 - 마법사 영웅을 Meshy 생성 여성 마법사 모델(`models/mage_meshy.glb`, meshopt 압축)로 교체 — 선택 화면·게임 공통, 툰 셰이딩+외곽선 적용, 높이 2.8
 - 클립 매핑: 대기 Idle · 이동 Run · 공격 Cast · Q(메테오) CastCharged · 피격 Hit · 사망 Death · 웨이브 종료/부활/워프 IdleLookAround
