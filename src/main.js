@@ -1,13 +1,6 @@
 import { Snd } from './audio/audio.js';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { $, mulberry32, rand, rnd } from './core/util.js';
 import { CORE, DIGK, DIRS, GH, GW, S, SPAWN, T, inGrid, isBlock, tileX, tileZ, toTile } from './core/grid.js';
 import { BLK, TNAME } from './data/terrain.js';
@@ -15,77 +8,12 @@ import { CLASSES, UPS } from './data/heroes.js';
 import { ETYPES } from './data/monsters.js';
 import { TOWERS } from './data/towers.js';
 import { G, later } from './core/state.js';
-
-// ================= 렌더러/씬 =================
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75)); renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12;
-$('app').appendChild(renderer.domElement);
-const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xcfeaff, 80, 170);
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .5, 600);
-const cam = { theta: .22, phi: .9, r: 58, target: new THREE.Vector3(0, 0, 1) };
-function updateCam() {
-  const t = cam.target, sx = G.shake > 0 ? rnd(-1, 1) * G.shake : 0, sy = G.shake > 0 ? rnd(-1, 1) * G.shake : 0;
-  camera.position.set(t.x + cam.r * Math.sin(cam.phi) * Math.sin(cam.theta) + sx, t.y + cam.r * Math.cos(cam.phi) + sy, t.z + cam.r * Math.sin(cam.phi) * Math.cos(cam.theta));
-  camera.lookAt(t.x + sx * .3, t.y, t.z);
-}
-const DAY = { top: new THREE.Color(0x3d9cff), bot: new THREE.Color(0xd6efff), fog: new THREE.Color(0xcfeaff) };
-const NIGHT = { top: new THREE.Color(0x05071c), bot: new THREE.Color(0x2c1d55), fog: new THREE.Color(0x1a1438) };
-const skyU = { top: { value: DAY.top.clone() }, bot: { value: DAY.bot.clone() } };
-scene.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.ShaderMaterial({
-  uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
-  vertexShader: 'varying vec3 vP; void main(){ vP = (modelMatrix*vec4(position,1.)).xyz; gl_Position = projectionMatrix*viewMatrix*vec4(vP,1.); }',
-  fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying vec3 vP; void main(){ float h = clamp(normalize(vP).y*1.8+.08,0.,1.); gl_FragColor = vec4(mix(bot,top,h),1.); }',
-})));
-const hemi = new THREE.HemisphereLight(0xe6f4ff, 0x5a4a3a, 1.35); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff2d8, 2.6); sun.position.set(-22, 42, 26); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 30, bottom: -30, near: 5, far: 120 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .03; scene.add(sun);
-const moon = new THREE.DirectionalLight(0x7a8aff, 0); moon.position.set(20, 30, -20); scene.add(moon);
-const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .35, .45, .95); composer.addPass(bloom); composer.addPass(new OutputPass());
-addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
-
-// ================= 툰 셰이딩 + 외곽선 =================
-const grad = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 195, 195, 195, 255, 255, 255, 255, 255]), 3, 1);
-grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
-const toon = (color, o = {}) => new THREE.MeshToonMaterial({ color, gradientMap: grad, ...o });
-const glow = (color, i = 2.5) => new THREE.MeshToonMaterial({ color, emissive: color, emissiveIntensity: i, gradientMap: grad });
-const olMats = {};
-function outlineMat(th) {
-  const key = th.toFixed(4); if (olMats[key]) return olMats[key];
-  const m = new THREE.MeshBasicMaterial({ color: 0x1c1428, side: THREE.BackSide }); const u = { value: th };
-  m.onBeforeCompile = s => { s.uniforms.uTh = u; s.vertexShader = 'uniform float uTh;\n' + s.vertexShader.replace('#include <project_vertex>', '#ifdef USE_SKINNING\n transformed += normalize(objectNormal) * uTh;\n#else\n transformed += normalize(normal) * uTh;\n#endif\n#include <project_vertex>'); };
-  m.customProgramCacheKey = () => 'outline'; return olMats[key] = m;
-}
-const olCache = new WeakMap();
-function olGeo(g) {
-  if (olCache.has(g)) return olCache.get(g);
-  const gf = ['getX', 'getY', 'getZ', 'getW'], plain = a => { const n = a.itemSize, Arr = a.isInterleavedBufferAttribute ? a.data.array.constructor : a.array.constructor, arr = new Arr(a.count * n);
-    for (let i = 0; i < a.count; i++) for (let k = 0; k < n; k++) arr[i * n + k] = a[gf[k]](i); return new THREE.BufferAttribute(arr, n, a.normalized); };
-  let o = new THREE.BufferGeometry(); for (const k of ['position', 'skinIndex', 'skinWeight']) if (g.attributes[k]) o.setAttribute(k, plain(g.attributes[k]));
-  if (g.index) o.setIndex(g.index.clone());
-  o = mergeVertices(o, 1e-3); o.computeVertexNormals(); olCache.set(g, o); return o;
-}
-function addOutline(m, th) {
-  const geo = olGeo(m.geometry); let o;
-  if (m.isSkinnedMesh) { o = new THREE.SkinnedMesh(geo, outlineMat(th)); o.bind(m.skeleton, m.bindMatrix); }
-  else o = new THREE.Mesh(geo, outlineMat(th));
-  o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; o.raycast = () => {}; o.userData.ol = true; m.add(o); return o;
-}
-function mk(geo, mat, x = 0, y = 0, z = 0, parent, ol = .035) {
-  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
-  if (ol) addOutline(m, ol); if (parent) parent.add(m); return m;
-}
-const WHITE = new THREE.Color(1, 1, 1), dummy = new THREE.Object3D(), tmpC = new THREE.Color();
-function IM(geo, mat, count, ol = .03, shadow = true) {
-  const m = new THREE.InstancedMesh(geo, mat, count); m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false;
-  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); const z = new THREE.Matrix4().makeScale(0, 0, 0);
-  for (let i = 0; i < count; i++) { m.setMatrixAt(i, z); m.setColorAt(i, WHITE); } scene.add(m);
-  if (ol) { const o = new THREE.InstancedMesh(olGeo(geo), outlineMat(ol), count); o.instanceMatrix = m.instanceMatrix; o.frustumCulled = false; scene.add(o); }
-  return m;
-}
-function setI(im, i, x, y, z, sx, sy = sx, sz = sx, ry = 0, rx = 0) { dummy.position.set(x, y, z); dummy.rotation.set(rx, ry, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.instanceMatrix.needsUpdate = true; }
-function hideI(im, i) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.instanceMatrix.needsUpdate = true; }
+import { DAY, NIGHT, bloom, cam, camera, composer, hemi, moon, renderer, scene, skyU, sun, updateCam } from './render/scene.js';
+import { IM, dummy, glow, hideI, mk, setI, tmpC, toon } from './render/toon.js';
+import { SFX } from './audio/sfx.js';
+import { P, PB, debris, dmgText, emit, popCoins, ringFx, stars, updCoins, updDebris, updFx, updParticles } from './render/vfx.js';
+import { BARS, hpBar, updBars } from './render/hpbars.js';
+import { GL, flashMats, loadAssets, makeEnemyModel, makeHeroModel, play } from './render/characters.js';
 
 // ================= 맵 생성 =================
 const seed = +(new URLSearchParams(location.search).get('seed')) || (Math.random() * 1e9 | 0);
@@ -210,156 +138,7 @@ function buildCore() {
   for (let k = 0; k < 2; k++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(1.4 + k * .35, .05, 8, 48), glow(k ? 0xffe06a : 0x7af6ff, .9)); ring.rotation.x = Math.PI / 2 + k * .5; crystal.add(ring); coreRings.push(ring); }
   crystal.position.y = 3.6; core.add(crystal); coreLight.position.y = 3.6; core.add(coreLight); G.coreHb = hpBar(core, 6.2, 3.2, 0x5af0ff, { grade: false, h: .2 });
 }
-
-// ================= 파티클 =================
-function makeParticles(n, size) {
-  const geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3).fill(-999), col = new Float32Array(n * 3);
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, '#fff'); gr.addColorStop(.3, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
-  const mat = new THREE.PointsMaterial({ size, map: new THREE.CanvasTexture(cv), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; scene.add(pts);
-  return { pts, pos, col, vel: new Float32Array(n * 3), life: new Float32Array(n), max: new Float32Array(n), base: new Float32Array(n * 3), grav: new Float32Array(n), n, i: 0 };
-}
-const P = makeParticles(3000, .45), PB = makeParticles(700, 1.6);
-function emit(sys, x, y, z, count, color, spd = 4, life = .6, grav = -6, spread = 1) {
-  const c = new THREE.Color(color);
-  for (let k = 0; k < count; k++) { const i = sys.i = (sys.i + 1) % sys.n, j = i * 3; sys.pos[j] = x + rnd(-.2, .2) * spread; sys.pos[j + 1] = y; sys.pos[j + 2] = z + rnd(-.2, .2) * spread;
-    const a = rand() * Math.PI * 2, u = rnd(-.2, 1), v = rnd(.3, 1) * spd; sys.vel[j] = Math.cos(a) * v * Math.sqrt(1 - u * u); sys.vel[j + 1] = u * v + spd * .3; sys.vel[j + 2] = Math.sin(a) * v * Math.sqrt(1 - u * u);
-    sys.life[i] = sys.max[i] = life * rnd(.6, 1.2); sys.grav[i] = grav; sys.base[j] = c.r; sys.base[j + 1] = c.g; sys.base[j + 2] = c.b; }
-}
-function updParticles(sys, dt) {
-  for (let i = 0; i < sys.n; i++) { if (sys.life[i] <= 0) continue; const j = i * 3; sys.life[i] -= dt;
-    if (sys.life[i] <= 0) { sys.pos[j + 1] = -999; continue; } sys.vel[j + 1] += sys.grav[i] * dt;
-    sys.pos[j] += sys.vel[j] * dt; sys.pos[j + 1] += sys.vel[j + 1] * dt; sys.pos[j + 2] += sys.vel[j + 2] * dt; const f = sys.life[i] / sys.max[i];
-    sys.col[j] = sys.base[j] * f; sys.col[j + 1] = sys.base[j + 1] * f; sys.col[j + 2] = sys.base[j + 2] * f; }
-  sys.pts.geometry.attributes.position.needsUpdate = true; sys.pts.geometry.attributes.color.needsUpdate = true;
-}
-// 파편 (실제 3D 조각, 튕김)
-const DEB_N = 500, debIM = IM(new RoundedBoxGeometry(.3, .3, .3, 1, .07), toon(0xffffff), DEB_N, .02);
-const DB = { p: new Float32Array(DEB_N * 3), v: new Float32Array(DEB_N * 3), rot: new Float32Array(DEB_N * 2), life: new Float32Array(DEB_N), sz: new Float32Array(DEB_N), i: 0 };
-function debris(x, y, z, n, colors, spd = 6) {
-  for (let k = 0; k < n; k++) { const i = DB.i = (DB.i + 1) % DEB_N, j = i * 3, a = rand() * 6.28, v = rnd(.3, 1) * spd;
-    DB.p[j] = x + rnd(-.5, .5); DB.p[j + 1] = y + rnd(0, .5); DB.p[j + 2] = z + rnd(-.5, .5); DB.v[j] = Math.cos(a) * v * .6; DB.v[j + 1] = rnd(.5, 1.2) * spd; DB.v[j + 2] = Math.sin(a) * v * .6;
-    DB.life[i] = rnd(.9, 1.6); DB.sz[i] = rnd(.5, 1.25); DB.rot[i * 2] = rnd(0, 6); DB.rot[i * 2 + 1] = rnd(0, 6); debIM.setColorAt(i, tmpC.set(colors[k % colors.length])); }
-  debIM.instanceColor.needsUpdate = true;
-}
-function updDebris(dt) {
-  for (let i = 0; i < DEB_N; i++) { if (DB.life[i] <= 0) continue; const j = i * 3; DB.life[i] -= dt;
-    if (DB.life[i] <= 0) { hideI(debIM, i); continue; }
-    DB.v[j + 1] -= 24 * dt; DB.p[j] += DB.v[j] * dt; DB.p[j + 1] += DB.v[j + 1] * dt; DB.p[j + 2] += DB.v[j + 2] * dt;
-    if (DB.p[j + 1] < .1) { DB.p[j + 1] = .1; DB.v[j + 1] *= -.35; DB.v[j] *= .6; DB.v[j + 2] *= .6; }
-    DB.rot[i * 2] += dt * 6; const s = DB.sz[i] * Math.min(1, DB.life[i] * 2.5);
-    setI(debIM, i, DB.p[j], DB.p[j + 1], DB.p[j + 2], s, s, s, DB.rot[i * 2], DB.rot[i * 2 + 1]); }
-}
-const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(Array.from({ length: 1500 }, (_, i) => i % 3 === 1 ? rnd(50, 140) : rnd(-260, 260)), 3)), new THREE.PointsMaterial({ color: 0xffffff, size: .8, transparent: true, opacity: 0, fog: false })); scene.add(stars);
-
-// ================= DOM 이펙트 =================
-const fx = $('fx'), v3 = new THREE.Vector3();
-function screenOf(p) { v3.copy(p).project(camera); return [(v3.x + 1) / 2 * innerWidth, (1 - v3.y) / 2 * innerHeight, v3.z < 1]; }
-let dmgCount = 0;
-function dmgText(p, val, color = '#fff', big = false) {
-  if (dmgCount > 60) return; const [x, y, ok] = screenOf(p); if (!ok) return; dmgCount++;
-  const d = document.createElement('div'); d.className = 'dmg'; d.textContent = typeof val === 'number' ? Math.round(val) : val; d.style.left = x + rnd(-12, 12) + 'px'; d.style.top = y - 20 + 'px'; d.style.color = color; if (big) d.style.fontSize = '26px';
-  fx.appendChild(d); setTimeout(() => { d.remove(); dmgCount--; }, 800);
-}
-function flyCoinDom(p) {
-  const [x, y, ok] = screenOf(p); if (!ok) return; const tgt = $('gold').getBoundingClientRect(); const c = document.createElement('div'); c.className = 'flycoin'; c.style.left = x + 'px'; c.style.top = y + 'px'; fx.appendChild(c);
-  setTimeout(() => { c.style.left = tgt.left - 14 + 'px'; c.style.top = tgt.top + tgt.height / 2 + 'px'; c.style.transform = 'translate(-50%,-50%) scale(.6)'; }, 30);
-  setTimeout(() => c.remove(), 800);
-}
-const coinGeo = new THREE.CylinderGeometry(.24, .24, .07, 16).rotateX(Math.PI / 2), coinMat = glow(0xffc828, .6);
-function popCoins(p, n) { for (let k = 0; k < Math.min(n, 6); k++) { const m = mk(coinGeo, coinMat, p.x, p.y, p.z, scene, .02); G.coins.push({ m, v: new THREE.Vector3(rnd(-2.5, 2.5), rnd(6, 9), rnd(-2.5, 2.5)), t: .55 + k * .05 }); } }
-function updCoins(dt) { for (let i = G.coins.length - 1; i >= 0; i--) { const c = G.coins[i]; c.t -= dt; c.v.y -= 22 * dt; c.m.position.addScaledVector(c.v, dt); c.m.rotation.y += dt * 12; if (c.m.position.y < .3) { c.m.position.y = .3; c.v.y *= -.4; }
-  if (c.t <= 0) { flyCoinDom(c.m.position); later(.45, () => Snd.play('coin', { rate: 1 + Math.random() * .2 })); scene.remove(c.m); G.coins.splice(i, 1); } } }
 function banner(text, color = '#fff', ms = 1600) { const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.add('show'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), ms); }
-// HP 바: 카메라를 향하는 하나의 그룹 안에 프레임/배경/잔상/체력이 모두 같은 왼쪽 기준점에서 늘어남
-const barGeo = new THREE.PlaneGeometry(1, 1).translate(.5, 0, 0), BARS = [], barV = new THREE.Vector3(), barLow = new THREE.Color(0xff4a3a), barMid = new THREE.Color(0xffd23a);
-function hpBar(parent, y, w = 1.4, color = 0x55ff77, opt = {}) {
-  const g = new THREE.Group(); scene.add(g); const h = opt.h || .16, pad = .045;
-  const part = (c, op, ww, hh, x, ro) => { const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthTest: false, depthWrite: false, toneMapped: false }));
-    m.scale.set(ww, hh, 1); m.position.set(x, 0, 0); m.renderOrder = ro; m.frustumCulled = false; g.add(m); return m; };
-  const frame = part(0x0b0816, .85, w + pad * 2, h + pad * 2, -w / 2 - pad, 20), back = part(0x3a1420, .95, w, h, -w / 2, 21),
-    trail = part(0xfff0b0, 1, w, h, -w / 2, 22), fg = part(color, 1, w, h, -w / 2, 23);
-  const base = new THREE.Color(color), b = { g, parent, y, w, r: 1, tr: 1, hold: 0, vis: true, auto: !!opt.auto, grade: opt.grade !== false && color === 0x55ff77, fg, trail, frame,
-    set(r) { r = Math.max(0, Math.min(1, r)); if (r < this.r - 1e-4) this.hold = .35; if (r > this.tr) this.tr = r; this.r = r; },
-    show(v) { this.vis = v; }, dispose() { scene.remove(g); g.children.forEach(m => m.material.dispose()); const i = BARS.indexOf(this); if (i >= 0) BARS.splice(i, 1); } , base };
-  BARS.push(b); return b;
-}
-function updBars(dt) {
-  for (const b of BARS) {
-    const alive = b.vis && b.parent.parent && b.parent.visible !== false && !(b.auto && b.r >= .999 && b.tr >= .999);
-    b.g.visible = alive && !G.heroShot; if (!b.g.visible) continue;
-    if (b.hold > 0) b.hold -= dt; else b.tr = Math.max(b.r, b.tr - dt * (.25 + (b.tr - b.r) * 2.2));
-    b.parent.getWorldPosition(barV); b.g.position.set(barV.x, barV.y + b.y, barV.z); b.g.quaternion.copy(camera.quaternion);
-    b.fg.scale.x = Math.max(1e-4, b.w * b.r); b.trail.scale.x = Math.max(1e-4, b.w * b.tr); b.trail.visible = b.tr > b.r + 1e-3;
-    if (b.grade) b.fg.material.color.copy(b.r > .5 ? b.base : b.r > .25 ? barMid : barLow);
-  }
-}
-
-// ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer', 'mage', 'warrior', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a'];
-async function loadAssets() {
-  const loader = new GLTFLoader(); let n = 0;
-  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
-}
-function prep(g) {
-  g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; } });
-  g.scene.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(g.scene); g.userData.h = box.max.y - box.min.y || 1;
-}
-const wsV = new THREE.Vector3();
-function makeChar(key, height, clips, olW = .03) {
-  const tpl = GL[key], root = SkeletonUtils.clone(tpl.scene), k = height / tpl.userData.h; root.scale.setScalar(k);
-  const g = new THREE.Group(); g.add(root); const mats = [], meshes = [];
-  root.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.e = o.material.emissive.clone(); mats.push(o.material); o.castShadow = true; o.frustumCulled = false; meshes.push(o); } });
-  root.updateMatrixWorld(true); for (const m of meshes) addOutline(m, olW / m.getWorldScale(wsV).x);
-  const mixer = new THREE.AnimationMixer(root), acts = {}; for (const c of clips) acts[c.name] = mixer.clipAction(c);
-  return { g, root, mixer, acts, mats, cur: null, k };
-}
-function attach(ch, key, bone) {
-  const b = ch.root.getObjectByName(bone); if (!b || !GL[key]) return null; const w = GL[key].scene.clone(true); b.add(w); ch.root.updateMatrixWorld(true);
-  const ms = []; w.traverse(o => { if (o.isMesh) ms.push(o); }); for (const o of ms) { o.castShadow = true; addOutline(o, .03 / o.getWorldScale(wsV).x); } return w;
-}
-function play(ch, name, o = {}) {
-  const a = ch.acts && ch.acts[name]; if (!a) return null; const { fade = .18, once = false, speed = 1, force = false } = o;
-  if (ch.cur === a) { if (force) { a.reset(); a.timeScale = speed; a.play(); } else a.timeScale = speed; return a; }
-  a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once; a.timeScale = speed; a.setEffectiveWeight(1); a.fadeIn(fade).play();
-  if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; return a;
-}
-function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
-const heroClips = () => GL.warrior.animations, skClips = () => GL.sk_minion.animations;
-function makeHeroModel(cls) {
-  const ch = makeChar(CLASSES[cls].model, 2.5, heroClips(), .032);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
-  return ch;
-}
-// 귀여운 유령 박쥐 (절차적 모델)
-function makeBat() {
-  const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner); inner.position.y = 3; const mats = [];
-  const tm = c => { const m = toon(c); m.userData.e = new THREE.Color(0); mats.push(m); return m; };
-  const bodyM = tm(0x8a5ad8), bellyM = tm(0xe0c4ff), dark = tm(0x5a3a9a);
-  mk(new THREE.SphereGeometry(.6, 24, 16), bodyM, 0, 0, 0, inner, .045).scale.set(1, .95, .95);
-  mk(new THREE.SphereGeometry(.4, 20, 14), bellyM, 0, -.12, .28, inner, 0).scale.set(1, .9, .6);
-  for (const s of [-1, 1]) { const e = mk(new THREE.ConeGeometry(.17, .45, 12), bodyM, s * .3, .6, 0, inner, .035); e.rotation.z = -s * .35;
-    mk(new THREE.SphereGeometry(.17, 16, 12), toon(0xffffff), s * .21, .12, .48, inner, .02); mk(new THREE.SphereGeometry(.095, 12, 10), toon(0x1a1028), s * .21, .12, .62, inner, 0);
-    mk(new THREE.SphereGeometry(.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), s * .18, .17, .69, inner, 0);
-    mk(new THREE.ConeGeometry(.04, .12, 6), toon(0xffffff), s * .08, -.12, .56, inner, 0).rotation.x = Math.PI;
-    mk(new THREE.SphereGeometry(.08, 10, 8), toon(0xff8ab0, { emissive: 0x401020 }), s * .38, -.03, .45, inner, 0).scale.set(1, .6, .4); }
-  const sh = new THREE.Shape(); sh.moveTo(0, .1); sh.quadraticCurveTo(.6, .55, 1.45, .45); sh.quadraticCurveTo(1.3, .1, 1.35, -.2); sh.quadraticCurveTo(1.1, -.05, .95, -.25); sh.quadraticCurveTo(.75, -.05, .55, -.25); sh.quadraticCurveTo(.35, -.05, 0, -.15); sh.lineTo(0, .1);
-  const wg = new THREE.ExtrudeGeometry(sh, { depth: .05, bevelEnabled: false }); wg.translate(0, 0, -.025);
-  const wings = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .45, .05, -.05); p.scale.x = s; inner.add(p); mk(wg, dark, 0, 0, 0, p, .03); return p; });
-  return { g, inner, mats, wings, acts: null, mixer: null };
-}
-function makeEnemyModel(type) {
-  const E = ETYPES[type]; if (E.fly) return makeBat();
-  const ch = makeChar(E.model, E.h, skClips(), E.boss ? .05 : .03); attach(ch, E.w, 'handslotr'); if (E.sh) attach(ch, E.sh, 'handslotl');
-  ch.root.traverse(o => { if (o.isMesh && !o.userData.ol && /Eyes/.test(o.name)) { o.material.emissive.setHex(E.boss ? 0xff2020 : 0x40d0ff); o.material.emissiveIntensity = E.boss ? 3 : 1.6; o.material.userData.e = o.material.emissive.clone(); } });
-  if (E.boss) { const head = ch.root.getObjectByName('head'); if (head) { const cr = new THREE.Group(), gm = glow(0xffc828, .7);
-    const band = mk(new THREE.CylinderGeometry(.42, .38, .28, 12, 1, true), gm, 0, 0, 0, cr, .02); band.material.side = THREE.DoubleSide;
-    for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28; mk(new THREE.ConeGeometry(.09, .3, 6), gm, Math.cos(a) * .4, .25, Math.sin(a) * .4, cr, .015); mk(new THREE.OctahedronGeometry(.06), glow(0xff3a5a, 2), Math.cos(a) * .41, 0, Math.sin(a) * .41, cr, 0); }
-    head.add(cr); ch.crown = cr; ch.root.updateMatrixWorld(true); const ws = head.getWorldScale(wsV).x; cr.scale.setScalar(1.25 / ws); cr.position.y = 1.15 / ws; } }
-  return ch;
-}
 
 // ================= 경로 탐색 (코어 기준 다익스트라: 거리 + 지형 강도) =================
 function enterCost(t) {
@@ -690,10 +469,6 @@ function shoot(kind, from, target, dmg, opts = {}) {
 function aoe(pos, r, dmg, color, opts = {}) {
   for (const e of [...G.enemies]) { if (e.dead) continue; const dx = e.g.position.x - pos.x, dz = e.g.position.z - pos.z; if (dx * dx + dz * dz <= r * r && (!opts.groundOnly || !e.E.fly)) { if (opts.slow) { e.slowT = 1.5; e.slowAmt = .45; } hurt(e, dmg, color, opts.big); } }
 }
-function ringFx(pos, r, color, dur = .4) {
-  const m = new THREE.Mesh(new THREE.RingGeometry(.8, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-  m.rotation.x = -Math.PI / 2; m.position.set(pos.x, .2, pos.z); scene.add(m); G.fxs.push({ m, t: 0, dur, r, kind: 'ring' });
-}
 function killProj(i) { const p = G.projs[i]; scene.remove(p.m); G.projs.splice(i, 1); }
 function updProjs(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
@@ -721,11 +496,6 @@ function updProjs(dt) {
     emit(P, m.position.x, m.position.y, m.position.z, 1, p.kind === 'arrow' ? (p.color || 0x9affb0) : 0xb07aff, .3, .25, 0, 0);
   }
 }
-function updFx(dt) {
-  for (let i = G.fxs.length - 1; i >= 0; i--) { const f = G.fxs[i]; f.t += dt; const k = f.t / f.dur;
-    if (f.kind === 'ring') { f.m.scale.setScalar(.3 + k * f.r); f.m.material.opacity = (1 - k) * .9; } else f.m.material.opacity = (1 - k) * .9;
-    if (k >= 1) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); G.fxs.splice(i, 1); } }
-}
 
 // ================= 스킬 =================
 function castSkill() {
@@ -750,10 +520,6 @@ function castSkill() {
   else if (hero.cls === 'mage') { Snd.play('meteorCast', { pos: hp, rate: .8 }); Snd.whoosh(tgt, 1.1, 150, 900, .5); }
   else { Snd.whoosh(hp, .5, 400, 1600, .5); for (let k = 0; k < 4; k++) Snd.play('sword', { pos: hp, delay: k * .3, force: true, rate: 1.1 }); }
 }
-
-// ================= 사운드 =================
-const SFX = { init() { Snd.unlock(); }, tone(f, d, type, v, slide) { Snd.beep(f, d, type, v, slide); } };
-const sndProj = new THREE.Vector3(); Snd.project = p => sndProj.set(p.x, p.y || 0, p.z).project(camera).x;
 
 // ================= 웨이브 =================
 function startWave() {
