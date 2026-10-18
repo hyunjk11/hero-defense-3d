@@ -11,12 +11,15 @@ import { showSelect, choose } from './select.js';
 import * as Acc from '../account/account.js';
 import * as P from '../account/progress.js';
 import { labels as TL, buildTown as buildTownScene, updTown, townPass, LAKE, LR, PORTAL, tower } from '../world/town.js';
-let smithNear = false;
+let smithNear = false, portalNear = false;
 import { sun } from '../render/scene.js';
 import * as E from '../account/equip.js';
 import { initGear, openInv, closeInv, openSmith, closeSmith, smithOpen, refreshGear, reveal, revealing, doEnhance, lastEnh, bonusHtml, heroDots } from './gear.js';
 import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
+import { initStageSel, openStageSel, closeStageSel, stageOpen } from './stagesel.js';
+import * as ST from '../data/stages.js';
+import { STAGE } from '../core/grid.js';
 
 const TOWN_Z = -150, TOWN = new THREE.Vector3(0, 0, TOWN_Z), esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const SCREENS = ['intro', 'login', 'menu', 'town'];
@@ -25,12 +28,32 @@ function show(id) { for (const s of SCREENS) $('scr_' + s).classList.toggle('hid
 function hideAll() { for (const s of SCREENS) $('scr_' + s).classList.add('hidden'); G.screen = null; G.screenMusic = null; }
 const heroN = c => CLASSES[c].n;
 
+// ---------- 스테이지 ----------
+function departStage(id) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
+  const q = new URLSearchParams(location.search); q.delete('town'); q.set('stage', id); q.set('run', '1'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 500); }
+function startStageRun() {
+  const s = Acc.load(); Acc.autoLogin().catch(() => {}); showSelect(); $('select').classList.add('hidden'); hideAll();
+  G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.runDrops = []; G.runStart = performance.now(); G.stage = STAGE; G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden');
+  const C = ST.CHAPTERS.find(c => c.id === STAGE.ch); setTimeout(() => banner(`${STAGE.id} ${STAGE.n} · 웨이브 ${STAGE.waves} · ${C.propN}`, C.color, 3200), 500);
+  const bt = Object.entries(G.equip).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · '); if (bt) setTimeout(() => banner(`⚔ 장비 보너스: ${bt}`, '#ffe08a', 3000), 3900);
+}
+G.onStageClear = () => {
+  if (G.runSaved) return; G.runSaved = true; G.phase = 'over'; const wave = G.wave, kills = sumKills(), stars = ST.starsFor(G.coreHp, G.coreMax); let got = 0, loot = [], info = null, best = false;
+  Acc.update(d => { const [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: true }); const [n2, inf] = P.applyStage(n, STAGE.id, stars, G.hero ? G.hero.cls : undefined); got = g; loot = [...l, ...inf.loot]; info = inf; return n2; }); Acc.flush();
+  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason: 'clear', wave, kills, got: got + info.souls, best: false, loot, stage: STAGE.id, stars, first: info.first, unlocked: info.unlocked }));
+  Snd.setMusic('none'); Snd.play('victory', { force: true, exact: true }); Snd.play('levelUp', { force: true, delay: .4 });
+  const el = $('stageClear'); el.innerHTML = `<div class="scBox"><div class="scT">스테이지 클리어!</div><div class="scS">${STAGE.id} · ${STAGE.n}</div><div class="scStars">${[0, 1, 2].map(i => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${.35 + i * .35}s">★</i>`).join('')}</div>
+    <div class="scConds">${ST.STAR_D.map((d, i) => `<div class="${i < stars ? 'got' : ''}">${i < stars ? '★' : '☆'} ${d}</div>`).join('')}</div>
+    <div class="scRw">영혼석 <b>+${got + info.souls}</b>${loot.length ? ` · 장비 <b>${loot.length}</b>개` : ''}${info.unlocked.length ? `<br>🔓 새 스테이지 해금: ${info.unlocked.join(', ')}` : ''}</div><button class="gbtn main" id="scTown">🏠 마을로 귀환</button></div>`;
+  el.classList.remove('hidden'); [0, 1, 2].forEach(i => i < stars && setTimeout(() => Snd.play('coin', { force: true, rate: 1 + i * .2 }), 400 + i * 350)); $('scTown').onclick = () => { Snd.play('confirm'); goTown(); };
+};
 // ---------- 시작 ----------
 export function startFlow() {
   const s = Acc.load(); if (s.settings.audio) { Object.assign(Snd.cfg, s.settings.audio); Snd.apply(); }
   const save0 = Snd.save.bind(Snd); Snd.save = () => { save0(); Acc.update(d => ({ ...d, settings: { ...d.settings, audio: { ...Snd.cfg } } })); };
   G.onRunEnd = onRunEnd; Acc.onChange(() => { refreshMenu(); refreshTown(); refreshLogin(); });
   bindUI();
+  if (STAGE && QS.has('run')) { startStageRun(); return; } // 스테이지 출정 (원정 지도에서 새로고침으로 진입)
   if (QS.has('town')) { resume(); return; } // 출정 후 귀환: 바로 마을
   showSelect(); $('select').classList.add('hidden'); show('intro'); // 인트로: 세 영웅이 포즈를 취하는 3D 무대 재사용
 }
@@ -71,21 +94,22 @@ function routeToTower() { const V = (x, z) => new THREE.Vector3(x, 0, z), p = th
   q.push(V(LAKE.x - 2.45, 0 + LAKE.y)); th.goal = q.shift(); th.goals = q; }
 // ---------- 여신의 축복 (여신탑 영구 강화 창) ----------
 let blessOpen = false, blessNear = false;
-function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeSmith(true); closeInv(); $('twBless').classList.remove('hidden'); refreshTown(); }
+function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeSmith(true); closeInv(); closeStageSel(true); $('twBless').classList.remove('hidden'); refreshTown(); }
 function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); }
 G.openBlessing = openBless; G.closeBlessing = closeBless;
 G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
 G.townGoal = (x, z) => { if (th) th.goal = new THREE.Vector3(x, 0, z); };
 G.townTower = () => [LAKE.x, LAKE.y]; G.townSmith = () => [SMITH.x, SMITH.y];
+G.stageSel = { openStageSel, departStage, ST };
 G.gear = { E, Acc, P, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal };
 function spawnTownHero() {
   const s = Acc.load(); if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(s.hero); th.cls = s.hero; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null;
 }
 export function enterTown() {
-  hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; closeSmith(true); closeInv();
+  hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; closeSmith(true); closeInv(); closeStageSel(true);
   cam.target.set(0, 1, TOWN_Z - 2); cam.r = 34; cam.phi = .78; cam.theta = 0; G.nightTarget = 0; refreshTown();
-  const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'retreat' ? '무사히 귀환했습니다' : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${(r.loot || []).length ? `<br>획득 장비 <b>${r.loot.length}</b>개 <small>(🎒 가방 확인)</small>` : ''}`); if ((r.loot || []).length) setTimeout(() => reveal(r.loot, show2), 600); else show2(); }
+  const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'clear' ? `스테이지 ${r.stage} 클리어! <span class="popStars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</span>` : r.reason === 'retreat' ? '무사히 귀환했습니다' : r.stage ? `스테이지 ${r.stage} 실패 · 코어가 파괴되었습니다` : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${(r.loot || []).length ? `<br>획득 장비 <b>${r.loot.length}</b>개 <small>(🎒 가방 확인)</small>` : ''}`); if ((r.loot || []).length) setTimeout(() => reveal(r.loot, show2), 600); else show2(); }
 }
 function popup(html) { const p = $('townPop'); p.innerHTML = html + '<br><button id="popOk">확인</button>'; p.classList.remove('hidden'); $('popOk').onclick = () => { Snd.play('ui'); p.classList.add('hidden'); }; }
 function refreshTown() {
@@ -93,28 +117,31 @@ function refreshTown() {
   $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP);
   $('twBonus').innerHTML = `<div class="lbl">${heroN(cls)} 장비 보너스</div>` + bonusHtml(E.bonus(s, cls)); $('twBest').textContent = s.bestWave; $('twRuns').textContent = s.stats.runs; $('twKills').textContent = s.stats.kills;
   $('twAcct').innerHTML = A.user ? `${esc(s.nick || A.user.email)} · <span class="sync s_${A.sync}">${Acc.SYNC_TXT[A.sync] || ''}</span>` : `${esc(s.nick || '게스트')} · <span class="sync">게스트 (이 기기 저장)</span>`;
-  $('twHeroes').innerHTML = P.HEROES.map(h => { const l = s.heroLv[h]; return `<button class="hcard ${h === cls ? 'sel' : ''}" data-h="${h}"><b>${heroN(h)}</b><small>체력 Lv.${l.hp} · 공격 Lv.${l.atk}</small><span class="dots">${heroDots(s, h)}</span></button>`; }).join('');
+  const hh = P.HEROES.map(h => { const l = s.heroLv[h]; return `<button class="hcard ${h === cls ? 'sel' : ''}" data-h="${h}"><b>${heroN(h)}</b><small>체력 Lv.${l.hp} · 공격 Lv.${l.atk}</small><span class="dots">${heroDots(s, h)}</span></button>`; }).join(''); if ($('twHeroes')._h !== hh) { $('twHeroes')._h = hh; $('twHeroes').innerHTML = hh; }
   refreshGear();
   document.querySelectorAll('#twHeroes .hcard').forEach(b => b.onclick = () => { if (b.dataset.h === cls) return; Snd.play('select'); Acc.update(d => ({ ...d, hero: b.dataset.h })); spawnTownHero(); play(th, 'Cheer', { once: true }); th.cheerT = 1.6; });
   $('blessHero').textContent = heroN(cls);
-  $('twPerm').innerHTML = Object.entries(P.PERM).map(([k, D]) => { const lv = L[k], max = lv >= D.max, c = P.permCost(k, lv); return `<button class="perm" data-k="${k}" ${max || s.souls < c ? 'disabled' : ''}><span class="row"><span>${D.n} Lv.${lv}/${D.max}</span><small>${max ? 'MAX' : c + ' 영혼석'}</small></span><span class="desc">${D.d} (영구)</span></button>`; }).join('');
-  document.querySelectorAll('#twPerm .perm').forEach(b => b.onclick = () => { let ok = false; Acc.update(d => { const [n, o] = P.buyPerm(d, cls, b.dataset.k); ok = o; return n; }); if (ok) { Snd.play('upgrade'); Snd.play('levelUp', { vol: .5 }); if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } else Snd.play('error'); });
+  // 축복 버튼은 한 번만 만들고 내용/disabled만 갱신 (동기화 상태 변경 등으로 refreshTown이 자주 불려도 버튼이 교체되지 않아 클릭이 한 번에 들어감)
+  const wrap = $('twPerm'); if (!wrap._built) { wrap._built = true; wrap.innerHTML = Object.keys(P.PERM).map(k => `<button class="perm" data-k="${k}"></button>`).join('');
+    wrap.querySelectorAll('.perm').forEach(b => b.onclick = () => { const hero = Acc.load().hero; let ok = false; Acc.update(d => { const [n, o] = P.buyPerm(d, hero, b.dataset.k); ok = o; return n; }); if (ok) { Snd.play('upgrade'); Snd.play('levelUp', { vol: .5 }); if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } else Snd.play('error'); refreshTown(); }); }
+  wrap.querySelectorAll('.perm').forEach(b => { const k = b.dataset.k, D = P.PERM[k], lv = L[k], max = lv >= D.max, c = P.permCost(k, lv), h = `<span class="row"><span>${D.n} Lv.${lv}/${D.max}</span><small>${max ? 'MAX' : c + ' 영혼석'}</small></span><span class="desc">${D.d} (영구)</span>`;
+    if (b._h !== h) { b._h = h; b.innerHTML = h; } const dis = max || s.souls < c; if (b.disabled !== dis) b.disabled = dis; });
 }
 export function depart() {
   if (departing || G.phase !== 'town') return; departing = true; const s = Acc.load(); Snd.play('meteorCast', { force: true }); Snd.play('confirm');
-  $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeSmith(true); closeInv(); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
+  $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeSmith(true); closeInv(); closeStageSel(true); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
     const bt = Object.entries(G.equip).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · '); if (bt) setTimeout(() => banner(`⚔ 장비 보너스: ${bt}`, '#ffe08a', 3200), 900); }, 650);
 }
 const sumKills = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + b, 0);
 // 판 종료(패배/귀환) → 보상 저장 후 마을로
 function onRunEnd(reason) {
   if (G.runSaved) return; G.runSaved = true; const wave = G.wave, kills = sumKills(); let got = 0, best = false, loot = [];
-  Acc.update(d => { best = wave > d.bestWave; const [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined }); got = g; loot = l; return n; }); Acc.flush();
-  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason, wave, kills, got, best, loot }));
+  Acc.update(d => { best = !STAGE && wave > d.bestWave; const [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: !!STAGE }); got = g; loot = l; return n; }); Acc.flush();
+  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason, wave, kills, got, best, loot, stage: STAGE ? STAGE.id : undefined }));
   const btn = $('overTown'); if (btn) { btn.classList.remove('hidden'); $('overReward').innerHTML = `획득 영혼석 <b>+${got}</b>${loot.length ? ` · 장비 <b>${loot.length}</b>개` : ''}`; }
   if (reason === 'retreat') goTown();
 }
-export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
+export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('stage'); q.delete('run'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
 
 // ---------- UI 바인딩 ----------
 function bindUI() {
@@ -128,7 +155,8 @@ function bindUI() {
   for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; Snd.apply(); Snd.save(); });
   $('mnNickSave').onclick = async () => { Snd.play('ui'); await Acc.saveNick($('mnNick').value); refreshMenu(); };
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
-  $('twGo').onclick = () => depart(); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeSmith(true); closeInv(); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
+  $('twGo').onclick = () => { closeBless(); closeSmith(true); closeInv(); openStageSel(); };
+  initStageSel({ challenge: () => depart(), start: id => departStage(id) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeSmith(true); closeInv(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!confirm('지금까지의 보상을 가지고 마을로 귀환할까요?')) return; onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
   addEventListener('keydown', e => { if (G.screen === 'town') tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);
@@ -138,7 +166,7 @@ function bindUI() {
     const p = new THREE.Vector3(); if (!rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return; p.sub(TOWN).setY(0);
     if (towerHit || Math.hypot(p.x - LAKE.x, p.z - LAKE.y) < LR + .3) { routeToTower(); if (Math.hypot(th.g.position.x - LAKE.x, th.g.position.z - LAKE.y) < 3.4) openBless(); }
     else { th.goal = p; th.goals = null; } });
-  $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => openInv();
+  $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeStageSel(true); openInv(); };
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   addEventListener('keydown', e => { if (e.key === 'Escape' && blessOpen) closeBless(); });
 }
@@ -164,7 +192,7 @@ export function updFlow(dt) {
   cam.target.lerp(_v.set(p.x * .5, 1, TOWN_Z + p.z * .5 - 3), Math.min(1, dt * 3));
   const dl = Math.hypot(p.x - LAKE.x, p.z - LAKE.y); // 여신탑 접근 → 여신의 축복 창
   if (dl < 3.4 && !blessNear) { blessNear = true; openBless(); } else if (dl > 4.4 && blessNear) { blessNear = false; closeBless(); }
-  const ds = Math.hypot(p.x - SMITH.x, p.z - SMITH.y); if (ds < 4.0 && !smithNear) { smithNear = true; openSmith(); } else if (ds > 4.8 && smithNear) { smithNear = false; closeSmith(); }
-  const nearPortal = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) < 2.2; $('twHint').classList.toggle('go', nearPortal); if (nearPortal && !departing) depart();
+  const ds = Math.hypot(p.x - SMITH.x, p.z - SMITH.y); if (ds < 4.0 && !smithNear) { smithNear = true; closeStageSel(true); openSmith(); } else if (ds > 4.8 && smithNear) { smithNear = false; closeSmith(); }
+  const nearPortal = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) < 2.2; $('twHint').classList.toggle('go', nearPortal); if (nearPortal && !portalNear && !departing) { portalNear = true; closeBless(); closeSmith(true); closeInv(); openStageSel(); } else if (!nearPortal && portalNear && Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) > 3.2) { portalNear = false; closeStageSel(); }
 }
 export { show as showScreen };

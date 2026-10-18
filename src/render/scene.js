@@ -31,7 +31,12 @@ const hemi = new THREE.HemisphereLight(0xe6f4ff, 0x5a4a3a, 1.35); scene.add(hemi
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.6); sun.position.set(-22, 42, 26); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 30, bottom: -30, near: 5, far: 120 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .03; scene.add(sun);
 const moon = new THREE.DirectionalLight(0x7a8aff, 0); moon.position.set(20, 30, -20); scene.add(moon);
-const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
+// 후처리(블룸) 경로는 기본 렌더 타깃에 MSAA가 없어 antialias:true가 무시됨 → 잔 돌길 모서리가 카메라 이동 시 지글지글 끓어 보임. 멀티샘플 타깃으로 해결
+// (소프트웨어 렌더러(SwiftShader 등)에서는 너무 느려 끔, ?msaa=1/0 으로 강제)
+const _soft = (() => { try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); return /swiftshader|llvmpipe|software/i.test(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : ''); } catch (e) { return false; } })();
+const _qm = new URLSearchParams(location.search).get('msaa'), MSAA = _qm ? (_qm === '1' ? 4 : 0) : _soft ? 0 : Math.min(4, renderer.capabilities.maxSamples || 0);
+const _pr = renderer.getPixelRatio(), _rt = new THREE.WebGLRenderTarget(innerWidth * _pr, innerHeight * _pr, { type: THREE.HalfFloatType, samples: MSAA });
+const composer = new EffectComposer(renderer, _rt); composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .35, .45, .95); composer.addPass(bloom); composer.addPass(new OutputPass());
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
 

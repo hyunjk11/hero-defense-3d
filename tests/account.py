@@ -37,7 +37,7 @@ with sync_playwright() as pw:
     ok('hero_and_perm', s['hero'] == 'warrior' and s['heroLv']['warrior']['hp'] == 1 and s['souls'] == 90, (s['hero'], s['souls']))
     pg.click('#blessClose'); pg.wait_for_timeout(100); ok('bless_close', J(pg, "()=>document.getElementById('twBless').classList.contains('hidden')"))
     J(pg, "()=>{ G.townTeleport(0, 4); }"); pg.wait_for_timeout(200); J(pg, "()=>G.openBlessing()"); pg.wait_for_timeout(100); ok('bless_reopen_click', not J(pg, "()=>document.getElementById('twBless').classList.contains('hidden')")); J(pg, "()=>G.closeBlessing()")
-    J(pg, '()=>G.depart ? 0 : 0'); pg.click('#twGo'); pg.wait_for_function("()=>G.phase==='build'", timeout=10000)
+    J(pg, '()=>G.depart ? 0 : 0'); pg.click('#twGo'); pg.click('.chtab[data-c="0"]'); pg.click('#stChalGo'); pg.wait_for_function("()=>G.phase==='build'", timeout=10000)
     ok('defense_started_with_perm', J(pg, '()=>[G.hero.cls, G.hero.max]') == ['warrior', 1060])
     J(pg, "()=>{ G.wave = 6; G.stats.kills = {grunt: 30}; G.coreHp = 0; }"); J(pg, "()=>import('./src/core/waves.js').then(m=>m.gameOver())"); pg.wait_for_timeout(1500)
     s = save(pg); ok('reward_saved', s['souls'] == 90 + 6 * 8 + 10 and s['bestWave'] == 6 and s['stats']['runs'] == 3, s['souls'])

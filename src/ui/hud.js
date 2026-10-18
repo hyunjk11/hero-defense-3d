@@ -14,7 +14,7 @@ function updBossBar() { const b = G.enemies.find(e => e.E.boss && !e.dead); $('b
 function refreshHud() {
   $('gold').textContent = G.gold; $('wave').textContent = G.wave; setBar('coreBar', 'coreTr', G.coreHp / G.coreMax); if (G.coreHb) G.coreHb.set(G.coreHp / G.coreMax); $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
   $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
-  document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); b.innerHTML = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; b.disabled = G.gold < c; });
+  document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); const h = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; if (b._h !== h) { b._h = h; b.innerHTML = h; } const dis = G.gold < c; if (b.disabled !== dis) b.disabled = dis; }); // 바뀔 때만 다시 그림 (매 프레임 innerHTML 교체 → 클릭 씹힘 방지)
   document.querySelectorAll('.tool').forEach(b => { const T2 = TOWERS[b.dataset.tool]; if (T2) b.disabled = G.gold < T2.cost; if (b.dataset.tool === 'barricade') b.disabled = G.gold < 30; });
   const s = G.sel;
   if (s && s.kind === 'tower') { const D = TOWERS[s.type], L = s.lvl - 1; $('tName').textContent = `${D.n} Lv.${s.lvl}`;

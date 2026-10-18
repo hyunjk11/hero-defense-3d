@@ -1,7 +1,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $ } from '../core/util.js';
-import { GH, S, SPAWN, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+import { GH, S, SPAWN, SPAWNS, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 import { BLK, TNAME } from '../data/terrain.js';
 import { UPS } from '../data/heroes.js';
 import { TOWERS } from '../data/towers.js';
@@ -89,7 +89,7 @@ function previewTip(t, why) { const tool = G.tool, cost = toolCost(t), name = TO
   return s + `<br>${why ? `<span class="bad">✖ ${why}</span>` : `<span class="good">✔ 클릭하여 ${tool === 'clear' ? '개간' : '건설'}</span>`}`; }
 function canBuild(c, r) {
   if (!inGrid(c, r)) return false; const t = tileAt(c, r), tool = G.tool;
-  if (TOWERS[tool]) { if (t.t !== T.GRASS || t.tower || t.bar || G.gold < TOWERS[tool].cost || occupied(c, r)) return false; return isFinite(dijkstra(t)[SPAWN[0] * GH + SPAWN[1]]); }
+  if (TOWERS[tool]) { if (t.t !== T.GRASS || t.tower || t.bar || G.gold < TOWERS[tool].cost || occupied(c, r)) return false; const D = dijkstra(t); return SPAWNS.every(s => isFinite(D[s[0] * GH + s[1]])); }
   if (tool === 'barricade') return (t.t === T.CARVED || t.t === T.GRASS) && !t.tower && !t.bar && G.gold >= 30 && !occupied(c, r);
   if (tool === 'clear') return isBlock(t.t) && G.gold >= BLK[t.t].clear;
   return false;

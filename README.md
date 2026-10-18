@@ -33,6 +33,9 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 ![inventory](inventory.png)
 ![blacksmith](blacksmith.png)
 ![chest](chest.png)
+![stage select](stage_select.png)
+![chapter1](chapter1.png)
+![chapter2](chapter2.png)
 ![heroes](heroes.png)
 ![select](select.png)
 ![heroes in game](heroes_ingame.png)
@@ -40,6 +43,12 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 ![monsters](monsters.png)
 ![build preview](build_preview.png)
 ![warp](warp.png)
+
+## 챕터 · 스테이지 · 도전 모드
+- 출정의 문 → 원정 지도. 1장 숲(6스테이지, 부드러운 흙·굴착병), 2장 설원(4스테이지, 빙판: 파인 길에서 몬스터 +30% 속도·돌격병), 3장 화산·4장 폐허 준비 중
+- 스테이지마다 코어 위치·포털 수·지형이 다르고 10~15웨이브, 챕터 마지막은 보스
+- 별 3개(클리어 / 코어 70%↑ / 코어 무피해), 별 5개마다 보상 상자, 첫 클리어 챕터 장비
+- 도전 모드 = 기존 무한 웨이브 (최고 기록)
 
 ## 장비 · 대장간
 - 영웅별 무기·방어구·장신구, 5등급(일반/고급/희귀/영웅/전설), 주 스탯 + 서브 스탯, 강화 +10

@@ -1,7 +1,7 @@
 import { Snd } from './audio/audio.js';
 import * as THREE from 'three';
 import { $, rand, rnd } from './core/util.js';
-import { CORE, GH, GW, SPAWN, T, tileX, tileZ, toTile } from './core/grid.js';
+import { CORE, GH, GW, SPAWN, SPAWNS, T, tileX, tileZ, toTile } from './core/grid.js';
 import { BLK } from './data/terrain.js';
 import { startWarp } from './heroes/hero.js';
 import { updPreview } from './ui/preview.js';
@@ -35,7 +35,7 @@ import './render/toon.js';
 import './audio/sfx.js';
 import './world/barricades.js';
 
-Object.assign(G, { startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
+Object.assign(G, { SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
 G.setTool = _setTool; G.buildReason = (c, r, tool) => { const o = G.tool; G.tool = tool; const w = _buildReason(c, r); G.tool = o; return w; };
 G.hoverTile = (c, r) => { const v = new THREE.Vector3(tileX(c), 0, tileZ(r)).project(_camera); const x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight; _onMove(x, y); return [Math.round(x), Math.round(y), document.getElementById('tip').innerText]; };

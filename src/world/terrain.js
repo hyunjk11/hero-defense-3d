@@ -2,7 +2,7 @@ import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mulberry32, rnd } from '../core/util.js';
-import { CORE, GH, GW, NT, S, SPAWN, T, isBlock, tileX, tileZ } from '../core/grid.js';
+import { CORE, GH, GW, NT, S, SPAWN, SPAWNS, STAGE, T, isBlock, tileX, tileZ } from '../core/grid.js';
 import { BLK } from '../data/terrain.js';
 import { G } from '../core/state.js';
 import { scene } from '../render/scene.js';
@@ -13,22 +13,24 @@ import { computeDist, invalidatePaths } from './pathfinding.js';
 import { removeBarricade } from './barricades.js';
 
 // ================= 맵 생성 =================
-const seed = +(new URLSearchParams(location.search).get('seed')) || (Math.random() * 1e9 | 0);
+const seed = STAGE ? STAGE.seed : +(new URLSearchParams(location.search).get('seed')) || (Math.random() * 1e9 | 0);
+const SNOW = STAGE && STAGE.ch === 2;
+if (STAGE && STAGE.ch === 1) { BLK[T.DIRT].hp = 105; BLK[T.FOREST].hp = 180; } // 숲: 부드러운 흙
 function genMap() {
   const R = mulberry32(seed), L = Array.from({ length: 64 }, () => Array.from({ length: 64 }, R)), sm = t => t * t * (3 - 2 * t);
   const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = sm(x - xi), yf = sm(y - yi), a = L[xi & 63][yi & 63], b = L[(xi + 1) & 63][yi & 63], c = L[xi & 63][(yi + 1) & 63], d = L[(xi + 1) & 63][(yi + 1) & 63]; return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf; };
   const V = []; for (let c = 0; c < GW; c++) { V[c] = []; for (let r = 0; r < GH; r++) V[c][r] = vn(c * .3 + 5.3, r * .3 + 2.1) * .6 + vn(c * .75 + 9.7, r * .75 + 4.4) * .4; }
   const all = V.flat().sort((a, b) => a - b), q = p => all[Math.floor(all.length * p)];
-  const q1 = q(.25), q2 = q(.6), q3 = q(.77);
+  const Q = STAGE ? STAGE.q : [.25, .6, .77], q1 = q(Q[0]), q2 = q(Q[1]), q3 = q(Q[2]);
   for (let c = 0; c < GW; c++) { G.tiles[c] = []; for (let r = 0; r < GH; r++) {
     const v = V[c][r]; let t = v < q1 ? T.GRASS : v < q2 ? T.DIRT : v < q3 ? T.FOREST : T.ROCK;
     const dS = Math.abs(c - SPAWN[0]) + Math.abs(r - SPAWN[1]), dC = Math.abs(c - CORE[0]) + Math.abs(r - CORE[1]);
-    if (R() < .04 && dS > 4 && dC > 4) t = T.BEDROCK;
-    if ((c <= 1 && Math.abs(r - SPAWN[1]) <= 1) || (Math.abs(c - CORE[0]) <= 1 && Math.abs(r - CORE[1]) <= 1)) t = T.GRASS;
+    if (R() < (STAGE ? STAGE.bed : .04) && dS > 4 && dC > 4 && SPAWNS.every(s => Math.abs(c - s[0]) + Math.abs(r - s[1]) > 4)) t = T.BEDROCK;
+    if ((c <= 1 && Math.abs(r - SPAWN[1]) <= 1) || (Math.abs(c - CORE[0]) <= 1 && Math.abs(r - CORE[1]) <= 1) || (STAGE && SPAWNS.some(s => Math.abs(c - s[0]) <= 1 && Math.abs(r - s[1]) <= 1))) t = T.GRASS;
     const hp = BLK[t] ? BLK[t].hp : 0;
     G.tiles[c][r] = { c, r, t, hp, max: hp, tower: null, bar: null, s: R(), s2: R(), s3: R(), shk: 0, ck: (c + r) % 2 ? .03 : 0 };
   } }
-  G.tiles[SPAWN[0]][SPAWN[1]].t = T.SPAWN; G.tiles[CORE[0]][CORE[1]].t = T.CORE;
+  for (const s of SPAWNS) G.tiles[s[0]][s[1]].t = T.SPAWN; G.tiles[CORE[0]][CORE[1]].t = T.CORE;
 }
 const tileAt = (c, r) => G.tiles[c][r];
 const groundIM = IM(new RoundedBoxGeometry(S * .97, .8, S * .97, 2, .12), toon(0xffffff), NT, .02);
@@ -47,11 +49,11 @@ const bedrock = new THREE.Group(); scene.add(bedrock);
 function initTerrainColors() {
   for (let c = 0; c < GW; c++) for (let r = 0; r < GH; r++) {
     const t = tileAt(c, r), i = c * GH + r;
-    dirtIM.setColorAt(i, tmpC.setHSL(.065, .55, .26 + t.s * .05));
-    capIM.setColorAt(i, tmpC.setHSL(.22 + t.s2 * .04, .58, .38 + t.s * .05));
-    for (let k = 0; k < 2; k++) leafIM.setColorAt(i * 2 + k, tmpC.setHSL(.27 + t.s * .07 + k * .02, .6, .4 + k * .07 + t.s2 * .05));
+    dirtIM.setColorAt(i, SNOW ? tmpC.setHSL(.58, .3, .5 + t.s * .06) : tmpC.setHSL(.065, .55, .26 + t.s * .05));
+    capIM.setColorAt(i, SNOW ? tmpC.setHSL(.58, .35, .86 + t.s * .06) : tmpC.setHSL(.22 + t.s2 * .04, .58, .38 + t.s * .05));
+    for (let k = 0; k < 2; k++) leafIM.setColorAt(i * 2 + k, SNOW ? (k ? tmpC.setHSL(.58, .2, .93) : tmpC.setHSL(.42, .35, .32 + t.s2 * .05)) : tmpC.setHSL(.27 + t.s * .07 + k * .02, .6, .4 + k * .07 + t.s2 * .05));
     for (let k = 0; k < 2; k++) rockIM.setColorAt(i * 2 + k, tmpC.setHSL(.6 + t.s * .05, .08 + t.s2 * .06, .55 + k * .08 + t.s * .06));
-    for (let k = 0; k < 3; k++) tuftIM.setColorAt(i * 3 + k, tmpC.setHSL(.26 + t.s * .06, .6, .38 + k * .05));
+    for (let k = 0; k < 3; k++) tuftIM.setColorAt(i * 3 + k, SNOW ? tmpC.setHSL(.55, .3, .85) : tmpC.setHSL(.26 + t.s * .06, .6, .38 + k * .05));
     for (let k = 0; k < 2; k++) flowerIM.setColorAt(i * 2 + k, tmpC.set([0xff8ac0, 0xffe05a, 0xffffff, 0xa0c8ff][Math.floor(t.s3 * 4 + k * 1.7) % 4]));
     if (t.t === T.BEDROCK) makeBedrock(t);
   }
@@ -67,10 +69,10 @@ function refreshTile(t) {
   const i = t.c * GH + t.r, x = tileX(t.c), z = tileZ(t.r);
   const jx = t.shk > 0 ? rnd(-.09, .09) : 0, jz = t.shk > 0 ? rnd(-.09, .09) : 0, low = t.t === T.CARVED;
   setI(groundIM, i, x, low ? -.88 : -.4, z, 1);
-  if (low) groundIM.setColorAt(i, tmpC.setHSL(.09, .55, .56 + t.s * .05));
+  if (low) groundIM.setColorAt(i, SNOW ? tmpC.setHSL(.54, .6, .72 + t.s * .05) : tmpC.setHSL(.09, .55, .56 + t.s * .05)); // 설원: 얼음 길
   else if (t.t === T.SPAWN) groundIM.setColorAt(i, tmpC.set(0x5a4a7a));
   else if (t.t === T.CORE) groundIM.setColorAt(i, tmpC.set(0xc8c0d8));
-  else groundIM.setColorAt(i, tmpC.setHSL(.25 + t.s * .04, .55, .44 + t.ck + t.s2 * .04));
+  else groundIM.setColorAt(i, SNOW ? tmpC.setHSL(.6, .25, .84 + t.ck + t.s2 * .04) : tmpC.setHSL(.25 + t.s * .04, .55, .44 + t.ck + t.s2 * .04));
   groundIM.instanceColor.needsUpdate = true;
   [dirtIM, capIM, trunkIM].forEach(m => hideI(m, i)); for (let k = 0; k < 2; k++) { hideI(leafIM, i * 2 + k); hideI(rockIM, i * 2 + k); hideI(flowerIM, i * 2 + k); }
   for (let k = 0; k < 3; k++) { hideI(tuftIM, i * 3 + k); hideI(pebbleIM, i * 3 + k); }
@@ -90,14 +92,14 @@ function refreshAll() { for (let c = 0; c < GW; c++) for (let r = 0; r < GH; r++
 
 // 주변 장식
 (function deco() {
-  const R = mulberry32(99), base = new THREE.Mesh(new THREE.CircleGeometry(260, 48), toon(0x5aa84a)); base.rotation.x = -Math.PI / 2; base.position.y = -.81; base.receiveShadow = true; scene.add(base);
+  const R = mulberry32(99), base = new THREE.Mesh(new THREE.CircleGeometry(260, 48), toon(SNOW ? 0xdfe8f4 : 0x5aa84a)); base.rotation.x = -Math.PI / 2; base.position.y = -.81; base.receiveShadow = true; scene.add(base);
   const rim = new THREE.Mesh(new RoundedBoxGeometry(GW * S + 1.2, 1.6, GH * S + 1.2, 2, .4), toon(0x7a5a3a)); rim.position.y = -1.6; rim.receiveShadow = true; scene.add(rim);
   const n = 140, tr = IM(new THREE.CylinderGeometry(.22, .32, 1.6, 7), toon(0x7a4a2a), n, .04), lf = IM(new THREE.IcosahedronGeometry(1, 2), toon(0xffffff), n * 2, .045);
   for (let i = 0; i < n; i++) {
     let x, z; do { x = (R() - .5) * 130; z = (R() - .5) * 100; } while ((Math.abs(x) < GW + 3 && Math.abs(z) < GH + 3) || (Math.abs(x) < 16 && z > 14 && z < 40));
     const s = .9 + R() * .9; setI(tr, i, x, -.8 + .8 * s, z, s);
     setI(lf, i * 2, x, -.8 + 2.2 * s, z, 1.5 * s, 1.3 * s, 1.5 * s, R() * 6); setI(lf, i * 2 + 1, x + .2, -.8 + 3.4 * s, z, s, .9 * s, s, R() * 6);
-    lf.setColorAt(i * 2, tmpC.setHSL(.25 + R() * .1, .55, .38 + R() * .1)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.27 + R() * .1, .55, .45 + R() * .1));
+    if (SNOW) { R(); R(); R(); R(); lf.setColorAt(i * 2, tmpC.setHSL(.45, .3, .3 + (i % 5) * .02)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.58, .25, .92)); } else { lf.setColorAt(i * 2, tmpC.setHSL(.25 + R() * .1, .55, .38 + R() * .1)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.27 + R() * .1, .55, .45 + R() * .1)); }
   }
   lf.instanceColor.needsUpdate = true;
   for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .3, m = mk(new THREE.ConeGeometry(18 + R() * 10, 22 + R() * 14, 7), toon(new THREE.Color().setHSL(.58, .25, .55 + R() * .1)), Math.cos(a) * 140, 8, Math.sin(a) * 110, scene, 0); m.castShadow = false; }
@@ -117,7 +119,11 @@ function buildPortal() {
   mk(new RoundedBoxGeometry(.7, 1.9, .8, 2, .12), st, -1.75, .95, 0, portal); mk(new RoundedBoxGeometry(.7, 1.9, .8, 2, .12), st, 1.75, .95, 0, portal);
   portalDisk.position.y = 1.95; portal.add(portalDisk); portalLight.position.y = 2; portal.add(portalLight);
   for (let k = 0; k < 2; k++) mk(new THREE.OctahedronGeometry(.25, 0), glow(0xd090ff, 2), (k ? 1 : -1) * 1.75, 2.15, .45, portal);
+  portal.rotation.y = portalYaw(SPAWN); // 추가 포털 (스테이지 모드)
+  for (const s of SPAWNS.slice(1)) { const p2 = portal.clone(true); p2.position.set(tileX(s[0]), 0, tileZ(s[1])); p2.rotation.y = portalYaw(s); scene.add(p2); extraPortals.push(p2); }
 }
+const extraPortals = [];
+function portalYaw(s) { return s[0] <= 0 || s[0] >= GW - 1 ? Math.PI / 2 : 0; }
 // 코어 (성 + 수정)
 const core = new THREE.Group(); scene.add(core);
 const crystal = new THREE.Group(), coreLight = new THREE.PointLight(0x3ae8ff, 25, 14), crystalMat = toon(0x38b8e0, { emissive: 0x1890c0, emissiveIntensity: .55 }), coreRings = [];

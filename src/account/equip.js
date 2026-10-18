@@ -73,7 +73,7 @@ export function cleanItem(x, heroes) {
   if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !SLOT_KEYS.includes(x.s)) return null; const g = fin(x.g, 0, 4);
   const okStat = k => Object.prototype.hasOwnProperty.call(STAT, k), m = Array.isArray(x.m) && okStat(x.m[0]) ? [x.m[0], Math.max(0, Math.min(100, +x.m[1] || 0))] : null; if (!m) return null;
   const it = { id: x.id.slice(0, 16), s: x.s, g, n: String(x.n || '장비').slice(0, 24), m, sub: (Array.isArray(x.sub) ? x.sub : []).filter(p => Array.isArray(p) && okStat(p[0])).slice(0, 3).map(p => [p[0], Math.max(0, Math.min(100, +p[1] || 0))]), e: fin(x.e, 0, MAXE) };
-  if (x.s === 'weapon') { if (!heroes.includes(x.h)) return null; it.h = x.h; } return it;
+  if (x.s === 'weapon') { if (!heroes.includes(x.h)) return null; it.h = x.h; } if (x.c) it.c = fin(x.c, 1, 9); return it;
 }
 export function cleanEquip(d, e, heroes) {
   const seen = new Set(); e.inv = (Array.isArray(d.inv) ? d.inv : []).map(x => cleanItem(x, heroes)).filter(x => x && !seen.has(x.id) && seen.add(x.id)).slice(0, CAP + 20);

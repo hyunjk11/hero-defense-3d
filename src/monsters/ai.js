@@ -1,5 +1,6 @@
 import { Snd } from '../audio/audio.js';
-import { CORE, DIRS, GH, GW, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+import { STAGE, CORE, DIRS, GH, GW, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+const ICE = !!(STAGE && STAGE.ch === 2);
 import { rand, rnd } from '../core/util.js';
 import { BLK } from '../data/terrain.js';
 import { G } from '../core/state.js';
@@ -40,7 +41,7 @@ function updEnemies(dt) {
     if (e.dying !== undefined) { e.dying -= dt; if (E.fly) { e.m.inner.position.y = Math.max(.3, e.m.inner.position.y - dt * 7); e.m.inner.rotation.z += dt * 8; } else if (e.dying < .5) g.position.y -= dt * 2.5; if (e.dying <= 0) removeEnemy(e); continue; }
     if (e.flash > 0) { e.flash -= dt; flashMats(e.m.mats, true, e.blockT > 0 ? 0x5a8aff : 0xffffff); if (e.blockT > 0) e.blockT -= dt; } else if (e.slowT > 0) flashMats(e.m.mats, true, 0x2a3aaa); else flashMats(e.m.mats, false);
     e.hb.set(Math.max(0, e.hp / e.max)); if (e.state === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.state = 'walk'; continue; }
-    const slowK = e.slowT > 0 ? 1 - (e.slowAmt || .45) : 1, spd = (e.ai === 'charger' ? chargeSpeed(e, dt) : E.spd) * slowK; e.slowT -= dt;
+    const slowK = e.slowT > 0 ? 1 - (e.slowAmt || .45) : 1, spd = (e.ai === 'charger' ? chargeSpeed(e, dt) : E.spd) * slowK * (ICE && G.tiles[e.tile[0]]?.[e.tile[1]]?.t === T.CARVED ? 1.3 : 1); e.slowT -= dt; // 설원: 얼음 길에서 미끄러지듯 빠름
     if (E.fly) {
       const tx = core.position.x, tz = core.position.z, dx = tx - g.position.x, dz = tz - g.position.z, d = Math.hypot(dx, dz);
       if (d < 1) { reachCore(e); continue; } g.position.x += dx / d * spd * dt; g.position.z += dz / d * spd * dt; faceTo(g, tx, tz, dt);

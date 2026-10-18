@@ -54,7 +54,7 @@ with sync_playwright() as pw:
     J(pg, "()=>G.gear.closeSmith(true)")
     # 출정: 장비 보너스 적용
     eqb = J(pg, "()=>G.gear.E.bonus(G.gear.Acc.load(),'mage')")
-    pg.click('#twGo'); pg.wait_for_function("()=>G.phase==='build'", timeout=15000)
+    pg.click('#twGo'); pg.click('.chtab[data-c="0"]'); pg.click('#stChalGo'); pg.wait_for_function("()=>G.phase==='build'", timeout=15000)
     hp, dmg, rng = J(pg, "()=>[G.hero.max, G.hero.C.dmg, G.hero.C.range]")
     ok('hero_stats_with_equip', hp == round(330 * (1 + eqb.get('hp', 0) / 100)) and abs(dmg - 34 * (1 + eqb.get('atk', 0) / 100)) < 1e-6, (hp, dmg, eqb))
     # 보스 드롭 (강제) → 런 보상

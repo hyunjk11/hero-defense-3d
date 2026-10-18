@@ -102,7 +102,8 @@ function ground() {
 }
 const PLAZA = 7.2;
 function cobbles() {
-  const L = [], add = (x, z) => L.push({ x, y: .1, z, sx: RR(.42, .58), sy: .5, sz: RR(.42, .58), ry: R() * 3, c: [0xc8bca8, 0xb4a892, 0xd8ccb6, 0xa89a86, 0xcfc2a8][(R() * 5) | 0] });
+  // 돌마다 높이를 조금씩 달리함(겹치는 육각 윗면이 같은 평면이면 z-fighting으로 지글거림). 난수열은 그대로(배치 불변)
+  const L = [], add = (x, z) => L.push({ x, y: .1, z, sx: RR(.42, .58), sy: .5 + (L.length * 5 % 9) * .03, sz: RR(.42, .58), ry: R() * 3, c: [0xc8bca8, 0xb4a892, 0xd8ccb6, 0xa89a86, 0xcfc2a8][(R() * 5) | 0] });
   const disc = (cx, cz, r0, r1) => { for (let r = r0 + .45; r < r1; r += .62) { const n = Math.max(6, Math.round(6.283 * r / .62)); for (let k = 0; k < n; k++) { const a = (k + RR(-.2, .2)) / n * 6.283; add(cx + Math.cos(a) * r, cz + Math.sin(a) * r); } } };
   const path = (x0, z0, x1, z1, wid) => { const len = Math.hypot(x1 - x0, z1 - z0), ux = (x1 - x0) / len, uz = (z1 - z0) / len; for (let s = 0; s < len; s += .62) for (let q = -wid / 2 + .3; q < wid / 2; q += .62) add(x0 + ux * s - uz * q + RR(-.06, .06), z0 + uz * s + ux * q + RR(-.06, .06)); };
   disc(0, 0, 2.2, PLAZA); disc(LAKE.x, LAKE.y, LR + .7, 10.6);
