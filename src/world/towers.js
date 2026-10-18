@@ -129,4 +129,4 @@ function bolt(a, b, color) {
     const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: w ? 0xffffff : color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); scene.add(l); G.fxs.push({ m: l, t: 0, dur: .2, kind: 'fade' }); }
 }
 
-export { placeTower, upgradeTower, sellTower, enemyAim, updTowers, damageTower, destroyTower, repairTower, repairAll, repairCost };
+export { towerModel, placeTower, upgradeTower, sellTower, enemyAim, updTowers, damageTower, destroyTower, repairTower, repairAll, repairCost };

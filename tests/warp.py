@@ -25,6 +25,12 @@ TESTS = {
    const p = W_.pos(); return { start: t0, end: p, moved: +Math.hypot(p[0] - t0[0], p[1] - t0[1]).toFixed(2), trace: tr.slice(0, 4), unstuck: h.unstuckN, ok: h.unstuckN === 0 && Math.hypot(p[0] - t0[0], p[1] - t0[1]) > 1 }; }""",
  'hero_inside_block_unstuck': r"""()=>{ const h = G.hero, [bc, br] = W_.blockNextToGrass(), [bx, bz] = G.tileXZ(bc, br); h.g.position.set(bx, 0, bz); G.heroGoTo(...W_.coreFront()); G.sim(3);
    const [c, r] = W_.tile(), t = G.tileAt(c, r); return { unstuck: h.unstuckN, tile_type: t.t, ok: h.unstuckN >= 1 && (t.t === 0 || t.t === 1 || t.t === 6 || t.t === 7) }; }""",
+ 'build_preview_reasons': r"""()=>{ const [bc, br, gc, gr] = W_.blockNextToGrass(); G.gold = 500; const r = {};
+   r.grass_ok = G.buildReason(gc, gr, 'arrow'); r.block_tower = G.buildReason(bc, br, 'arrow'); r.block_clear = G.buildReason(bc, br, 'clear'); r.grass_clear = G.buildReason(gc, gr, 'clear');
+   G.gold = 5; r.poor = G.buildReason(gc, gr, 'arrow'); G.gold = 500; r.core_tile = G.buildReason(G.CORE[0], G.CORE[1], 'arrow');
+   G.setTool('cannon'); G.sim(.1); const h = G.hoverTile(gc, gr); r.tip = h[2]; r.mode = document.getElementById('modeInd').innerText; r.mode_visible = !document.getElementById('modeInd').classList.contains('hidden');
+   G.setTool('move'); r.mode_hidden_after = document.getElementById('modeInd').classList.contains('hidden');
+   r.ok = r.grass_ok === null && /개간/.test(r.block_tower) && r.block_clear === null && !!r.grass_clear && /골드 부족/.test(r.poor) && !!r.core_tile && /90G/.test(r.tip) && r.mode_visible && r.mode_hidden_after; return r; }""",
  'enemy_nudge': r"""()=>{ G.hero.g.position.set(-40, 0, -40); G.hero.dead = 1e9; const [bc, br, gc, gr] = W_.blockNextToGrass(), [bx, bz] = G.tileXZ(bc, br), [gx, gz] = G.tileXZ(gc, gr);
    const e = T_.enemyAt('grunt', gx, gz); G.phase = 'wave'; e.g.position.set(bx, 0, bz); e.E = Object.assign({}, e.E, { dps: 0, digDps: 0 }); e.tile = [gc, gr]; e.next = [gc, gr];
    for (let i = 0; i < 50; i++) { G.sim(.05); if (!G.nudgeN) e.g.position.set(bx, 0, bz); } const [c, r] = G.toTile(e.g.position.x, e.g.position.z); return { nudges: G.nudgeN || 0, free: G.tileAt(c, r).t < 2, ok: (G.nudgeN || 0) >= 1 }; }""",

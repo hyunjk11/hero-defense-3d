@@ -18,12 +18,12 @@ import { hero, heroGoTo, startWarp } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
 import { startWave } from '../core/waves.js';
 import { banner, refreshHud } from './hud.js';
+import { showPreview, hidePreview } from './preview.js';
 
 // ================= 입력 / 건설 =================
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), mouseGround = new THREE.Vector3();
-const hover = new THREE.Mesh(new THREE.BoxGeometry(S * .98, 3, S * .98), new THREE.MeshBasicMaterial({ color: 0x66ff88, transparent: true, opacity: .2, depthWrite: false })); hover.visible = false; scene.add(hover);
-const rangeRing = new THREE.Mesh(new THREE.RingGeometry(.96, 1, 72), new THREE.MeshBasicMaterial({ color: 0x9ae8ff, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); rangeRing.rotation.x = -Math.PI / 2; rangeRing.visible = false; scene.add(rangeRing);
-const rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshBasicMaterial({ color: 0x9ae8ff, transparent: true, opacity: .1, depthWrite: false, side: THREE.DoubleSide })); rangeRing.add(rangeFill);
+const rangeRing = new THREE.Mesh(new THREE.RingGeometry(.93, 1, 96), new THREE.MeshBasicMaterial({ color: 0x9ae8ff, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); rangeRing.material.depthTest = false; rangeRing.renderOrder = 6; rangeRing.rotation.x = -Math.PI / 2; rangeRing.visible = false; scene.add(rangeRing);
+const rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshBasicMaterial({ color: 0x9ae8ff, transparent: true, opacity: .14, depthWrite: false, depthTest: false, side: THREE.DoubleSide })); rangeRing.add(rangeFill);
 const moveMark = new THREE.Mesh(new THREE.RingGeometry(.4, .55, 24), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, toneMapped: false })); moveMark.rotation.x = -Math.PI / 2; moveMark.visible = false; scene.add(moveMark);
 let rdrag = null; const keys = {};
 const cvs = renderer.domElement; cvs.addEventListener('contextmenu', e => e.preventDefault());
@@ -37,20 +37,21 @@ function tileInfo(t) {
 function onMove(cx, cy) {
   mouse.set(cx / innerWidth * 2 - 1, -cy / innerHeight * 2 + 1); ray.setFromCamera(mouse, camera); ray.ray.intersectPlane(groundPlane, mouseGround);
   const [c, r] = toTile(mouseGround.x, mouseGround.z), ok = inGrid(c, r) && G.phase !== 'select' && G.phase !== 'loading', tip = $('tip');
-  hover.visible = ok && G.tool !== 'move'; rangeRing.visible = false;
+  const bmode = ok && G.tool !== 'move'; rangeRing.visible = false; if (!bmode) hidePreview();
   if (ok) { const t = tileAt(c, r); tip.classList.remove('hidden'); tip.style.left = cx + 'px'; tip.style.top = cy + 'px'; tip.innerHTML = tileInfo(t);
-    if (hover.visible) { hover.position.set(tileX(c), 1.2, tileZ(r)); hover.material.color.set(canBuild(c, r) ? 0x66ff88 : 0xff4a4a); if (TOWERS[G.tool]) showRange(tileX(c), tileZ(r), TOWERS[G.tool].range[0]); }
+    if (bmode) { const why = buildReason(c, r), valid = !why; showPreview(c, r, valid, G.tool); tip.innerHTML = previewTip(t, why);
+      if (TOWERS[G.tool] && t.t === T.GRASS) showRange(tileX(c), tileZ(r), TOWERS[G.tool].range[0], valid ? 0x7affa0 : 0xff6a6a); }
     else if (t.tower) showRange(tileX(c), tileZ(r), TOWERS[t.tower.type].range[t.tower.lvl - 1]); }
   else tip.classList.add('hidden');
   if (G.sel && G.sel.kind === 'tower' && !rangeRing.visible) showRange(tileX(G.sel.c), tileZ(G.sel.r), TOWERS[G.sel.type].range[G.sel.lvl - 1], 0xffe066);
 }
 cvs.addEventListener('pointermove', e => {
-  if (rdrag) { cam.theta -= (e.clientX - rdrag.x) * .008; cam.phi = Math.min(1.25, Math.max(.45, cam.phi - (e.clientY - rdrag.y) * .005)); rdrag = { x: e.clientX, y: e.clientY }; }
+  if (rdrag) { cam.theta -= (e.clientX - rdrag.x) * .008; cam.phi = Math.min(1.25, Math.max(.45, cam.phi - (e.clientY - rdrag.y) * .005)); rdrag = { ...rdrag, x: e.clientX, y: e.clientY }; }
   onMove(e.clientX, e.clientY);
 });
 cvs.addEventListener('pointerleave', () => $('tip').classList.add('hidden'));
 cvs.addEventListener('pointerdown', e => {
-  SFX.init(); if (e.button === 2) { rdrag = { x: e.clientX, y: e.clientY }; return; } if (e.button !== 0 || !hero || G.phase === 'select' || G.phase === 'over') return;
+  SFX.init(); if (e.button === 2) { rdrag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; return; } if (e.button !== 0 || !hero || G.phase === 'select' || G.phase === 'over') return;
   onMove(e.clientX, e.clientY); const [c, r] = toTile(mouseGround.x, mouseGround.z);
   if (G.tool === 'move' || !inGrid(c, r)) {
     if (inGrid(c, r)) { const t = tileAt(c, r); if (t.tower) return select(t.tower); if (t.bar) return select(t.bar); } select(null);
@@ -58,7 +59,7 @@ cvs.addEventListener('pointerdown', e => {
   }
   build(c, r);
 });
-addEventListener('pointerup', () => rdrag = null);
+addEventListener('pointerup', e => { if (rdrag && e.button === 2 && Math.hypot(e.clientX - rdrag.x0, e.clientY - rdrag.y0) < 6 && G.tool !== 'move') setTool('move'); rdrag = null; });
 cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e.deltaY * .03)); }, { passive: true });
 addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat) startWarp(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -67,6 +68,25 @@ function occupied(c, r) {
   if (G.enemies.some(e => !e.dead && !e.E.fly && ((e.tile[0] === c && e.tile[1] === r) || (e.next && e.next[0] === c && e.next[1] === r)))) return true;
   if (hero && hero.dead <= 0) { const [hc, hr] = toTile(hero.g.position.x, hero.g.position.z); if (hc === c && hr === r) return true; } return false;
 }
+function toolCost(t) { const tool = G.tool; return TOWERS[tool] ? TOWERS[tool].cost : tool === 'barricade' ? 30 : tool === 'clear' && isBlock(t.t) ? BLK[t.t].clear : 0; }
+const TOOLN = { barricade: '바리케이드', clear: '개간' };
+// 불가 사유 (가능하면 null)
+function buildReason(c, r) {
+  if (!inGrid(c, r)) return '맵 밖'; const t = tileAt(c, r), tool = G.tool, cost = toolCost(t);
+  if (TOWERS[tool] || tool === 'barricade') {
+    if (t.tower) return '이미 타워가 있음'; if (t.bar) return '이미 바리케이드가 있음';
+    if (TOWERS[tool] && t.t !== T.GRASS) return isBlock(t.t) ? '지형 블록 (먼저 개간)' : t.t === T.CARVED ? '파인 길 (바리케이드만 가능)' : '건설 불가 지형';
+    if (tool === 'barricade' && t.t !== T.CARVED && t.t !== T.GRASS) return isBlock(t.t) ? '지형 블록' : '설치 불가 지형';
+    if (occupied(c, r)) return '유닛이 서 있음'; if (G.gold < cost) return `골드 부족 (${cost - G.gold}G 더 필요)`;
+    if (TOWERS[tool] && !canBuild(c, r)) return '경로 차단'; return null; }
+  if (tool === 'clear') { if (!isBlock(t.t)) return t.t === T.BEDROCK ? '파괴 불가 암반' : '개간할 블록 없음'; if (G.gold < cost) return `골드 부족 (${cost - G.gold}G 더 필요)`; return null; }
+  return '도구 없음';
+}
+function previewTip(t, why) { const tool = G.tool, cost = toolCost(t), name = TOWERS[tool] ? TOWERS[tool].n : TOOLN[tool];
+  let s = `<b>${name}</b> <span class="cost">${cost ? cost + 'G' : ''}</span>`;
+  if (tool === 'clear' && isBlock(t.t)) s += `<br>${BLK[t.t].n} · 내구도 ${Math.ceil(t.hp)}/${t.max}`;
+  if (TOWERS[tool]) s += `<br>사거리 ${TOWERS[tool].range[0]} · 피해 ${TOWERS[tool].dmg[0]}`;
+  return s + `<br>${why ? `<span class="bad">✖ ${why}</span>` : `<span class="good">✔ 클릭하여 ${tool === 'clear' ? '개간' : '건설'}</span>`}`; }
 function canBuild(c, r) {
   if (!inGrid(c, r)) return false; const t = tileAt(c, r), tool = G.tool;
   if (TOWERS[tool]) { if (t.t !== T.GRASS || t.tower || t.bar || G.gold < TOWERS[tool].cost || occupied(c, r)) return false; return isFinite(dijkstra(t)[SPAWN[0] * GH + SPAWN[1]]); }
@@ -75,14 +95,16 @@ function canBuild(c, r) {
   return false;
 }
 function build(c, r) {
-  if (!canBuild(c, r)) { Snd.play('error'); if (inGrid(c, r) && TOWERS[G.tool] && tileAt(c, r).t === T.GRASS && G.gold >= TOWERS[G.tool].cost && !occupied(c, r)) banner('길을 완전히 막을 수 없습니다', '#ff8a9a', 900); return false; }
+  if (!canBuild(c, r)) { Snd.play('error'); const why = buildReason(c, r); if (why) banner(why === '경로 차단' ? '경로 차단: 길을 완전히 막을 수 없습니다' : why, '#ff8a9a', 900); return false; }
   const t = tileAt(c, r), p = new THREE.Vector3(tileX(c), .5, tileZ(r));
   if (TOWERS[G.tool]) { G.gold -= TOWERS[G.tool].cost; placeTower(t, G.tool); emit(P, p.x, .5, p.z, 30, 0xffe066, 5, .6, -6, 2); debris(p.x, .3, p.z, 8, [0xe0dacb, 0x9e98ae], 4); ringFx(p, 2, 0xffe066, .4); }
   else if (G.tool === 'barricade') { G.gold -= 30; addBarricade(t); emit(P, p.x, .6, p.z, 16, 0xffb03a, 4, .5); }
   else if (G.tool === 'clear') { const B = BLK[t.t]; G.gold -= B.clear; debris(p.x, .8, p.z, 16, B.deb, 6); emit(P, p.x, .8, p.z, 24, 0x8ad05a, 4, .7); t.t = T.GRASS; t.hp = t.max = 0; refreshTile(t); }
   if (!TOWERS[G.tool]) Snd.play(G.tool === 'barricade' ? 'build' : 'breakDirt', { pos: { x: tileX(c), z: tileZ(r) }, force: true }); computeDist(); refreshHud(); return true;
 }
-function setTool(t) { if (G.tool !== t) Snd.play('ui'); G.tool = t; document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
+function setTool(t) { if (G.tool !== t) Snd.play('ui'); G.tool = t; const mi = $('modeInd');
+  if (mi) { mi.classList.toggle('hidden', t === 'move'); mi.classList.toggle('clear', t === 'clear'); if (t !== 'move') mi.innerHTML = `${t === 'clear' ? '⛏ 개간 모드' : t === 'barricade' ? '🧱 바리케이드 설치' : '🏰 건설 모드: ' + TOWERS[t].n} <small>Esc / 우클릭: 취소</small>`; }
+  if (t === 'move') { hidePreview(); rangeRing.visible = false; } document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
 document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 (function sndUI() { const C = Snd.cfg; $('bgmOn').checked = C.bgmOn; $('sfxOn').checked = C.sfxOn; $('bgmVol').value = Math.round(C.bgm * 100); $('sfxVol').value = Math.round(C.sfx * 100);
   const upd = () => { C.bgmOn = $('bgmOn').checked; C.sfxOn = $('sfxOn').checked; C.bgm = $('bgmVol').value / 100; C.sfx = $('sfxVol').value / 100; Snd.apply(); Snd.save(); $('sndBtn').classList.toggle('muted', !C.bgmOn && !C.sfxOn); };
@@ -100,4 +122,4 @@ $('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { upgradeTower(G
 $('tRep').onclick = () => { if (G.sel && G.sel.kind === 'tower') { repairTower(G.sel); select(G.sel); } };
 $('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += 15; removeBarricade(s.t, false); refreshHud(); } };
 
-export { mouseGround, moveMark, keys, build, setTool, upCost, select };
+export { onMove, buildReason, mouseGround, moveMark, keys, build, setTool, upCost, select };
