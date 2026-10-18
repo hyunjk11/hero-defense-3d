@@ -8,7 +8,8 @@ import { G } from '../core/state.js';
 
 // ================= 렌더러/씬 =================
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75)); renderer.setSize(innerWidth, innerHeight);
+const COARSE = matchMedia('(pointer: coarse)').matches; // 태블릿: 고해상도 화면에서 GPU 부담 줄이기
+renderer.setPixelRatio(Math.min(devicePixelRatio, COARSE ? 1.5 : 1.75)); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12;
 $('app').appendChild(renderer.domElement);
 const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xcfeaff, 80, 170);

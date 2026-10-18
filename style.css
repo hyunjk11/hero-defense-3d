@@ -229,3 +229,79 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 @keyframes starIn{to{transform:scale(1)}}.scConds div{color:#a898c0;font-size:13px}.scConds .got{color:#ffe066}.scRw{margin:12px 0;font-size:15px}.scRw b{color:#d8b0ff}.scBox .gbtn{padding:12px 30px;font-size:17px}
 /* 버튼 안쪽 요소가 다시 그려져도 클릭 대상은 항상 버튼 */
 .up *,.perm *,.hcard *,.gbtn *,.snode *,.chtab *{pointer-events:none}
+/* ===== 가로 태블릿 · 터치 대응 ===== */
+html,body{overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+#app,#app canvas{touch-action:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+/* 가운데 정렬(left:50% + translate) 바들이 화면 절반 폭으로 줄어들며 글자가 세로로 쪼개지던 문제: 내용 폭 그대로 + 화면 폭 제한 */
+#top,.twTop,.twBottom,#bottom{width:max-content;max-width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))}
+.twTop,#top{flex-wrap:wrap;justify-content:center;row-gap:6px}
+.pill,.pill .lbl,.pill b,.gbtn,.ftab,.chtab,.tool>span,#twGo,#twMenu,#startWave,#retreat,.tlabel,#banner{white-space:nowrap}
+.twBottom{align-items:stretch}#twHint{display:flex;align-items:center;flex:0 1 auto;min-width:0}
+#twGo,#twMenu{flex:none}
+/* 안전 영역 (노치/라운드 화면) */
+#build,.twLeft{left:calc(12px + env(safe-area-inset-left))}#ups{right:calc(12px + env(safe-area-inset-right))}
+#cam{right:calc(12px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}
+#bottom{bottom:calc(14px + env(safe-area-inset-bottom))}.twBottom{bottom:calc(16px + env(safe-area-inset-bottom))}
+/* 큰 패널은 화면 높이 안에서 스크롤 */
+.bigPanel{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.twLeft,#build,#ups,#tinfo,#twBless{max-height:calc(100dvh - 160px);overflow-y:auto;overscroll-behavior:contain}
+#twBless{max-height:calc(100dvh - 150px)}
+#scr_login .fcard,#scr_menu .fcard{max-height:calc(100dvh - 24px);overflow-y:auto}
+#townPop{max-width:calc(100vw - 40px);max-height:calc(100dvh - 40px);overflow:auto}
+
+/* 터치 기기: 누를 대상 44px 이상, 호버 의존 효과 제거 */
+@media (pointer:coarse){
+  .gbtn,.ftab,.panel button,#over button,#tinfo button,.perm,.hcard,.chtab,#popOk,#townPop button{min-height:44px}
+  .gbtn.sm{min-height:44px;min-width:44px;padding:8px 12px}
+  .xbtn,#blessClose{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  .ftab{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:6px 14px}
+  .gpanel input[type=email],.gpanel input[type=password],.gpanel input:not([type]){min-height:46px;font-size:16px}
+  input[type=checkbox]{width:26px;height:26px;margin:9px;flex:none}
+  input[type=range]{height:44px;min-width:110px}
+  .settings label,#sndPanel .snd{min-height:44px}
+  #cam button{width:46px;height:46px}
+  #help{display:none}
+  .card{padding:16px}
+  #heroBox{min-height:44px}
+}
+@media (hover:none){
+  .panel button:hover,.gbtn:hover:not(:disabled),.itile:hover,.snode:hover,.chtab:hover{filter:none;transform:none}
+  .snode:hover{transform:translate(-50%,-50%)}
+  .card:hover{transform:none;box-shadow:none}
+}
+
+/* 컴팩트 레이아웃: 폭 1100px 미만 또는 높이 800px 미만 (가로 태블릿) */
+@media (max-width:1100px),(max-height:800px){
+  .pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:11px}.pill b{font-size:15px}.gold b{font-size:17px}
+  .twTop,#top{top:calc(8px + env(safe-area-inset-top));gap:6px}
+  .twAcct{top:calc(48px + env(safe-area-inset-top))}
+  .twLeft{top:calc(64px + env(safe-area-inset-top));width:206px;padding:10px;gap:5px;max-height:calc(100dvh - 150px)}
+  .twTip{font-size:11px;padding:5px 7px}
+  #twHint{font-size:12px;padding:6px 10px;max-width:min(520px,calc(100vw - 260px))}
+  #twGo{font-size:17px;padding:10px 18px}
+  #build,#ups,#tinfo{top:calc(60px + env(safe-area-inset-top))}
+  #build{width:170px;padding:8px;gap:4px}#ups{width:190px;padding:8px;gap:4px}#tinfo{left:calc(192px + env(safe-area-inset-left))}
+  .panel button{padding:6px 8px;font-size:12.5px}
+  #build,#ups,#tinfo{max-height:calc(100dvh - 76px - 110px)}
+  #skillBtn{width:76px;height:76px}#warpBtn{width:58px;height:58px}
+  .bar.hp{width:190px}.bar{width:130px}.bar.boss{width:min(420px,60vw)}
+  #bossHud{top:calc(54px + env(safe-area-inset-top))}
+  #banner{font-size:clamp(26px,4.2vw,42px)}
+  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(200px,26vw,230px)}
+  #over h1{font-size:clamp(40px,6vw,60px)}
+  .logo h1{font-size:clamp(52px,8vw,84px)}
+  .bigPanel{padding:12px 14px;gap:8px}
+  .smGrid{max-height:min(300px,calc(100dvh - 330px))}.smList{max-height:min(340px,calc(100dvh - 260px))}
+  .stMap{height:clamp(240px,calc(100dvh - 250px),360px)}.stInfo{width:240px}
+  .scT{font-size:clamp(30px,4.5vw,44px)}.scStars i{font-size:clamp(46px,7vh,70px)}
+}
+/* 높이가 낮은 화면 (예: 960x600) */
+@media (max-height:680px){
+  .gtitle{font-size:19px;padding-bottom:5px}
+  #scr_login .fcard,#scr_menu .fcard{gap:7px;padding:14px 20px}
+  .twLeft{max-height:calc(100dvh - 140px)}
+  .hcard{padding:5px 8px}
+  #build .ptitle.sub{margin-top:0}
+  .scStars{margin:4px 0}.scRw{margin:6px 0}
+}

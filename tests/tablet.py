@@ -95,8 +95,7 @@ with sync_playwright() as pw:
         sweep(pg, 'smith_' + t, ['#scr_town'], prep=prep)
     J(pg, "()=>G.gear.closeSmith(true)")
     def chest():
-        J(pg, "()=>{ const {E}=G.gear; let q=7; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; G.gear.reveal([{...E.makeItem('weapon','mage',4,r),id:'cx',src:'보스 상자'}]); }"); pg.wait_for_timeout(200)
-        pg.tap('.cvStage', force=True); pg.wait_for_timeout(1600)
+        J(pg, "()=>{ const {E}=G.gear; let q=7; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; G.gear.reveal([{it:{...E.makeItem('weapon','mage',4,r),id:'cx'},src:'boss'},{it:{...E.makeItem('armor','mage',2,r),id:'cy'},src:'chest'}]); }"); pg.wait_for_timeout(2000)
     sweep(pg, 'chest', ['#chestOv'], prep=chest)
     for _ in range(6):
         if hidden(pg, 'chestOv'): break

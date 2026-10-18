@@ -6,6 +6,7 @@ import { BLK } from './data/terrain.js';
 import { startWarp } from './heroes/hero.js';
 import { updPreview } from './ui/preview.js';
 import { startFlow, updFlow } from './ui/flow.js';
+import './ui/touch.js';
 import { QS } from './core/util.js';
 import { onMove as _onMove, buildReason as _buildReason, setTool as _setTool } from './ui/input.js';
 import { camera as _camera } from './render/scene.js';

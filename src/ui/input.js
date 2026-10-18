@@ -49,7 +49,8 @@ cvs.addEventListener('pointermove', e => {
   if (rdrag) { cam.theta -= (e.clientX - rdrag.x) * .008; cam.phi = Math.min(1.25, Math.max(.45, cam.phi - (e.clientY - rdrag.y) * .005)); rdrag = { ...rdrag, x: e.clientX, y: e.clientY }; }
   onMove(e.clientX, e.clientY);
 });
-cvs.addEventListener('pointerleave', () => $('tip').classList.add('hidden'));
+// 터치는 손을 떼면 pointerleave가 바로 오므로 툴팁(건설 불가 사유 등)을 잠시 보여 준 뒤 닫는다
+let tipHideT = 0; cvs.addEventListener('pointerleave', e => { clearTimeout(tipHideT); if (e.pointerType === 'mouse') $('tip').classList.add('hidden'); else tipHideT = setTimeout(() => $('tip').classList.add('hidden'), 1800); });
 cvs.addEventListener('pointerdown', e => {
   SFX.init(); if (e.button === 2) { rdrag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; return; } if (e.button !== 0 || !hero || G.phase === 'select' || G.phase === 'over') return;
   onMove(e.clientX, e.clientY); const [c, r] = toTile(mouseGround.x, mouseGround.z);

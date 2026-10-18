@@ -27,7 +27,7 @@ export function heroDots(s, h) { return E.SLOT_KEYS.map(sl => { const it = s.inv
 
 // ---------- 가방 ----------
 export function openInv() { ui.inv = true; $('invPanel').classList.remove('hidden'); Snd.play('ui'); closeSmith(true); renderInv(); }
-export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; $('invPanel').classList.add('hidden'); }
+export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; $('invPanel').classList.add('hidden'); hideTip(); }
 function renderInv() {
   if (!ui.inv) return; const s = S(), h = s.hero, eq = s.eq[h] || {};
   const list = sorted(s.inv.filter(x => ui.invF === 'all' || x.s === ui.invF), s);
@@ -42,7 +42,7 @@ function renderInv() {
   if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${CLASSES[sel.h].n} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${CLASSES[who].n}에게서 가져오기)` : ''}</button>`; }
   $('invDetail').innerHTML = sel ? card(sel, cur && cur.id !== sel.id ? cur : null) + `<div class="acts">${act}</div>` : '<div class="hintS">장비를 눌러 자세히 보기 · 마우스를 올리면 비교</div>';
   document.querySelectorAll('#invPanel .itile[data-id]').forEach(b => { b.onclick = () => { ui.invSel = b.dataset.id; Snd.play('select'); renderInv(); };
-    b.onmouseenter = () => { const it = S().inv.find(x => x.id === b.dataset.id); if (!it) return; const c = S().inv.find(x => x.id === (S().eq[h] || {})[it.s]); showTip(b, card(it, c && c.id !== it.id ? c : null)); }; b.onmouseleave = hideTip; });
+    b.onpointerenter = e => { if (e.pointerType !== 'mouse') return; const it = S().inv.find(x => x.id === b.dataset.id); if (!it) return; const c = S().inv.find(x => x.id === (S().eq[h] || {})[it.s]); showTip(b, card(it, c && c.id !== it.id ? c : null)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); }; });
   document.querySelectorAll('#invFilt .ftab').forEach(b => b.onclick = () => { ui.invF = b.dataset.f; Snd.play('ui'); renderInv(); });
   if ($('invEq')) $('invEq').onclick = () => { Acc.update(d => E.equip(d, h, sel.id)[0]); Snd.play('upgrade'); hooks.cheer(); hooks.onChange(); };
   if ($('invUneq')) $('invUneq').onclick = () => { Acc.update(d => E.unequip(d, h, sel.s)); Snd.play('ui'); hooks.onChange(); };
@@ -58,7 +58,7 @@ const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철',
 function renderSmith() {
   if (!ui.smith) return; const s = S();
   $('smMats').innerHTML = `<span><i class="mi souls"></i>${s.souls}</span><span><i class="mi steel"></i>강철 ${s.mat.steel}</span><span><i class="mi crystal"></i>마력석 ${s.mat.crystal}</span>`;
-  document.querySelectorAll('#smTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === ui.smTab); b.onclick = () => { if (ui.busy) return; ui.smTab = b.dataset.t; Snd.play('ui'); renderSmith(); }; });
+  document.querySelectorAll('#smTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === ui.smTab); b.onclick = () => { if (ui.busy) return; ui.smTab = b.dataset.t; Snd.play('ui'); hideTip(); renderSmith(); }; });
   const body = $('smBody');
   if (ui.smTab === 'enh') {
     const list = sorted(s.inv, s); if (!list.some(x => x.id === ui.smSel)) ui.smSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.smSel);
@@ -90,7 +90,11 @@ function renderSmith() {
     body.querySelectorAll('.crGo').forEach(b => b.onclick = () => doCraft(b.dataset.r));
   }
 }
-function tipBind(b) { b.onmouseenter = () => { const it = S().inv.find(x => x.id === b.dataset.id); if (it) showTip(b, card(it)); }; b.onmouseleave = hideTip; }
+// 마우스: 올리면 툴팁 · 터치: 누를 때 툴팁 (잠시 후/다른 곳을 누르면 닫힘)
+function tipBind(b) { const sh = () => { const it = S().inv.find(x => x.id === b.dataset.id); if (it) showTip(b, card(it)); };
+  b.onpointerenter = e => { if (e.pointerType === 'mouse') sh(); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); };
+  b.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { const id = b.dataset.id; setTimeout(() => { const nb = document.querySelector(`#smBody .itile[data-id="${id}"]`); if (nb) { const it = S().inv.find(x => x.id === id); if (it) showTip(nb, card(it)); clearTimeout(tipT); tipT = setTimeout(hideTip, 2600); } }, 0); } }); }
+let tipT = 0; addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !(e.target.closest && e.target.closest('.itile'))) hideTip(); }, true);
 function sparks(n, color) { const w = $('sparks'); if (!w) return; for (let i = 0; i < n; i++) { const p = document.createElement('i'), a = Math.random() * 6.283, d = 40 + Math.random() * 90; p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', (Math.sin(a) * d - 30) + 'px'); p.style.background = color; p.style.animationDelay = Math.random() * .1 + 's'; w.appendChild(p); setTimeout(() => p.remove(), 900); } }
 export function doEnhance(id, quick) {
   if (ui.busy) return; const s0 = S(), it0 = s0.inv.find(x => x.id === id); if (!it0) return;
