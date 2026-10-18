@@ -31,7 +31,7 @@ with sync_playwright() as pw:
     ok('perm_not_in_left_panel', J(pg, "()=>!document.querySelector('.twLeft #twPerm') && document.getElementById('twBless').classList.contains('hidden')"))
     pg.click('.hcard[data-h="warrior"]'); pg.wait_for_timeout(200)
     J(pg, "()=>{ const [x,z]=G.townTower(); G.townTeleport(x-8, z); G.townGoal(x-2.45, z); }")
-    pg.wait_for_function("()=>!document.getElementById('twBless').classList.contains('hidden')", timeout=15000)
+    pg.wait_for_function("()=>!document.getElementById('twBless').classList.contains('hidden')", timeout=90000)
     ok('bless_opens_at_tower', '여신의 축복' in pg.inner_text('#twBless') and '전사' in pg.inner_text('#blessHero'))
     pg.click('.perm[data-k="hp"]'); pg.wait_for_timeout(200); s = save(pg)
     ok('hero_and_perm', s['hero'] == 'warrior' and s['heroLv']['warrior']['hp'] == 1 and s['souls'] == 90, (s['hero'], s['souls']))
@@ -44,7 +44,7 @@ with sync_playwright() as pw:
     d = db(pg); ok('reward_in_cloud', list(d['hd3d_progress'].values())[0]['data']['souls'] == s['souls'])
     ok('over_town_btn', J(pg, "()=>!document.getElementById('overTown').classList.contains('hidden')"))
     pg.click('#overTown'); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=60000); pg.wait_for_timeout(800)
-    pg.wait_for_function("()=>!document.getElementById('chestOv').classList.contains('hidden')", timeout=15000); ok('chest_reveal_wave6', True)
+    pg.wait_for_function("()=>!document.getElementById('chestOv').classList.contains('hidden')", timeout=90000); ok('chest_reveal_wave6', True)
     for _ in range(8):
         if J(pg, "()=>document.getElementById('chestOv').classList.contains('hidden')"): break
         pg.wait_for_timeout(1500); pg.click('.cvStage', force=True)

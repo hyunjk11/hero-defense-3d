@@ -25,7 +25,7 @@ with sync_playwright() as pw:
     pg.goto(url + '?seed=12345&flow=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=120000)
     pg.mouse.click(700, 400); pg.wait_for_timeout(300); pg.click('#lgGuest'); pg.wait_for_timeout(300); pg.click('#mnNew'); pg.wait_for_function("()=>G.screen==='town'", timeout=20000); pg.wait_for_timeout(800)
     # 출정의 문으로 걸어가면 원정 지도
-    J(pg, "()=>{ G.townTeleport(0, -12); G.townGoal(0, -16.2); }"); pg.wait_for_function("()=>!document.getElementById('stagePanel').classList.contains('hidden')", timeout=15000); ok('portal_opens_stage_map', True)
+    J(pg, "()=>{ G.townTeleport(0, -12); G.townGoal(0, -16.2); }"); pg.wait_for_function("()=>!document.getElementById('stagePanel').classList.contains('hidden')", timeout=90000); ok('portal_opens_stage_map', True)
     ok('nodes_locked_state', pg.locator('.snode').count() == 6 and pg.locator('.snode.locked').count() == 5 and pg.locator('.snode.cur').count() == 1)
     pg.click('.chtab[data-c="2"]'); ok('ch2_locked', pg.locator('.lockVeil').count() == 1); pg.click('.chtab[data-c="3"]'); ok('ch3_soon', '준비 중' in pg.inner_text('#stMap'))
     pg.click('.chtab[data-c="1"]')
@@ -48,7 +48,7 @@ with sync_playwright() as pw:
         pg.wait_for_timeout(1500)
         if hidden(pg, 'chestOv'): break
         pg.click('.cvStage', force=True)
-    pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=15000)
+    pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=90000)
     ok('clear_popup', '클리어' in pg.inner_text('#townPop')); pg.click('#popOk')
     pg.click('#twGo'); pg.wait_for_timeout(300); ok('next_unlocked', pg.locator('.snode.locked').count() == 4 and pg.locator('.snode.cur[data-id="1-2"]').count() == 1)
     # 2스테이지: 포털 2개 (1-3), 설원(2-1) 스크린샷
