@@ -12,7 +12,7 @@ import { P, debris, emit, ringFx } from '../render/vfx.js';
 import { refreshTile, tileAt } from '../world/terrain.js';
 import { computeDist, dijkstra } from '../world/pathfinding.js';
 import { addBarricade, barMaxHp, removeBarricade } from '../world/barricades.js';
-import { placeTower, sellTower, upgradeTower } from '../world/towers.js';
+import { placeTower, repairAll, repairTower, sellTower, upgradeTower } from '../world/towers.js';
 import { groundY } from '../monsters/ai.js';
 import { hero, heroGoTo } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
@@ -60,7 +60,7 @@ cvs.addEventListener('pointerdown', e => {
 });
 addEventListener('pointerup', () => rdrag = null);
 cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e.deltaY * .03)); }, { passive: true });
-addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
+addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 $('rotL').onclick = () => { cam.theta += Math.PI / 4; Snd.play('ui'); }; $('rotR').onclick = () => { cam.theta -= Math.PI / 4; Snd.play('ui'); };
 function occupied(c, r) {
@@ -97,6 +97,7 @@ document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.da
   Snd.play('upgrade'); Snd.play('levelUp', { vol: .6 }); if (hero) emit(P, hero.g.position.x, 1.5, hero.g.position.z, 24, 0xffe066, 4, .7); refreshHud(); });
 function select(o) { G.sel = o; $('tinfo').classList.toggle('hidden', !o); if (o && o.kind === 'tower') showRange(tileX(o.c), tileZ(o.r), TOWERS[o.type].range[o.lvl - 1], 0xffe066); else rangeRing.visible = false; refreshHud(); }
 $('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { upgradeTower(G.sel); select(G.sel); } };
+$('tRep').onclick = () => { if (G.sel && G.sel.kind === 'tower') { repairTower(G.sel); select(G.sel); } };
 $('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += 15; removeBarricade(s.t, false); refreshHud(); } };
 
 export { mouseGround, moveMark, keys, build, setTool, upCost, select };

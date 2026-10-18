@@ -3,24 +3,26 @@
   "models": [
    "archer",
    "mage",
+   "sk_mage",
    "sk_minion",
    "sk_rogue",
    "sk_warrior",
    "w_axe",
    "w_blade",
    "w_shield_large_a",
+   "w_shield_large_b",
    "warrior"
   ],
   "route_len": 26,
   "gold0": 220,
   "audio_ctx": "running",
-  "sfx_buffers": 50,
+  "sfx_buffers": 52,
   "bgm_playing": [
    "build"
   ],
   "audio_bad": [],
   "http_bad": [],
-  "audio_sfx_requests": 50,
+  "audio_sfx_requests": 52,
   "bgm_requested": true
  },
  "hero_archer": {

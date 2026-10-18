@@ -143,4 +143,4 @@ function carve(t) {
   t.t = T.CARVED; t.hp = t.max = 0; t.shk = 0; G.dirty.add(t); G.carved = (G.carved || 0) + 1; computeDist();
 }
 
-export { genMap, tileAt, initTerrainColors, refreshTile, refreshAll, portal, portalDisk, portalLight, buildPortal, core, crystal, coreLight, crystalMat, coreRings, buildCore, damageTile };
+export { genMap, tileAt, initTerrainColors, refreshTile, refreshAll, portal, portalDisk, portalLight, buildPortal, core, crystal, coreLight, crystalMat, coreRings, buildCore, damageTile, carve };

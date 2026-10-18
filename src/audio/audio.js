@@ -8,12 +8,13 @@ const SFX_FILES = {
   breakDirt: ['impactSoft_heavy_001'], breakWood: ['impactWood_heavy_000', 'impactWood_heavy_001'], breakRock: ['explosionCrunch_001'],
   coin: ['handleCoins2'], coins: ['handleCoins'], build: ['impactPlank_medium_000'], upgrade: ['maximize_006'], sell: ['handleCoins'], ui: ['click_002'], select: ['select_002'], error: ['error_004'], place: ['drop_002'],
   coreHit: ['impactBell_heavy_000'], glass: ['impactGlass_heavy_000'], meteorCast: ['forceField_000'], meteor: ['lowFrequency_explosion_000'], stomp: ['footstep_concrete_000'],
+  ram: ['chop', 'impactWood_heavy_001'], towerHit: ['impactPlate_medium_001'], towerBreak: ['lowFrequency_explosion_001'], repair: ['minimize_003'], block: ['impactPlate_medium_000'],
   waveClear: ['jingles_STEEL02'], gameOver: ['jingles_STEEL01'], victory: ['jingles_PIZZI02'], levelUp: ['jingles_NES09'], confirm: ['confirmation_001'],
 };
 const VOL = { arrow: .35, bolt: .4, cannon: .7, boom: .8, magic: .35, zap: .45, sword: .6, draw: .5, hit: .32, hitArmor: .35, heroHurt: .5, bones: .5, poof: .3, dig: .32, digSoft: .4, digWood: .4,
   breakDirt: .7, breakWood: .75, breakRock: .8, coin: .45, coins: .7, build: .8, upgrade: .7, sell: .7, ui: .5, select: .5, error: .5, place: .6, coreHit: .9, glass: .5, meteorCast: .6, meteor: 1,
-  stomp: .9, waveClear: .7, gameOver: .8, victory: .8, levelUp: .5, confirm: .6 };
-const GAP = { arrow: .05, hit: .04, hitArmor: .05, dig: .07, digSoft: .07, digWood: .07, coin: .06, bones: .06, magic: .06, zap: .08, cannon: .06, sword: .05 };
+  stomp: .9, ram: .8, towerHit: .45, towerBreak: .9, repair: .7, block: .4, waveClear: .7, gameOver: .8, victory: .8, levelUp: .5, confirm: .6 };
+const GAP = { arrow: .05, hit: .04, hitArmor: .05, dig: .07, digSoft: .07, digWood: .07, coin: .06, bones: .06, magic: .06, zap: .08, cannon: .06, sword: .05, towerHit: .08, block: .06, ram: .1 };
 const BGM = { build: 'audio/bgm/town.mp3', wave: 'audio/bgm/battle.mp3', boss: 'audio/bgm/boss.mp3' }, BGMV = { build: .55, wave: .5, boss: .55 };
 
 const store = (() => { try { return Object.assign({ bgm: .6, sfx: .8, bgmOn: true, sfxOn: true }, JSON.parse(localStorage.getItem('hd3d_audio') || '{}')); } catch (e) { return { bgm: .6, sfx: .8, bgmOn: true, sfxOn: true }; } })();
@@ -80,6 +81,9 @@ export const Snd = {
     if (!this.ctx || !this.cfg.sfxOn) return; const now = this.ctx.currentTime; if (this.last.crk && now - this.last.crk < .07) return; this.last.crk = now;
     const out = this.out(pos, .55), t = now + .01; for (let k = 0; k < 5; k++) this.noiseHit(t + k * .028 + Math.random() * .015, .05 + Math.random() * .05, .6, out, 2500 + Math.random() * 3000, 1.5, 'highpass');
     this.osc('square', 1800, t, .12, .06, out, 300); this.play('zap', { pos, vol: .7 });
+  },
+  fuse(pos) { // 자폭병 심지 타는 소리 (치익 + 짧은 경고음)
+    if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime, out = this.out(pos, .5); this.noiseHit(t, .7, .5, out, 5500, 1.2, 'highpass'); for (let k = 0; k < 3; k++) this.osc('square', 1400, t + k * .22, .06, .05, out, 0);
   },
   whoosh(pos, dur = .35, f0 = 500, f1 = 2500, v = .45) { if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime, out = this.out(pos, v), f = this.noiseHit(t, dur, .9, out, f0, 2.5); f.frequency.exponentialRampToValueAtTime(f1, t + dur * .6); },
   beep(f, d = .08, type = 'square', v = .03, slide = 0) { if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime; this.osc(type, f, t, d, v * 4, this.out(null, 1), slide ? Math.max(30, f + slide) : 0); },

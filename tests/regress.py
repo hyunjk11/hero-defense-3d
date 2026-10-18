@@ -119,7 +119,10 @@ def flat(d, p=''):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--save', action='store_true'); ap.add_argument('--url'); ap.add_argument('--only'); ap.add_argument('--out', default=os.path.join(ROOT, 'tests', 'last.json'))
-    ap.add_argument('--baseline', default=os.path.join(ROOT, 'tests', 'baseline.json')); a = ap.parse_args()
+    ap.add_argument('--baseline'); ap.add_argument('--mode', default='classic', choices=['classic', 'v2'], help='classic: 신규 몬스터 없이 기존 웨이브(기준선 비교용), v2: 신규 몬스터 포함')
+    a = ap.parse_args(); global Q
+    if a.mode == 'classic': Q += '&classic=1'
+    a.baseline = a.baseline or os.path.join(ROOT, 'tests', 'baseline.json' if a.mode == 'classic' else 'baseline_v2.json')
     srv = None; url = a.url
     if not url: srv, url = serve()
     M, errs = {}, []; t0 = time.time()

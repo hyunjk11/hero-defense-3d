@@ -1,0 +1,312 @@
+{
+ "boot": {
+  "models": [
+   "archer",
+   "mage",
+   "sk_minion",
+   "sk_rogue",
+   "sk_warrior",
+   "w_axe",
+   "w_blade",
+   "w_shield_large_a",
+   "warrior"
+  ],
+  "route_len": 26,
+  "gold0": 220,
+  "audio_ctx": "running",
+  "sfx_buffers": 50,
+  "bgm_playing": [
+   "build"
+  ],
+  "audio_bad": [],
+  "http_bad": [],
+  "audio_sfx_requests": 50,
+  "bgm_requested": true
+ },
+ "hero_archer": {
+  "hp": 380,
+  "dist_to_target": 2.941,
+  "atk_dmg_3s": 108,
+  "skill_cd": 12,
+  "skill_dmg": 192,
+  "dummy_dead": true,
+  "sounds": {
+   "bolt": 9,
+   "hitArmor": 15,
+   "draw": 1,
+   "whoosh": 1,
+   "arrow": 6,
+   "bones": 1,
+   "coin": 4
+  }
+ },
+ "hero_mage": {
+  "hp": 330,
+  "dist_to_target": 2.777,
+  "atk_dmg_3s": 76.5,
+  "skill_cd": 14,
+  "skill_dmg": 223.5,
+  "dummy_dead": true,
+  "sounds": {
+   "magic": 4,
+   "hitArmor": 5,
+   "meteorCast": 1,
+   "whoosh": 1,
+   "bones": 1,
+   "meteor": 1,
+   "boom": 1,
+   "coin": 4
+  }
+ },
+ "hero_warrior": {
+  "hp": 1000,
+  "dist_to_target": 2.777,
+  "atk_dmg_3s": 150,
+  "skill_cd": 10,
+  "skill_dmg": 150,
+  "dummy_dead": true,
+  "sounds": {
+   "sword": 8,
+   "whoosh": 5,
+   "hitArmor": 8,
+   "bones": 1,
+   "coin": 4
+  }
+ },
+ "towers": {
+  "arrow": {
+   "built": true,
+   "cost": 60,
+   "up1": 55,
+   "up2": 95,
+   "lvl": 3,
+   "dmg_2_5s": 189,
+   "refund": 147,
+   "tile_free": true
+  },
+  "cannon": {
+   "built": true,
+   "cost": 90,
+   "up1": 80,
+   "up2": 130,
+   "lvl": 3,
+   "dmg_2_5s": 90,
+   "refund": 210,
+   "tile_free": true
+  },
+  "magic": {
+   "built": true,
+   "cost": 100,
+   "up1": 90,
+   "up2": 150,
+   "lvl": 3,
+   "dmg_2_5s": 112.5,
+   "refund": 237,
+   "tile_free": true
+  },
+  "barricade": {
+   "built": true,
+   "max": 320,
+   "hp_after": 320,
+   "destroyed": false,
+   "route_changed": true
+  },
+  "bars": {
+   "visible": 2,
+   "bad": 0
+  },
+  "gold_end": 4738,
+  "sounds": {
+   "ui": 8,
+   "build": 4,
+   "place": 3,
+   "upgrade": 6,
+   "levelUp": 6,
+   "digSoft": 74,
+   "arrow": 6,
+   "hitArmor": 13,
+   "bones": 3,
+   "coin": 24,
+   "sell": 3,
+   "breakWood": 4,
+   "cannon": 2,
+   "boom": 2,
+   "crackle": 3,
+   "breakDirt": 7,
+   "digWood": 27
+  }
+ },
+ "dig": {
+  "w1": {
+   "secs": 50,
+   "carved_new": 14,
+   "carved_total": 14,
+   "core": 19,
+   "route_len": 26,
+   "route_on_carved": 14,
+   "leaked": 11
+  },
+  "w2": {
+   "secs": 27,
+   "carved_new": 0,
+   "carved_total": 14,
+   "core": 5,
+   "route_len": 26,
+   "route_on_carved": 14,
+   "leaked": 25
+  },
+  "w3": {
+   "secs": 23,
+   "carved_new": 0,
+   "carved_total": 14,
+   "core": 0,
+   "route_len": 26,
+   "route_on_carved": 14,
+   "leaked": 30
+  },
+  "route_blocks_initial": 14,
+  "trench_persist": 14,
+  "distCalcs": 108,
+  "sounds": {
+   "horn": 3,
+   "digSoft": 128,
+   "breakDirt": 9,
+   "digWood": 119,
+   "breakWood": 5,
+   "coreHit": 30,
+   "glass": 31,
+   "waveClear": 2,
+   "coins": 2,
+   "gameOver": 1,
+   "breakRock": 1
+  }
+ },
+ "balance": {
+  "setup": [
+   [
+    "arrow",
+    3,
+    11
+   ],
+   [
+    "cannon",
+    9,
+    10
+   ],
+   [
+    "magic",
+    18,
+    5
+   ],
+   [
+    "arrow",
+    20,
+    6
+   ]
+  ],
+  "gold_after_setup": 110,
+  "waves": [
+   {
+    "w": 1,
+    "secs": 21,
+    "phase": "build",
+    "kills": 11,
+    "leaked": 0,
+    "core": 30,
+    "gold": 117,
+    "carved": 4,
+    "boss": false,
+    "hero_alive": true
+   },
+   {
+    "w": 2,
+    "secs": 21,
+    "phase": "build",
+    "kills": 14,
+    "leaked": 0,
+    "core": 30,
+    "gold": 136,
+    "carved": 5,
+    "boss": false,
+    "hero_alive": true
+   },
+   {
+    "w": 3,
+    "secs": 66,
+    "phase": "build",
+    "kills": 17,
+    "leaked": 0,
+    "core": 30,
+    "gold": 145,
+    "carved": 10,
+    "boss": false,
+    "hero_alive": true
+   },
+   {
+    "w": 4,
+    "secs": 26,
+    "phase": "build",
+    "kills": 20,
+    "leaked": 0,
+    "core": 30,
+    "gold": 158,
+    "carved": 10,
+    "boss": false,
+    "hero_alive": true
+   },
+   {
+    "w": 5,
+    "secs": 73,
+    "phase": "build",
+    "kills": 23,
+    "leaked": 1,
+    "core": 20,
+    "gold": 218,
+    "carved": 14,
+    "boss": true,
+    "hero_alive": false
+   }
+  ],
+  "kills_by_type": {
+   "grunt": 44,
+   "imp": 30,
+   "bat": 4,
+   "golem": 7
+  },
+  "gold_earned": 483,
+  "bars": {
+   "visible": 1,
+   "bad": 0
+  },
+  "sounds": {
+   "ui": 8,
+   "build": 4,
+   "place": 4,
+   "horn": 5,
+   "arrow": 317,
+   "hit": 255,
+   "digSoft": 90,
+   "bones": 81,
+   "coin": 158,
+   "breakDirt": 9,
+   "digWood": 85,
+   "breakWood": 5,
+   "cannon": 43,
+   "boom": 43,
+   "waveClear": 5,
+   "coins": 5,
+   "upgrade": 5,
+   "levelUp": 5,
+   "crackle": 38,
+   "hitArmor": 248,
+   "poof": 4,
+   "roar": 1,
+   "stomp": 82,
+   "magic": 32,
+   "heroHurt": 3,
+   "coreHit": 1,
+   "glass": 1
+  }
+ },
+ "console_errors": []
+}

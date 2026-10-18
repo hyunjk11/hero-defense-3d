@@ -64,3 +64,10 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #sndPanel{position:absolute;right:12px;bottom:64px;width:250px;padding:10px 12px;background:linear-gradient(#1c1830f2,#0c0a16f2);border:1px solid #c9a24a;border-radius:12px;box-shadow:0 4px 16px #000a;pointer-events:auto}
 #sndPanel.hidden{display:none}#sndPanel .snd{display:flex;align-items:center;gap:6px;font-size:13px;margin:8px 0;white-space:nowrap}#sndPanel input[type=range]{flex:1;accent-color:#ffcf6a;min-width:0}
 #sndPanel input[type=checkbox]{accent-color:#ffcf6a}.sndHint{font-size:11px;color:#a9a0c0}#sndBtn.muted{opacity:.45;text-decoration:line-through}
+
+/* 신규 몬스터 소개 카드 */
+#note{position:absolute;top:calc(22% + 44px);left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none;transition:opacity .4s}
+#note.hidden{opacity:0;display:flex}
+#note .nc{background:#120c22e8;border:2px solid #ffd27a;border-radius:12px;padding:8px 12px;max-width:300px;color:#eee;font-size:13px;line-height:1.35;box-shadow:0 4px 18px #0008}
+#note .nc b{display:block;color:#ffd27a;font-size:16px;margin-bottom:2px}
+#tRep.warn{border-color:#ff8a5a;color:#ffd0b0}

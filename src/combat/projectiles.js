@@ -39,7 +39,7 @@ function updProjs(dt) {
     if (p.target.dead) { killProj(i); continue; }
     const tp = enemyAim(p.target), d = tp.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
     if (len <= mv) { killProj(i);
-      if (p.kind === 'arrow') { hurt(p.target, p.dmg, '#ffffff'); emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
+      if (p.kind === 'arrow') { hurt(p.target, p.dmg, '#ffffff', false, { x: m.position.x, z: m.position.z, kind: 'ranged' }); emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
       else { aoe(tp, p.aoe, p.dmg, '#d0a0ff', { slow: true }); emit(P, tp.x, tp.y, tp.z, 18, 0xb07aff, 5, .5, -4, 1.5); ringFx(tp, p.aoe, 0xb07aff, .3); }
       continue; }
     m.position.addScaledVector(d.normalize(), mv); m.lookAt(tp);

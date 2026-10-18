@@ -16,14 +16,26 @@ import { banner } from '../ui/hud.js';
 function spawnEnemy(type, hpMul) {
   const E = ETYPES[type], m = makeEnemyModel(type), hp = E.hp * hpMul; scene.add(m.g);
   m.g.position.set(tileX(SPAWN[0]) + .4, 0, tileZ(SPAWN[1]) + rnd(-.5, .5)); m.g.rotation.y = Math.PI / 2;
-  const e = { type, E, m, g: m.g, hp, max: hp, tile: SPAWN.slice(), next: null, off: [rnd(-.45, .45), rnd(-.45, .45)], slowT: 0, slowAmt: 0, flash: 0, atkCd: rnd(0, .5), hitT: rnd(0, .3), state: 'walk', spawnT: 0, dead: false, bob: rand() * 6 };
+  const e = { type, E, m, g: m.g, hp, max: hp, ai: E.ai || 'basic', profile: E.profile || 'default', tile: SPAWN.slice(), next: null, off: [rnd(-.45, .45), rnd(-.45, .45)], slowT: 0, slowAmt: 0, flash: 0, atkCd: rnd(0, .5), hitT: rnd(0, .3), state: 'walk', spawnT: 0, dead: false, bob: rand() * 6 };
   if (!E.fly) { const a = play(m, 'Spawn_Ground_Skeletons', { once: true, speed: 2, fade: 0 }); e.state = 'spawn'; e.spawnT = a ? Math.min(1.4, a.getClip().duration / 2) : 0; emit(P, m.g.position.x, .3, m.g.position.z, 12, 0x9a7a5a, 3, .6, -6, 1.5); }
   e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, E.boss ? 3 : Math.max(1.1, E.h * .55), E.boss ? 0xff3a4a : 0x55ff77, { auto: !E.boss, h: E.boss ? .22 : .15 });
   if (E.boss) { G.shake = .7; Snd.roar(m.g.position); banner('⚠ 보스 출현: 해골 군주 ⚠', '#ff4a5a', 2200); emit(PB, m.g.position.x, 2, m.g.position.z, 40, 0xff3a3a, 8, 1, -2, 2); }
   emit(P, m.g.position.x, 1.5, m.g.position.z, 14, 0xc07aff, 4, .5); G.enemies.push(e); return e;
 }
-function hurt(e, dmg, color = '#fff', big = false) {
-  if (e.dead) return; Snd.play(e.E.armor ? 'hitArmor' : 'hit', { pos: e.g.position }); dmg *= 1 - (e.E.armor || 0); e.hp -= dmg; e.flash = .09; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, dmg, color, big);
+// 방패병: 공격 방향(src)과 바라보는 방향의 각도로 피해 감소. 정면 원거리 대폭 감소, 근접은 일부, 옆은 소폭, 뒤는 추가 피해. src 없는 범위/번개 공격은 무시
+function shieldFactor(e, src) {
+  const S = e.E.shieldDef; if (!S || !src || e.dying !== undefined) return 1;
+  const g = e.g, fx = Math.sin(g.rotation.y), fz = Math.cos(g.rotation.y), dx = src.x - g.position.x, dz = src.z - g.position.z, d = Math.hypot(dx, dz) || 1;
+  const ang = Math.acos(Math.max(-1, Math.min(1, (fx * dx + fz * dz) / d))) * 180 / Math.PI, melee = src.kind === 'melee';
+  const red = ang <= S.arc ? (melee ? S.melee : S.front) : ang <= S.side ? (melee ? S.sideRed / 2 : S.sideRed) : S.back;
+  e.lastShield = { ang, red, kind: src.kind }; return 1 - red;
+}
+function hurt(e, dmg, color = '#fff', big = false, src = null) {
+  if (e.dead) return; const sk = shieldFactor(e, src);
+  if (sk < .5) { Snd.play('block', { pos: e.g.position }); const p = enemyAim(e); emit(P, p.x + Math.sin(e.g.rotation.y) * .6, p.y, p.z + Math.cos(e.g.rotation.y) * .6, 6, 0xbfe0ff, 3, .25, 0, .3); e.blockT = .2;
+    G.stats.blocked = (G.stats.blocked || 0) + dmg * (1 - sk); if (!(e.blockTxt > G.t)) { e.blockTxt = G.t + .6; p.y += e.E.h * .55 + .3; dmgText(p, '막음!', '#9ad4ff'); } }
+  else Snd.play(e.E.armor ? 'hitArmor' : 'hit', { pos: e.g.position });
+  if (sk !== 1) { dmg *= sk; if (sk < .5) { dmg *= 1 - (e.E.armor || 0); e.hp -= dmg; e.flash = .05; if (e.hp <= 0) killEnemy(e); return; } } dmg *= 1 - (e.E.armor || 0); e.hp -= dmg; e.flash = .09; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, dmg, color, big);
   if (e.hp <= 0) killEnemy(e);
 }
 function killEnemy(e) {
@@ -41,4 +53,4 @@ function reachCore(e) {
 }
 function removeEnemy(e) { scene.remove(e.g); e.hb.dispose(); if (e.m.mats) e.m.mats.forEach(m => m.dispose()); if (e.m.mixer) e.m.mixer.stopAllAction(); const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1); }
 
-export { spawnEnemy, hurt, reachCore, removeEnemy };
+export { spawnEnemy, hurt, killEnemy, reachCore, removeEnemy, shieldFactor };
