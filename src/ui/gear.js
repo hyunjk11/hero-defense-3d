@@ -16,11 +16,12 @@ export function initGear(h) { hooks = { ...hooks, ...h }; bind(); }
 const S = () => Acc.load(), hero = () => S().hero;
 const eqOf = (s, id) => { for (const h in s.eq) for (const sl in s.eq[h]) if (s.eq[h][sl] === id) return h; return null; };
 function sorted(list, s) { return [...list].sort((a, b) => (!!eqOf(s, b.id) - !!eqOf(s, a.id)) || b.g - a.g || b.e - a.e || E.power(b) - E.power(a)); }
-function tile(it, s, extra = '') { const h = eqOf(s, it.id); return `<button class="itile g${it.g} ${extra}" data-id="${it.id}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span>${it.e ? `<span class="en">+${it.e}</span>` : ''}${h ? `<span class="eqb">${CLASSES[h].n[0]}</span>` : ''}</button>`; }
+function tile(it, s, extra = '') { const h = eqOf(s, it.id); return `<button class="itile g${it.g} ${extra}" data-id="${it.id}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span>${it.e ? `<span class="en">+${it.e}</span>` : ''}${h ? `<span class="eqb">${CLASSES[h].n[0]}</span>` : ''}${E.legendKey(it) ? '<span class="lst">✦</span>' : ''}</button>`; }
+export function lskHtml(it) { const k = E.legendKey(it); if (!k) return ''; const L = E.LSK[k]; return `<div class="lsk"><div class="lskH">✦ ${L.n} <i>${L.type === 'proc' ? '공격 시 발동' : '액티브 · E키'}</i></div><div class="lskD">${L.d}</div></div>`; }
 export function card(it, cmp) {
   if (!it) return '<div class="icard empty">빈 칸</div>'; const st = E.itemStats(it), cs = cmp ? E.itemStats(cmp) : null, keys = new Set([...Object.keys(st), ...(cs ? Object.keys(cs) : [])]);
   const lines = [...keys].map(k => { const v = st[k] || 0, d = cs ? Math.round((v - (cs[k] || 0)) * 10) / 10 : 0; return `<div class="sl ${k === it.m[0] ? 'main' : ''}">${E.STAT[k]} <b>+${v}%</b>${cs && d ? `<i class="${d > 0 ? 'gup' : 'gdn'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</i>` : ''}</div>`; }).join('');
-  return `<div class="icard g${it.g}" style="--gc:${GC(it.g)}"><div class="ih"><span class="ic">${icon(it)}</span><div><div class="in">${esc(it.n)}${it.e ? ` <span class="en">+${it.e}</span>` : ''}</div><div class="ig">${E.GRADES[it.g].n} · ${E.SLOTS[it.s]}${it.h ? ' · ' + CLASSES[it.h].n + ' 전용' : ''}</div></div></div>${lines}${cmp ? `<div class="cmpn">장착 중인 장비와 비교</div>` : ''}</div>`;
+  return `<div class="icard g${it.g}" style="--gc:${GC(it.g)}"><div class="ih"><span class="ic">${icon(it)}</span><div><div class="in">${esc(it.n)}${it.e ? ` <span class="en">+${it.e}</span>` : ''}</div><div class="ig">${E.GRADES[it.g].n} · ${E.SLOTS[it.s]}${it.h ? ' · ' + CLASSES[it.h].n + ' 전용' : ''}</div></div></div>${lines}${lskHtml(it)}${cmp ? `<div class="cmpn">장착 중인 장비와 비교</div>` : ''}</div>`;
 }
 export function bonusHtml(b) { const e = Object.entries(b); return e.length ? e.map(([k, v]) => `<span>${pct(k, v)}</span>`).join('') : '<span class="none">장착한 장비 없음</span>'; }
 export function heroDots(s, h) { return E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === (s.eq[h] || {})[sl]); return `<i class="dot" style="background:${it ? GC(it.g) : '#3a3450'}" title="${E.SLOTS[sl]}"></i>`; }).join(''); }
@@ -65,7 +66,7 @@ function renderSmith() {
     let right = '<div class="hintS">강화할 장비가 없어요</div>';
     if (it) { const c = E.enhCost(it), max = it.e >= E.MAXE, nx = { ...it, e: it.e + 1 };
       right = `<div class="anvil" id="anvil"><div class="bigTile g${it.g}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span><span class="en">+${it.e}</span></div><div class="hammer" id="hammer">🔨</div><div class="sparks" id="sparks"></div><div class="enhRes ${ui.res && ui.res.id === it.id ? ui.res.c : ''}" id="enhRes">${ui.res && ui.res.id === it.id ? ui.res.t : ''}</div></div>
-        <div class="enhInfo"><div class="in" style="color:${GC(it.g)}">${esc(it.n)}</div>${max ? '<div class="maxT">✦ 최대 강화 +10 ✦</div>' : `<div class="lv">+${it.e} <b>→</b> <span>+${it.e + 1}</span></div>
+        <div class="enhInfo"><div class="in" style="color:${GC(it.g)}">${esc(it.n)}</div>${lskHtml(it)}${max ? '<div class="maxT">✦ 최대 강화 +10 ✦</div>' : `<div class="lv">+${it.e} <b>→</b> <span>+${it.e + 1}</span></div>
         <div class="sl">${E.STAT[it.m[0]]} ${E.mainVal(it)}% <b>→</b> <span class="gup">${E.mainVal(nx)}%</span></div><div class="rate">성공 확률 <b style="color:${E.ENH_RATE[it.e] >= 70 ? '#8aff9a' : E.ENH_RATE[it.e] >= 40 ? '#ffe066' : '#ff9a7a'}">${E.ENH_RATE[it.e]}%</b> <small>(실패해도 장비는 사라지지 않아요)</small></div>
         <div class="costs">${costHtml(c, s)}</div><button class="gbtn main" id="enhGo" ${ui.busy ? 'disabled' : ''}>🔨 강화하기</button>`}</div>`; }
     body.innerHTML = `<div class="smCols"><div class="smList">${list.map(x => tile(x, s, x.id === ui.smSel ? 'sel' : '')).join('') || '<div class="emptyMsg">장비 없음</div>'}</div><div class="smMain">${right}</div></div>`;

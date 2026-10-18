@@ -16,6 +16,7 @@ import { placeTower, repairAll, repairTower, sellTower, upgradeTower } from '../
 import { groundY } from '../monsters/ai.js';
 import { hero, heroGoTo, startWarp } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
+import { castLegend } from '../heroes/legend.js';
 import { startWave } from '../core/waves.js';
 import { banner, refreshHud } from './hud.js';
 import { showPreview, hidePreview } from './preview.js';
@@ -62,7 +63,7 @@ cvs.addEventListener('pointerdown', e => {
 });
 addEventListener('pointerup', e => { if (rdrag && e.button === 2 && Math.hypot(e.clientX - rdrag.x0, e.clientY - rdrag.y0) < 6 && G.tool !== 'move') setTool('move'); rdrag = null; });
 cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e.deltaY * .03)); }, { passive: true });
-addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat) startWarp(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
+addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat) startWarp(); if (k === 'e' && !e.repeat) castLegend(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 $('rotL').onclick = () => { cam.theta += Math.PI / 4; Snd.play('ui'); }; $('rotR').onclick = () => { cam.theta -= Math.PI / 4; Snd.play('ui'); };
 function occupied(c, r) {
@@ -113,7 +114,7 @@ document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.data
   $('sndBtn').onclick = () => { Snd.unlock(); $('sndPanel').classList.toggle('hidden'); Snd.play('ui'); }; upd();
   addEventListener('keydown', e => { if (e.key.toLowerCase() === 'm' && !e.repeat) { const on = !(C.bgmOn || C.sfxOn); $('bgmOn').checked = $('sfxOn').checked = on; upd(); } });
 })();
-$('startWave').onclick = startWave; $('skillBtn').onclick = castSkill; $('warpBtn').onclick = () => startWarp();
+$('startWave').onclick = startWave; $('skillBtn').onclick = castSkill; $('warpBtn').onclick = () => startWarp(); $('legBtn').onclick = () => castLegend();
 const upCost = k => Math.round(UPS[k].base * Math.pow(1.45, G.ups[k]));
 document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.dataset.up, c = upCost(k); if (G.gold < c) return Snd.play('error'); G.gold -= c; G.ups[k]++;
   if (k === 'bar') for (const col of G.tiles) for (const t of col) if (t.bar) { const r = t.bar.hp / t.bar.max; t.bar.max = barMaxHp(); t.bar.hp = t.bar.max * r; }

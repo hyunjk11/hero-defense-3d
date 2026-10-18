@@ -15,6 +15,7 @@ import { hurt } from '../monsters/enemy.js';
 import { groundY } from '../monsters/ai.js';
 import { banner } from '../ui/hud.js';
 import { keys } from '../ui/input.js';
+import { legendProc, updLeap } from './legend.js';
 
 // ================= 영웅 =================
 let hero = null;
@@ -28,6 +29,7 @@ function spawnHero(cls) {
   const q = G.perm && G.equip ? G.equip : null; if (q) C = { ...C, hp: Math.round(C.hp * (1 + (q.hp || 0) / 100)), dmg: C.dmg * (1 + (q.atk || 0) / 100), rate: C.rate * (1 + (q.spd || 0) / 100), range: C.range * (1 + (q.rng || 0) / 100) }; // 장비
   const ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
   hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
+  if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle');
   $('heroName').textContent = `${C.n} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill;
 }
@@ -93,6 +95,7 @@ function updHero(dt) {
   const fwd = new THREE.Vector3(-Math.sin(cam.theta), 0, -Math.cos(cam.theta)), right = new THREE.Vector3(-fwd.z, 0, fwd.x), mv = new THREE.Vector3();
   let fromPath = false; if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right);
   if (h.warpCd > 0) h.warpCd -= dt;
+  if (h.leap) { updLeap(dt); h.hb.set(h.hp / h.max); return; } // 천지파열무 도약 중
   if (h.warpT > 0) { // 워프 채널링: 이동 입력 시 취소
     if (mv.lengthSq() > 0 || h.path.length) cancelWarp(); else { h.warpT -= dt; warpChannelFx(dt); if (h.warpT <= 0) doWarp(); h.hb.set(h.hp / h.max); return; } }
   if (mv.lengthSq() > 0) h.path = [];
@@ -117,7 +120,7 @@ function updHero(dt) {
       let hitD = h.cls === 'warrior' ? .12 : .08;
       if (!moving) { const nm = h.cls === 'warrior' && rand() < .5 ? '1H_Melee_Attack_Slice_Horizontal' : h.C.atk, spd = h.C.atkSpd * Math.max(1, stat.rate() / h.C.rate); play(h.ch, nm, { once: true, force: true, speed: spd }); h.atkT = Math.min(.55, 1 / stat.rate());
         if (h.ch.hitAt) hitD = h.ch.hitAt / spd; } // Meshy 전사: 칼 휘두름 정점에 타격
-      const t0 = tgt; later(hitD, () => { if (!t0.dead && hero.dead <= 0) attack(t0); }); } }
+      const t0 = tgt; later(hitD, () => { if (!t0.dead && hero.dead <= 0) { attack(t0); if (hero.lsk) legendProc(t0); } }); } }
   if (h.spinT > 0) { h.spinT -= dt; h.spinTick -= dt; h.g.rotation.y += dt * 9;
     if (h.spinTick <= 0) { h.spinTick = .25; aoe(h.g.position, 3.6, stat.dmg() * 1.3 * stat.skillMul(), '#ffb07a', { groundOnly: true }); emit(P, h.g.position.x, 1.2, h.g.position.z, 20, 0xffa04a, 7, .4, 0, 4); }
     h.swirl.rotation.z += dt * 15; if (h.spinT <= 0) { h.swirl.visible = false; play(h.ch, 'Idle'); } }
@@ -139,4 +142,4 @@ function attack(t) {
     arc.rotation.x = -Math.PI / 2; arc.rotation.z = h.face - Math.PI / 2; arc.position.set(h.g.position.x, 1, h.g.position.z); scene.add(arc); G.fxs.push({ m: arc, t: 0, dur: .2, kind: 'fade' }); }
 }
 
-export { startWarp, WARP_CD, hero, stat, spawnHero, heroDamage, heroGoTo, updHero };
+export { startWarp, WARP_CD, hero, stat, heroTip, passAt, spawnHero, heroDamage, heroGoTo, updHero };

@@ -41,6 +41,7 @@ function updEnemies(dt) {
     if (e.dying !== undefined) { e.dying -= dt; if (E.fly) { e.m.inner.position.y = Math.max(.3, e.m.inner.position.y - dt * 7); e.m.inner.rotation.z += dt * 8; } else if (e.dying < .5) g.position.y -= dt * 2.5; if (e.dying <= 0) removeEnemy(e); continue; }
     if (e.flash > 0) { e.flash -= dt; flashMats(e.m.mats, true, e.blockT > 0 ? 0x5a8aff : 0xffffff); if (e.blockT > 0) e.blockT -= dt; } else if (e.slowT > 0) flashMats(e.m.mats, true, 0x2a3aaa); else flashMats(e.m.mats, false);
     e.hb.set(Math.max(0, e.hp / e.max)); if (e.state === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.state = 'walk'; continue; }
+    if (e.stunT > 0) { stunned(e, dt); continue; } // 전설 스킬: 빙결/띄우기 (설정될 때만)
     const slowK = e.slowT > 0 ? 1 - (e.slowAmt || .45) : 1, spd = (e.ai === 'charger' ? chargeSpeed(e, dt) : E.spd) * slowK * (ICE && G.tiles[e.tile[0]]?.[e.tile[1]]?.t === T.CARVED ? 1.3 : 1); e.slowT -= dt; // 설원: 얼음 길에서 미끄러지듯 빠름
     if (E.fly) {
       const tx = core.position.x, tz = core.position.z, dx = tx - g.position.x, dz = tz - g.position.z, d = Math.hypot(dx, dz);
@@ -154,4 +155,11 @@ function special(e, dt, slowK) {
   return false;
 }
 
+// 기절(빙결/띄우기): 이동·공격 정지. 띄우기는 포물선으로 떴다 떨어짐, 빙결은 얼음빛
+function stunned(e, dt) {
+  e.stunT -= dt; const g = e.g;
+  if (e.frozen) { if (!(e.flash > 0)) flashMats(e.m.mats, true, 0x8ae0ff); if (Math.random() < .15) emit(P, g.position.x, (e.E.fly ? 3 : e.E.h * .6), g.position.z, 1, 0xdaf6ff, .6, .5, 1, .6); }
+  if (e.kup && !e.E.fly) { const k = e.kup; k.t += dt; const f = Math.min(1, k.t / k.dur); g.position.y = groundY(g.position.x, g.position.z) + Math.sin(f * Math.PI) * k.h; g.rotation.z = Math.sin(f * Math.PI) * .5; }
+  if (e.stunT <= 0) { e.stunT = 0; if (e.kup) { g.rotation.z = 0; e.kup = null; } e.frozen = false; }
+}
 export { groundY, separate, updEnemies, shadowOf };

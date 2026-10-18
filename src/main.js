@@ -28,6 +28,7 @@ import { hurt, spawnEnemy } from './monsters/enemy.js';
 import { separate, updEnemies } from './monsters/ai.js';
 import { hero, heroDamage, heroGoTo, updHero } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
+import { castLegend, updLegend } from './heroes/legend.js';
 import { endWave, startWave } from './core/waves.js';
 import { refreshHud, updBossBar } from './ui/hud.js';
 import { build, keys, mouseGround, moveMark, select, setTool } from './ui/input.js';
@@ -36,7 +37,7 @@ import './render/toon.js';
 import './audio/sfx.js';
 import './world/barricades.js';
 
-Object.assign(G, { SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
+Object.assign(G, { castLegend, SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
 G.setTool = _setTool; G.buildReason = (c, r, tool) => { const o = G.tool; G.tool = tool; const w = _buildReason(c, r); G.tool = o; return w; };
 G.hoverTile = (c, r) => { const v = new THREE.Vector3(tileX(c), 0, tileZ(r)).project(_camera); const x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight; _onMove(x, y); return [Math.round(x), Math.round(y), document.getElementById('tip').innerText]; };
@@ -61,8 +62,8 @@ function step(dt) {
   if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); spawnEnemy(G.spawnQ.shift(), G.hpMul); } } else if (!G.enemies.length) endWave(); }
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
     if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
-      tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); }
-    else { updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); } if (hero.skillCd > 0) hero.skillCd -= dt;
+      tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); updLegend(dt); }
+    else { updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); updLegend(dt); } if (hero.skillCd > 0) hero.skillCd -= dt;
     if (keys.w || keys.a || keys.s || keys.d || hero.path.length) cam.target.lerp(new THREE.Vector3(hero.g.position.x * .4, 0, hero.g.position.z * .4 + 1), dt * 2);
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }

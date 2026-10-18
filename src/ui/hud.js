@@ -5,6 +5,7 @@ import { repairCost } from '../world/towers.js';
 import { G } from '../core/state.js';
 import { hero, stat, WARP_CD } from '../heroes/hero.js';
 import { upCost } from './input.js';
+import { legendActive, legendCd } from '../heroes/legend.js';
 
 function banner(text, color = '#fff', ms = 1600) { const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.add('show'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), ms); }
 function showNote(list, ms = 7000) { const n = $('note'); n.innerHTML = list.map(o => `<div class="nc"><b>신규: ${o.name}</b>${o.desc}</div>`).join(''); n.classList.remove('hidden'); clearTimeout(n._t); n._t = setTimeout(() => n.classList.add('hidden'), ms); }
@@ -25,7 +26,8 @@ function refreshHud() {
     $('tSell').textContent = `판매 (+${Math.floor(s.invest * .7 * (k >= .999 ? 1 : .5 + .5 * k))}G)`; }
   else if (s && s.kind === 'bar') { $('tName').textContent = '바리케이드'; $('tStats').innerHTML = `내구도 ${Math.ceil(s.hp)}/${Math.ceil(s.max)}<br>몬스터가 돌아가거나 부숴야 합니다`; $('tUp').textContent = '-'; $('tUp').disabled = true; $('tSell').textContent = '철거 (+15G)'; $('tRep').style.display = 'none'; }
   if (hero) { const wb = $('warpBtn'); if (wb) { const wp = hero.warpCd > 0 ? hero.warpCd / WARP_CD * 100 : 0; $('warpCd').style.setProperty('--p', wp + '%'); $('warpCd').textContent = hero.warpCd > 0 ? Math.ceil(hero.warpCd) : ''; wb.classList.toggle('channel', hero.warpT > 0); }
-    setBar('heroBar', 'heroTr', hero.hp / hero.max); const cdp = hero.skillCd > 0 ? hero.skillCd / stat.skillCd() * 100 : 0; $('skillCd').style.setProperty('--p', cdp + '%'); $('skillCd').textContent = hero.skillCd > 0 ? Math.ceil(hero.skillCd) : ''; $('skillBtn').classList.toggle('ready', hero.skillCd <= 0); }
+    setBar('heroBar', 'heroTr', hero.hp / hero.max); const cdp = hero.skillCd > 0 ? hero.skillCd / stat.skillCd() * 100 : 0; $('skillCd').style.setProperty('--p', cdp + '%'); $('skillCd').textContent = hero.skillCd > 0 ? Math.ceil(hero.skillCd) : ''; $('skillBtn').classList.toggle('ready', hero.skillCd <= 0);
+    const la = legendActive(), lb = $('legBtn'); lb.classList.toggle('hidden', !la); if (la) { $('legName').textContent = la.n; const lp = hero.lcd > 0 ? hero.lcd / legendCd() * 100 : 0; $('legCd').style.setProperty('--p', lp + '%'); lb.style.setProperty('--p', lp + '%'); $('legCd').textContent = hero.lcd > 0 ? Math.ceil(hero.lcd) : ''; lb.classList.toggle('ready', !(hero.lcd > 0)); } }
 }
 
 export { banner, showNote, setPhaseUI, updBossBar, refreshHud };
