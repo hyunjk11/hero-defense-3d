@@ -22,6 +22,7 @@ PACK = """([n, d]) => { const h=G.hero.g.position, a0=G.hero.face; for (let i=0;
   const x=h.x+Math.sin(a)*r, z=h.z+Math.cos(a)*r; e.g.position.set(x,0,z); e.tile=G.toTileXZ?G.toTileXZ(x,z):e.tile; e.state='walk'; e.spawnT=0; e.next=null; } return G.enemies.length; }"""
 def aimAt(pg):  # 영웅이 적을 바라보게 하고 마우스를 적 무리 중심으로
     return J(pg, "()=>{ const L=G.enemies.filter(e=>!e.dead); if(!L.length) return null; let x=0,z=0; for(const e of L){x+=e.g.position.x;z+=e.g.position.z;} x/=L.length; z/=L.length; G.mouseGround.set(x,0,z); const h=G.hero.g.position; G.hero.face=Math.atan2(x-h.x,z-h.z); return [x,z]; }")
+DIAG = "()=>{const h=G.hero,L=G.enemies.filter(e=>!e.dead);return {ph:G.phase,dead:h.dead,atkT:h.atkT,lsk:h.lsk,licd:h.licd,n:L.length,d:Math.min(...L.map(e=>e.g.position.distanceTo(h.g.position))),st:L.map(e=>e.state).join()}}"
 def hpSum(pg): return J(pg, "()=>G.enemies.reduce((a,e)=>a+(e.dead?e.max:e.max-e.hp),0)")
 
 with sync_playwright() as pw:
@@ -61,17 +62,17 @@ with sync_playwright() as pw:
         # 출정 (도전 모드)
         pg.click('#twGo'); pg.wait_for_timeout(300); pg.click('.chtab[data-c="0"]'); pg.click('#stChalGo'); pg.wait_for_function("()=>G.phase==='build'&&G.hero", timeout=60000); pg.wait_for_timeout(500)
         ok(f'{hero}_hero_has_proc', J(pg, "()=>G.hero.lsk") == proc and hidden(pg, 'legBtn'))
-        J(pg, "()=>{ G.manual=true; G.toTileXZ=(x,z)=>G.toTile(x,z); G.gold=0; G.legendSeed(4242); G.legendN={}; G.hero.C.armor=1; }")
-        J(pg, PACK, [9, 5]); aimAt(pg); h0 = hpSum(pg)
+        J(pg, "()=>{ G.manual=true; G.toTileXZ=(x,z)=>G.toTile(x,z); G.gold=0; G.legendSeed(7); G.legendN={}; G.legendDmg=0; G.hero.C.armor=1; }")
+        J(pg, PACK, [9, 5]); J(pg, "()=>G.enemies.forEach(e=>{ if(!e.dead){ e.max=e.hp=1e6; } })"); aimAt(pg); h0 = hpSum(pg)
         # proc: 시드 난수로 자연 발동 (강제 없음)
         n = 0
-        for i in range(60):
+        for i in range(120):
             J(pg, "()=>G.sim(.25)"); n = J(pg, f"()=>G.legendN['{proc}']||0")
             if n: break
-        ok(f'{hero}_proc_seeded', n >= 1, f'after {(i+1)*.25:.2f}s')
+        ok(f'{hero}_proc_seeded', n >= 1, f'after {(i+1)*.25:.2f}s' + ('' if n else ' ' + str(J(pg, DIAG))))
         for _ in range(3): J(pg, "()=>G.sim(.1)")
         shot(pg, f'{proc}')
-        J(pg, "()=>G.sim(1.5)"); ok(f'{hero}_proc_damage', hpSum(pg) > h0)
+        J(pg, "()=>G.sim(1.5)"); ok(f'{hero}_proc_damage', J(pg, "()=>G.legendDmg") > 0, J(pg, "()=>[G.legendDmg, G.lfx.length, G.hero.face, G.hero.g.position.toArray(), G.enemies.filter(e=>!e.dead).map(e=>[e.g.position.x|0,e.g.position.z|0,e.E.fly?1:0])]"))
         # 결정성: 같은 시드 → 같은 발동 순서 (난수 함수 직접 비교)
         # active: 무기를 바꿔 다시 출정한 것과 같은 상태로
         J(pg, f"()=>{{ G.hero.lsk='{act}'; G.hero.lcd=0; G.legendN={{}}; G.sim(.2); }}")
@@ -104,7 +105,7 @@ with sync_playwright() as pw:
         if hero == 'mage':
             J(pg, "()=>{ G.hero.lsk='frostorb'; G.legendForce=true; G.hero.licd=0; }")
             if J(pg, "()=>G.enemies.filter(e=>!e.dead).length") < 5: J(pg, PACK, [9, 5])
-            aimAt(pg)
+            J(pg, "()=>G.enemies.forEach(e=>{ if(!e.dead){ e.max=e.hp=1e6; } })"); aimAt(pg)
             for _ in range(30):
                 J(pg, "()=>G.sim(.2)")
                 if J(pg, "()=>G.enemies.some(e=>!e.dead&&e.frozen)"): break

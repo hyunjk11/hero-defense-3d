@@ -10,7 +10,7 @@ import { glow } from '../render/toon.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
 import { play } from '../render/characters.js';
 import { makeArrow } from '../combat/projectiles.js';
-import { hurt } from '../monsters/enemy.js';
+import { hurt as hurt0 } from '../monsters/enemy.js';
 import { groundY } from '../monsters/ai.js';
 import { LSK } from '../account/equip.js';
 import { banner } from '../ui/hud.js';
@@ -20,6 +20,7 @@ import { hero, heroTip, passAt, stat } from './hero.js';
 const lr = mulberry32(((+QS.get('rng') || (Math.random() * 1e9 | 0)) ^ 0x1e9e7d) >>> 0);
 let lrNext = lr; const LR = () => lrNext(); G.legendSeed = s => { lrNext = mulberry32(s >>> 0); }; // 테스트: 발동 난수 고정
 const FX = G.lfx = []; G.legendN = {}; // 발동 횟수 (테스트용)
+G.legendDmg = 0; const hurt = (e, d, ...a) => { if (!e.dead) G.legendDmg += d; hurt0(e, d, ...a); }; // 고유 스킬 피해 합계 (테스트용)
 const count = k => G.legendN[k] = (G.legendN[k] || 0) + 1;
 let lastPT = 'mouse'; addEventListener('pointerdown', e => { lastPT = e.pointerType; }, true);
 const ADD = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
@@ -65,14 +66,14 @@ function frostorb(t, s) {
   aura.material.opacity = .16; const ring = new THREE.Mesh(new THREE.RingGeometry(2, 2.25, 40), ADD(0x9ae8ff)); ring.rotation.x = -Math.PI / 2; ring.position.y = -1.1; ring.material.opacity = .6;
   g.add(core, aura, ring); g.position.set(from.x, 1.4, from.z); scene.add(g);
   Snd.play('magic', { pos: from, rate: 1.7, force: true }); Snd.play('glass', { pos: from, rate: 1.5, vol: .5 }); emit(P, from.x, from.y, from.z, 30, 0x9ae8ff, 5, .5, 0, 1);
-  let life = 3, tick = 0;
+  let life = Math.max(1.2, Math.min(3, (Math.hypot(t.g.position.x - from.x, t.g.position.z - from.z) + 1.5) / 3.6)), tick = 0; // 대상 뒤쪽에서 폭발
   FX.push(dt => { life -= dt; tick -= dt; g.position.addScaledVector(dir, 3.6 * dt); core.rotation.x += dt * 3; core.rotation.y += dt * 4; aura.scale.setScalar(1 + Math.sin(G.t * 9) * .06); ring.rotation.z += dt * 2;
     g.position.y = 1.4 + Math.sin(G.t * 5) * .15; if (Math.random() < .9) { const a = Math.random() * 6.28; emit(P, g.position.x + Math.cos(a) * 1.6, g.position.y - .6, g.position.z + Math.sin(a) * 1.6, 1, 0xcaf6ff, .8, .6, -1, .2); }
     if (tick <= 0) { tick = .3; for (const e of alive()) if (d2(e, g.position.x, g.position.z) < 2.2 * 2.2) { e.slowT = Math.max(e.slowT, .6); e.slowAmt = Math.max(e.slowT > .6 ? e.slowAmt || 0 : 0, .5); hurt(e, base * s.mul, '#aee8ff'); } }
     if (life > 0) return true;
     scene.remove(g); const p = g.position; ringFx(p, 3.4, 0xbaf4ff, .5); ringFx(p, 2.2, 0xffffff, .3); emit(P, p.x, p.y, p.z, 90, 0xbaf4ff, 9, .8, -6, 2); emit(PB, p.x, p.y, p.z, 14, 0x7ad8ff, 3, .6, 0, 1.5); debris(p.x, p.y, p.z, 10, [0xdaf6ff, 0x9ae0ff], 6);
     Snd.play('glass', { pos: p, force: true }); Snd.play('zap', { pos: p, rate: .7 });
-    for (const e of alive()) if (d2(e, p.x, p.z) < 9) { hurt(e, base * 1.2, '#dff8ff', true); e.stunT = e.E.boss ? .4 : 1.1; e.frozen = true; }
+    for (const e of alive()) if (d2(e, p.x, p.z) < 9) { hurt(e, base * 1.2, '#dff8ff', true); if (e.dead) continue; e.stunT = e.E.boss ? .4 : 1.1; e.frozen = true; }
     return false; });
 }
 // 회선대검: 회전하며 날아갔다 돌아오는 대검
