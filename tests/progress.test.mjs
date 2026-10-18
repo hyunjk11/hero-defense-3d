@@ -1,0 +1,10 @@
+import * as P from '../src/account/progress.js';
+import assert from 'node:assert/strict';
+const e = P.empty(); assert.equal(e.hero, 'mage'); assert.deepEqual(P.clean({ souls: -5, heroLv: { mage: { hp: 99 } }, hero: 'x' }).heroLv.mage.hp, 10);
+const [s1, got] = P.applyRun(e, { wave: 5, kills: 30 }); assert.equal(got, 50); assert.equal(s1.souls, 50); assert.equal(s1.bestWave, 5); assert.equal(s1.stats.runs, 1);
+const [s2, ok] = P.buyPerm(s1, 'mage', 'hp'); assert.ok(ok); assert.equal(s2.souls, 20); assert.equal(s2.heroLv.mage.hp, 1);
+const [, no] = P.buyPerm(s2, 'mage', 'atk'); assert.equal(no, false);
+const m = P.merge({ souls: 100, bestWave: 3, hero: 'archer', stats: { runs: 4 } }, { souls: 40, bestWave: 9, nick: '클라우드', stats: { runs: 2 }, heroLv: { warrior: { atk: 3 } } });
+assert.equal(m.souls, 100); assert.equal(m.bestWave, 9); assert.equal(m.hero, 'archer'); assert.equal(m.nick, '클라우드'); assert.equal(m.heroLv.warrior.atk, 3);
+assert.equal(P.merge({ hero: 'warrior' }, null).hero, 'warrior');
+console.log('progress tests OK');

@@ -5,6 +5,8 @@ import { CORE, GH, GW, SPAWN, T, tileX, tileZ, toTile } from './core/grid.js';
 import { BLK } from './data/terrain.js';
 import { startWarp } from './heroes/hero.js';
 import { updPreview } from './ui/preview.js';
+import { startFlow, updFlow } from './ui/flow.js';
+import { QS } from './core/util.js';
 import { onMove as _onMove, buildReason as _buildReason, setTool as _setTool } from './ui/input.js';
 import { camera as _camera } from './render/scene.js';
 import { CLASSES } from './data/heroes.js';
@@ -63,12 +65,12 @@ function step(dt) {
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }
   for (const t of G.dirty) { refreshTile(t); if (t.shk > 0) t.shk -= dt; else G.dirty.delete(t); }
-  updPreview(dt); updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
+  updFlow(dt); updPreview(dt); updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.screenMusic) Snd.setMusic(G.screenMusic); else if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
   portalDisk.rotation.z -= dt * 2.5; if (rand() < .6) emit(P, portal.position.x + rnd(-.3, .3), rnd(.6, 3.2), portal.position.z + rnd(-1.4, 1.4), 1, 0xc07aff, 1.5, .8, 2, .3);
   crystal.rotation.y += dt * 1.2; crystal.position.y = 3.6 + Math.sin(G.t * 2) * .2; coreRings.forEach((r, k) => r.rotation.z += dt * (k ? -1.5 : 1));
   if (moveMark.visible) { moveMark.scale.multiplyScalar(1 - dt * 3); moveMark.material.opacity = moveMark.scale.x; if (moveMark.scale.x < .2) moveMark.visible = false; }
-  G.shake = Math.max(0, G.shake - dt * 1.8); updateCam(); hudT += dt; if (hudT > .15) { hudT = 0; if (G.phase !== 'select' && G.phase !== 'loading') refreshHud(); }
+  G.shake = Math.max(0, G.shake - dt * 1.8); updateCam(); hudT += dt; if (hudT > .15) { hudT = 0; if (G.phase !== 'select' && G.phase !== 'loading' && G.phase !== 'town' && G.phase !== 'menu') refreshHud(); }
 }
 genMap(); initTerrainColors(); refreshAll(); buildPortal(); buildCore(); computeDist(); updateCam(); loop();
-loadAssets().then(() => { G.ready = true; $('loading').classList.add('hidden'); showSelect(); })
+loadAssets().then(() => { G.ready = true; $('loading').classList.add('hidden'); if (QS.has('flow') || !(QS.has('test') || QS.has('skipintro'))) startFlow(); else showSelect(); })
   .catch(err => { console.warn(err); $('loadTxt').textContent = '모델을 불러오지 못했습니다. 새로고침 해주세요.'; });
