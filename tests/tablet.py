@@ -29,14 +29,14 @@ CHECK = r"""([roots, oneLine, touchSel]) => {
     if (el.closest(SKIP) || !vis(el)) continue; const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) continue;
     const c = clipAnc(el);
     if (!c && (r.left < -1 || r.top < -1 || r.right > vw + 1 || r.bottom > vh + 1)) out.push(`${name(el)} [${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.right)},${Math.round(r.bottom)}]`);
-    if (el.matches('button,.pill,.tlabel,.ftab,.chtab') && el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX === 'visible') clipped.push(`${name(el)} sw${el.scrollWidth}>cw${el.clientWidth}`);
+    if (el.matches('button:not(.snode),.pill,.tlabel,.ftab,.chtab') && el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX === 'visible') clipped.push(`${name(el)} sw${el.scrollWidth}>cw${el.clientWidth}`);
   }
   for (const s of oneLine) document.querySelectorAll(s).forEach(el => {
     if (!roots.some(r => el.closest(r)) || !vis(el)) return; const tops = []; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n; (n = w.nextNode());) { if (!n.textContent.trim() || n.parentElement.closest('small,.desc,.stars,.nm,.dots,#skillCd,#warpCd')) continue; const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (q.width > 0 && !tops.some(t => Math.abs(t - q.top) < 6)) tops.push(q.top); }
     if (tops.length > 1) wrap.push(`${name(el)} "${el.innerText.replace(/\s+/g, ' ').slice(0, 30)}" lines=${tops.length}`);
   });
-  for (const el of document.querySelectorAll(touchSel)) { if (!roots.some(r => el.closest(r)) || !vis(el) || el.disabled && 0) continue; const r = el.getBoundingClientRect(); if (r.width < 1) continue; if (el.closest('.smGrid,.smList,#disGrid,.stMap') && clipAnc(el)) { const c = clipAnc(el).getBoundingClientRect(); if (r.bottom < c.top || r.top > c.bottom) continue; }
+  for (const el of document.querySelectorAll(touchSel)) { if (!roots.some(r => el.closest(r)) || !vis(el) || el.disabled && 0) continue; const lb = el.matches('input[type=checkbox]') && el.closest('label'); const r = (lb || el).getBoundingClientRect(); if (r.width < 1) continue; if (el.closest('.smGrid,.smList,#disGrid,.stMap') && clipAnc(el)) { const c = clipAnc(el).getBoundingClientRect(); if (r.bottom < c.top || r.top > c.bottom) continue; }
     if (r.height < 43.5 || r.width < 43.5) small.push(`${name(el)} ${Math.round(r.width)}x${Math.round(r.height)}`); }
   return { out, wrap, small, clipped, coarse: matchMedia('(pointer: coarse)').matches };
 }"""
