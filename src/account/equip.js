@@ -19,6 +19,21 @@ const NAMES = {
   armor: [['천 갑옷', '가죽 조끼'], ['사슬 갑옷', '수호자의 가죽갑옷'], ['미스릴 흉갑', '은빛 판금'], ['용비늘 갑옷', '성기사의 판금'], ['여신의 가호 갑주', '불사조 깃털 망토']],
   acc: [['구리 반지', '나무 부적'], ['은 반지', '행운의 부적'], ['사파이어 목걸이', '마력의 귀걸이'], ['용의 눈 펜던트', '시간의 모래시계'], ['여신의 눈물', '영원의 성배 목걸이']],
 };
+// ---------- 전설 무기 고유 스킬 ----------
+// 전설(g4) 무기는 영웅별 풀에서 고유 스킬 1개(it.u)를 가진다. proc: 공격 시 확률 발동(내부 쿨타임) · active: [E] 키/버튼
+export const LSK = {
+  multishot: { h: 'archer', type: 'proc', n: '멀티샷', chance: .25, icd: 1.2, mul: .6, d: '공격 시 25% 확률로 화살 5발을 부채꼴로 발사 (각 60% 피해)' },
+  pierce: { h: 'archer', type: 'active', n: '관통샷', cd: 8, mul: 3, d: '[E] 황금 화살을 충전해 일직선 위의 모든 적을 꿰뚫음 (300% 피해) · 재사용 8초' },
+  frostorb: { h: 'mage', type: 'proc', n: '프로즌 오브', chance: .15, icd: 3, mul: .35, d: '공격 시 15% 확률로 느리게 나아가는 얼음 구체 소환 — 주변 적 피해·50% 둔화, 끝에서 폭발해 빙결' },
+  meteorstorm: { h: 'mage', type: 'active', n: '메테오 스톰', cd: 12, mul: 4, d: '[E] 목표 지역에 거대한 운석 6개를 쏟아부음 (각 400% 피해) · 재사용 12초' },
+  boomerang: { h: 'warrior', type: 'proc', n: '회선대검', chance: .2, icd: 2, mul: .9, d: '공격 시 20% 확률로 대검을 회전시켜 던짐 — 갈 때와 돌아올 때 모두 타격 (각 90% 피해)' },
+  quake: { h: 'warrior', type: 'active', n: '천지파열무', cd: 14, mul: 4, d: '[E] 도약해 땅을 내리쳐 충격파 — 주변 적 400% 피해 + 0.8초 공중에 띄움(기절) · 재사용 14초' },
+};
+export const LPOOL = { archer: ['multishot', 'pierce'], mage: ['frostorb', 'meteorstorm'], warrior: ['boomerang', 'quake'] };
+const hashId = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+// 무기의 고유 스킬 키 (전설 무기가 아니면 null). 저장값이 없거나 잘못됐으면 id에서 결정적으로 배정 → 구 세이브 호환
+export function legendKey(it) { if (!it || it.s !== 'weapon' || it.g !== 4 || !LPOOL[it.h]) return null; const P = LPOOL[it.h]; return P.includes(it.u) ? it.u : P[hashId(it.id) % P.length]; }
+export function legendOf(save, hero) { const id = ((save.eq || {})[hero] || {}).weapon, it = (save.inv || []).find(x => x.id === id); return legendKey(it); }
 export const MATS = { steel: '강철', crystal: '마력석' };
 const rid = r => (Math.floor(r() * 2176782336)).toString(36).padStart(6, '0') + (Date.now() % 1296).toString(36);
 const pick = (a, r) => a[Math.floor(r() * a.length) % a.length];
@@ -30,6 +45,7 @@ export function makeItem(slot, hero, g, r = Math.random) {
   else { const k = pick(ACC_MAIN, r); it.m = [k, MAIN[k][g]]; it.n = pick(NAMES.acc[g], r); }
   const pool = Object.keys(SUBV).filter(k => k !== it.m[0]);
   for (let i = 0; i < SUBN[g]; i++) { const k = pool.splice(Math.floor(r() * pool.length), 1)[0]; it.sub.push([k, Math.round(SUBV[k] * (1 + .4 * g) * (.7 + r() * .6))]); }
+  const u = legendKey(it); if (u) it.u = u; // 난수 소비 없음 (기존 시드 결과 유지)
   return it;
 }
 export const mainVal = it => Math.round(it.m[1] * (1 + .1 * it.e) * 10) / 10;
@@ -73,7 +89,7 @@ export function cleanItem(x, heroes) {
   if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !SLOT_KEYS.includes(x.s)) return null; const g = fin(x.g, 0, 4);
   const okStat = k => Object.prototype.hasOwnProperty.call(STAT, k), m = Array.isArray(x.m) && okStat(x.m[0]) ? [x.m[0], Math.max(0, Math.min(100, +x.m[1] || 0))] : null; if (!m) return null;
   const it = { id: x.id.slice(0, 16), s: x.s, g, n: String(x.n || '장비').slice(0, 24), m, sub: (Array.isArray(x.sub) ? x.sub : []).filter(p => Array.isArray(p) && okStat(p[0])).slice(0, 3).map(p => [p[0], Math.max(0, Math.min(100, +p[1] || 0))]), e: fin(x.e, 0, MAXE) };
-  if (x.s === 'weapon') { if (!heroes.includes(x.h)) return null; it.h = x.h; } if (x.c) it.c = fin(x.c, 1, 9); return it;
+  if (x.s === 'weapon') { if (!heroes.includes(x.h)) return null; it.h = x.h; const u = legendKey({ ...it, u: x.u }); if (u) it.u = u; } if (x.c) it.c = fin(x.c, 1, 9); return it;
 }
 export function cleanEquip(d, e, heroes) {
   const seen = new Set(); e.inv = (Array.isArray(d.inv) ? d.inv : []).map(x => cleanItem(x, heroes)).filter(x => x && !seen.has(x.id) && seen.add(x.id)).slice(0, CAP + 20);
