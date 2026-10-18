@@ -13,16 +13,30 @@ import { hero, heroDamage } from '../heroes/hero.js';
 
 function groundY(x, z) { const [c, r] = toTile(x, z); return inGrid(c, r) && tileAt(c, r).t === T.CARVED ? -.46 : 0; }
 function enemyWalk(x, z) { const [c, r] = toTile(x, z); if (!inGrid(c, r)) return false; const t = tileAt(c, r); return !isBlock(t.t) && t.t !== T.BEDROCK && !t.tower && !t.bar; }
+// 겹침 밀어내기. 64마리 이하는 기존과 완전히 같은 O(n²) 순서, 그보다 많으면 공간 해시(셀 2.5 ≥ 최대 반경합 2.08)로 이웃만 검사 (같은 i<j 순서 유지)
+function pushPair(A, B, dt) { const a = A.g.position, b = B.g.position, dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz, m = (A.E.h + B.E.h) * .2;
+  if (d2 < m * m && d2 > 1e-6) { const d = Math.sqrt(d2), k = Math.min(.5, (m - d) * .5) * Math.min(1, dt * 8), ux = dx / d * k, uz = dz / d * k;
+    if (enemyWalk(a.x - ux, a.z - uz)) { a.x -= ux; a.z -= uz; } if (enemyWalk(b.x + ux, b.z + uz)) { b.x += ux; b.z += uz; } } }
+const SEP_CELL = 2.5, SCX = 24, SCZ = 16, sepHead = new Int32Array(SCX * SCZ), sepNext = new Int32Array(1024), sepCell = new Int32Array(1024);
 function separate(dt) {
-  const L = G.enemies.filter(e => !e.dead && !e.E.fly && e.state !== 'spawn');
-  for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const a = L[i].g.position, b = L[j].g.position, dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz, m = (L[i].E.h + L[j].E.h) * .2;
-    if (d2 < m * m && d2 > 1e-6) { const d = Math.sqrt(d2), k = Math.min(.5, (m - d) * .5) * Math.min(1, dt * 8), ux = dx / d * k, uz = dz / d * k;
-      if (enemyWalk(a.x - ux, a.z - uz)) { a.x -= ux; a.z -= uz; } if (enemyWalk(b.x + ux, b.z + uz)) { b.x += ux; b.z += uz; } } }
+  const L = G.enemies.filter(e => !e.dead && !e.E.fly && e.state !== 'spawn'), n = L.length;
+  if (n <= 64 || n > 1024) { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pushPair(L[i], L[j], dt); return; }
+  sepHead.fill(-1); // 셀별 연결 리스트 (역순 삽입 → 각 리스트는 인덱스 내림차순)
+  for (let i = n - 1; i >= 0; i--) { const p = L[i].g.position, cx = Math.min(SCX - 1, Math.max(0, Math.floor(p.x / SEP_CELL) + SCX / 2)), cz = Math.min(SCZ - 1, Math.max(0, Math.floor(p.z / SEP_CELL) + SCZ / 2)), c = cx * SCZ + cz;
+    sepCell[i] = c; sepNext[i] = sepHead[c]; sepHead[c] = i; }
+  for (let i = 0; i < n; i++) { const c = sepCell[i], cx = (c / SCZ) | 0, cz = c % SCZ;
+    for (let ox = -1; ox <= 1; ox++) { const x = cx + ox; if (x < 0 || x >= SCX) continue; for (let oz = -1; oz <= 1; oz++) { const z = cz + oz; if (z < 0 || z >= SCZ) continue;
+      for (let j = sepHead[x * SCZ + z]; j !== -1; j = sepNext[j]) if (j > i) pushPair(L[i], L[j], dt); } } }
 }
 function faceTo(g, x, z, dt, k = 10) { let d = Math.atan2(x - g.position.x, z - g.position.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); }
 function updEnemies(dt) {
+  // 애니메이션 LOD: 100마리 초과 시 믹서를 격 프레임으로 (게임 로직에는 영향 없음)
+  const lod = G.enemies.length > 100; G.frameN = (G.frameN || 0) + 1;
+  // 그림자/외곽선 LOD: 140마리 초과 시 적 그림자·외곽선 끔, 100마리 미만이면 다시 켬 (드로우콜 절감)
+  const nE = G.enemies.length; if (!G.lowQ && nE > 140) setEnemyShadows(false); else if (G.lowQ && nE < 100) setEnemyShadows(true);
   for (let i = G.enemies.length - 1; i >= 0; i--) {
-    const e = G.enemies[i], E = e.E, g = e.g; if (e.m.mixer) e.m.mixer.update(dt);
+    const e = G.enemies[i], E = e.E, g = e.g;
+    if (e.m.mixer) { if (lod) { e.mixAcc = (e.mixAcc || 0) + dt; if (((i + G.frameN) & 1) === 0) { e.m.mixer.update(e.mixAcc); e.mixAcc = 0; } } else e.m.mixer.update(dt); }
     if (e.dying !== undefined) { e.dying -= dt; if (E.fly) { e.m.inner.position.y = Math.max(.3, e.m.inner.position.y - dt * 7); e.m.inner.rotation.z += dt * 8; } else if (e.dying < .5) g.position.y -= dt * 2.5; if (e.dying <= 0) removeEnemy(e); continue; }
     if (e.flash > 0) { e.flash -= dt; flashMats(e.m.mats, true, e.blockT > 0 ? 0x5a8aff : 0xffffff); if (e.blockT > 0) e.blockT -= dt; } else if (e.slowT > 0) flashMats(e.m.mats, true, 0x2a3aaa); else flashMats(e.m.mats, false);
     e.hb.set(Math.max(0, e.hp / e.max)); if (e.state === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.state = 'walk'; continue; }
@@ -63,6 +77,8 @@ function updEnemies(dt) {
   }
 }
 
+function setEnemyShadows(on) { G.lowQ = !on; for (const e of G.enemies) shadowOf(e, on); }
+function shadowOf(e, on) { e.g.traverse(o => { if (!o.isMesh) return; if (o.userData.ol) o.visible = on; else o.castShadow = on; }); } // 저품질: 그림자·외곽선 끔
 // ================= 신규 몬스터 행동 (상태머신) =================
 // basic: walk ↔ dig ↔ fight(hero)   digger: 같은 흐름 + 굴착 프로필/고속 굴착   charger: walk ↔ sprint(파인 길)
 // shield: walk (방패 판정은 hurt)   bomber: walk → seek(타워/바리케이드) → fuse → explode   siege: walk → ram(타워 공격)
@@ -130,4 +146,4 @@ function special(e, dt, slowK) {
   return false;
 }
 
-export { groundY, separate, updEnemies };
+export { groundY, separate, updEnemies, shadowOf };

@@ -1,3 +1,4 @@
 tests/last.json
 __pycache__/
 tests/monsters_last.json
+tests/stress_last.json

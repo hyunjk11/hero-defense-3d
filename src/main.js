@@ -7,7 +7,7 @@ import { CLASSES } from './data/heroes.js';
 import { ETYPES } from './data/monsters.js';
 import { TOWERS } from './data/towers.js';
 import { G } from './core/state.js';
-import { DAY, NIGHT, bloom, cam, composer, hemi, moon, scene, skyU, sun, updateCam } from './render/scene.js';
+import { renderer, DAY, NIGHT, bloom, cam, composer, hemi, moon, scene, skyU, sun, updateCam } from './render/scene.js';
 import { P, PB, emit, stars, updCoins, updDebris, updFx, updParticles } from './render/vfx.js';
 import { BARS, updBars } from './render/hpbars.js';
 import { GL, loadAssets, makeEnemyModel, play } from './render/characters.js';
@@ -28,7 +28,7 @@ import './render/toon.js';
 import './audio/sfx.js';
 import './world/barricades.js';
 
-Object.assign(G, { carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
+Object.assign(G, { renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
 G.heroGoTo = (x, z) => heroGoTo(new THREE.Vector3(x, 0, z));
 G.tileXZ = (c, r) => [tileX(c), tileZ(r)];
@@ -50,7 +50,9 @@ function step(dt) {
   if (G.phase === 'select') updSelect(dt);
   if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); spawnEnemy(G.spawnQ.shift(), G.hpMul); } } else if (!G.enemies.length) endWave(); }
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
-    updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); if (hero.skillCd > 0) hero.skillCd -= dt;
+    if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
+      tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); }
+    else { updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); } if (hero.skillCd > 0) hero.skillCd -= dt;
     if (keys.w || keys.a || keys.s || keys.d || hero.path.length) cam.target.lerp(new THREE.Vector3(hero.g.position.x * .4, 0, hero.g.position.z * .4 + 1), dt * 2);
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }
