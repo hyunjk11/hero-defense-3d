@@ -20,7 +20,11 @@ const BLK = {
 };
 const TNAME = { [T.GRASS]: '풀밭', [T.CARVED]: '파인 길', [T.BEDROCK]: '수정 암반', [T.SPAWN]: '몬스터 포털', [T.CORE]: '수정 코어' };
 const $ = id => document.getElementById(id);
-const rnd = (a, b) => a + Math.random() * (b - a);
+const QS = new URLSearchParams(location.search);
+// 게임 로직 전용 난수 (?rng= 로 고정 가능 → 회귀 테스트 결정성). three.js/오디오의 Math.random과 분리
+let rngState = (+QS.get('rng') || (Math.random() * 1e9 | 0)) >>> 0;
+const rand = () => { rngState = rngState + 0x6D2B79F5 | 0; let t = Math.imul(rngState ^ rngState >>> 15, 1 | rngState); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const rnd = (a, b) => a + rand() * (b - a);
 const tileX = c => (c - GW / 2 + .5) * S, tileZ = r => (r - GH / 2 + .5) * S;
 const toTile = (x, z) => [Math.floor(x / S + GW / 2), Math.floor(z / S + GH / 2)];
 const inGrid = (c, r) => c >= 0 && r >= 0 && c < GW && r < GH;
@@ -53,6 +57,7 @@ const G = window.G = {
   phase: 'loading', gold: 220, wave: 0, coreHp: 30, coreMax: 30, ups: { atk: 0, spd: 0, rng: 0, skill: 0, bar: 0 },
   tool: 'move', enemies: [], projs: [], towers: [], fxs: [], coins: [], tiles: [], D: null, spawnQ: [], t: 0, shake: 0, night: 0, nightTarget: 0,
   sel: null, timers: [], ready: false, distT: 0, distDirty: false, dirty: new Set(),
+  manual: QS.has('test'), stats: { kills: {}, leaked: 0, goldEarned: 0, carvedTiles: 0, distCalcs: 0 },
 };
 const later = (t, fn) => G.timers.push({ t, fn });
 
@@ -265,7 +270,7 @@ const P = makeParticles(3000, .45), PB = makeParticles(700, 1.6);
 function emit(sys, x, y, z, count, color, spd = 4, life = .6, grav = -6, spread = 1) {
   const c = new THREE.Color(color);
   for (let k = 0; k < count; k++) { const i = sys.i = (sys.i + 1) % sys.n, j = i * 3; sys.pos[j] = x + rnd(-.2, .2) * spread; sys.pos[j + 1] = y; sys.pos[j + 2] = z + rnd(-.2, .2) * spread;
-    const a = Math.random() * Math.PI * 2, u = rnd(-.2, 1), v = rnd(.3, 1) * spd; sys.vel[j] = Math.cos(a) * v * Math.sqrt(1 - u * u); sys.vel[j + 1] = u * v + spd * .3; sys.vel[j + 2] = Math.sin(a) * v * Math.sqrt(1 - u * u);
+    const a = rand() * Math.PI * 2, u = rnd(-.2, 1), v = rnd(.3, 1) * spd; sys.vel[j] = Math.cos(a) * v * Math.sqrt(1 - u * u); sys.vel[j + 1] = u * v + spd * .3; sys.vel[j + 2] = Math.sin(a) * v * Math.sqrt(1 - u * u);
     sys.life[i] = sys.max[i] = life * rnd(.6, 1.2); sys.grav[i] = grav; sys.base[j] = c.r; sys.base[j + 1] = c.g; sys.base[j + 2] = c.b; }
 }
 function updParticles(sys, dt) {
@@ -279,7 +284,7 @@ function updParticles(sys, dt) {
 const DEB_N = 500, debIM = IM(new RoundedBoxGeometry(.3, .3, .3, 1, .07), toon(0xffffff), DEB_N, .02);
 const DB = { p: new Float32Array(DEB_N * 3), v: new Float32Array(DEB_N * 3), rot: new Float32Array(DEB_N * 2), life: new Float32Array(DEB_N), sz: new Float32Array(DEB_N), i: 0 };
 function debris(x, y, z, n, colors, spd = 6) {
-  for (let k = 0; k < n; k++) { const i = DB.i = (DB.i + 1) % DEB_N, j = i * 3, a = Math.random() * 6.28, v = rnd(.3, 1) * spd;
+  for (let k = 0; k < n; k++) { const i = DB.i = (DB.i + 1) % DEB_N, j = i * 3, a = rand() * 6.28, v = rnd(.3, 1) * spd;
     DB.p[j] = x + rnd(-.5, .5); DB.p[j + 1] = y + rnd(0, .5); DB.p[j + 2] = z + rnd(-.5, .5); DB.v[j] = Math.cos(a) * v * .6; DB.v[j + 1] = rnd(.5, 1.2) * spd; DB.v[j + 2] = Math.sin(a) * v * .6;
     DB.life[i] = rnd(.9, 1.6); DB.sz[i] = rnd(.5, 1.25); DB.rot[i * 2] = rnd(0, 6); DB.rot[i * 2 + 1] = rnd(0, 6); debIM.setColorAt(i, tmpC.set(colors[k % colors.length])); }
   debIM.instanceColor.needsUpdate = true;
@@ -415,7 +420,7 @@ function dijkstra(extraBlock) {
       const nd = d + cu; if (nd < D[nc * GH + nr]) { D[nc * GH + nr] = nd; h.push([nd, nc, nr]); } } }
   return D;
 }
-function computeDist() { G.D = dijkstra(); G.distDirty = false; drawRoute(); }
+function computeDist() { G.stats.distCalcs++; G.D = dijkstra(); G.distDirty = false; drawRoute(); }
 const dAt = (c, r) => G.D[c * GH + r];
 function nextStep(c, r) {
   let best = null, bs = Infinity;
@@ -641,7 +646,7 @@ function separate(dt) {
 function spawnEnemy(type, hpMul) {
   const E = ETYPES[type], m = makeEnemyModel(type), hp = E.hp * hpMul; scene.add(m.g);
   m.g.position.set(tileX(SPAWN[0]) + .4, 0, tileZ(SPAWN[1]) + rnd(-.5, .5)); m.g.rotation.y = Math.PI / 2;
-  const e = { type, E, m, g: m.g, hp, max: hp, tile: SPAWN.slice(), next: null, off: [rnd(-.45, .45), rnd(-.45, .45)], slowT: 0, slowAmt: 0, flash: 0, atkCd: rnd(0, .5), hitT: rnd(0, .3), state: 'walk', spawnT: 0, dead: false, bob: Math.random() * 6 };
+  const e = { type, E, m, g: m.g, hp, max: hp, tile: SPAWN.slice(), next: null, off: [rnd(-.45, .45), rnd(-.45, .45)], slowT: 0, slowAmt: 0, flash: 0, atkCd: rnd(0, .5), hitT: rnd(0, .3), state: 'walk', spawnT: 0, dead: false, bob: rand() * 6 };
   if (!E.fly) { const a = play(m, 'Spawn_Ground_Skeletons', { once: true, speed: 2, fade: 0 }); e.state = 'spawn'; e.spawnT = a ? Math.min(1.4, a.getClip().duration / 2) : 0; emit(P, m.g.position.x, .3, m.g.position.z, 12, 0x9a7a5a, 3, .6, -6, 1.5); }
   e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, E.boss ? 3 : Math.max(1.1, E.h * .55), E.boss ? 0xff3a4a : 0x55ff77, { auto: !E.boss, h: E.boss ? .22 : .15 });
   if (E.boss) { G.shake = .7; Snd.roar(m.g.position); banner('⚠ 보스 출현: 해골 군주 ⚠', '#ff4a5a', 2200); emit(PB, m.g.position.x, 2, m.g.position.z, 40, 0xff3a3a, 8, 1, -2, 2); }
@@ -656,7 +661,7 @@ function killEnemy(e) {
   emit(P, p.x, p.y, p.z, e.E.boss ? 160 : 22, e.E.fly ? 0xb08aff : 0xe8e0d0, e.E.boss ? 10 : 5, .8, -10, 1.5); emit(P, p.x, p.y, p.z, 10, 0xffe066, 4, .6);
   if (!e.E.fly) debris(p.x, p.y, p.z, e.E.boss ? 30 : 5, [0xf0ead8, 0xd8d0c0], 5);
   if (e.E.boss) { G.shake = 1.1; emit(PB, p.x, p.y, p.z, 60, 0xff8a3a, 12, 1.2, -3, 3); banner('해골 군주 처치!', '#ffd23a'); Snd.play('boom', { pos: p, force: true }); later(.6, () => Snd.play('victory', { force: true, exact: true })); }
-  G.gold += e.E.gold; popCoins(p, Math.ceil(e.E.gold / 2)); Snd.play(e.E.fly ? 'poof' : 'bones', { pos: p, rate: e.E.boss ? .6 : 1, force: e.E.boss }); e.dying = e.E.fly ? .7 : 1.6;
+  G.gold += e.E.gold; G.stats.goldEarned += e.E.gold; G.stats.kills[e.type] = (G.stats.kills[e.type] || 0) + 1; popCoins(p, Math.ceil(e.E.gold / 2)); Snd.play(e.E.fly ? 'poof' : 'bones', { pos: p, rate: e.E.boss ? .6 : 1, force: e.E.boss }); e.dying = e.E.fly ? .7 : 1.6;
   if (!e.E.fly) play(e.m, 'Death_A', { once: true, fade: .1 });
 }
 function damageTile(t, dmg) {
@@ -670,7 +675,7 @@ function carve(t) {
   t.t = T.CARVED; t.hp = t.max = 0; t.shk = 0; G.dirty.add(t); G.carved = (G.carved || 0) + 1; computeDist();
 }
 function reachCore(e) {
-  G.coreHp -= e.E.core; e.dead = true; removeEnemy(e); G.shake = Math.max(G.shake, .35);
+  G.coreHp -= e.E.core; G.stats.leaked++; e.dead = true; removeEnemy(e); G.shake = Math.max(G.shake, .35);
   emit(P, core.position.x, 3, core.position.z, 30, 0xff3a5a, 6, .7); crystalMat.emissive.setHex(0xff2a3a); later(.22, () => crystalMat.emissive.setHex(0x1890c0)); Snd.play('coreHit', { force: true }); Snd.play('glass', { vol: .6 });
   banner(`코어 피격! -${e.E.core}`, '#ff6a7a', 700); if (G.coreHp <= 0) gameOver();
 }
@@ -739,7 +744,7 @@ function updProjs(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
     const p = G.projs[i], m = p.m;
     if (p.kind === 'ball') { p.t += dt; const k = Math.min(1, p.t / p.dur); m.position.lerpVectors(p.from, p.dest, k); m.position.y = p.from.y + (p.dest.y + .3 - p.from.y) * k + Math.sin(k * Math.PI) * 3.2;
-      if (Math.random() < .5) emit(P, m.position.x, m.position.y, m.position.z, 1, 0x9a9a9a, .5, .5, 1, 0);
+      if (rand() < .5) emit(P, m.position.x, m.position.y, m.position.z, 1, 0x9a9a9a, .5, .5, 1, 0);
       if (k >= 1) { killProj(i); aoe(p.dest, p.r, p.dmg, '#ffc07a', { groundOnly: true }); ringFx(p.dest, p.r, 0xff8a2a, .35); emit(P, p.dest.x, .4, p.dest.z, 40, 0xffa04a, 7, .6, -8, 1.5); emit(PB, p.dest.x, .6, p.dest.z, 6, 0xff7a2a, 3, .5, 0, 1); debris(p.dest.x, .3, p.dest.z, 4, [0x8a6a4a, 0x5a5a5a], 4); G.shake = Math.max(G.shake, .08); Snd.play('boom', { pos: p.dest, vol: .6 }); }
       continue; }
     if (p.kind === 'rain' || p.kind === 'meteor') {
@@ -775,7 +780,7 @@ function castSkill() {
   if (hero.cls !== 'warrior') hero.face = Math.atan2(tgt.x - hp.x, tgt.z - hp.z);
   if (hero.cls === 'archer') {
     ringFx(tgt, 4.2, 0x6aff8a, 1.4); banner('화살비!', '#8aff9a', 900); play(hero.ch, '2H_Ranged_Shoot', { once: true, force: true, speed: 1.2 }); hero.atkT = .6;
-    for (let i = 0; i < 36; i++) later(i * .038, () => { const a = Math.random() * 6.28, rr = Math.sqrt(Math.random()) * 4, p = new THREE.Vector3(tgt.x + Math.cos(a) * rr, 18, tgt.z + Math.sin(a) * rr);
+    for (let i = 0; i < 36; i++) later(i * .038, () => { const a = rand() * 6.28, rr = Math.sqrt(rand()) * 4, p = new THREE.Vector3(tgt.x + Math.cos(a) * rr, 18, tgt.z + Math.sin(a) * rr);
       const m = makeArrow(0x9affb0); m.position.copy(p); m.rotation.x = Math.PI / 2; scene.add(m); G.projs.push({ kind: 'rain', m, dest: p.clone().setY(0), dmg: base * 1.3 * mul, spd: 40 }); });
   } else if (hero.cls === 'mage') {
     ringFx(tgt, 4.8, 0xff6a2a, .9); banner('메테오!', '#ffaa5a', 900); play(hero.ch, 'Spellcast_Long', { once: true, force: true, speed: 1.4 }); hero.atkT = 1;
@@ -799,12 +804,12 @@ const sndProj = new THREE.Vector3(); Snd.project = p => sndProj.set(p.x, p.y || 
 function startWave() {
   if (G.phase !== 'build') return; G.wave++; G.phase = 'wave'; G.nightTarget = 1; select(null);
   const n = G.wave, boss = n % 5 === 0, hpMul = Math.pow(1.16, n - 1), q = [], count = 8 + n * 3;
-  for (let i = 0; i < count; i++) { let t = 'grunt'; const r = Math.random(); if (r < .32) t = 'imp'; else if (n >= 3 && r > .86) t = 'golem'; else if (n >= 4 && r > .73 && r <= .86) t = 'bat'; q.push(t); }
+  for (let i = 0; i < count; i++) { let t = 'grunt'; const r = rand(); if (r < .32) t = 'imp'; else if (n >= 3 && r > .86) t = 'golem'; else if (n >= 4 && r > .73 && r <= .86) t = 'bat'; q.push(t); }
   if (boss) q.splice(Math.floor(count / 2), 0, 'boss');
   G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul; Snd.horn(); Snd.duck(.4, 2.2); banner(boss ? `웨이브 ${n} · 보스 웨이브!` : `웨이브 ${n}`, boss ? '#ff5a6a' : '#ffffff'); setPhaseUI();
 }
 function endWave() {
-  G.phase = 'build'; G.nightTarget = 0; const bonus = 25 + G.wave * 6; G.gold += bonus; Snd.play('waveClear', { force: true, exact: true }); Snd.play('coins', { delay: .3 }); Snd.duck(.4, 1.6); banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
+  G.phase = 'build'; G.nightTarget = 0; const bonus = 25 + G.wave * 6; G.gold += bonus; G.stats.goldEarned += bonus; Snd.play('waveClear', { force: true, exact: true }); Snd.play('coins', { delay: .3 }); Snd.duck(.4, 1.6); banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
   if (hero && hero.dead <= 0) { hero.hp = hero.max; play(hero.ch, 'Cheer', { once: true }); hero.atkT = 1.5; } computeDist(); setPhaseUI();
   try { localStorage.setItem('hd3d_best', Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)); } catch (e) {}
 }
@@ -927,7 +932,7 @@ function choose(cls) {
   spawnHero(cls); G.phase = 'build'; cam.target.set(0, 0, 1); cam.r = 58; cam.phi = .9; cam.theta = .22;
   computeDist(); setPhaseUI(); refreshHud(); banner(`${CLASSES[cls].n} 출전!`, '#ffe066');
 }
-Object.assign(G, { nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost });
+Object.assign(G, { nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
 G.heroGoTo = (x, z) => heroGoTo(new THREE.Vector3(x, 0, z));
 G.tileXZ = (c, r) => [tileX(c), tileZ(r)];
@@ -950,7 +955,7 @@ function updHero(dt) {
   h.cd -= dt; h.atkT -= dt;
   if (tgt && h.spinT <= 0) { const want = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); if (!moving) h.face = want;
     if (h.cd <= 0) { h.cd = 1 / stat.rate();
-      if (!moving) { const nm = h.cls === 'warrior' && Math.random() < .5 ? '1H_Melee_Attack_Slice_Horizontal' : h.C.atk; play(h.ch, nm, { once: true, force: true, speed: h.C.atkSpd * Math.max(1, stat.rate() / h.C.rate) }); h.atkT = Math.min(.55, 1 / stat.rate()); }
+      if (!moving) { const nm = h.cls === 'warrior' && rand() < .5 ? '1H_Melee_Attack_Slice_Horizontal' : h.C.atk; play(h.ch, nm, { once: true, force: true, speed: h.C.atkSpd * Math.max(1, stat.rate() / h.C.rate) }); h.atkT = Math.min(.55, 1 / stat.rate()); }
       const t0 = tgt; later(h.cls === 'warrior' ? .12 : .08, () => { if (!t0.dead && hero.dead <= 0) attack(t0); }); } }
   if (h.spinT > 0) { h.spinT -= dt; h.spinTick -= dt; h.g.rotation.y += dt * 9;
     if (h.spinTick <= 0) { h.spinTick = .25; aoe(h.g.position, 3.6, stat.dmg() * 1.3 * stat.skillMul(), '#ffb07a', { groundOnly: true }); emit(P, h.g.position.x, 1.2, h.g.position.z, 20, 0xffa04a, 7, .4, 0, 4); }
@@ -981,7 +986,7 @@ function updLighting(dt) {
   sun.color.setHSL(.1, .6 - n * .3, .88 - n * .2); bloom.strength = .32 + n * .22; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
 }
 let lastT = performance.now(), hudT = 0;
-function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; step(Math.min(raw, .05)); composer.render(); }
+function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05)); composer.render(); }
 G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
 function step(dt) {
   G.t += dt;
@@ -995,7 +1000,7 @@ function step(dt) {
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }
   for (const t of G.dirty) { refreshTile(t); if (t.shk > 0) t.shk -= dt; else G.dirty.delete(t); }
   updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
-  portalDisk.rotation.z -= dt * 2.5; if (Math.random() < .6) emit(P, portal.position.x + rnd(-.3, .3), rnd(.6, 3.2), portal.position.z + rnd(-1.4, 1.4), 1, 0xc07aff, 1.5, .8, 2, .3);
+  portalDisk.rotation.z -= dt * 2.5; if (rand() < .6) emit(P, portal.position.x + rnd(-.3, .3), rnd(.6, 3.2), portal.position.z + rnd(-1.4, 1.4), 1, 0xc07aff, 1.5, .8, 2, .3);
   crystal.rotation.y += dt * 1.2; crystal.position.y = 3.6 + Math.sin(G.t * 2) * .2; coreRings.forEach((r, k) => r.rotation.z += dt * (k ? -1.5 : 1));
   if (moveMark.visible) { moveMark.scale.multiplyScalar(1 - dt * 3); moveMark.material.opacity = moveMark.scale.x; if (moveMark.scale.x < .2) moveMark.visible = false; }
   G.shake = Math.max(0, G.shake - dt * 1.8); updateCam(); hudT += dt; if (hudT > .15) { hudT = 0; if (G.phase !== 'select' && G.phase !== 'loading') refreshHud(); }
