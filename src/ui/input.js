@@ -14,7 +14,7 @@ import { computeDist, dijkstra } from '../world/pathfinding.js';
 import { addBarricade, barMaxHp, removeBarricade } from '../world/barricades.js';
 import { placeTower, repairAll, repairTower, sellTower, upgradeTower } from '../world/towers.js';
 import { groundY } from '../monsters/ai.js';
-import { hero, heroGoTo } from '../heroes/hero.js';
+import { hero, heroGoTo, startWarp } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
 import { startWave } from '../core/waves.js';
 import { banner, refreshHud } from './hud.js';
@@ -60,7 +60,7 @@ cvs.addEventListener('pointerdown', e => {
 });
 addEventListener('pointerup', () => rdrag = null);
 cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e.deltaY * .03)); }, { passive: true });
-addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
+addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat) startWarp(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 $('rotL').onclick = () => { cam.theta += Math.PI / 4; Snd.play('ui'); }; $('rotR').onclick = () => { cam.theta -= Math.PI / 4; Snd.play('ui'); };
 function occupied(c, r) {
@@ -90,7 +90,7 @@ document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.data
   $('sndBtn').onclick = () => { Snd.unlock(); $('sndPanel').classList.toggle('hidden'); Snd.play('ui'); }; upd();
   addEventListener('keydown', e => { if (e.key.toLowerCase() === 'm' && !e.repeat) { const on = !(C.bgmOn || C.sfxOn); $('bgmOn').checked = $('sfxOn').checked = on; upd(); } });
 })();
-$('startWave').onclick = startWave; $('skillBtn').onclick = castSkill;
+$('startWave').onclick = startWave; $('skillBtn').onclick = castSkill; $('warpBtn').onclick = () => startWarp();
 const upCost = k => Math.round(UPS[k].base * Math.pow(1.45, G.ups[k]));
 document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.dataset.up, c = upCost(k); if (G.gold < c) return Snd.play('error'); G.gold -= c; G.ups[k]++;
   if (k === 'bar') for (const col of G.tiles) for (const t of col) if (t.bar) { const r = t.bar.hp / t.bar.max; t.bar.max = barMaxHp(); t.bar.hp = t.bar.max * r; }

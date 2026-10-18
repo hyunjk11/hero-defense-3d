@@ -71,3 +71,10 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #note .nc{background:#120c22e8;border:2px solid #ffd27a;border-radius:12px;padding:8px 12px;max-width:300px;color:#eee;font-size:13px;line-height:1.35;box-shadow:0 4px 18px #0008}
 #note .nc b{display:block;color:#ffd27a;font-size:16px;margin-bottom:2px}
 #tRep.warn{border-color:#ff8a5a;color:#ffd0b0}
+
+#warpBtn{position:relative;width:62px;height:62px;border-radius:50%;border:3px solid #7ad8ff;background:radial-gradient(#1a5a8a,#0a1830);color:#fff;font:inherit;font-weight:bold;font-size:13px;cursor:pointer;overflow:hidden;box-shadow:0 0 14px #7ad8ff66;display:flex;flex-direction:column;align-items:center;justify-content:center;align-self:flex-end;margin-right:8px}
+#warpBtn small{color:#bdf0ff}#warpCd{position:absolute;inset:0;background:conic-gradient(#000b var(--p,0%),transparent 0);pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:18px}
+#warpBtn.channel{animation:wpulse .25s infinite}@keyframes wpulse{50%{box-shadow:0 0 34px #bdf0ff;border-color:#fff}}
+#modeInd{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#0c0a16e8;border:2px solid #66ff88;border-radius:10px;padding:6px 14px;font-size:14px;color:#eaffea;z-index:6;pointer-events:none;box-shadow:0 0 16px #66ff8866}
+#modeInd.clear{border-color:#ffb03a;box-shadow:0 0 16px #ffb03a66;color:#fff1d8}#modeInd small{color:#bbb;margin-left:8px}
+#tip .bad{color:#ff7a7a;font-weight:bold}#tip .good{color:#7aff9a;font-weight:bold}#tip .cost{color:#ffe066;font-weight:bold}

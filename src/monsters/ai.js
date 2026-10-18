@@ -74,8 +74,15 @@ function updEnemies(dt) {
       if (E.boss && Math.sin(G.t * 4.5) * Math.sin((G.t - dt) * 4.5) < 0) { G.shake = Math.max(G.shake, .16); Snd.play('stomp', { pos: g.position, rate: .55, force: true }); emit(P, g.position.x, .2, g.position.z, 6, 0x8a7a6a, 3, .4); }
     }
     g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8);
+    // 끼임 감지: 굴착 중이 아닌데 1.5초 동안 거의 못 움직였으면(밀림/칸 불일치) 현재 칸 중심으로 보정 후 경로 재선택
+    if (e.digging) { e.ckT = 0; e.ckP = null; } else { if (!e.ckP) { e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } e.ckT += dt;
+      if (e.ckT > 1.5) { if (Math.hypot(g.position.x - e.ckP[0], g.position.z - e.ckP[1]) < .3 && spd > .2 && wedged(e)) nudge(e); e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } }
   }
 }
+// 진짜 끼임만: 몸이 통과 불가 칸에 있거나, 현재 칸/다음 칸 어디에도 속하지 않음 (단순 정체 행렬은 제외)
+function wedged(e) { const p = e.g.position, [c, r] = toTile(p.x, p.z); if (!enemyWalk(p.x, p.z)) return true; const on = (a) => a && a[0] === c && a[1] === r; return !on(e.tile) && !on(e.next); }
+function nudge(e) { const g = e.g, [c, r] = toTile(g.position.x, g.position.z); G.nudgeN = (G.nudgeN || 0) + 1;
+  if (inGrid(c, r) && enemyWalk(g.position.x, g.position.z)) e.tile = [c, r]; g.position.x = tileX(e.tile[0]); g.position.z = tileZ(e.tile[1]); e.next = null; }
 
 function setEnemyShadows(on) { G.lowQ = !on; for (const e of G.enemies) shadowOf(e, on); }
 function shadowOf(e, on) { e.g.traverse(o => { if (!o.isMesh) return; if (o.userData.ol) o.visible = on; else o.castShadow = on; }); } // 저품질: 그림자·외곽선 끔

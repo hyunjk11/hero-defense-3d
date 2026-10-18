@@ -24,7 +24,7 @@ const stat = {
 };
 function spawnHero(cls) {
   const C = CLASSES[cls], ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
-  hero = G.hero = { cls, C, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
+  hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle');
   $('heroName').textContent = `${C.n} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill;
 }
@@ -34,6 +34,36 @@ function heroDamage(d) {
 }
 const heroPass = (c, r) => { if (!inGrid(c, r)) return false; const t = tileAt(c, r); return (t.t === T.GRASS || t.t === T.CARVED || t.t === T.SPAWN || t.t === T.CORE) && !t.tower && !t.bar; };
 function passAt(x, z) { for (const [ox, oz] of [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]]) { const [c, r] = toTile(x + ox, z + oz); if (!heroPass(c, r)) return false; } return true; }
+const heroPassXZ = (x, z) => { const [c, r] = toTile(x, z); return heroPass(c, r); };
+function overlap(x, z) { let n = 0; for (const [ox, oz] of [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]]) { const [c, r] = toTile(x + ox, z + oz); if (!heroPass(c, r)) n++; } return n; }
+// BFS로 가장 가까운 '완전히 비어 있는' 칸(영웅 몸이 들어가고 적이 근처에 없음) 찾기
+function freeTileNear(c0, r0, avoidEnemies = true) {
+  const seen = new Set([c0 * GH + r0]), q = [[c0, r0]]; let fallback = null;
+  while (q.length) { const [c, r] = q.shift(); if (heroPass(c, r) && passAt(tileX(c), tileZ(r))) { if (!fallback) fallback = [c, r];
+      if (!avoidEnemies || !G.enemies.some(e => !e.dead && !e.E.fly && Math.hypot(e.g.position.x - tileX(c), e.g.position.z - tileZ(r)) < 1.6)) return [c, r]; }
+    for (const [dc, dr] of DIRS) { const nc = c + dc, nr = r + dr, k = nc * GH + nr; if (inGrid(nc, nr) && !seen.has(k)) { seen.add(k); q.push([nc, nr]); } } }
+  return fallback;
+}
+function unstuck() { const h = hero, p = h.g.position, goal = h.path.length ? h.path[h.path.length - 1].clone() : null; const [c, r] = toTile(p.x, p.z), f = freeTileNear(c, r, false); h.stuckT = 0; h.stuckD = 1e9; if (!f) return;
+  p.set(tileX(f[0]), p.y, tileZ(f[1])); h.unstuckN++; G.unstuckN = (G.unstuckN || 0) + 1; emit(P, p.x, 1, p.z, 14, 0x9ae8ff, 3, .5); if (goal) heroGoTo(goal); else h.path = []; }
+// ================= 워프 (T): 1초 채널링 → 코어 앞 빈 칸으로 순간이동, 쿨다운 10초 =================
+const WARP_CH = 1, WARP_CD = 10;
+function warpTarget() { return freeTileNear(CORE[0] - 1, CORE[1]); }
+function startWarp() { const h = hero; if (!h || h.dead > 0 || G.phase === 'select' || G.phase === 'over') return false;
+  if (h.warpT > 0) return false; if (h.warpCd > 0) { Snd.play('error'); banner(`워프 재사용 대기 ${Math.ceil(h.warpCd)}초`, '#9ae8ff', 800); return false; }
+  h.path = []; h.spinT = 0; if (h.swirl) h.swirl.visible = false; h.warpT = WARP_CH; play(h.ch, 'Cheer');
+  if (!h.warpFx) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, 6, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x7ad8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); m.position.y = 3; h.warpFx = m; h.g.add(m); }
+  h.warpFx.visible = true; ringFx(h.g.position, 2.2, 0x7ad8ff, WARP_CH); Snd.play('magic', { pos: h.g.position, rate: .6, force: true }); Snd.whoosh(h.g.position, WARP_CH, 200, 2400, .4); return true; }
+function warpChannelFx(dt) { const h = hero, k = 1 - h.warpT / WARP_CH; h.warpFx.material.opacity = .15 + k * .5; h.warpFx.scale.set(1 - k * .5, 1, 1 - k * .5); h.warpFx.rotation.y += dt * 6;
+  if (Math.random() < .6) { const a = Math.random() * 6.28; emit(P, h.g.position.x + Math.cos(a) * 1.1, .2, h.g.position.z + Math.sin(a) * 1.1, 2, 0x9ae8ff, 1, .6, 6, .3); } }
+function cancelWarp() { const h = hero; h.warpT = 0; if (h.warpFx) h.warpFx.visible = false; Snd.play('error'); banner('워프 취소', '#9ae8ff', 700); play(h.ch, 'Idle'); }
+function doWarp() { const h = hero, p = h.g.position, f = warpTarget(); h.warpFx.visible = false; h.warpCd = WARP_CD; h.stuckT = 0; if (!f) return;
+  emit(P, p.x, 1.2, p.z, 50, 0x7ad8ff, 7, .7, 0, 3); ringFx(p, 3, 0x7ad8ff, .5); vanishPillar(p.x, p.z);
+  p.set(tileX(f[0]), 0, tileZ(f[1])); h.path = []; h.face = -Math.PI / 2; G.warpN = (G.warpN || 0) + 1;
+  emit(P, p.x, 1.2, p.z, 60, 0xbaf0ff, 6, .8, -4, 2); ringFx(p, 3.5, 0xbaf0ff, .6); vanishPillar(p.x, p.z); G.shake = Math.max(G.shake || 0, .2); play(h.ch, 'Cheer', { once: true }); h.atkT = .8;
+  Snd.play('magic', { pos: p, rate: 1.4, force: true }); Snd.play('levelUp', { vol: .5, force: true }); banner('워프!', '#9ae8ff', 700); }
+function vanishPillar(x, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.6, 1.2, 9, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xbaf0ff, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+  m.position.set(x, 4.5, z); scene.add(m); G.fxs.push({ m, t: 0, dur: .45, kind: 'fade' }); }
 function astar(s, g) {
   const key = (c, r) => c * GH + r, gs = new Map([[key(s[0], s[1]), 0]]), from = new Map(), h = new Heap(), H = (c, r) => Math.abs(c - g[0]) + Math.abs(r - g[1]);
   h.push([H(s[0], s[1]), s[0], s[1]]);
@@ -50,7 +80,7 @@ function heroGoTo(p) {
       for (const [dc, dr] of DIRS) { const nc = c + dc, nr = r + dr, k = nc * GH + nr; if (heroPass(nc, nr) && !seen.has(k)) { seen.add(k); q.push([nc, nr]); } } }
     path = astar(s, best) || []; exact = false;
   }
-  hero.path = path.map(([c, r]) => new THREE.Vector3(tileX(c), 0, tileZ(r))); if (exact) { hero.path.pop(); hero.path.push(new THREE.Vector3(p.x, 0, p.z)); }
+  hero.path = path.map(([c, r]) => new THREE.Vector3(tileX(c), 0, tileZ(r))); if (exact && passAt(p.x, p.z)) { hero.path.pop(); hero.path.push(new THREE.Vector3(p.x, 0, p.z)); } // 벽에 붙은 클릭 지점은 몸이 못 들어가 제자리걸음하던 원인 → 칸 중심 사용
 }
 
 // ================= 영웅 업데이트 =================
@@ -58,12 +88,23 @@ function updHero(dt) {
   const h = hero; h.ch.mixer.update(dt);
   if (h.dead > 0) { h.dead -= dt; if (h.dead <= 0) { h.hp = h.max; h.hb.show(true); h.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); play(h.ch, 'Cheer', { once: true }); h.atkT = 1.2; emit(P, h.g.position.x, 1, h.g.position.z, 40, 0x8aff9a, 5, .8); ringFx(h.g.position, 2.5, 0x8aff9a, .6); } return; }
   const fwd = new THREE.Vector3(-Math.sin(cam.theta), 0, -Math.cos(cam.theta)), right = new THREE.Vector3(-fwd.z, 0, fwd.x), mv = new THREE.Vector3();
-  if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right);
+  let fromPath = false; if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right);
+  if (h.warpCd > 0) h.warpCd -= dt;
+  if (h.warpT > 0) { // 워프 채널링: 이동 입력 시 취소
+    if (mv.lengthSq() > 0 || h.path.length) cancelWarp(); else { h.warpT -= dt; warpChannelFx(dt); if (h.warpT <= 0) doWarp(); h.hb.set(h.hp / h.max); return; } }
   if (mv.lengthSq() > 0) h.path = [];
-  else if (h.path.length) { mv.subVectors(h.path[0], h.g.position).setY(0); if (mv.length() < .15) { h.path.shift(); if (!h.path.length) mv.set(0, 0, 0); } }
+  else if (h.path.length) { fromPath = true; mv.subVectors(h.path[0], h.g.position).setY(0); if (mv.length() < .15) { h.path.shift(); if (!h.path.length) mv.set(0, 0, 0); } }
   let moving = false;
-  if (mv.lengthSq() > 0) { mv.normalize().multiplyScalar(h.C.speed * dt * (h.spinT > 0 ? .7 : 1)); const p = h.g.position;
-    if (passAt(p.x + mv.x, p.z)) p.x += mv.x; if (passAt(p.x, p.z + mv.z)) p.z += mv.z; h.face = Math.atan2(mv.x, mv.z); moving = true; }
+  if (mv.lengthSq() > 0) { const want = mv.length(), stp = h.C.speed * dt * (h.spinT > 0 ? .7 : 1); mv.normalize().multiplyScalar(fromPath ? Math.min(stp, want) : stp); const p = h.g.position; // 경로 지점을 지나치며 왕복하던 떨림 방지 const p = h.g.position;
+    // 근본 원인 수정: 현재 위치가 이미 막힌 칸과 겹쳐 있으면(타워/바리케이드가 옆에 생기거나 밀려서) 4모서리 검사가 모든 이동을 거부해 영구히 갇혔음.
+    // 겹친 상태에서는 '덜 겹치는' 방향(중심 칸이 통과 가능)으로의 이동을 허용해 빠져나오게 함
+    const ok = (x, z) => passAt(x, z) || (!passAt(p.x, p.z) && heroPassXZ(x, z) && overlap(x, z) <= overlap(p.x, p.z));
+    const x0 = p.x, z0 = p.z; if (ok(p.x + mv.x, p.z)) p.x += mv.x; if (ok(p.x, p.z + mv.z)) p.z += mv.z; h.face = Math.atan2(mv.x, mv.z); moving = true;
+    // 자동 탈출: 2초 동안 목표 쪽으로 진척이 없으면 가장 가까운 빈 칸으로 이동 후 경로 재계산
+    const tgt0 = h.path.length ? h.path[0] : null, dNow = tgt0 ? Math.hypot(tgt0.x - p.x, tgt0.z - p.z) : (Math.hypot(p.x - x0, p.z - z0) < 1e-4 && !passAt(p.x, p.z) ? 1 : -1);
+    if (dNow >= 0 && dNow > h.stuckD - .05) { h.stuckT += dt; if (h.stuckT > 2) unstuck(); } else { h.stuckT = 0; h.stuckD = dNow >= 0 ? dNow : 1e9; } }
+  else { h.stuckT = 0; h.stuckD = 1e9; }
+  if (!moving && !passAt(h.g.position.x, h.g.position.z)) { h.stuckT += dt; if (h.stuckT > 2) unstuck(); }
   h.g.position.y += (groundY(h.g.position.x, h.g.position.z) - h.g.position.y) * Math.min(1, dt * 10);
   const rng = stat.range(); let tgt = null, bd = rng * rng;
   for (const e of G.enemies) { if (e.dead) continue; const dx = e.g.position.x - h.g.position.x, dz = e.g.position.z - h.g.position.z, d = dx * dx + dz * dz; if (d < bd && (h.cls !== 'warrior' || !e.E.fly)) { bd = d; tgt = e; } }
@@ -93,4 +134,4 @@ function attack(t) {
     arc.rotation.x = -Math.PI / 2; arc.rotation.z = h.face - Math.PI / 2; arc.position.set(h.g.position.x, 1, h.g.position.z); scene.add(arc); G.fxs.push({ m: arc, t: 0, dur: .2, kind: 'fade' }); }
 }
 
-export { hero, stat, spawnHero, heroDamage, heroGoTo, updHero };
+export { startWarp, WARP_CD, hero, stat, spawnHero, heroDamage, heroGoTo, updHero };
