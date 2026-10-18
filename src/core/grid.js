@@ -9,4 +9,7 @@ const inGrid = (c, r) => c >= 0 && r >= 0 && c < GW && r < GH;
 const isBlock = t => t === T.DIRT || t === T.FOREST || t === T.ROCK;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-export { GW, GH, S, DIGK, T, SPAWN, CORE, tileX, tileZ, toTile, inGrid, isBlock, DIRS };
+// ================= 지형 메시 (인스턴스) =================
+const NT = GW * GH;
+
+export { GW, GH, S, DIGK, T, SPAWN, CORE, tileX, tileZ, toTile, inGrid, isBlock, DIRS, NT };
