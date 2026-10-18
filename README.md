@@ -33,6 +33,7 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 ![warp](warp.png)
 
 ## 크레딧
+- 마법사 영웅 모델·애니메이션: **Meshy**로 생성한 AI 생성 에셋 (meshopt 압축, three.js MeshoptDecoder로 로드)
 - 캐릭터·무기 모델: **KayKit Adventurers & KayKit Skeletons Character Packs** by Kay Lousberg
   (https://www.kaylousberg.com) — **CC0 1.0**. `models/`에 용량을 줄여 포함했습니다.
 - 효과음: Kenney (https://www.kenney.nl) — RPG Audio, Impact Sounds, Interface Sounds, Sci-fi Sounds, Music Jingles, **CC0 1.0** (`audio/sfx/`, `audio/KENNEY_LICENSE.txt`)

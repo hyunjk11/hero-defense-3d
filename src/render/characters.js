@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { $ } from '../core/util.js';
 import { CLASSES } from '../data/heroes.js';
@@ -7,15 +8,23 @@ import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer', 'mage', 'warrior', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ASSETS = ['archer', 'mage_meshy', 'warrior', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
 async function loadAssets() {
-  const loader = new GLTFLoader(); let n = 0;
-  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
+  const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); let n = 0;
+  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (k === 'mage_meshy') lockRoot(g.animations); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
 }
 function prep(g) {
   g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; } });
   g.scene.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(g.scene); g.userData.h = box.max.y - box.min.y || 1;
 }
+// Meshy 마법사: 루트 모션 잠금 (Hips 위치 트랙의 X/Z를 첫 프레임 값으로 고정, Y는 유지 → 쓰러짐/피격이 제자리에서)
+function lockRoot(clips) { for (const c of clips) for (const t of c.tracks) { if (!/Hips\.position$/.test(t.name)) continue; const v = t.values, x0 = v[0], z0 = v[2]; for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; } } }
+// 바인드 포즈에서 오른손 근처(수평 0.35 이내) 정점 중 가장 높은 곳 = 지팡이 끝 수정 → 조금 아래를 발사 지점으로
+function staffTop(ch, hp) { let best = null; const v = new THREE.Vector3();
+  ch.root.traverse(o => { if (!o.isSkinnedMesh || o.userData.ol) return; const n = o.geometry.attributes.position.count;
+    for (let i = 0; i < n; i += 2) { o.getVertexPosition(i, v); o.localToWorld(v); if (Math.hypot(v.x - hp.x, v.z - hp.z) < .35 && v.y > hp.y && (!best || v.y > best.y)) best = v.clone(); } });
+  return best ? best.add(new THREE.Vector3(0, -.12, 0)) : hp.clone().add(new THREE.Vector3(0, .9, 0)); }
+const MAGE_ALIAS = { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', Spellcast_Shoot: 'Cast', Spellcast_Long: 'CastCharged' };
 const wsV = new THREE.Vector3();
 function makeChar(key, height, clips, olW = .03) {
   const tpl = GL[key], root = SkeletonUtils.clone(tpl.scene), k = height / tpl.userData.h; root.scale.setScalar(k);
@@ -38,7 +47,10 @@ function play(ch, name, o = {}) {
 function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
 const heroClips = () => GL.warrior.animations, skClips = () => GL.sk_minion.animations;
 function makeHeroModel(cls) {
-  const ch = makeChar(CLASSES[cls].model, 2.5, heroClips(), .032);
+  const key = CLASSES[cls].model, meshy = key === 'mage_meshy', ch = makeChar(key, meshy ? 2.8 : 2.5, meshy ? GL[key].animations : heroClips(), .032);
+  if (meshy) { for (const [a, b] of Object.entries(MAGE_ALIAS)) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
+    const hand = ch.root.getObjectByName('RightHand'); if (hand) { ch.root.updateMatrixWorld(true); const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
+      tip.position.copy(hand.worldToLocal(staffTop(ch, hp))); hand.add(tip); ch.tip = tip; } } // 지팡이 수정 위치
   const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
   return ch;
 }
