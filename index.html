@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>히어로 디펜스 3D</title><link rel="stylesheet" href="style.css">
+<title>판타지 디펜스</title><link rel="stylesheet" href="style.css">
 <script type="importmap">{"imports":{"supabase":"./lib/supabase.mjs","three":"./lib/three.module.js","three/addons/":"./lib/addons/"}}</script>
 </head><body>
   <div id="bossHud" class="hidden"><div id="bossName">해골 군주</div><div class="bar boss"><i class="tr" id="bossTr"></i><i id="bossFill"></i></div></div>
@@ -61,7 +61,7 @@
 </div>
 <div id="tip" class="hidden"></div>
 <div id="select" class="hidden">
-  <h1>히어로 디펜스 3D</h1><p>몬스터가 땅을 파고 온다! 영웅을 선택하세요</p>
+  <h1>판타지 디펜스</h1><p>몬스터가 땅을 파고 온다! 영웅을 선택하세요</p>
   <div id="cards">
     <div class="card" data-cls="archer"><h2>궁수</h2><div class="role">원거리 · 연사</div><ul><li>긴 사거리, 빠른 석궁</li><li>스킬: <b>화살비</b> — 지정 범위에 화살 폭우</li></ul></div>
     <div class="card" data-cls="mage"><h2>마법사</h2><div class="role">광역 · 둔화</div><ul><li>마법구 광역 피해 + 둔화</li><li>스킬: <b>메테오</b> — 거대한 운석 낙하</li></ul></div>
@@ -69,7 +69,7 @@
   </div>
 </div>
 <div id="scr_intro" class="screen hidden">
-  <div class="logo"><div class="crest">⚔</div><h1>히어로 디펜스</h1><div class="sub3d">3D</div><p class="tag">땅을 파고 오는 해골 군단으로부터 수정 코어를 지켜라</p></div>
+  <div class="logo"><div class="crest">⚔</div><h1>판타지 디펜스</h1><div class="sub3d">FANTASY DEFENSE</div><p class="tag">땅을 파고 오는 해골 군단으로부터 수정 코어를 지켜라</p></div>
   <div class="press">화면을 누르거나 아무 키나 눌러 시작</div>
   <div class="ver">v2 · 계정 · 클라우드 저장</div>
 </div>
@@ -87,7 +87,7 @@
 </div>
 <div id="scr_menu" class="screen hidden">
   <div class="fcard gpanel menu">
-    <div class="gtitle">히어로 디펜스 3D</div>
+    <div class="gtitle">판타지 디펜스</div>
     <div id="mnAcct" class="acct"></div>
     <div id="mnSummary" class="summary"></div>
     <button id="mnCont" class="gbtn main">▶ 이어하기</button>
@@ -105,8 +105,9 @@
   <div id="townLabels"></div>
   <div class="twTop"><div class="pill"><span class="soulico"></span><span class="lbl">영혼석</span><b id="twSouls">0</b></div><div class="pill"><span class="lbl">최고 웨이브</span><b id="twBest">0</b></div><div class="pill"><span class="lbl">출정</span><b id="twRuns">0</b></div><div class="pill"><span class="lbl">총 처치</span><b id="twKills">0</b></div></div>
   <div class="twAcct" id="twAcct"></div>
-  <div class="gpanel twLeft"><div class="gtitle sm">영웅 선택</div><div id="twHeroes"></div><div class="gtitle sm">영구 강화</div><div id="twPerm"></div></div>
-  <div class="twBottom"><div id="twHint">WASD / 클릭으로 이동 · 북쪽 <b>출정의 문</b>으로 들어가면 디펜스 시작</div><button id="twGo" class="gbtn main">🌀 출정</button><button id="twMenu" class="gbtn sm">메뉴</button></div>
+  <div class="gpanel twLeft"><div class="gtitle sm">영웅 선택</div><div id="twHeroes"></div><div class="twTip">✦ 영구 강화는 <b>호수광장</b>의 <b>여신탑</b>에서 받을 수 있어요</div></div>
+  <div class="twBottom"><div id="twHint">WASD / 클릭으로 이동 · 북쪽 <b>출정의 문</b>: 디펜스 시작 · 동쪽 <b>여신탑</b>: 영구 강화</div><button id="twGo" class="gbtn main">🌀 출정</button><button id="twMenu" class="gbtn sm">메뉴</button></div>
+  <div id="twBless" class="gpanel hidden"><button id="blessClose" class="gbtn sm">✕</button><div class="blessHead"><div class="blessIco"></div><div class="gtitle">여신의 축복</div><div class="blessSub">여신탑에 영혼석을 바쳐 <b id="blessHero"></b>의 힘을 영원히 강화합니다</div></div><div id="twPerm"></div></div>
   <div id="townPop" class="gpanel hidden"></div>
 </div>
 <div id="fade"></div>

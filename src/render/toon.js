@@ -44,4 +44,4 @@ function IM(geo, mat, count, ol = .03, shadow = true) {
 function setI(im, i, x, y, z, sx, sy = sx, sz = sx, ry = 0, rx = 0) { dummy.position.set(x, y, z); dummy.rotation.set(rx, ry, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.instanceMatrix.needsUpdate = true; }
 function hideI(im, i) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.instanceMatrix.needsUpdate = true; }
 
-export { grad, toon, glow, addOutline, mk, dummy, tmpC, IM, setI, hideI };
+export { grad, toon, glow, addOutline, mk, dummy, tmpC, IM, setI, hideI, olGeo, outlineMat };

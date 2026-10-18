@@ -1,4 +1,4 @@
-# 히어로 디펜스 3D
+# 판타지 디펜스
 
 Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 
@@ -28,6 +28,8 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 
 ![intro](intro.png)
 ![town](town.png)
+![lake](lake.png)
+![goddess](goddess.png)
 ![heroes](heroes.png)
 ![select](select.png)
 ![heroes in game](heroes_ingame.png)
@@ -37,11 +39,12 @@ Three.js(로컬 번들, CDN 없음)로 만든 쿼터뷰 3D 웹 디펜스 게임.
 ![warp](warp.png)
 
 ## 계정 · 클라우드 저장 · 화면 흐름
-인트로(세 영웅 3D 무대) → 로그인(이메일/비밀번호, 회원가입, 게스트) → 메인 메뉴(이어하기/새로 시작/설정/닉네임) → **마을**(걸어다니는 3D 마을, 영웅 선택, 영혼석으로 영구 강화, 던전·상점·대장간·여관은 준비 중) → **출정의 문**으로 기존 디펜스 시작 → 패배/귀환 시 보상(영혼석 = 웨이브×8 + 처치/3)을 저장하고 마을로.
+인트로(세 영웅 3D 무대) → 로그인(이메일/비밀번호, 회원가입, 게스트) → 메인 메뉴(이어하기/새로 시작/설정/닉네임) → **마을**(걸어다니는 3D 마을: 돌길 광장·분수·집·풍차·깃발·가로등·반딧불·꽃잎, 영웅 선택, 던전·상점·대장간·여관은 준비 중 · 동쪽 **호수광장의 여신탑**에 다가가거나 클릭하면 **여신의 축복** 창에서 영혼석으로 영구 강화) → **출정의 문**으로 기존 디펜스 시작 → 패배/귀환 시 보상(영혼석 = 웨이브×8 + 처치/3)을 저장하고 마을로.
 - Supabase(cart-race와 같은 프로젝트)의 `hd3d_profiles`, `hd3d_progress` 테이블 사용. **최초 1회 `supabase/schema.sql`을 Supabase SQL Editor에서 실행해야** 클라우드 저장이 켜집니다(실행 전에는 '서버 준비 중' 표시 + 이 기기에 저장).
 - 저장은 디바운스 + 오프라인 재시도, 기기에서 첫 로그인 시 게스트 진행을 병합. `?test`/`?skipintro`는 기존 영웅 선택 화면으로 바로 시작.
 
 ## 크레딧
+- 마을(집·풍차·호수광장·여신탑·나무·꽃·파티클·물 셰이더)은 외부 에셋 없이 코드로 절차적 생성 (`src/world/town.js`)
 - 영웅 모델·애니메이션(궁수·마법사·전사, 모두 여성 치비 캐릭터): **Meshy**로 생성한 AI 생성 에셋 (Image to 3D + 자동 리깅 + 애니메이션 라이브러리, meshopt 압축 + 1024 WebP, three.js MeshoptDecoder로 로드)
 - 캐릭터·무기 모델: **KayKit Adventurers & KayKit Skeletons Character Packs** by Kay Lousberg
   (https://www.kaylousberg.com) — **CC0 1.0**. `models/`에 용량을 줄여 포함했습니다.
