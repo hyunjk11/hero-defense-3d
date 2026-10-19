@@ -1,5 +1,4 @@
 // ================= 마을 (절차적 생성, 툰 스타일): 광장·분수·집·풍차·호수광장·여신탑 =================
-import { CLASSES } from '../data/heroes.js';
 import * as THREE from 'three';
 import { mk, toon, glow, olGeo, outlineMat } from '../render/toon.js';
 
@@ -372,7 +371,7 @@ export function buildTown(parent) {
   house({ x: -15, z: -5, w: 4.6, d: 4, h: 3.2, wall: 0x8a7a9a, roof: 0x3a2a5a, trim: 0x2a2236, shutter: 0x5a3a8a, sign: '던전', signBg: '#3a2a5a', smoke: 0x9a8ab0, label: '⚔ 던전<small>준비 중</small>',
     extra: (g, w, d) => { mk(Cyl(1, 1.2, 7, 10), toon(0x5a4a6a), w / 2 + .6, 3.5, -d / 2 + .2, g, .04); mk(new THREE.ConeGeometry(1.45, 2.4, 10), toon(0x2a1a4a), w / 2 + .6, 8.2, -d / 2 + .2, g, .04); const f = mk(new THREE.OctahedronGeometry(.3), glow(0xb07aff, 2.5), w / 2 + .6, 9.9, -d / 2 + .2, g, 0); anims.push(t => f.rotation.y = t * 2);
       for (const s of [-1, 1]) { mk(Cyl(.06, .08, 1.4, 6), toon(0x2a2a34), s * 1.1, 1.1, d / 2 + .5, g, .01); mk(new THREE.SphereGeometry(.16, 8, 6), glow(0xb07aff, 2.5), s * 1.1, 1.9, d / 2 + .5, g, 0); } } });
-  shop = house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: `💰 상점<small>✨ 유료 영웅 로즈${CLASSES.mechanic && !CLASSES.mechanic.hidden ? ' · 버들' : ''}</small>`, cls: 'shop',
+  shop = house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: '💰 상점<small>✨ 유료 영웅 로즈 · 버들</small>', cls: 'shop',
     extra: (g, w, d, h, B, rh) => { for (let k = 0; k < 6; k++) { const aw = mk(Box(w / 6, .1, 1.3), toon(k % 2 ? 0xffffff : 0xff5a5a), -w / 2 + w / 12 + k * w / 6, B + h * .8, d / 2 + .6, g, 0); aw.rotation.x = .38; }
       for (const [x, c] of [[-1.4, 0xffa83a], [1.4, 0x7ad85a]]) { mk(Box(1, .5, .6), toon(0x9a6a3a), x, .65, d / 2 + .9, g, .015); for (let k = 0; k < 5; k++) mk(new THREE.SphereGeometry(.12, 8, 6), toon(c), x - .3 + (k % 3) * .3, .98, d / 2 + .8 + (k > 2) * .2, g, 0); }
       // 신상품 표시: 지붕 위에서 회전하는 분홍 장미 보석 + 빛무리 + 반짝이 고리 (난수 미사용)

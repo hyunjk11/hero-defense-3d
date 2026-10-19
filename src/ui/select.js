@@ -20,10 +20,10 @@ function showSelect() {
   podium = new THREE.Group(); podium.position.set(0, 0, GH + 6); scene.add(podium);
   mk(new THREE.CylinderGeometry(6.2, 6.8, .7, 48), toon(0x6ab84a), 0, -.35, 0, podium, .04); mk(new THREE.CylinderGeometry(6.9, 7.2, .5, 48), toon(0x9a7a5a), 0, -.8, 0, podium, .04);
   for (let k = 0; k < 14; k++) { const a = k / 14 * 6.28; mk(new THREE.IcosahedronGeometry(.2, 1), toon([0xff8ac0, 0xffe05a, 0xffffff][k % 3]), Math.cos(a) * 5.6, .1, Math.sin(a) * 5.6, podium, .015); }
-  const L = ['archer', 'mage', 'warrior', 'gunner', 'mechanic'].filter(c => !CLASSES[c].hidden), m = (L.length - 1) / 2;
+  const L = ['archer', 'mage', 'warrior', 'gunner', 'mechanic'], m = (L.length - 1) / 2;
   L.forEach((cls, i) => { const ch = makeHeroModel(cls); ch.g.position.set((i - m) * 2.3, 0, Math.abs(i - m) < 1.5 ? -.45 : 0); ch.g.rotation.y = (m - i) * .18; podium.add(ch.g); ch.cls = cls; play(ch, 'Idle'); ch.mixer.update(i * .7); ch.nextCheer = 1.5 + i * 2.2; ch.cheerT = 0; preview.push(ch); });
   cam.target.set(0, 1.5, GH + 6); cam.r = 13.5; cam.phi = 1.3; cam.theta = 0;
-  document.querySelectorAll('.card').forEach(c => { c.classList.toggle('hidden', !!(CLASSES[c.dataset.cls] || {}).hidden); c.classList.toggle('locked', !heroOwned(c.dataset.cls)); c.onclick = () => { SFX.init(); if (!heroOwned(c.dataset.cls)) { Snd.play('error'); banner(`🔒 ${CLASSES[c.dataset.cls].nm}는 마을 상점에서 구매 후 사용할 수 있어요`, '#ffb0d4', 2200); return; } Snd.play('confirm'); choose(c.dataset.cls); }; c.onmouseenter = () => { hoverCls = c.dataset.cls; Snd.play('select'); const p = preview.find(p => p.cls === hoverCls); if (p) { play(p, 'Cheer', { once: true }); p.cheerT = 1.8; } }; c.onmouseleave = () => hoverCls = null; });
+  document.querySelectorAll('.card').forEach(c => { c.classList.toggle('locked', !heroOwned(c.dataset.cls)); c.onclick = () => { SFX.init(); if (!heroOwned(c.dataset.cls)) { Snd.play('error'); banner(`🔒 ${CLASSES[c.dataset.cls].nm}는 마을 상점에서 구매 후 사용할 수 있어요`, '#ffb0d4', 2200); return; } Snd.play('confirm'); choose(c.dataset.cls); }; c.onmouseenter = () => { hoverCls = c.dataset.cls; Snd.play('select'); const p = preview.find(p => p.cls === hoverCls); if (p) { play(p, 'Cheer', { once: true }); p.cheerT = 1.8; } }; c.onmouseleave = () => hoverCls = null; });
 }
 function updSelect(dt) {
   for (const p of preview) { p.mixer.update(dt); p.nextCheer -= dt; if (p.cheerT > 0) { p.cheerT -= dt; if (p.cheerT <= 0) play(p, 'Idle', { fade: .3 }); }
