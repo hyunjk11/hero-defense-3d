@@ -1,0 +1,84 @@
+// 상점 · 우편함 · 관리자 클라이언트 (Supabase). 유료 영웅 소유권은 서버 테이블 hd3d_owned(사용자 쓰기 불가)만 신뢰하고, 기기에는 계정별 캐시만 둠.
+// 테이블/함수가 아직 없으면(schema.sql 미실행) status = 'missing' → UI는 '서버 준비 중'. 게스트는 구매/우편 불가.
+import { A, ensureClient, update as accUpdate, onChange as accOnChange } from './account.js';
+import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
+import { CLASSES } from '../data/heroes.js';
+
+const T = SHOP.tables, K_OWN = 'hd3d_owned_', K_UID = 'hd3d_uid';
+const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+export const S = { status: 'idle', orders: [], mail: [], adminOrders: [], msg: '', listeners: [] }; // status: idle | guest | loading | ok | missing | error
+const emit = () => S.listeners.forEach(f => { try { f(S); } catch (e) { console.warn(e); } });
+export const onShop = f => S.listeners.push(f);
+const isMissing = e => !!e && (e.code === 'PGRST205' || e.code === 'PGRST202' || e.code === '42P01' || e.code === '42883' || e.status === 404);
+const uid = () => (A.user && A.user.id) || ls.get(K_UID) || '';
+
+// ---------- 소유권 (계정별 캐시) ----------
+export function ownedList() { const u = uid(); if (!u) return []; try { const v = JSON.parse(ls.get(K_OWN + u) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+export const owns = item => ownedList().includes(item);
+export const heroOwned = cls => !!CLASSES[cls] && (!CLASSES[cls].paid || owns('hero_' + cls));
+export const usableHero = cls => heroOwned(cls) ? cls : 'mage'; // 저장된 영웅이 잠겨 있으면 기본 영웅
+export const isAdminUI = () => !!(A.user && String(A.user.email || '').toLowerCase() === ADMIN_EMAIL); // 버튼 표시용 (서버가 다시 검사)
+export const unread = () => S.mail.filter(m => !m.claimed && (m.reward || !m.read)).length;
+
+async function sb() { return A.sb || ensureClient(); }
+async function q(p) { try { const r = await p; return r; } catch (e) { return { data: null, error: { message: String(e && e.message || e) } }; } }
+// 서버에서 소유권·내 주문·우편을 다시 읽음
+export async function refresh() {
+  if (!A.user) { S.status = 'guest'; S.orders = []; S.mail = []; emit(); return S; }
+  if (S.status !== 'ok') S.status = 'loading'; emit();
+  const c = await sb(), u = A.user.id;
+  const [o, r, m] = await Promise.all([q(c.from(T.owned).select('item').eq('user_id', u)), q(c.from(T.orders).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(50)), q(c.from(T.mail).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(100))]);
+  const bad = [o, r, m].find(x => x.error);
+  if (bad) { S.status = isMissing(bad.error) ? 'missing' : 'error'; S.msg = bad.error.message || ''; emit(); return S; }
+  if (!A.user || A.user.id !== u) return S;
+  ls.set(K_OWN + u, JSON.stringify([...new Set((o.data || []).map(x => x.item))]));
+  const rd = readSet(); S.orders = r.data || []; S.mail = (m.data || []).map(x => ({ ...x, read: rd.has(String(x.id)) })); S.status = 'ok'; emit(); return S;
+}
+const readKey = () => 'hd3d_mailread_' + uid();
+function readSet() { try { return new Set(JSON.parse(ls.get(readKey()) || '[]')); } catch (e) { return new Set(); } }
+export function markRead(id) { const s = readSet(); s.add(String(id)); ls.set(readKey(), JSON.stringify([...s].slice(-300))); const m = S.mail.find(x => x.id === id); if (m) m.read = true; emit(); }
+export const pendingOf = item => S.orders.find(o => o.item === item && o.status === 'pending');
+
+// ---------- 구매 신청 ----------  반환 { ok, msg }
+export async function order(item) {
+  if (!SHOP.items[item]) return { ok: false, msg: '알 수 없는 상품입니다.' };
+  if (!A.user) return { ok: false, msg: '로그인한 계정만 구매할 수 있어요. (게스트 불가)' };
+  if (S.status !== 'ok') await refresh();
+  if (S.status === 'missing') return { ok: false, msg: '서버 준비 중이에요. 잠시 후 다시 시도해 주세요.' };
+  if (S.status !== 'ok') return { ok: false, msg: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.' };
+  if (owns(item)) return { ok: false, msg: '이미 보유한 상품이에요.' };
+  if (pendingOf(item)) return { ok: false, msg: '이미 구매 신청이 접수되어 관리자 확인을 기다리는 중이에요.' };
+  const c = await sb(), { error } = await q(c.from(T.orders).insert({ item }));
+  if (error) { await refresh(); if (error.code === '23505') return { ok: false, msg: owns(item) ? '이미 보유한 상품이에요.' : '이미 구매 신청이 접수되어 있어요.' }; if (isMissing(error)) return { ok: false, msg: '서버 준비 중이에요.' }; return { ok: false, msg: '구매 신청 실패: ' + (error.message || '') }; }
+  await refresh(); return { ok: true, msg: '구매 신청이 접수되었습니다!' };
+}
+
+// ---------- 우편 받기 (서버 RPC: 한 번만 지급) ----------  반환 { ok, already, reward, msg }
+let claiming = new Set();
+export async function claim(id) {
+  if (!A.user) return { ok: false, msg: '로그인이 필요합니다.' }; if (claiming.has(id)) return { ok: false, busy: true, msg: '처리 중…' }; claiming.add(id);
+  try {
+    const c = await sb(), { data, error } = await q(c.rpc('hd3d_claim_mail', { p_mail_id: id }));
+    if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') };
+    const r = data || {}; if (!r.already && r.reward) applyReward(r.reward); markRead(id); await refresh();
+    return { ok: true, already: !!r.already, reward: r.reward || null, msg: r.already ? '이미 받은 우편이에요.' : '보상을 받았습니다!' };
+  } finally { claiming.delete(id); }
+}
+// 영혼석·재료는 저장 데이터에 더함 (영웅은 서버 hd3d_owned 로 해금 → refresh)
+function applyReward(rw) { const n = k => Math.max(0, Math.min(1e6, Math.floor(+rw[k] || 0))); if (!n('souls') && !n('steel') && !n('crystal')) return;
+  accUpdate(d => ({ ...d, souls: d.souls + n('souls'), mat: { steel: d.mat.steel + n('steel'), crystal: d.mat.crystal + n('crystal') } })); }
+export function rewardText(rw) { if (!rw) return ''; const o = []; if (rw.hero && CLASSES[rw.hero]) o.push(`영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n}`); if (+rw.souls) o.push(`영혼석 ${+rw.souls}`); if (+rw.steel) o.push(`강철 ${+rw.steel}`); if (+rw.crystal) o.push(`마력석 ${+rw.crystal}`); return o.join(' · '); }
+
+// ---------- 관리자 (서버가 hd3d_is_admin()으로 다시 검사) ----------
+export async function adminOrders() {
+  const c = await sb(), { data, error } = await q(c.from(T.orders).select('*').order('created_at', { ascending: false }).limit(200));
+  if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : error.message }; S.adminOrders = data || []; emit(); return { ok: true, list: S.adminOrders };
+}
+async function adminRpc(fn, args) { const c = await sb(), { data, error } = await q(c.rpc(fn, args)); if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : /forbidden|42501/.test(error.message + error.code) ? '관리자 권한이 없습니다.' : error.message };
+  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: '보상 값이 올바르지 않습니다.' }[data.reason] || '실패' }; return { ok: true, data }; }
+export const approve = id => adminRpc('hd3d_admin_approve', { p_order_id: id });
+export const reject = (id, reason) => adminRpc('hd3d_admin_reject', { p_order_id: id, p_reason: reason || null });
+export const sendMail = (email, title, body, reward) => adminRpc('hd3d_admin_send_mail', { p_email: email, p_title: title, p_body: body || '', p_reward: reward && Object.keys(reward).length ? reward : null });
+
+// 로그인/로그아웃 시 자동 갱신
+let lastU = null; accOnChange(() => { const u = A.user ? A.user.id : null; if (u !== lastU) { lastU = u; S.orders = []; S.mail = []; S.adminOrders = []; S.status = u ? 'loading' : 'guest'; if (u) refresh().catch(() => {}); else emit(); } });

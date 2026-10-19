@@ -83,7 +83,7 @@ function house(o) {
   if (o.sign) { const sx = w / 2 + .1, sy = B + h * .72; mk(Box(1.3, .08, .08), toon(0x2a2a34), sx + .5, sy + .5, d / 2 + .3, g, 0); const sg = new THREE.Group(); sg.position.set(sx + .95, sy + .45, d / 2 + .3); g.add(sg);
     const tx = signTex(o.sign, o.signBg); const pl = new THREE.Mesh(new THREE.BoxGeometry(1.5, .56, .06), [toon(0x5a3a22), toon(0x5a3a22), toon(0x5a3a22), toon(0x5a3a22), new THREE.MeshToonMaterial({ map: tx }), new THREE.MeshToonMaterial({ map: tx })]); pl.position.y = -.38; pl.rotation.y = Math.PI / 2; pl.castShadow = true; sg.add(pl);
     const ph = R() * 6; anims.push(t => sg.rotation.x = Math.sin(t * 1.7 + ph) * .08); }
-  if (o.extra) o.extra(g, w, d, h, B);
+  if (o.extra) o.extra(g, w, d, h, B, rh);
   blockers.push([o.x, o.z, Math.max(w, d) * .5 + .9]);
   if (o.label) labels.push({ obj: g, y: B + h + rh + 1.6, html: o.label, cls: o.cls });
   return g;
@@ -225,6 +225,8 @@ function gate() {
 }
 // ---------- 호수광장 + 여신탑 ----------
 export const tower = new THREE.Group(); export let smith = null; export const SMITH = new THREE.Vector2(-9, -12);
+export let shop = null; export const SHOP_P = new THREE.Vector2(9, -10); // 상점 (마을 로컬)
+export const shopFront = () => { const L = SHOP_P.length(); return new THREE.Vector3(SHOP_P.x - SHOP_P.x / L * 3.6, 0, SHOP_P.y - SHOP_P.y / L * 3.6); };
 export let lab = null; export const LAB = new THREE.Vector2(-9.5, 16.5), LAB_ROT = .45, labFx = { t: 0 }; // 정문이 남남동(기본 카메라 쪽)을 향함
 // 연구소 앞 접근 지점 (정문 앞, 마을 로컬)
 export const labFront = () => { const a = LAB_ROT; return new THREE.Vector3(LAB.x + Math.sin(a) * 4.0, 0, LAB.y + Math.cos(a) * 4.0); }; // 타워 연구소 (마을 로컬)
@@ -369,9 +371,15 @@ export function buildTown(parent) {
   house({ x: -15, z: -5, w: 4.6, d: 4, h: 3.2, wall: 0x8a7a9a, roof: 0x3a2a5a, trim: 0x2a2236, shutter: 0x5a3a8a, sign: '던전', signBg: '#3a2a5a', smoke: 0x9a8ab0, label: '⚔ 던전<small>준비 중</small>',
     extra: (g, w, d) => { mk(Cyl(1, 1.2, 7, 10), toon(0x5a4a6a), w / 2 + .6, 3.5, -d / 2 + .2, g, .04); mk(new THREE.ConeGeometry(1.45, 2.4, 10), toon(0x2a1a4a), w / 2 + .6, 8.2, -d / 2 + .2, g, .04); const f = mk(new THREE.OctahedronGeometry(.3), glow(0xb07aff, 2.5), w / 2 + .6, 9.9, -d / 2 + .2, g, 0); anims.push(t => f.rotation.y = t * 2);
       for (const s of [-1, 1]) { mk(Cyl(.06, .08, 1.4, 6), toon(0x2a2a34), s * 1.1, 1.1, d / 2 + .5, g, .01); mk(new THREE.SphereGeometry(.16, 8, 6), glow(0xb07aff, 2.5), s * 1.1, 1.9, d / 2 + .5, g, 0); } } });
-  house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: '💰 상점<small>준비 중</small>',
-    extra: (g, w, d, h, B) => { for (let k = 0; k < 6; k++) { const aw = mk(Box(w / 6, .1, 1.3), toon(k % 2 ? 0xffffff : 0xff5a5a), -w / 2 + w / 12 + k * w / 6, B + h * .8, d / 2 + .6, g, 0); aw.rotation.x = .38; }
-      for (const [x, c] of [[-1.4, 0xffa83a], [1.4, 0x7ad85a]]) { mk(Box(1, .5, .6), toon(0x9a6a3a), x, .65, d / 2 + .9, g, .015); for (let k = 0; k < 5; k++) mk(new THREE.SphereGeometry(.12, 8, 6), toon(c), x - .3 + (k % 3) * .3, .98, d / 2 + .8 + (k > 2) * .2, g, 0); } } });
+  shop = house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: '💰 상점<small>✨ 유료 영웅 로즈</small>', cls: 'shop',
+    extra: (g, w, d, h, B, rh) => { for (let k = 0; k < 6; k++) { const aw = mk(Box(w / 6, .1, 1.3), toon(k % 2 ? 0xffffff : 0xff5a5a), -w / 2 + w / 12 + k * w / 6, B + h * .8, d / 2 + .6, g, 0); aw.rotation.x = .38; }
+      for (const [x, c] of [[-1.4, 0xffa83a], [1.4, 0x7ad85a]]) { mk(Box(1, .5, .6), toon(0x9a6a3a), x, .65, d / 2 + .9, g, .015); for (let k = 0; k < 5; k++) mk(new THREE.SphereGeometry(.12, 8, 6), toon(c), x - .3 + (k % 3) * .3, .98, d / 2 + .8 + (k > 2) * .2, g, 0); }
+      // 신상품 표시: 지붕 위에서 회전하는 분홍 장미 보석 + 빛무리 + 반짝이 고리 (난수 미사용)
+      const gem = new THREE.Group(); gem.position.set(0, B + h + rh + 1.3, d / 2 - .4); g.add(gem); const pm = glow(0xff5a9a, 2.6), lm = glow(0x6ad86a, 1.4);
+      mk(new THREE.OctahedronGeometry(.42), pm, 0, 0, 0, gem, .02).scale.set(1, 1.35, 1); for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28, p = mk(new THREE.SphereGeometry(.2, 10, 8), pm, Math.cos(a) * .32, -.05, Math.sin(a) * .32, gem, 0); p.scale.set(1, .5, 1); }
+      for (const s of [-1, 1]) { const lf = mk(new THREE.SphereGeometry(.16, 8, 6), lm, s * .38, -.45, 0, gem, 0); lf.scale.set(1.3, .35, .7); }
+      halo(0xff6aa8, 2.2, g, 0, B + h + rh + 1.3, d / 2 - .4); const rg = new THREE.Mesh(new THREE.TorusGeometry(.75, .03, 6, 40), glow(0xffd0e8, 2)); rg.rotation.x = Math.PI / 2; gem.add(rg);
+      anims.push(t => { gem.rotation.y = t * 1.4; gem.position.y = B + h + rh + 1.3 + Math.sin(t * 2.2) * .15; rg.rotation.y = Math.sin(t * 1.3) * .4; rg.scale.setScalar(1 + Math.sin(t * 4) * .08); }); } });
   smith = house({ x: -9, z: -12, w: 4, d: 3.6, wall: 0xa89880, roof: 0x4a4a5a, trim: 0x3a2a1a, shutter: 0x8a4a2a, sign: '대장간', signBg: '#3a3a44', smoke: 0x6a6a72, label: '🔨 대장간<small>강화 · 분해 · 제작</small>', cls: 'smith',
     extra: (g, w, d) => { mk(Box(1.1, .5, .6), toon(0x3a3a44), -w / 2 - .4, .55, d / 2 + 1, g, .02); mk(Box(.5, .5, .4), toon(0x5a5a64), -w / 2 - .4, .2, d / 2 + 1, g, .02);
       const forge = mk(Box(1.2, .9, 1), toon(0x6a5a5a), w / 2 + .9, .45, d / 2 - .3, g, .02); const fire = mk(new THREE.IcosahedronGeometry(.32, 0), glow(0xff7a2a, 3), w / 2 + .9, 1.05, d / 2 - .3, g, 0); halo(0xff8a3a, 2, g, w / 2 + .9, 1.2, d / 2 - .3); anims.push(t => fire.scale.setScalar(1 + Math.sin(t * 15) * .15)); } });

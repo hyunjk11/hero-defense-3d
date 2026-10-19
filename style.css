@@ -37,7 +37,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #select{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6vh;background:linear-gradient(transparent 40%,#05060ccc)}
 #select h1{font-size:52px;margin:0;color:#ffd23a;text-shadow:0 0 24px #ff8a2a,0 4px 0 #3a1a00;letter-spacing:4px}#select p{margin:4px 0 16px;color:#ddd}
 #cards{display:flex;gap:18px}
-.card{width:230px;background:linear-gradient(#1c1830f0,#0c0a16f0);border:2px solid #c9a24a;border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.card{width:min(230px,calc((100vw - 100px) / 4));box-sizing:border-box;background:linear-gradient(#1c1830f0,#0c0a16f0);border:2px solid #c9a24a;border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
 .card:hover{transform:translateY(-8px);box-shadow:0 0 28px #ffd23a88}.card h2{margin:0;color:#ffe08a}.card h2 small{font-size:.62em;color:#d8c8a0;font-weight:600}.card .role{color:#9fe8ff;font-size:13px;margin:2px 0 6px}.card ul{margin:0;padding-left:18px;font-size:13px;color:#ddd;line-height:1.6}
 .card[data-cls=archer]{border-color:#6aff8a}.card[data-cls=mage]{border-color:#b07aff}.card[data-cls=warrior]{border-color:#ff7a5a}
 #over{position:fixed;inset:0;background:#000b;display:flex;flex-direction:column;align-items:center;justify-content:center}#over h1{font-size:60px;color:#ff4a5a;margin:0}#over button{margin-top:16px;padding:12px 30px;font:inherit;font-size:18px;border-radius:10px;border:2px solid #c9a24a;background:#3a1a2a;color:#fff;cursor:pointer}
@@ -292,7 +292,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   .bar.hp{width:190px}.bar{width:130px}.bar.boss{width:min(420px,60vw)}
   #bossHud{top:calc(54px + env(safe-area-inset-top))}
   #banner{font-size:clamp(26px,4.2vw,42px)}
-  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(200px,26vw,230px)}
+  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(170px,21.5vw,230px)}
   #over h1{font-size:clamp(40px,6vw,60px)}
   .logo h1{font-size:clamp(52px,8vw,84px)}
   .bigPanel{padding:12px 14px;gap:8px}
@@ -344,3 +344,43 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .labRow .lrD{font-size:12px;color:#d0dcf0}.labRow .lrD b{color:#bff0ff}.labRow .lrBtn{min-height:44px;font-size:14px;padding:6px 10px}.labRow .lrBtn small{display:block}.labRow .lrLock{font-size:11px;color:#ffb07a}
 .labRow.flash{animation:labFlash .7s ease-out}@keyframes labFlash{0%{box-shadow:inset 0 0 0 200px #6ad8ff66,0 0 24px #6ad8ff}100%{box-shadow:none}}
 @media (max-width:700px){.labBody{grid-template-columns:1fr}}
+
+/* ---------- 상점 · 우편함 · 관리자 ---------- */
+.card.paid{border-color:#ff6aa8;box-shadow:0 0 18px #ff6aa855;position:relative}.card.paid h2{color:#ffb0d4}
+.card .lockTag{display:none}.card.locked{filter:saturate(.55) brightness(.8)}.card.locked .lockTag{display:block;margin-top:6px;color:#ffb0d4;font-weight:bold;font-size:13px}
+.hcard.locked{opacity:.8;border-style:dashed}.hcard.locked b{color:#ffb0d4}.hcard.paid{border-color:#ff6aa8}
+.mailBtn{cursor:pointer;font:inherit;color:inherit;position:relative;border:1px solid #ff9ac888}.mailBtn .badge{position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;border-radius:9px;background:#ff3a5a;color:#fff;font-size:11px;line-height:18px;text-align:center;padding:0 4px;box-shadow:0 0 8px #ff3a5a;animation:bdg 1.2s ease-in-out infinite}
+.mailBtn .badge.hidden{display:none}@keyframes bdg{50%{transform:scale(1.18)}}
+.admBtn{background:linear-gradient(#2a5a8a,#12304a)!important;border-color:#8ad0ff!important}
+#adminPanel{z-index:30}
+#shopPanel>#shopPv{display:none}
+.shopCard{display:flex;gap:16px;align-items:stretch}
+.pvWrap{position:relative;flex:0 0 min(300px,38%);min-height:330px;border-radius:14px;overflow:hidden;background:radial-gradient(circle at 50% 70%,#ff6aa855,#2a0f24 70%),linear-gradient(#3a1530,#120812);border:2px solid #ff8ac0;box-shadow:inset 0 0 40px #ff3a8a55,0 0 22px #ff6aa855}
+.pvWrap:before{content:'';position:absolute;inset:-50%;background:conic-gradient(from 0deg,transparent,#ff9ac822,transparent 30%,#ffe0f022,transparent 60%);animation:pvSpin 9s linear infinite}@keyframes pvSpin{to{transform:rotate(1turn)}}
+.pvWrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pvTag{position:absolute;top:10px;left:10px;background:linear-gradient(#ff5a9a,#b0205a);color:#fff;font-weight:bold;font-size:12px;padding:3px 10px;border-radius:20px;box-shadow:0 0 10px #ff5a9a}
+.pvName{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:30px;font-weight:900;color:#ffe0f0;text-shadow:0 0 12px #ff3a8a,0 2px 0 #6a1030;letter-spacing:4px}.pvName small{display:block;font-size:13px;letter-spacing:2px;color:#ffc0dc}
+.shopInfo{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.shopTitle{font-size:21px;font-weight:bold;color:#ffd0e8}.shopDesc{font-size:14px;line-height:1.55;color:#eadcf0}
+.shopStats{display:flex;flex-wrap:wrap;gap:6px}.shopStats span{background:#2a1430;border:1px solid #ff8ac066;border-radius:8px;padding:4px 8px;font-size:12px}.shopStats b{color:#ffb0d4}
+.shopSk{font-size:13px;color:#e0d0e8;background:#0006;border-radius:8px;padding:6px 9px}.shopSk b{color:#ff9ac8;margin-right:6px}.shopSk.lg b{color:#ffc94a}
+.shopBuy{display:flex;align-items:center;gap:12px;margin-top:auto}.price{font-size:28px;font-weight:900;color:#ffe08a;text-shadow:0 0 12px #ffb03a88;white-space:nowrap}
+.shopBuy .gbtn{flex:1;font-size:17px;padding:12px}.shopBuy .gbtn:disabled{filter:grayscale(.4);opacity:.85;cursor:default}.gbtn.st_own{background:linear-gradient(#2a8a4a,#105a24)}.gbtn.st_pend{background:linear-gradient(#8a6a20,#5a400a)}
+.shopNote{font-size:13px;color:#ffd8a0;min-height:1em}.shopPay{font-size:12px;color:#b8a8d0;border-top:1px dashed #c9a24a55;padding-top:6px}
+.shopFlow{text-align:center;font-size:13px;color:#c8b8e8}.shopFlow b{color:#ffb0d4}
+.shopMsg{font-size:14px;line-height:1.5;text-align:center}.shopMsg .ok{color:#9affb0}.shopMsg .bad{color:#ffb0a0}.shopMsg small{color:#c8b8e8}
+.mailList{display:flex;flex-direction:column;gap:8px;overflow:auto;max-height:60vh}
+.mailItem{display:flex;gap:10px;align-items:center;background:#1a1530;border:1px solid #c9a24a44;border-radius:10px;padding:10px 12px;cursor:pointer}
+.mailItem.new{border-color:#ff8ac0;box-shadow:0 0 12px #ff6aa833}.mailItem.done{opacity:.72}
+.mIco{font-size:28px}.mMain{flex:1;min-width:0}.mT{font-weight:bold;color:#ffe8c0}.mB{font-size:13px;color:#d8cce8;margin:2px 0}.mR{font-size:13px;color:#ffd06a;font-weight:bold}.mR .rose{font-style:normal;margin-right:4px}.mD{font-size:11px;color:#9a8ab8}
+.mAct .gbtn{min-width:76px}.mAct .got{color:#9affb0;font-weight:bold;white-space:nowrap}
+.admBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.admBar input{flex:1;min-width:140px}
+#adminPanel input,#adminPanel textarea{background:#120f22;color:#f0e6c8;border:1px solid #c9a24a88;border-radius:8px;padding:8px;font:inherit;font-size:14px;box-sizing:border-box}
+.admTable{display:flex;flex-direction:column;gap:6px;overflow:auto;max-height:56vh}
+.admRow{display:grid;grid-template-columns:1.4fr 1.2fr .9fr .8fr auto;gap:8px;align-items:center;background:#1a1530;border-radius:9px;padding:8px 10px;font-size:13px}
+.admRow small{display:block;color:#9a8ab8;font-size:11px;overflow-wrap:anywhere}.aSt{font-weight:bold}.s_pending .aSt{color:#ffd06a}.s_approved .aSt{color:#9affb0}.s_rejected .aSt{color:#ff9a9a}
+.aAct{display:flex;gap:6px}.aAct .gbtn{padding:6px 12px}
+.admForm{display:flex;flex-direction:column;gap:8px}.admForm label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:#d8c8a0}.amRw{display:flex;gap:8px}.amRw label{flex:1}.admForm .amChk{flex-direction:row;align-items:center;gap:8px}
+@media (max-width:1100px),(max-height:800px){.pvWrap{min-height:270px}.shopDesc{font-size:13px}.price{font-size:24px}.pvName{font-size:24px}}
+@media (max-height:680px){.pvWrap{min-height:230px}.shopSk{padding:4px 8px}.shopStats span{padding:3px 6px}}
+@media (pointer:coarse){.mailBtn,#twAdmin,#mnAdmin{min-height:44px;min-width:44px}.amChk input{width:24px;height:24px}#adminPanel input:not([type=checkbox]),#adminPanel textarea{min-height:44px}}
