@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """보스 처치 후 검은 화면 회귀 테스트.  python3 tests/bossblack.py [--quick]
 원인: 보스 전리품 빛기둥 셰이더 pow(1-vU.y) — 실제 GPU MSAA에서 varying 외삽으로 vU.y>1 → NaN → 블룸 블러가 NaN을 화면 전체로 번짐.
-검사: 도전 모드 보스 웨이브(영웅 3명 × 전설 무기 없음/발동형/사용형) + 챕터 보스 스테이지(1-6, 2-4 최종 웨이브)에서 보스 처치 →
+검사: 도전 모드 보스 웨이브(영웅 3명 × 전설 무기 없음/발동형/사용형) + 챕터 보스 스테이지(1-6, 2-4, 3-4 최종 웨이브)에서 보스 처치 →
  1·3·6초 후 캔버스 평균 밝기 정상, 화면 전체를 덮은 채 남은 오버레이 없음(#fade 투명), 장면 NaN 없음,
  NaN 주입(빛기둥 uniform)해도 화면이 검게 변하지 않음(블룸 입력 방어), 빛기둥 셰이더에 uv 1.05(외삽) 입력 시 출력 유한·알파 0..1, 콘솔 오류 0."""
 import sys, os, io, pathlib
@@ -44,6 +44,13 @@ def case(b, name, q, hero, lsk, stage):
     allowed = {'app', 'fx', 'hud'} | ({'stageClear'} if stage else set())
     ok(f'{name}_not_black', worst > MIN_LUM, (l0, worst)); ok(f'{name}_no_stuck_overlay', overs <= allowed and J(pg, "()=>+getComputedStyle(document.getElementById('fade')).opacity") < .05, sorted(overs))
     ok(f'{name}_no_nan', not nans, sorted(nans))
+    if stage and 'stage=3-' in q:  # 화산: 용암 셰이더가 시간이 오래 흘러도 유한(NaN 없음)하고 밝기 0..2 범위
+        lv = J(pg, r"""()=>{ const T=G.THREE; let mat=null; G.scene.traverse(o=>{ if(o.name==='lava') mat=o.material; }); if(!mat) return null; const out=[];
+          for (const t of [0, 1.7, 333.3, 999.9]) { const m=mat.clone(); m.uniforms={ uT:{ value:t } }; const q=new T.Mesh(new T.PlaneGeometry(40,40).rotateX(-Math.PI/2), m), sc=new T.Scene(); sc.add(q);
+            const cam=new T.OrthographicCamera(-20,20,20,-20,-10,10); cam.position.y=5; cam.lookAt(0,0,0); const rt=new T.WebGLRenderTarget(16,16,{type:T.FloatType}); const R=G.renderer, prev=R.getRenderTarget();
+            R.setRenderTarget(rt); R.render(sc,cam); const px=new Float32Array(16*16*4); R.readRenderTargetPixels(rt,0,0,16,16,px); R.setRenderTarget(prev); rt.dispose(); out.push([Math.min(...px), Math.max(...px), px.every(Number.isFinite)]); }
+          return out; }""")
+        ok(f'{name}_lava_shader_finite', lv and all(x[2] and x[0] >= 0 and x[1] <= 2.0001 for x in lv), lv)
     if stage: ok(f'{name}_clear_screen', J(pg, "()=>G.phase") == 'over' and '스테이지 클리어' in pg.inner_text('#stageClear'))
     else: ok(f'{name}_wave_cleared', J(pg, "()=>G.phase") == 'build')
     return pg, c
@@ -71,7 +78,7 @@ with sync_playwright() as pw:
         for lsk in ([LEG[hero][1]] if QUICK else ([None] if hero != 'archer' else []) + LEG[hero]):
             pg, c = case(b, f'endless_{hero}_{lsk or "none"}', '?seed=12345&rng=777&test=1', hero, lsk, False); c.close()
     # 3) 챕터 보스 스테이지 최종 웨이브 (보스 2마리) → 결과 화면
-    for st, hero, lsk in ([('1-6', 'warrior', 'quake')] if QUICK else [('1-6', 'warrior', 'quake'), ('1-6', 'archer', None), ('2-4', 'mage', 'meteorstorm')]):
+    for st, hero, lsk in ([('1-6', 'warrior', 'quake'), ('3-4', 'mage', 'meteorstorm')] if QUICK else [('1-6', 'warrior', 'quake'), ('1-6', 'archer', None), ('2-4', 'mage', 'meteorstorm'), ('3-4', 'gunner', 'rosebarrage'), ('3-4', 'warrior', None)]):
         pg, c = case(b, f'stage{st}_{hero}', f'?seed=12345&rng=777&test=1&flow=1&stage={st}&run=1', hero, lsk, True); c.close()
     b.close()
 ok('console_errors_0', not errs, errs[:5])

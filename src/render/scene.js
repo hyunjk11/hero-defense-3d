@@ -17,10 +17,10 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 const THEMES = {
   default: { sun: 1, hemi: 1, bloomTh: .95, exposure: 1.12, sunH: .1, fog: [80, 170], day: [0x3d9cff, 0xd6efff, 0xcfeaff], night: [0x05071c, 0x2c1d55, 0x1a1438] },
   snow: { sun: .8, hemi: .78, bloomTh: 1.35, exposure: .9, sunH: .1, fog: [95, 200], day: [0x5a8ac8, 0xb4c6da, 0xa8bcd2], night: [0x05071c, 0x2c1d55, 0x1a1438] },
-  volcano: { sun: .78, hemi: .82, bloomTh: 1.05, exposure: 1.05, sunH: .055, fog: [85, 190], day: [0x2a1410, 0x8a4228, 0x4a2a20], night: [0x0c0606, 0x3a160c, 0x24100a], hemiC: [0xffd8c0, 0x5a2a1a], bloomK: .85 },
+  volcano: { sun: .78, hemi: .82, bloomTh: 1.05, exposure: 1.05, sunH: .055, fog: [85, 190], day: [0x2a1410, 0x8a4228, 0x4a2a20], night: [0x0c0606, 0x3a160c, 0x24100a], hemiC: [0xffd8c0, 0x5a2a1a], bloomK: .85, nightK: .55 }, // 밤(웨이브)에도 용암 빛으로 판이 보이게: 조명은 55%만 어두워짐
 };
 const THEME_KEY = STAGE ? ({ 2: 'snow', 3: 'volcano' })[STAGE.ch] || 'default' : 'default', TH = THEMES[THEME_KEY];
-const SNOW = THEME_KEY === 'snow', VOLCANO = THEME_KEY === 'volcano', LIGHT = { sun: TH.sun, hemi: TH.hemi, bloomTh: TH.bloomTh, sunH: TH.sunH, bloomK: TH.bloomK || 1 };
+const SNOW = THEME_KEY === 'snow', VOLCANO = THEME_KEY === 'volcano', LIGHT = { sun: TH.sun, hemi: TH.hemi, bloomTh: TH.bloomTh, sunH: TH.sunH, bloomK: TH.bloomK || 1, nightK: TH.nightK ?? 1 };
 renderer.toneMappingExposure = TH.exposure;
 $('app').appendChild(renderer.domElement);
 const scene = new THREE.Scene(); scene.fog = new THREE.Fog(TH.day[2], TH.fog[0], TH.fog[1]); // 설원·화산 안개는 판 바깥 가장자리에만
