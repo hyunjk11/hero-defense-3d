@@ -222,7 +222,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .snode .nm{position:absolute;bottom:100%;margin-bottom:4px;white-space:nowrap;font-size:11px;font-weight:bold;background:#0008;border-radius:6px;padding:1px 6px}
 .snode.locked{filter:grayscale(.9) brightness(.6)}.snode.sel{outline:3px solid #fff;outline-offset:3px}
 .snode.cur:before{content:"";position:absolute;inset:-10px;border-radius:50%;border:3px solid #fff;animation:ping 1.4s ease-out infinite}@keyframes ping{from{transform:scale(.8);opacity:1}to{transform:scale(1.5);opacity:0}}
-.snode.cur{animation:bob 1.6s ease-in-out infinite}@keyframes bob{50%{margin-top:-6px}}
+/* 현재 노드: 위치는 고정(클릭 대상이 움직이지 않게), 빛만 맥동 */.snode.cur{animation:curGlow 1.6s ease-in-out infinite}@keyframes bob{50%{margin-top:-6px}}@keyframes curGlow{50%{box-shadow:0 4px 0 #0006,0 0 26px 6px color-mix(in srgb,var(--cc) 85%,#fff)}}
 .floaties{position:absolute;inset:0;pointer-events:none;overflow:hidden}.floaties i{position:absolute;bottom:-40px;font-style:normal;opacity:.35;animation:floatUp linear infinite}@keyframes floatUp{to{transform:translateY(-440px) rotate(200deg)}}
 .lockVeil{position:absolute;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#ffe9b0}
 .chalBig,.soonBig{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center}.chalIco{font-size:64px;animation:bob 2s ease-in-out infinite}.chalT{font-size:24px;font-weight:900;color:#ffe9b0}.chalD{color:#d8c8a0;font-size:13px;line-height:1.6}.chalBest b{color:#ffe066;font-size:20px}.soonTag{background:#0008;border:1px dashed #c9a24a;border-radius:8px;padding:4px 14px;color:#ffb070}
