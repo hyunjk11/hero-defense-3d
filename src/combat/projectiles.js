@@ -6,7 +6,7 @@ import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
 import { enemyAim } from '../world/towers.js';
-import { hurt } from '../monsters/enemy.js';
+import { hurt, armorOf } from '../monsters/enemy.js';
 
 // ================= 투사체 =================
 const arrowGeo = new THREE.CylinderGeometry(.035, .035, 1, 5).rotateX(Math.PI / 2), arrowHead = new THREE.ConeGeometry(.08, .22, 6).rotateX(Math.PI / 2);
@@ -45,13 +45,13 @@ function updProjs(dt) {
     if (p.kind === 'pierce') { const mv = Math.min(p.left, p.spd * dt); p.left -= mv; m.position.addScaledVector(p.dir, mv); m.position.y += (1.1 - m.position.y) * Math.min(1, dt * 8);
       emit(P, m.position.x, m.position.y, m.position.z, 3, 0x9ad8ff, .6, .35, 0, .2); G.xpSrc = G.grow ? p.tw : null;
       for (const e of [...G.enemies]) { if (e.dead || e.E.fly || p.hit.has(e)) continue; const dx = e.g.position.x - m.position.x, dz = e.g.position.z - m.position.z; if (dx * dx + dz * dz > 1.1 * 1.1) continue;
-        p.hit.add(e); hurt(e, p.dmg / (1 - armorOf(e)), '#bfe8ff', true); const q = enemyAim(e); emit(P, q.x, q.y, q.z, 14, 0x9ad8ff, 5, .4, -3, .6); debris(q.x, q.y, q.z, 2, [0xf0ead8], 3); }
+        p.hit.add(e); hurt(e, p.dmg / Math.max(.05, 1 - armorOf(e)), '#bfe8ff', true); const q = enemyAim(e); emit(P, q.x, q.y, q.z, 14, 0x9ad8ff, 5, .4, -3, .6); debris(q.x, q.y, q.z, 2, [0xf0ead8], 3); }
       G.xpSrc = null; if (p.left <= 0) { killProj(i); ringFx(m.position, 1.4, 0x9ad8ff, .3); emit(P, m.position.x, m.position.y, m.position.z, 18, 0xbfe8ff, 4, .4, -2, .6); } continue; }
     if (p.target.dead) { killProj(i); continue; }
     const tp = enemyAim(p.target), d = tp.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
     if (len <= mv) { killProj(i);
       if (p.kind === 'bullet') { hurt(p.target, p.dmg, '#ffd0e4', false, { x: m.position.x, z: m.position.z, kind: 'ranged' }); emit(P, tp.x, tp.y, tp.z, 4, 0xffe0a0, 3.5, .2); }
-      else if (p.kind === 'arrow') { G.xpSrc = p.tw && G.grow ? p.tw : null; hurt(p.target, p.ap ? p.dmg / (1 - armorOf(p.target)) : p.dmg, p.ap ? '#ff9ab0' : '#ffffff', !!p.big, { x: m.position.x, z: m.position.z, kind: 'ranged' }); G.xpSrc = null; if (p.big) { ringFx(tp, 1.2, 0xff7a9a, .25); emit(P, tp.x, tp.y, tp.z, 12, 0xff9ab0, 4, .35); } emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
+      else if (p.kind === 'arrow') { G.xpSrc = p.tw && G.grow ? p.tw : null; hurt(p.target, p.ap ? p.dmg / Math.max(.05, 1 - armorOf(p.target)) : p.dmg, p.ap ? '#ff9ab0' : '#ffffff', !!p.big, { x: m.position.x, z: m.position.z, kind: 'ranged' }); G.xpSrc = null; if (p.big) { ringFx(tp, 1.2, 0xff7a9a, .25); emit(P, tp.x, tp.y, tp.z, 12, 0xff9ab0, 4, .35); } emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
       else { aoe(tp, p.aoe, p.dmg, '#d0a0ff', { slow: true }); emit(P, tp.x, tp.y, tp.z, 18, 0xb07aff, 5, .5, -4, 1.5); ringFx(tp, p.aoe, 0xb07aff, .3); }
       continue; }
     m.position.addScaledVector(d.normalize(), mv); m.lookAt(tp);
