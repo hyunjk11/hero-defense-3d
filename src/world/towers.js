@@ -16,6 +16,9 @@ import { hurt } from '../monsters/enemy.js';
 import { banner, refreshHud } from '../ui/hud.js';
 import { hpBar } from '../render/hpbars.js';
 import { select } from '../ui/input.js';
+import { BRANCH, resMods, starsFor } from '../data/growth.js';
+import { decorate, recalc, updDeco, updGrowFx } from './growth.js';
+import { later } from '../core/state.js';
 
 // ================= 타워 =================
 const stoneM = toon(0xe0dacb), stoneD = toon(0x9e98ae), metalM = toon(0x4a4e5e), goldM = toon(0xffcc44, { emissive: 0x3a2200 });
@@ -59,11 +62,13 @@ function placeTower(t, type) {
   const D = TOWERS[type], tw = { kind: 'tower', type, lvl: 1, t, c: t.c, r: t.r, cd: .5, invest: D.cost, pop: 0, recoil: 0 };
   tw.max = tw.hp = D.hp[0]; tw.hitT = 0; tw.fxT = 0; tw.anchor = new THREE.Object3D(); tw.anchor.position.set(tileX(t.c), 0, tileZ(t.r)); scene.add(tw.anchor);
   tw.hb = hpBar(tw.anchor, 3.6, 1.6, 0x55ff77, { auto: true, h: .17 });
-  tw.m = towerModel(type, 1); tw.m.g.position.set(tileX(t.c), 0, tileZ(t.r)); Snd.play('build', { pos: tw.m.g.position }); Snd.play('place', { delay: .12 }); scene.add(tw.m.g); t.tower = tw; G.towers.push(tw); refreshTile(t); return tw;
+  tw.xp = 0; tw.stars = 1; tw.branch = null; tw.shots = 0; tw.mods = G.research ? resMods(G.research, type) : null; if (G.grow) { tw.xp = tw.mods ? tw.mods.xp0 : 0; tw.stars = starsFor(tw.xp); } recalc(tw);
+  tw.rebuild = () => { const m = towerModel(tw.type, tw.lvl); m.g.position.set(tileX(tw.c), 0, tileZ(tw.r)); return m; };
+  tw.m = towerModel(type, 1); tw.m.g.position.set(tileX(t.c), 0, tileZ(t.r)); decorate(tw); Snd.play('build', { pos: tw.m.g.position }); Snd.play('place', { delay: .12 }); scene.add(tw.m.g); t.tower = tw; G.towers.push(tw); refreshTile(t); return tw;
 }
 function upgradeTower(tw) {
   if (tw.lvl >= 3) return; const c = TOWERS[tw.type].up[tw.lvl - 1]; if (G.gold < c) return Snd.play('error'); G.gold -= c; tw.invest += c; tw.lvl++; { const nm = TOWERS[tw.type].hp[tw.lvl - 1]; tw.hp += nm - tw.max; tw.max = nm; tw.hb.set(tw.hp / tw.max); } Snd.play('upgrade', { pos: { x: tileX(tw.c), z: tileZ(tw.r) } }); Snd.play('levelUp', { vol: .7 });
-  const ry = tw.m.head.rotation.y; scene.remove(tw.m.g); tw.m = towerModel(tw.type, tw.lvl); tw.m.head.rotation.y = ry; tw.m.g.position.set(tileX(tw.c), 0, tileZ(tw.r)); scene.add(tw.m.g); tw.pop = 0;
+  const ry = tw.m.head.rotation.y; scene.remove(tw.m.g); tw.m = towerModel(tw.type, tw.lvl); tw.m.head.rotation.y = ry; tw.m.g.position.set(tileX(tw.c), 0, tileZ(tw.r)); scene.add(tw.m.g); tw.pop = 0; recalc(tw); decorate(tw);
   const p = tw.m.g.position; emit(P, p.x, 1, p.z, 50, 0xffe066, 6, .9, -4, 2); emit(PB, p.x, 2, p.z, 10, 0xffd23a, 3, .8, 2, 1); ringFx(p, 2.5, 0xffd23a, .6); banner(`${TOWERS[tw.type].n} Lv.${tw.lvl}!`, '#ffe066', 900); refreshHud();
 }
 function sellTower(tw) {
@@ -95,8 +100,9 @@ function repairAll() { let n = 0, spent = 0; const L = G.towers.filter(t => t.hp
   if (!L.length) banner('수리할 타워가 없습니다', '#ffffff', 700); else if (!n) { Snd.play('error'); banner('골드가 부족합니다', '#ff8a8a', 700); } return spent; }
 function enemyAim(e) { return e.g.position.clone().setY(e.E.fly ? e.m.inner.position.y : e.E.h * .55 + e.g.position.y); }
 function updTowers(dt) {
+  if (G.grow) updGrowFx(dt);
   for (const tw of G.towers) {
-    const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position; tw.cd -= dt; tw.pop = Math.min(1, tw.pop + dt * 3);
+    const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position, S = tw.S, B = tw.branch ? BRANCH[tw.type][tw.branch] : null; if (tw.deco) updDeco(tw, dt); tw.cd -= dt; tw.pop = Math.min(1, tw.pop + dt * 3);
     const s = tw.pop < 1 ? 1 + Math.sin(tw.pop * Math.PI) * .25 : 1; m.g.scale.set(s, tw.pop < 1 ? .4 + tw.pop * .6 : 1, s);
     if (m.anim.crys) { m.head.position.y = m.anim.baseY + Math.sin(G.t * 2.4 + tw.c) * .15; m.anim.crys.rotation.y += dt * 1.6; m.anim.rings.forEach((r, k) => { r.rotation.z += dt * (1.2 + k * .7) * (k % 2 ? -1 : 1); }); }
     if (m.anim.flag) m.anim.flag.rotation.y = Math.sin(G.t * 5 + tw.c) * .4; if (m.anim.gem) m.anim.gem.rotation.y += dt * 2;
@@ -104,25 +110,31 @@ function updTowers(dt) {
     if (tw.hp < tw.max) { // 손상 연출: 피격 흔들림, 50% 이하 연기, 25% 이하 불꽃
       if (tw.hitT > 0) { tw.hitT -= dt; m.g.position.x = tileX(tw.c) + Math.sin(G.t * 70) * tw.hitT * .4; } else m.g.position.x = tileX(tw.c);
       tw.fxT -= dt; const k = tw.hp / tw.max; if (k < .5 && tw.fxT <= 0) { tw.fxT = k < .25 ? .08 : .2; emit(P, p.x + rnd(-.5, .5), 2.2, p.z + rnd(-.5, .5), 1, 0x5a5a62, .6, 1.4, 2.5, .3); if (k < .25) emit(P, p.x + rnd(-.4, .4), 1.6, p.z + rnd(-.4, .4), 2, 0xff8a2a, 1.2, .5, 3, .3); } }
-    const rng = D.range[L]; let best = null, bd = Infinity;
+    const rng = S.range; let best = null, bd = Infinity; const many = B && B.targets ? [] : null, byHp = B && B.prio === 'hp';
     for (const e of G.enemies) { if (e.dead || (e.E.fly && !D.air)) continue; const dx = e.g.position.x - p.x, dz = e.g.position.z - p.z; if (dx * dx + dz * dz > rng * rng) continue;
-      const prog = e.E.fly ? Math.hypot(core.position.x - e.g.position.x, core.position.z - e.g.position.z) : dAt(e.tile[0], e.tile[1]); if (prog < bd) { bd = prog; best = e; } }
+      const prog = byHp ? -e.hp : e.E.fly ? Math.hypot(core.position.x - e.g.position.x, core.position.z - e.g.position.z) : dAt(e.tile[0], e.tile[1]); if (many) many.push([prog, e]); if (prog < bd) { bd = prog; best = e; } }
     if (!best) continue;
     const want = Math.atan2(best.g.position.x - p.x, best.g.position.z - p.z); let d = want - m.head.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.head.rotation.y += d * Math.min(1, dt * 10);
     if (tw.type === 'cannon') { const k = tw.recoil * .25; m.head.position.x = -Math.sin(m.head.rotation.y) * k; m.head.position.z = -Math.cos(m.head.rotation.y) * k; }
-    if (tw.cd > 0) continue; tw.cd = 1 / D.rate[L]; const from = new THREE.Vector3(); m.muzzle.getWorldPosition(from);
-    if (tw.type === 'arrow') { shoot('arrow', from, best, D.dmg[L], { spd: 34, color: L >= 2 ? 0x9affff : 0xfff0c0 }); Snd.play('arrow', { pos: from, rate: 1.15 }); }
+    if (tw.cd > 0) continue; tw.cd = 1 / S.rate; tw.shots++; const from = new THREE.Vector3(); m.muzzle.getWorldPosition(from);
+    if (tw.type === 'arrow') { if (many) { many.sort((a, b) => a[0] - b[0]); for (const [, e] of many.slice(0, B.targets)) shoot('arrow', from, e, S.dmg, { spd: 36, color: 0x7affc0, tw }); }
+      else shoot('arrow', from, best, S.dmg, B ? { spd: 60, color: 0xff7a9a, tw, ap: true, big: true } : { spd: 34, color: L >= 2 ? 0x9affff : 0xfff0c0, tw }); Snd.play('arrow', { pos: from, rate: B && !many ? .8 : 1.15 }); }
+    else if (B && B.pierce) { const dir = new THREE.Vector3(best.g.position.x - from.x, 0, best.g.position.z - from.z).normalize(), shell = mk(new THREE.CapsuleGeometry(.14, .7, 4, 8), glow(0x9ad8ff, 2.2), from.x, from.y, from.z, scene, .02);
+      shell.lookAt(from.clone().add(dir)); shell.rotateX(Math.PI / 2); G.projs.push({ kind: 'pierce', m: shell, dir, left: S.range + 2, spd: 30, dmg: S.dmg, hit: new Set(), tw });
+      tw.recoil = 1.3; emit(P, from.x, from.y, from.z, 20, 0x9ad8ff, 5, .35, 0, .5); Snd.play('cannon', { pos: from, rate: .8 }); Snd.play('zap', { pos: from, vol: .5 }); }
     else if (tw.type === 'cannon') { const dest = best.g.position.clone(); if (best.next) { const v = new THREE.Vector3(tileX(best.next[0]) - dest.x, 0, tileZ(best.next[1]) - dest.z); if (v.length() > .01) dest.addScaledVector(v.normalize(), Math.min(1.5, best.E.spd * .6)); }
-      const ball = mk(new THREE.SphereGeometry(.22 + L * .04, 12, 8), toon(0x26282e), from.x, from.y, from.z, scene, .02); G.projs.push({ kind: 'ball', m: ball, from: from.clone(), dest, t: 0, dur: .7, dmg: D.dmg[L], r: D.splash[L] });
+      const ball = mk(new THREE.SphereGeometry(.22 + L * .04, 12, 8), toon(0x26282e), from.x, from.y, from.z, scene, .02); G.projs.push({ kind: 'ball', m: ball, from: from.clone(), dest, t: 0, dur: .7, dmg: S.dmg, r: S.splash, tw, cluster: B ? B : null });
       tw.recoil = 1; emit(P, from.x, from.y, from.z, 14, 0xffaa4a, 4, .35, 0, .5); emit(P, from.x, from.y, from.z, 8, 0x8a8a8a, 2, .8, 1.5, .5); Snd.play('cannon', { pos: from }); }
-    else chainLightning(from, best, D.dmg[L], D.chain[L], D.slow[L]);
+    else chainLightning(from, best, S.dmg, S.chain, S.slow, tw, S, B);
   }
 }
-function chainLightning(from, first, dmg, n, slow) {
-  const hit = new Set(); let cur = first, a = from.clone();
-  for (let k = 0; k < n && cur; k++) { const b = enemyAim(cur); bolt(a, b, k ? 0xc0a0ff : 0x9ae8ff); const ce = cur; hit.add(ce); ce.slowT = 1.3; ce.slowAmt = slow; hurt(ce, dmg * Math.pow(.85, k), '#c8b8ff'); emit(P, b.x, b.y, b.z, 8, 0xb8a0ff, 4, .35, 0, .5);
-    a = b; let nb = null, nd = 3.8 * 3.8; for (const e of G.enemies) { if (e.dead || hit.has(e)) continue; const d = e.g.position.distanceToSquared(ce.g.position); if (d < nd) { nd = d; nb = e; } } cur = nb; }
-  Snd.crackle(first.g.position);
+function chainLightning(from, first, dmg, n, slow, tw, S, B) {
+  const hit = new Set(); let cur = first, a = from.clone(); const fo = S ? S.falloff : .85, hop = S ? S.hop : 3.8, frost = B && B.freezeEvery, cA = frost ? 0x8ae8ff : B ? 0xd8b0ff : 0x9ae8ff, cB = frost ? 0xc8f4ff : 0xc0a0ff;
+  G.xpSrc = G.grow ? tw : null;
+  for (let k = 0; k < n && cur; k++) { const b = enemyAim(cur); bolt(a, b, k ? cB : cA); const ce = cur; hit.add(ce); ce.slowT = B && B.slowT ? B.slowT : 1.3; ce.slowAmt = slow; hurt(ce, dmg * Math.pow(fo, k), frost ? '#bff4ff' : '#c8b8ff'); emit(P, b.x, b.y, b.z, 8, frost ? 0xbff4ff : 0xb8a0ff, 4, .35, 0, .5);
+    if (frost && k === 0 && !ce.dead && tw.shots % B.freezeEvery === 0) { ce.stunT = ce.E.boss ? B.freezeBoss : B.freezeT; ce.frozen = true; emit(PB, b.x, b.y, b.z, 8, 0x8ae8ff, 3, .6, 0, .8); emit(P, b.x, b.y, b.z, 30, 0xe0fbff, 5, .7, -3, 1); ringFx(ce.g.position, 2, 0x8ae8ff, .4); Snd.play('glass', { pos: b, vol: .45 }); }
+    a = b; let nb = null, nd = hop * hop; for (const e of G.enemies) { if (e.dead || hit.has(e)) continue; const d = e.g.position.distanceToSquared(ce.g.position); if (d < nd) { nd = d; nb = e; } } cur = nb; }
+  G.xpSrc = null; Snd.crackle(first.g.position);
 }
 function bolt(a, b, color) {
   for (let w = 0; w < 2; w++) { const pts = [], n = 9; for (let i = 0; i <= n; i++) { const p = a.clone().lerp(b, i / n); if (i > 0 && i < n) p.add(new THREE.Vector3(rnd(-.4, .4), rnd(-.4, .4), rnd(-.4, .4))); pts.push(p); }

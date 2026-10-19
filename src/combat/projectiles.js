@@ -1,7 +1,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { rand } from '../core/util.js';
-import { G } from '../core/state.js';
+import { G, later } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
@@ -19,13 +19,18 @@ function shoot(kind, from, target, dmg, opts = {}) {
 function aoe(pos, r, dmg, color, opts = {}) {
   for (const e of [...G.enemies]) { if (e.dead) continue; const dx = e.g.position.x - pos.x, dz = e.g.position.z - pos.z; if (dx * dx + dz * dz <= r * r && (!opts.groundOnly || !e.E.fly)) { if (opts.slow) { e.slowT = 1.5; e.slowAmt = .45; } hurt(e, dmg, color, opts.big); } }
 }
+// 광역 폭발 분기: 착탄 후 집속탄 (고정 각도, 게임 난수 미사용)
+function clusterBombs(p) { const B = p.cluster, tw = p.tw, d = p.dest.clone();
+  for (let k = 0; k < B.cluster; k++) later(.16 + k * .09, () => { const a = k * Math.PI * 2 / B.cluster + .5, q = new THREE.Vector3(d.x + Math.cos(a) * 1.9, d.y, d.z + Math.sin(a) * 1.9);
+    G.xpSrc = G.grow && tw && !tw.dead ? tw : null; aoe(q, B.clusterR, p.dmg * B.clusterK, '#ffd07a', { groundOnly: true }); G.xpSrc = null;
+    ringFx(q, B.clusterR, 0xffb03a, .3); emit(P, q.x, .4, q.z, 22, 0xffc04a, 5, .5, -6, 1); emit(PB, q.x, .6, q.z, 3, 0xff7a2a, 2, .4, 0, .6); Snd.play('boom', { pos: q, vol: .35, rate: 1.3 }); }); }
 function killProj(i) { const p = G.projs[i]; scene.remove(p.m); G.projs.splice(i, 1); }
 function updProjs(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
     const p = G.projs[i], m = p.m;
     if (p.kind === 'ball') { p.t += dt; const k = Math.min(1, p.t / p.dur); m.position.lerpVectors(p.from, p.dest, k); m.position.y = p.from.y + (p.dest.y + .3 - p.from.y) * k + Math.sin(k * Math.PI) * 3.2;
       if (rand() < .5) emit(P, m.position.x, m.position.y, m.position.z, 1, 0x9a9a9a, .5, .5, 1, 0);
-      if (k >= 1) { killProj(i); aoe(p.dest, p.r, p.dmg, '#ffc07a', { groundOnly: true }); ringFx(p.dest, p.r, 0xff8a2a, .35); emit(P, p.dest.x, .4, p.dest.z, 40, 0xffa04a, 7, .6, -8, 1.5); emit(PB, p.dest.x, .6, p.dest.z, 6, 0xff7a2a, 3, .5, 0, 1); debris(p.dest.x, .3, p.dest.z, 4, [0x8a6a4a, 0x5a5a5a], 4); G.shake = Math.max(G.shake, .08); Snd.play('boom', { pos: p.dest, vol: .6 }); }
+      if (k >= 1) { killProj(i); G.xpSrc = p.tw && G.grow ? p.tw : null; aoe(p.dest, p.r, p.dmg, '#ffc07a', { groundOnly: true }); G.xpSrc = null; if (p.cluster && p.cluster.cluster) clusterBombs(p); ringFx(p.dest, p.r, 0xff8a2a, .35); emit(P, p.dest.x, .4, p.dest.z, 40, 0xffa04a, 7, .6, -8, 1.5); emit(PB, p.dest.x, .6, p.dest.z, 6, 0xff7a2a, 3, .5, 0, 1); debris(p.dest.x, .3, p.dest.z, 4, [0x8a6a4a, 0x5a5a5a], 4); G.shake = Math.max(G.shake, .08); Snd.play('boom', { pos: p.dest, vol: .6 }); }
       continue; }
     if (p.kind === 'rain' || p.kind === 'meteor') {
       const d = p.dest.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
@@ -36,10 +41,15 @@ function updProjs(dt) {
         continue; }
       m.position.addScaledVector(d.normalize(), mv); continue;
     }
+    if (p.kind === 'pierce') { const mv = Math.min(p.left, p.spd * dt); p.left -= mv; m.position.addScaledVector(p.dir, mv); m.position.y += (1.1 - m.position.y) * Math.min(1, dt * 8);
+      emit(P, m.position.x, m.position.y, m.position.z, 3, 0x9ad8ff, .6, .35, 0, .2); G.xpSrc = G.grow ? p.tw : null;
+      for (const e of [...G.enemies]) { if (e.dead || e.E.fly || p.hit.has(e)) continue; const dx = e.g.position.x - m.position.x, dz = e.g.position.z - m.position.z; if (dx * dx + dz * dz > 1.1 * 1.1) continue;
+        p.hit.add(e); hurt(e, p.dmg / (1 - (e.E.armor || 0)), '#bfe8ff', true); const q = enemyAim(e); emit(P, q.x, q.y, q.z, 14, 0x9ad8ff, 5, .4, -3, .6); debris(q.x, q.y, q.z, 2, [0xf0ead8], 3); }
+      G.xpSrc = null; if (p.left <= 0) { killProj(i); ringFx(m.position, 1.4, 0x9ad8ff, .3); emit(P, m.position.x, m.position.y, m.position.z, 18, 0xbfe8ff, 4, .4, -2, .6); } continue; }
     if (p.target.dead) { killProj(i); continue; }
     const tp = enemyAim(p.target), d = tp.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
     if (len <= mv) { killProj(i);
-      if (p.kind === 'arrow') { hurt(p.target, p.dmg, '#ffffff', false, { x: m.position.x, z: m.position.z, kind: 'ranged' }); emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
+      if (p.kind === 'arrow') { G.xpSrc = p.tw && G.grow ? p.tw : null; hurt(p.target, p.ap ? p.dmg / (1 - (p.target.E.armor || 0)) : p.dmg, p.ap ? '#ff9ab0' : '#ffffff', !!p.big, { x: m.position.x, z: m.position.z, kind: 'ranged' }); G.xpSrc = null; if (p.big) { ringFx(tp, 1.2, 0xff7a9a, .25); emit(P, tp.x, tp.y, tp.z, 12, 0xff9ab0, 4, .35); } emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
       else { aoe(tp, p.aoe, p.dmg, '#d0a0ff', { slow: true }); emit(P, tp.x, tp.y, tp.z, 18, 0xb07aff, 5, .5, -4, 1.5); ringFx(tp, p.aoe, 0xb07aff, .3); }
       continue; }
     m.position.addScaledVector(d.normalize(), mv); m.lookAt(tp);

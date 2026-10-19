@@ -315,3 +315,18 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .lskH{color:#ffd23a;font-weight:900;font-size:13px;text-shadow:0 0 6px #ffb02a}.lskH i{font-style:normal;font-weight:bold;font-size:10.5px;color:#ffe9b0;background:#ffb02a33;border-radius:5px;padding:1px 5px;margin-left:4px}
 .lskD{color:#ffe7a8;font-size:11.5px;line-height:1.35;margin-top:2px}
 .itile .lst{position:absolute;left:3px;top:1px;color:#ffd23a;font-size:12px;text-shadow:0 0 5px #ff9a2a;pointer-events:none}
+
+/* ---- 타워 성장: 별·진화 ---- */
+#tStats .tstar{color:#ffd23a;letter-spacing:1px;text-shadow:0 0 6px #ffb03a}#tStats .tstar i{font-style:normal;color:#5a5070;text-shadow:none}#tStats .txp{height:5px;background:#1a1426;border-radius:3px;margin:3px 0 2px;overflow:hidden}#tStats .txp b{display:block;height:100%;background:linear-gradient(90deg,#5affb0,#c8ffd8)}
+#tStats .tbr{font-weight:bold}
+#tEvo{justify-content:center!important;background:linear-gradient(#a8701a,#5a3a08)!important;border-color:#ffe08a!important;color:#fff8d8!important;font-weight:bold;animation:evoPulse 1s ease-in-out infinite}
+@keyframes evoPulse{50%{box-shadow:0 0 16px #ffc03a;filter:brightness(1.25)}}
+#branchPop{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:radial-gradient(#0008,#000c);touch-action:manipulation}
+#branchPop .bpBox{background:linear-gradient(#1d1836f4,#0b0a14f4);border:2px solid #ffc94a;border-radius:16px;padding:16px 18px;max-width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-shadow:0 0 40px #ffb03a55;text-align:center;animation:bpIn .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bpIn{from{transform:scale(.7)}}
+#branchPop h3{margin:0;color:#ffe08a;font-size:20px;letter-spacing:1px}#branchPop .bpSub{color:#c8b8e8;font-size:13px;margin:4px 0 12px}
+#branchPop .bpRow{display:flex;gap:12px}#branchPop .bpCard{flex:1;min-width:0;min-height:44px;background:linear-gradient(#2e2752,#18142c);border:2px solid var(--c);border-radius:14px;padding:12px;color:#fff3d6;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 0 14px color-mix(in srgb,var(--c) 40%,transparent);transition:transform .12s}
+#branchPop .bpCard:active{transform:scale(.96)}#branchPop .bpIcon{font-size:38px;filter:drop-shadow(0 0 8px var(--c));animation:bpBob 1.6s ease-in-out infinite}@keyframes bpBob{50%{transform:translateY(-4px) scale(1.08)}}
+#branchPop .bpN{font-size:18px;font-weight:bold;color:var(--c)}#branchPop .bpD{font-size:13px;color:#e0d8f0;line-height:1.45}#branchPop .bpS{font-size:12px;color:#ffe08a;line-height:1.5;background:#0006;border-radius:8px;padding:5px 8px;width:100%;box-sizing:border-box}
+#branchPop .bpLater{margin-top:12px;min-height:44px;padding:8px 26px}
+@media (max-height:680px){#branchPop .bpIcon{font-size:28px}#branchPop .bpBox{padding:10px 12px}#branchPop .bpD{font-size:12px}}

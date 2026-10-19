@@ -12,6 +12,8 @@ import { core, crystalMat } from '../world/terrain.js';
 import { enemyAim } from '../world/towers.js';
 import { gameOver } from '../core/waves.js';
 import { banner } from '../ui/hud.js';
+import { towerXp } from '../world/growth.js';
+import { KILL_XP } from '../data/growth.js';
 import { lootFx } from '../render/loot.js';
 import { BOSS_DROP, bossOdds, randomItem, GRADES } from '../account/equip.js';
 
@@ -34,7 +36,9 @@ function shieldFactor(e, src) {
   const red = ang <= S.arc ? (melee ? S.melee : S.front) : ang <= S.side ? (melee ? S.sideRed / 2 : S.sideRed) : S.back;
   e.lastShield = { ang, red, kind: src.kind }; return 1 - red;
 }
-function hurt(e, dmg, color = '#fff', big = false, src = null) {
+// 타워 XP: 타워 공격 중(G.xpSrc)이면 실제로 깎은 체력 + 처치 보너스를 그 타워에 (성장 꺼짐이면 G.xpSrc는 항상 null)
+function hurt(e, dmg, color, big, src) { const tw = G.xpSrc; if (!tw || e.dead) return hurt0(e, dmg, color, big, src); const h0 = Math.max(0, e.hp); hurt0(e, dmg, color, big, src); towerXp(tw, h0 - Math.max(0, e.hp) + (e.dead ? KILL_XP : 0)); }
+function hurt0(e, dmg, color = '#fff', big = false, src = null) {
   if (e.dead) return; const sk = shieldFactor(e, src);
   if (sk < .5) { Snd.play('block', { pos: e.g.position }); const p = enemyAim(e); emit(P, p.x + Math.sin(e.g.rotation.y) * .6, p.y, p.z + Math.cos(e.g.rotation.y) * .6, 6, 0xbfe0ff, 3, .25, 0, .3); e.blockT = .2;
     G.stats.blocked = (G.stats.blocked || 0) + dmg * (1 - sk); if (!(e.blockTxt > G.t)) { e.blockTxt = G.t + .6; p.y += e.E.h * .55 + .3; dmgText(p, '막음!', '#9ad4ff'); } }

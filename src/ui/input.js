@@ -30,7 +30,7 @@ let rdrag = null; const keys = {};
 const cvs = renderer.domElement; cvs.addEventListener('contextmenu', e => e.preventDefault());
 function showRange(x, z, r, color = 0x9ae8ff) { rangeRing.visible = true; rangeRing.position.set(x, .25, z); rangeRing.scale.setScalar(r); rangeRing.material.color.set(color); rangeFill.material.color.set(color); }
 function tileInfo(t) {
-  if (t.tower) return `<b>${TOWERS[t.tower.type].n} Lv.${t.tower.lvl}</b> · 클릭하여 강화/판매`;
+  if (t.tower) return `<b>${TOWERS[t.tower.type].n} Lv.${t.tower.lvl}${G.grow ? ' ' + '★'.repeat(t.tower.stars) : ''}</b> · 클릭하여 강화/판매`;
   if (t.bar) return `<b>바리케이드</b> ${Math.ceil(t.bar.hp)}/${Math.ceil(t.bar.max)}`;
   if (isBlock(t.t)) return `<b>${BLK[t.t].n}</b> 내구도 ${Math.ceil(t.hp)}/${t.max} · 개간 ${BLK[t.t].clear}G`;
   return `<b>${TNAME[t.t]}</b>${t.t === T.GRASS ? ' · 타워 건설 가능' : t.t === T.CARVED ? ' · 바리케이드 설치 가능' : t.t === T.BEDROCK ? ' · 파괴 불가' : ''}`;
@@ -42,9 +42,9 @@ function onMove(cx, cy) {
   if (ok) { const t = tileAt(c, r); tip.classList.remove('hidden'); tip.style.left = cx + 'px'; tip.style.top = cy + 'px'; tip.innerHTML = tileInfo(t);
     if (bmode) { const why = buildReason(c, r), valid = !why; showPreview(c, r, valid, G.tool); tip.innerHTML = previewTip(t, why);
       if (TOWERS[G.tool] && t.t === T.GRASS) showRange(tileX(c), tileZ(r), TOWERS[G.tool].range[0], valid ? 0x7affa0 : 0xff6a6a); }
-    else if (t.tower) showRange(tileX(c), tileZ(r), TOWERS[t.tower.type].range[t.tower.lvl - 1]); }
+    else if (t.tower) showRange(tileX(c), tileZ(r), t.tower.S.range); }
   else tip.classList.add('hidden');
-  if (G.sel && G.sel.kind === 'tower' && !rangeRing.visible) showRange(tileX(G.sel.c), tileZ(G.sel.r), TOWERS[G.sel.type].range[G.sel.lvl - 1], 0xffe066);
+  if (G.sel && G.sel.kind === 'tower' && !rangeRing.visible) showRange(tileX(G.sel.c), tileZ(G.sel.r), G.sel.S.range, 0xffe066);
 }
 cvs.addEventListener('pointermove', e => {
   if (rdrag) { cam.theta -= (e.clientX - rdrag.x) * .008; cam.phi = Math.min(1.25, Math.max(.45, cam.phi - (e.clientY - rdrag.y) * .005)); rdrag = { ...rdrag, x: e.clientX, y: e.clientY }; }
@@ -119,7 +119,7 @@ const upCost = k => Math.round(UPS[k].base * Math.pow(1.45, G.ups[k]));
 document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.dataset.up, c = upCost(k); if (G.gold < c) return Snd.play('error'); G.gold -= c; G.ups[k]++;
   if (k === 'bar') for (const col of G.tiles) for (const t of col) if (t.bar) { const r = t.bar.hp / t.bar.max; t.bar.max = barMaxHp(); t.bar.hp = t.bar.max * r; }
   Snd.play('upgrade'); Snd.play('levelUp', { vol: .6 }); if (hero) emit(P, hero.g.position.x, 1.5, hero.g.position.z, 24, 0xffe066, 4, .7); refreshHud(); });
-function select(o) { G.sel = o; $('tinfo').classList.toggle('hidden', !o); if (o && o.kind === 'tower') showRange(tileX(o.c), tileZ(o.r), TOWERS[o.type].range[o.lvl - 1], 0xffe066); else rangeRing.visible = false; refreshHud(); }
+function select(o) { G.sel = o; $('tinfo').classList.toggle('hidden', !o); if (o && o.kind === 'tower') showRange(tileX(o.c), tileZ(o.r), o.S.range, 0xffe066); else rangeRing.visible = false; refreshHud(); }
 $('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { upgradeTower(G.sel); select(G.sel); } };
 $('tRep').onclick = () => { if (G.sel && G.sel.kind === 'tower') { repairTower(G.sel); select(G.sel); } };
 $('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += 15; removeBarricade(s.t, false); refreshHud(); } };
