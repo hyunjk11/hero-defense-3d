@@ -2,7 +2,7 @@ import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $, rnd } from '../core/util.js';
 import { GH } from '../core/grid.js';
-import { CLASSES } from '../data/heroes.js';
+import { CLASSES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
 import { cam, scene } from '../render/scene.js';
 import { mk, toon } from '../render/toon.js';
@@ -32,7 +32,7 @@ function updSelect(dt) {
 function choose(cls) {
   preview.forEach(p => p.mixer.stopAllAction()); preview.length = 0; scene.remove(podium); $('select').classList.add('hidden'); $('hud').classList.remove('hidden');
   spawnHero(cls); G.phase = 'build'; cam.target.set(0, 0, 1); cam.r = 58; cam.phi = .9; cam.theta = .22;
-  computeDist(); setPhaseUI(); refreshHud(); banner(`${CLASSES[cls].n} 출전!`, '#ffe066');
+  computeDist(); setPhaseUI(); refreshHud(); banner(`${heroLabel(cls)} 출전!`, '#ffe066');
 }
 
 export { showSelect, updSelect, choose };

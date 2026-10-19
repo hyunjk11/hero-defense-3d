@@ -2,7 +2,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $, QS } from '../core/util.js';
-import { CLASSES } from '../data/heroes.js';
+import { CLASSES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
 import { cam, camera, scene, renderer } from '../render/scene.js';
 import { mk, toon, glow } from '../render/toon.js';
@@ -29,7 +29,7 @@ const SCREENS = ['intro', 'login', 'menu', 'town'];
 let town = null, th = null, tKeys = {}, labels = [], portalPos = null, departing = false, toast = 0;
 function show(id) { for (const s of SCREENS) $('scr_' + s).classList.toggle('hidden', s !== id); G.screen = id; G.screenMusic = id === 'intro' ? 'wave' : 'build'; }
 function hideAll() { for (const s of SCREENS) $('scr_' + s).classList.add('hidden'); G.screen = null; G.screenMusic = null; }
-const heroN = c => CLASSES[c].n;
+const heroN = c => heroLabel(c);
 
 // ---------- 스테이지 ----------
 function departStage(id) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');

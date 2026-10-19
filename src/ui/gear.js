@@ -1,7 +1,7 @@
 // ================= 장비 UI: 가방(장착/비교) · 대장간(강화/분해/제작) · 보상 상자 개봉 =================
 import { Snd } from '../audio/audio.js';
 import { $ } from '../core/util.js';
-import { CLASSES } from '../data/heroes.js';
+import { CLASSES, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
 import * as E from '../account/equip.js';
 import { closeLab } from './lab.js';
@@ -34,7 +34,7 @@ function renderInv() {
   if (!ui.inv) return; const s = S(), h = s.hero, eq = s.eq[h] || {};
   const list = sorted(s.inv.filter(x => ui.invF === 'all' || x.s === ui.invF), s);
   const sel = s.inv.find(x => x.id === ui.invSel), cur = sel ? s.inv.find(x => x.id === eq[sel.s]) : null;
-  $('invHead').innerHTML = `🎒 가방 <b class="${s.inv.length >= E.CAP ? 'full' : ''}">${s.inv.length}/${E.CAP}</b> · <span style="color:#ffe08a">${CLASSES[h].n}</span>`;
+  $('invHead').innerHTML = `🎒 가방 <b class="${s.inv.length >= E.CAP ? 'full' : ''}">${s.inv.length}/${E.CAP}</b> · <span style="color:#ffe08a">${heroLabel(h)}</span>`;
   $('invSlots').innerHTML = E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === eq[sl]); return `<div class="slot" data-sl="${sl}"><div class="slh">${E.SLOTS[sl]}</div>${it ? tile(it, s) : `<div class="itile emptyT"><span class="ic">${sl === 'weapon' ? ICON[h] : ICON[sl]}</span></div>`}</div>`; }).join('');
   $('invBonus').innerHTML = bonusHtml(E.bonus(s, h));
   $('invFilt').innerHTML = [['all', '전체'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${ui.invF === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('');

@@ -129,7 +129,7 @@ with sync_playwright() as pw:
     sweep(pg, 'hud_tinfo', ['#hud'])
     # 타워 성장: ★★★ 진화 팝업 (터치 선택)
     J(pg, "()=>{ const t=G.towers[G.towers.length-1]; G.select(t); G.towerXp(t, 99999); }"); pg.wait_for_function("()=>!document.getElementById('branchPop').classList.contains('hidden')", timeout=20000)
-    sweep(pg, 'branch', ['#branchPop', '#hud'])
+    pg.wait_for_timeout(600); sweep(pg, 'branch', ['#branchPop', '#hud'])
     pg.tap('#branchPop .bpCard[data-k="multi"]'); pg.wait_for_timeout(300); RES['tap_branch'] = J(pg, "()=>G.towers[G.towers.length-1].branch") == 'multi'; print('tap_branch', RES['tap_branch'])
     sweep(pg, 'hud_tinfo_star', ['#hud'])
     pg.tap('#sndBtn'); pg.wait_for_timeout(200); sweep(pg, 'hud_sound', ['#hud']); pg.tap('#sndBtn')
