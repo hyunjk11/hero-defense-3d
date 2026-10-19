@@ -27,4 +27,17 @@ assert.deepEqual(P.clean({ souls: 3 }).st, {}); assert.deepEqual(P.clean({ st: {
 const m = P.merge({ st: { '1-1': 3, '1-2': 1 }, starRw: 0 }, { st: { '1-2': 2, '1-3': 1 }, starRw: 1 }); assert.deepEqual(m.st, { '1-1': 3, '1-2': 2, '1-3': 1 }); assert.equal(m.starRw, 1);
 // 스테이지 판은 도전 모드 최고 웨이브에 반영되지 않음
 { const [a] = P.applyRun(P.empty(), { wave: 12, kills: 30, stage: true }, r); assert.equal(a.bestWave, 0); const [b] = P.applyRun(P.empty(), { wave: 12, kills: 30 }, r); assert.equal(b.bestWave, 12); }
+// 3장 화산: 2장 보스 처치 후 해금, 4개 스테이지(3-4 보스), 용암 강이 포털→코어 길을 완전히 막지 않음(용암 외 지형은 굴착 가능), 보상은 장마다 증가, 4장은 준비 중
+{ const C3 = ST.CHAPTERS.find(c => c.id === 3); assert.equal(C3.stages.length, 4); assert.ok(!C3.soon && C3.stages[3].boss && ST.CHAPTERS.find(c => c.id === 4).soon);
+  let v = P.empty(); for (const st of ST.CHAPTERS[0].stages) [v] = P.applyStage(v, st.id, 1, 'mage', r); assert.ok(!ST.chapterUnlocked(v, 3));
+  for (const st of ST.CHAPTERS[1].stages.slice(0, 3)) [v] = P.applyStage(v, st.id, 1, 'mage', r); assert.ok(!ST.chapterUnlocked(v, 3));
+  let inf; [v, inf] = P.applyStage(v, '2-4', 2, 'mage', r); assert.ok(ST.chapterUnlocked(v, 3) && ST.stageUnlocked(v, '3-1') && !ST.stageUnlocked(v, '3-2')); assert.deepEqual(inf.unlocked, ['3-1']); assert.ok(!ST.chapterUnlocked(v, 4));
+  [v, inf] = P.applyStage(v, '3-1', 3, 'mage', r); assert.ok(inf.loot[0].it.n.startsWith('화염 ') && inf.loot[0].it.c === 3);
+  for (const id of ['3-1', '3-2', '3-3', '3-4']) { const S = ST.STAGES[id], L = ST.lavaTiles(S); assert.ok(L.size >= 10, id + ' lava');
+    for (const p of [S.core, ...S.spawns]) for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) assert.ok(!L.has((p[0] + dc) + ',' + (p[1] + dr)), id + ' lava near portal/core');
+    const seen = new Set([S.core.join(',')]), q = [S.core]; while (q.length) { const [c, rr] = q.shift(); for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (c + dc) + ',' + (rr + dr); if (c + dc < 0 || rr + dr < 0 || c + dc >= 24 || rr + dr >= 16 || seen.has(k) || L.has(k)) continue; seen.add(k); q.push([c + dc, rr + dr]); } }
+    for (const sp of S.spawns) assert.ok(seen.has(sp.join(',')), id + ' spawn reachable');
+    assert.ok(seen.size >= 24 * 16 - L.size - 6, id + ' no sealed pockets'); }
+  assert.ok(ST.stageReward('3-1', true) > ST.stageReward('2-4', true) - 60 && ST.stageReward('3-4', true) > ST.stageReward('2-4', true) && ST.stageReward('3-1', true) > ST.stageReward('2-1', true));
+  for (const ch of [1, 2]) { const a = ST.CHAPTERS.find(c => c.id === ch).stages, b = C3.stages; assert.ok(b[b.length - 1].hp > a[a.length - 1].hp); } }
 console.log('stages tests OK');

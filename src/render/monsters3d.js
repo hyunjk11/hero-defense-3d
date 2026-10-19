@@ -16,7 +16,7 @@ function matSet() { const mats = []; const tm = (c, o) => { const m = toon(c, o)
 function moveSpeed(m, e, dt) { const p = e.g.position, l = m.last || (m.last = p.clone()); const v = dt > 0 ? Math.hypot(p.x - l.x, p.z - l.z) / dt : 0; l.copy(p); m.v += (Math.min(8, v) - m.v) * Math.min(1, dt * 10); return m.v; }
 
 // 파란 발밑 고리 (서리늑대 무리 강화 표시)
-function packRing(g, r) { const m = new THREE.Mesh(TOR(r, .05), new THREE.MeshBasicMaterial({ color: 0x6ad0ff, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+function packRing(g, r, color = 0x6ad0ff) { const m = new THREE.Mesh(TOR(r, .05), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
   m.rotation.x = -Math.PI / 2; m.position.y = .08; m.visible = false; g.add(m); return m; }
 
 // ---- 늑대 (숲늑대/서리늑대/용암 사냥개) ----
@@ -37,7 +37,7 @@ export function makeWolf(E) {
   const legs = []; for (const [x, z] of [[-.2, .36], [.2, .36], [-.2, -.38], [.2, -.38]]) { const p = new THREE.Group(); p.position.set(x, .58, z); inner.add(p);
     mk(CYL(.075, .06, .5, 8), x < 0 ? furM : furM, 0, -.25, 0, p, .025); mk(SPH(.08, 10, 8), dark, 0, -.52, .03, p, .015); legs.push(p); }
   const m = { g, inner, mats, mixer: null, acts: null, legs, head, tail, v: 0, ph: 0, proc: 'wolf' };
-  if (E.ab && E.ab.pack) m.ring = packRing(g, .8 * s);
+  if (E.ab && E.ab.pack) m.ring = packRing(g, .8 * s, E.ringC);
   m.anim = (e, dt) => { const v = moveSpeed(m, e, dt), a = Math.min(1, v / 2.5);
     if (e.dying !== undefined) { const d = sm((1.6 - e.dying) / .5); inner.rotation.z = d * 1.45; inner.position.y = d * .15 * s; legs.forEach((l, i) => l.rotation.x = d * (i % 2 ? .4 : -.4)); if (m.ring) m.ring.visible = false; return; }
     m.ph += dt * (3 + v * 2.2); const sw = Math.sin(m.ph) * .75 * a;
@@ -117,7 +117,7 @@ export function extraProp(ch, kind, E, attachProp) {
     attachProp(ch, 'chest', sh, [0, .15 * s, 0]); sh.scale.multiplyScalar(s);
     const ball = mk(SPH(.3, 16, 12), pm('snow', () => toon(0xffffff, { emissive: 0x8ac8ff, emissiveIntensity: .35 })), 0, 0, 0, null, .02); attachProp(ch, 'handslotr', ball, [0, .15, 0]); ball.scale.multiplyScalar(s * .9); ball.visible = false; ch.snowball = ball; }
   if (kind === 'ice') { // 서리 골렘·빙결의 군주: 어깨·등·머리의 얼음 결정 (갑옷이 깨지면 사라짐 = ch.iceParts)
-    const im = toon(0xc8f0ff, { emissive: 0x3aa8ff, emissiveIntensity: 1 }); im.userData.e = im.emissive.clone(); ch.mats.push(im); ch.iceMat = im; ch.iceParts = [];
+    const im = toon(E.crystal ? E.crystal[0] : 0xc8f0ff, { emissive: E.crystal ? E.crystal[1] : 0x3aa8ff, emissiveIntensity: 1 }); /* 화산: 굳은 용암 껍질(E.crystal) */ im.userData.e = im.emissive.clone(); ch.mats.push(im); ch.iceMat = im; ch.iceParts = [];
     const add = (bone, pts, sc) => { const g = new THREE.Group(); for (const [x, y, z, rx, rz, l] of pts) { const c = mk(OCT(.16), im, x, y, z, g, .02); c.scale.set(.8, l, .8); c.rotation.set(rx, 0, rz); } attachProp(ch, bone, g, [0, sc[0] * s, sc[1] * s]); g.scale.multiplyScalar(s * (E.boss ? 1.35 : 1.15)); ch.iceParts.push(g); };
     add('chest', [[-.45, .4, 0, 0, .5, 2.2], [-.55, .25, -.1, .3, .9, 1.6], [.45, .4, 0, 0, -.5, 2.2], [.55, .25, -.1, .3, -.9, 1.6], [0, .2, -.4, -.7, 0, 2.6], [-.2, .1, -.42, -.9, .3, 1.8], [.2, .1, -.42, -.9, -.3, 1.8]], [.1, 0]);
     add('head', [[0, .3, 0, 0, 0, 1.8], [-.22, .2, 0, 0, .5, 1.3], [.22, .2, 0, 0, -.5, 1.3]], [.35, 0]); }

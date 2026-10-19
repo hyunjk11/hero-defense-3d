@@ -38,28 +38,32 @@ COMP = r"""()=>{ const out = { waves: [] }, seen = {}; G.coreHp = G.coreMax = 1e
   return out; }"""
 def comp_check(waves, ch, last_boss):
     import itertools
-    R = {1: {'goblin', 'grunt', 'imp', 'wolf', 'digger', 'slime', 'mushroom', 'bat', 'treant', 'golem'}, 2: {'icewolf', 'grunt', 'charger', 'yeti', 'shield', 'wisp', 'frostgolem', 'bat', 'bomber'}}
-    allowed = R[ch] | {'boss', {1: 'boss_forest', 2: 'boss_snow'}[ch]}
+    R = {1: {'goblin', 'grunt', 'imp', 'wolf', 'digger', 'slime', 'mushroom', 'bat', 'treant', 'golem'}, 2: {'icewolf', 'grunt', 'charger', 'yeti', 'shield', 'wisp', 'frostgolem', 'bat', 'bomber'},
+         3: {'ember_slime', 'imp', 'grunt', 'firebomber', 'lavahound', 'siege', 'magmagolem', 'bat'}}
+    BOSS = {1: 'boss_forest', 2: 'boss_snow', 3: 'boss_fire'}
+    allowed = R[ch] | {'boss', BOSS[ch]}
     used = set(itertools.chain(*[w.keys() for w in waves]))
-    sig = {1: {'goblin', 'wolf', 'slime', 'mushroom', 'treant'}, 2: {'icewolf', 'yeti', 'wisp', 'frostgolem'}}[ch]
-    other = (R[3 - ch] - R[ch])
+    SIG = {1: {'goblin', 'wolf', 'slime', 'mushroom', 'treant'}, 2: {'icewolf', 'yeti', 'wisp', 'frostgolem'}, 3: {'ember_slime', 'firebomber', 'lavahound', 'magmagolem'}}; sig = SIG[ch]
+    other = set().union(*[SIG[k] for k in SIG if k != ch]) - R[ch]
     return {'used': sorted(used), 'only_roster': used <= allowed, 'signature_all': sig <= used, 'no_other_chapter': not (used & other),
-            'final_boss': (({1: 'boss_forest', 2: 'boss_snow'}[ch] in waves[-1]) if last_boss else True), 'counts': [sum(w.values()) for w in waves]}
+            'final_boss': ((BOSS[ch] in waves[-1]) if last_boss else True), 'counts': [sum(w.values()) for w in waves]}
 
 def stage_comp(stage):
     def f(pw, url, errs):
-        b, pg = page(pw, url, errs, stage); r = pg.evaluate(COMP); b.close(); ch = int(stage[0]); last = stage in ('1-6', '2-4')
+        b, pg = page(pw, url, errs, stage); r = pg.evaluate(COMP); b.close(); ch = int(stage[0]); last = stage in ('1-6', '2-4', '3-4')
         c = comp_check(r['waves'], ch, last); c['ok'] = c['only_roster'] and c['signature_all'] and c['no_other_chapter'] and c['final_boss']; c['first_waves'] = r['waves'][:2]; return c
     f.__name__ = 'comp_' + stage.replace('-', '_'); return f
-for st in ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '2-1', '2-2', '2-3', '2-4']: test(stage_comp(st))
+for st in ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '3-3', '3-4']: test(stage_comp(st))
 
 @test
 def comp_endless(pw, url, errs):
     b, pg = page(pw, url, errs); r = pg.evaluate(COMP); b.close(); W = r['waves']
-    snow = {'icewolf', 'yeti', 'wisp', 'frostgolem'}; forest = {'goblin', 'wolf', 'slime', 'mushroom', 'treant'}
+    snow = {'icewolf', 'yeti', 'wisp', 'frostgolem'}; forest = {'goblin', 'wolf', 'slime', 'mushroom', 'treant'}; volc = {'ember_slime', 'firebomber', 'lavahound', 'magmagolem'}
+    pre12 = set().union(*[set(w) for w in W[:11]]); post12 = set().union(*[set(w) for w in W[11:]])
     early = set().union(*[set(w) for w in W[:5]]); late = set().union(*[set(w) for w in W[5:]])
     out = {'early_types': sorted(early), 'late_types': sorted(late), 'w5_boss': 'boss' in W[4], 'w10_boss_forest': 'boss_forest' in W[9], 'w20_boss_snow': 'boss_snow' in W[19],
-           'early_no_snow': not (early & snow), 'early_has_forest': len(early & forest) >= 3, 'late_has_snow': len(late & snow) >= 3, 'late_still_skeletons': bool(late & {'grunt', 'imp', 'golem', 'shield', 'digger'})}
+           'early_no_snow': not (early & snow), 'early_has_forest': len(early & forest) >= 3, 'late_has_snow': len(late & snow) >= 3, 'late_still_skeletons': bool(late & {'grunt', 'imp', 'golem', 'shield', 'digger'}),
+           'no_volcano_before_12': not (pre12 & volc), 'volcano_from_12': len(post12 & volc) >= 3}
     out['ok'] = all(v for k, v in out.items() if k not in ('early_types', 'late_types')); return out
 
 @test
@@ -142,11 +146,46 @@ def boss_forest_roots(pw, url, errs):
       o.secs = R_.runUntil(() => (G.stats.roots || 0) >= 1, 8); G.sim(.05); o.rooted = tws.filter(t => t.rootT > 0).length; o.banner = document.getElementById('banner').textContent; R_.clear(); o.ok = o.rooted === Math.min(3, o.towers) && o.secs < 6; return o; }""")
     b.close(); return r
 
+# ---------------- 능력 (화산) ----------------
+@test
+def volcano_abilities(pw, url, errs):
+    b, pg = page(pw, url, errs, '3-1'); out = {}
+    out['ember_split'] = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(8, 8); const s = R_.at('ember_slime', x, z, false); G.hurt(s, 1e9); G.sim(.1); const n = G.enemies.filter(e => e.type === 'ember_s' && !e.dead).length; R_.clear(); return { n, ok: n === 3 }; }""")
+    out['magma_shell'] = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(8, 8); const f = R_.at('magmagolem', x, z); const o = {}; const hit = () => { const a = f.hp; G.hurt(f, 100); return R_.r(a - f.hp); };
+      o.hit1 = hit(); o.armor = f.armor; for (let i = 0; i < 4 && !f.cracked; i++) hit(); o.cracked = f.cracked; o.hit_after = hit(); G.sim(.1); o.spdK = f.spdK; R_.clear();
+      o.ok = o.hit1 === 40 && o.armor === .6 && o.cracked && o.hit_after === 100 && Math.abs(o.spdK - 1.25) < 1e-9; return o; }""")
+    out['hound_pack'] = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(8, 8); const W = [0, 1, 2].map(i => R_.at('lavahound', x + i * .8, z)); G.sim(.4); const o = { on: W.map(w => !!w.packOn), ring: W[0].m.ring.visible, spdK: W[0].spdK }; R_.clear();
+      o.ok = o.on.every(Boolean) && o.ring && Math.abs(o.spdK - 1.3) < 1e-9; return o; }""")
+    out['lava_tiles'] = pg.evaluate(r"""()=>{ let n = 0, bad = 0; for (let c = 0; c < G.GW; c++) for (let r = 0; r < G.GH; r++) { const t = G.tileAt(c, r); if (t.lava) { n++; if (t.t !== 5 || G.buildReason(c, r, 'arrow') === null) bad++; } }
+      const reach = G.SPAWNS.every(s => Number.isFinite(G.field('default')[s[0] * G.GH + s[1]])); return { n, bad, reach, ok: n >= 10 && bad === 0 && reach }; }""")
+    out['nan'] = pg.evaluate('()=>R_.nan()'); b.close()
+    out['ok'] = all(v.get('ok') for k, v in out.items() if isinstance(v, dict)) and out['nan'] == 0; return out
+
+@test
+def boss_fire(pw, url, errs):
+    b, pg = page(pw, url, errs, '3-4'); out = {}
+    out['lavapool'] = pg.evaluate(r"""()=>{ const s = R_.grass(); const tws = [R_.tower('arrow', s)]; for (let c = s[0] - 4; c <= s[0] + 4 && tws.length < 3; c++) for (let r = s[1] - 4; r <= s[1] + 4 && tws.length < 3; r++) { const t = c >= 0 && r >= 0 && c < G.GW && r < G.GH && G.tileAt(c, r); if (t && t.t === 0 && !t.tower && Math.abs(c - s[0]) + Math.abs(r - s[1]) >= 2 && G.buildReason(c, r, 'cannon') === null) { const tw = R_.tower('cannon', [c, r]); if (tw) tws.push(tw); } }
+      const [x, z] = R_.xz(tws[0], 1, 1); const bs = R_.at('boss_fire', x, z); bs.hp = bs.max = 1e9; bs.abT.meteor = 1e9; const o = { towers: tws.length }; let warn = 0;
+      o.secs = R_.runUntil(() => { warn = Math.max(warn, tws.filter(t => t.warnT > 0 && t.warnC === 0xff6a1a).length); return (G.stats.pools || 0) >= 1; }, 9); G.sim(.05);
+      const melt = tws.filter(t => t.meltT > 0); o.warned = warn; o.melted = melt.length; o.rate0 = melt.length ? G.towerRateK(melt[0]) : -1; o.pool_vis = !!(melt.length && melt[0].dfx.pool.visible); const hp0 = melt.length ? melt[0].hp : 0;
+      G.sim(2); o.dmg2s = melt.length ? R_.r(hp0 - melt[0].hp) : 0; G.sim(3.5); o.rate_after = melt.length ? G.towerRateK(melt[0]) : -1; o.pool_after = melt.length ? melt[0].dfx.pool.visible : true; R_.clear();
+      o.ok = o.melted === 2 && o.warned === 2 && o.rate0 === 0 && o.pool_vis && o.dmg2s >= 28 && o.dmg2s <= 40 && o.rate_after === 1 && !o.pool_after && o.secs <= 7; return o; }""")
+    out['meteor'] = pg.evaluate(r"""()=>{ const s = R_.grass(); const tw = R_.tower('arrow', s); const [x, z] = R_.xz(tw, 5, 0); const bs = R_.at('boss_fire', x, z); bs.hp = bs.max = 1e9; bs.abT.lavapool = 1e9; bs.abT.meteor = .1;
+      G.hero.dead = 0; G.hero.hp = G.hero.max; G.hero.g.position.set(x - 2, 0, z + 3); const hp0 = tw.hp, h0 = G.hero.hp, o = {}; const marks = () => G.scene.children.filter(m => m.userData && m.userData.ring).length;
+      G.sim(.3); o.marks = marks(); o.hit_before = R_.r(hp0 - tw.hp);
+      o.secs = R_.runUntil(() => (G.stats.meteors || 0) >= o.marks, 4); o.tower_dmg = R_.r(hp0 - tw.hp); o.hero_dmg = R_.r(h0 - G.hero.hp); G.sim(.2); o.marks_after = marks(); R_.freeHero(); R_.clear();
+      o.ok = o.marks === 2 && o.hit_before === 0 && o.tower_dmg === 55 && o.hero_dmg > 0 && o.marks_after === 0 && o.secs > 1.5 && o.secs < 2.8; return o; }""")
+    out['enrage'] = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(8, 8); const bs = R_.at('boss_fire', x, z, false); bs.abT.lavapool = bs.abT.meteor = 1e9; G.sim(.2); const o = { spd0: bs.spdK };
+      bs.hp = bs.max * .45; G.sim(.1); o.enraged = !!bs.enraged; o.spd1 = bs.spdK; o.timers = [R_.r(bs.abT.lavapool), R_.r(bs.abT.meteor)]; o.banner = document.getElementById('banner').textContent; o.ring = !!bs.m.enrRing; o.count = G.stats.enrages; G.sim(.5); o.count2 = G.stats.enrages; R_.clear();
+      o.ok = o.spd0 === 1 && o.enraged && Math.abs(o.spd1 - 1.25) < 1e-9 && o.timers.every(t => t <= 2.5) && o.banner.includes('분노') && o.ring && o.count === 1 && o.count2 === 1; return o; }""")
+    out['nan'] = pg.evaluate('()=>R_.nan()'); b.close()
+    out['ok'] = all(v.get('ok') for k, v in out.items() if isinstance(v, dict)) and out['nan'] == 0; return out
+
 # ---------------- 전체 웨이브 · 성능 · 화면 ----------------
 @test
 def full_waves(pw, url, errs):
     out = {}
-    for st in ['1-6', '2-4']:
+    for st in ['1-6', '2-4', '3-4']:
         b, pg = page(pw, url, errs, st)
         r = pg.evaluate(r"""()=>{ G.coreHp = G.coreMax = 1e6; G.gold = 2000; const used = []; for (const [type, i] of [['arrow', 4], ['cannon', 8], ['magic', 12], ['arrow', 16], ['cannon', 20]]) { const s = T_.grassNearRoute(i, 2, used); if (!s) continue; used.push(s.join(',')); G.build(s[0], s[1], type); }
           const o = { waves: [] }; for (const w of [3, 9, G.STAGE_CFG.waves]) { G.phase = 'build'; G.wave = w - 1; G.startWave(); const q = G.spawnQ.length; let t = 0, kinds = new Set();

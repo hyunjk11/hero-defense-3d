@@ -45,14 +45,17 @@ const ETYPES = {
               armor: .2, boss: true, ab: { root: { every: 9, first: 4, windup: 1.5, r: 9, n: 3, dur: 3 }, heal: { every: 12, windup: 1, r: 5, pct: .08 } }, desc: '거대한 고목의 군주. 9초마다 타워 3개를 뿌리로 묶고, 주변 몬스터를 치유합니다.' },
   boss_snow:   { n: '빙결의 군주', icon: '👑', model: 'sk_warrior', w: 'w_axe', sh: 'w_shield_large_a', prop: 'ice', tint: 0x8ac8ff, h: 5.4, hp: 3200, spd: 1.2, gold: 140, core: 10, dps: 170, walk: 'Walking_D_Skeletons', ws: .32, dig: '2H_Melee_Attack_Chop',
               boss: true, ab: { crack: { armor: .5, at: .2, after: .1, spd: 1.15, regen: 14 }, snowball: { every: 10, first: 4, windup: 1.2, range: 8, dur: 3.5, k: .5, nova: 3 }, chill: { r: 4.5, k: .75 } }, desc: '얼음 갑옷(피해 -50%, 깨지면 14초 뒤 재생)과 눈보라 일제 투척(타워 3개 빙결)을 씁니다.' },
+  boss_fire:   { n: '화염의 군주', icon: '👑', model: 'sk_warrior', w: 'w_axe', prop: 'ice', crystal: [0x3a2420, 0xff5a1a], tint: 0xff9a6a, eye: 0xffd040, h: 5.6, hp: 3400, spd: 1.2, gold: 160, core: 10, dps: 180, walk: 'Walking_D_Skeletons', ws: .32, dig: '2H_Melee_Attack_Chop',
+              armor: .2, boss: true, ab: { lavapool: { every: 11, first: 5, windup: 1.6, range: 11, n: 2, dur: 5, dps: 16 }, meteor: { every: 13, first: 8, windup: 1.8, fall: .5, range: 16, n: 3, r: 2.4, tower: 55, hero: 60 }, enrage: { at: .5, spd: 1.25, cd: .65, extra: 2 } },
+              desc: '용암 웅덩이(타워 2개를 5초간 마비 + 지속 피해)와 예고된 화염 운석 낙하를 씁니다. 체력 50% 아래에서 분노: 더 빠르고, 더 자주, 운석 +2.' },
 };
 // 3장 화산 · 4장 폐허 (다음 작업에서 챕터 추가 예정) — 기존 행동을 재사용한 변형
 const VARIANTS = {
-  ember_slime: ['slime', { n: '용암 슬라임', col: 0xff7a2a, ab: { split: { type: 'ember_s', n: 3 } }, desc: '죽으면 불씨 슬라임 3마리로 분열합니다.' }],
-  ember_s:     ['slime_s', { n: '불씨 슬라임', col: 0xffb84a }],
-  lavahound:   ['icewolf', { n: '용암 사냥개', fur: 0x5a2a20, eye: 0xff8a2a, desc: '3마리씩 무리 지어 달리는 불의 사냥개.' }],
-  magmagolem:  ['frostgolem', { n: '마그마 골렘', tint: 0xff9a6a, eye: 0xffd040, desc: '굳은 용암 껍질이 피해를 60% 막습니다. 깨지면 빨라집니다.' }],
-  firebomber:  ['bomber', { n: '화염 자폭병', tint: 0xffa070 }],
+  ember_slime: ['slime', { n: '용암 슬라임', icon: '🔥', col: 0xff7a2a, hp: 125, ab: { split: { type: 'ember_s', n: 3 } }, desc: '죽으면 불씨 슬라임 3마리로 분열합니다. 범위 공격(대포탑)이 효과적이에요.' }],
+  ember_s:     ['slime_s', { n: '불씨 슬라임', icon: '🔥', col: 0xffb84a, hp: 34 }],
+  lavahound:   ['icewolf', { n: '용암 사냥개', icon: '🐕', fur: 0x5a2a20, eye: 0xff8a2a, ringC: 0xff8a3a, hp: 75, spd: 4.5, desc: '3마리씩 무리 지어 달립니다. 동료 2마리 이상과 붙어 있으면 이동속도 +30%, 받는 피해 -20% (발밑 주황 고리). 무리를 갈라 놓으세요.' }],
+  magmagolem:  ['frostgolem', { n: '마그마 골렘', icon: '🌋', tint: 0xff9a6a, eye: 0xffd040, crystal: [0x3a2420, 0xff5a1a], shell: '용암 껍질', hp: 400, desc: '굳은 용암 껍질이 피해를 60% 막습니다. 체력의 30%만큼 맞으면 껍질이 깨져 방어력이 사라지는 대신 빨라집니다.' }],
+  firebomber:  ['bomber', { n: '화염 자폭병', icon: '🧨', tint: 0xffa070, eye: 0xff6a1a, desc: '불붙은 폭탄을 안고 근처 타워·바리케이드로 달려가 자폭합니다 (주변 지형도 무너뜨림). 멀리서 먼저 처치하세요.' }],
   wraith:      ['wisp', { n: '폐허의 망령', desc: '지상 몬스터를 따라다니며 어둠의 보호막을 씌웁니다.' }],
   gargoyle:    ['frostgolem', { n: '석상 가고일', prop: 'horns', tint: 0xb0aab8, eye: 0xc07aff, desc: '돌 껍질이 피해를 60% 막고, 깨지면 빨라집니다.' }],
   ruinroot:    ['treant', { n: '폐허 덩굴', tint: 0x8a9a7a, desc: '무너진 성벽을 휘감은 덩굴 거인. 타워를 뿌리로 묶습니다.' }],
@@ -65,11 +68,11 @@ for (const [k, [b, o]] of Object.entries(VARIANTS)) ETYPES[k] = { ...ETYPES[b], 
 const ROSTERS = {
   1: { n: '숲', ready: true, boss: 'boss_forest', pool: [['goblin', 3, 1], ['grunt', 1.2, 1], ['imp', .8, 1], ['wolf', 1.6, 2], ['digger', 1.2, 2], ['slime', 1.3, 3], ['mushroom', .9, 4], ['bat', .5, 5], ['treant', .6, 6], ['golem', .35, 9]] },
   2: { n: '설원', ready: true, boss: 'boss_snow', pool: [['icewolf', .45, 1], ['grunt', 1.2, 1], ['charger', 1.2, 2], ['yeti', .8, 3], ['shield', .9, 3], ['wisp', .7, 4], ['frostgolem', .7, 5], ['bat', .4, 6], ['bomber', .5, 8]] },
-  3: { n: '화산', ready: false, boss: 'boss', pool: [['firebomber', 1.4, 1], ['ember_slime', 1.3, 1], ['imp', 1, 1], ['lavahound', 1.2, 2], ['siege', .8, 3], ['magmagolem', .8, 4], ['bat', .5, 5]] },
+  3: { n: '화산', ready: true, boss: 'boss_fire', pool: [['ember_slime', 1.3, 1], ['imp', 1, 1], ['grunt', .8, 1], ['firebomber', 1.2, 2], ['lavahound', 1.2, 2], ['siege', .8, 3], ['magmagolem', .8, 4], ['bat', .5, 5]] },
   4: { n: '폐허', ready: false, boss: 'boss', pool: [['grunt', 1.2, 1], ['shield', 1, 1], ['gargoyle', .9, 2], ['wraith', .8, 3], ['ruinroot', .6, 4], ['siege', .7, 4], ['digger', .8, 5]] },
 };
 // 도전 모드: 웨이브가 오를수록 챕터 구성이 섞임 (ch, 시작 웨이브, 레벨 보정)
-const ENDLESS_MIX = [[1, 1, 0], [2, 6, -5]];
+const ENDLESS_MIX = [[1, 1, 0], [2, 6, -5], [3, 12, -10]]; // 화산은 12웨이브부터
 const rosterShare = n => Math.min(.55, .2 + .035 * n);
 const rosterTypes = ch => ROSTERS[ch] ? [...new Set(ROSTERS[ch].pool.map(p => p[0]).concat(ROSTERS[ch].boss))] : [];
 
