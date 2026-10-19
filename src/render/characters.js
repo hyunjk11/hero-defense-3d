@@ -27,9 +27,10 @@ function extraClips(list, M) {
   for (const [n, up, lo] of M.mix || []) { const u = by(up), l = by(lo); if (!u || !l) continue; const k = u.duration / l.duration, bone = t => t.name.split('.')[0];
     const tr = [...u.tracks.filter(t => !LEG_RE.test(bone(t))).map(t => t.clone()), ...l.tracks.filter(t => LEG_RE.test(bone(t))).map(t => { const c = t.clone(); c.times = c.times.map(x => x * k); return c; })];
     list.push(new THREE.AnimationClip(n, u.duration, tr)); }
-  if (M.calm) { const q = new THREE.Quaternion(), q0 = new THREE.Quaternion(), K = M.calm.k;
-    for (const c of list) { if (!M.calm.clips.includes(c.name)) continue; c.tracks = c.tracks.map(t => { const bn = t.name.split('.')[0]; if (!M.calm.bones.includes(bn) || !/quaternion$/.test(t.name)) return t;
-      const v = t.values.slice(); q0.fromArray(v, 0); for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).slerp(q0, K); q.toArray(v, i); } const nt = t.clone(); nt.values = v; return nt; }); } }
+  // calm: 지정 클립의 지정 뼈 회전을 기준 자세(ref 클립 첫 프레임, 없으면 자기 첫 프레임) 쪽으로 k만큼 당김
+  for (const C of M.calm || []) { const q = new THREE.Quaternion(), q0 = new THREE.Quaternion(), K = C.k, R = C.ref && by(C.ref);
+    for (const c of list) { if (!C.clips.includes(c.name)) continue; c.tracks = c.tracks.map(t => { const bn = t.name.split('.')[0]; if (!C.bones.includes(bn) || !/quaternion$/.test(t.name)) return t;
+      const rt = R && R.tracks.find(x => x.name === t.name), v = t.values.slice(); q0.fromArray(rt ? rt.values : v, 0); for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).slerp(q0, K); q.toArray(v, i); } const nt = t.clone(); nt.values = v; return nt; }); } }
 }
 // 바인드 포즈에서 오른손 근처(수평 0.35 이내) 정점 중 가장 높은 곳 = 지팡이 끝 수정 → 조금 아래를 발사 지점으로
 function staffTop(ch, hp) { let best = null; const v = new THREE.Vector3();
@@ -52,11 +53,13 @@ const MESHY = {
   // Meshy 메카닉 버들: 등의 로봇 팔이 팔 뼈에 스킨됨 (오른팔 = 드릴, 왼팔 = 집게 주먹). Drill = 펀치 콤보 구간(다단 히트), Hammer = 해머 스윙 구간(내려찍기)
   // (HammerSwing은 허리를 깊게 숙여 머리가 132°·키의 23%까지 떨어짐 → 1초마다 반복되면 '고개를 자꾸 숙이는' 어색한 모션이라 사용 안 함. 해머 = 양손 내지르기 구간)
   // calm: 기본 공격·피격 클립의 목/머리 회전을 첫 프레임 쪽으로 k만큼 당겨 끄덕임을 줄임
-  mechanic_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'FistPump', Melee_Show: 'Uppercut' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'DoublePunch', .2, 1.6]], hamHit: .45, arms: 1,
-    calm: { clips: ['Drill', 'Hammer', 'Hit', 'Uppercut', 'FistPump'], bones: ['neck', 'Head'], k: .6 } },
+  // 기본 Idle은 엉덩이가 94°씩 돌며 몸을 돌려 버림 → 제자리 자세가 안정된 IdleAlt 사용. 공격 클립은 몸통·목·머리를 IdleAlt 자세 쪽으로 당겨(팔=로봇 팔은 그대로) 허리 비틀기·고개 숙임 제거
+  mechanic_meshy: { alias: { Idle: 'IdleAlt', Running_A: 'Run', Death_A: 'Death', Cheer: 'FistPump', Melee_Show: 'Uppercut' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'DoublePunch', .2, 1.6]], hamHit: .45, arms: 1,
+    calm: [{ clips: ['Drill', 'Hammer', 'Uppercut'], bones: ['Hips', 'Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .7, ref: 'IdleAlt' }, { clips: ['Hit', 'FistPump'], bones: ['neck', 'Head'], k: .6 }],
+    aim: { IdleAlt: .47, Drill: .47, Hammer: .47, Uppercut: .47 } }, // 안정 자세가 옆으로 27° 서 있음 → 정면(목표)으로 보정
   // 변신 로봇 (버들 [Q] 변신 중 교체되는 모델). Run = Monster_Walk(느린 거구 걸음) → 빠르게 재생
   mech_robot_meshy: { alias: { Running_A: 'Run', Death_A: 'Hit', Cheer: 'FistPump' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'HammerSwing', .5, 1.75], ['Rocket', 'DoublePunch', .2, 1.7], ['StompS', 'Stomp', 0, 1.3]], hamHit: 1.0, arms: 1, runSpd: 2.4, h: 4.6,
-    calm: { clips: ['Drill', 'Hammer', 'Uppercut', 'Hit'], bones: ['neck', 'Head'], k: .5 } },
+    calm: [{ clips: ['Drill', 'Hammer', 'Uppercut', 'Hit'], bones: ['neck', 'Head'], k: .5 }] },
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
