@@ -15,6 +15,18 @@ hidden = lambda pg, id: J(pg, f"()=>document.getElementById('{id}').classList.co
 RAF = "()=>new Promise(r=>{ G.pauseRender=false; requestAnimationFrame(()=>requestAnimationFrame(()=>{ G.pauseRender=true; r(); })); })"
 def shot(pg, name):
     if SHOTS: pg.wait_for_timeout(700); J(pg, RAF); pg.screenshot(path=f'{OUT}/{name}.png', timeout=180000); J(pg, "()=>{ G.pauseRender=false }")
+def eshot(pg, sel, path):  # 요소 영역만 촬영 (영웅 선택 패널 잠김/해금 비교용)
+    if SHOTS: pg.wait_for_timeout(700); J(pg, RAF); pg.locator(sel).screenshot(path=path, timeout=180000); J(pg, "()=>{ G.pauseRender=false }")
+def compose(name, parts):  # [(경로, 제목)] → 가로로 이어 붙인 한 장
+    if not SHOTS: return
+    from PIL import Image, ImageDraw, ImageFont
+    ims = [Image.open(p).convert('RGB') for p, _ in parts]; H = max(i.height for i in ims) + 44; W = sum(i.width for i in ims) + 24 * (len(ims) + 1)
+    out = Image.new('RGB', (W, H + 12), (14, 11, 24)); d = ImageDraw.Draw(out)
+    try: f = ImageFont.truetype('/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc', 22)
+    except Exception: f = ImageFont.load_default()
+    x = 24
+    for im, (p, t) in zip(ims, parts): d.text((x, 8), t, font=f, fill=(255, 176, 212)); out.paste(im, (x, 44)); x += im.width + 24; os.remove(p)
+    out.save(f'{OUT}/{name}.png')
 db = lambda pg: J(pg, "()=>JSON.parse(localStorage.getItem('__mockdb')||'{}')")
 def boot(c, q='?seed=12345&flow=1'):
     pg = c.new_page(); pg.on('dialog', lambda d: d.accept()); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300])); pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200]))
@@ -35,6 +47,7 @@ with sync_playwright() as pw:
     pg.mouse.click(640, 400); pg.wait_for_timeout(300); pg.click('#lgGuest'); pg.wait_for_timeout(300); town(pg)
     ok('guest_rose_locked', J(pg, "()=>{const b=document.querySelector('.hcard[data-h=gunner]'); return !!b && b.classList.contains('locked') && b.innerText.includes('상점에서 구매')}"))
     ok('guest_no_admin', hidden(pg, 'twAdmin') and hidden(pg, 'twMailN'))
+    eshot(pg, '.twLeft', f'{OUT}/_sel_locked.png')
     pg.click('.hcard[data-h="gunner"]'); pg.wait_for_timeout(400)
     ok('locked_card_opens_shop', not hidden(pg, 'shopPanel') and J(pg, "()=>G.gear.Acc.load().hero") != 'gunner')
     ok('guest_buy_disabled', J(pg, "()=>document.getElementById('shopBuyBtn').disabled") and '로그인' in pg.inner_text('#shopBuyBtn'), pg.inner_text('#shopBuyBtn'))
@@ -88,7 +101,7 @@ with sync_playwright() as pw:
     pg.click('#mailClose'); J(pg, "()=>G.shop.openShop()"); pg.wait_for_timeout(500); ok('shop_shows_owned', '보유 중' in pg.inner_text('#shopBuyBtn')); J(pg, "()=>G.shop.closeShop(true)")
     pg.click('.hcard[data-h="gunner"]'); pg.wait_for_timeout(500)
     ok('rose_selectable', J(pg, "()=>G.gear.Acc.load().hero") == 'gunner' and '로즈' in pg.inner_text('.hcard.sel'))
-    shot(pg, 'rose_select')
+    eshot(pg, '.twLeft', f'{OUT}/_sel_unlocked.png'); compose('rose_select', [(f'{OUT}/_sel_locked.png', '구매 전 (잠김)'), (f'{OUT}/_sel_unlocked.png', '우편 수령 후 (해금 · 선택)')])
     # 새로고침(?stage&run) 출정: 서버 소유권 확인 후 로즈로 시작
     J(pg, "()=>G.stageSel.departStage('1-1')"); pg.wait_for_function("()=>window.G&&G.ready&&G.phase==='build'&&G.hero", timeout=180000)
     ok('stage_run_as_rose', J(pg, '()=>G.hero.cls') == 'gunner', J(pg, '()=>G.hero.cls'))
