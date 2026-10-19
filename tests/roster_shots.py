@@ -9,7 +9,7 @@ from regress import serve, ARGS, HELP, Q
 from roster import PRE
 from playwright.sync_api import sync_playwright
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'shots', 'monsters'); os.makedirs(OUT, exist_ok=True)
-HIDE = "()=>{ document.querySelectorAll('#note').forEach(e=>e.classList.add('hidden')); }"
+HIDE = "()=>{ document.querySelectorAll('#note').forEach(e=>e.classList.add('hidden')); document.getElementById('banner').classList.remove('show'); }"
 BATTLE = r"""([wave, extra])=>{ R_.freeHero(); G.coreHp = G.coreMax = 1e6; G.gold = 3000; const used = [];
   for (const [type, i] of [['arrow', 5], ['cannon', 9], ['magic', 13], ['arrow', 17]]) { const s = T_.grassNearRoute(i, 2, used); if (!s) continue; used.push(s.join(',')); G.build(s[0], s[1], type); }
   G.phase = 'build'; G.wave = wave - 1; G.startWave(); G.spawnQ.unshift(...extra); for (let k = 0; k < 26; k++) G.sim(1); for (const tw of G.towers) tw.cd = Math.max(tw.cd, 0); G.cam.r = 44; G.cam.phi = .86; return [...new Set(G.enemies.map(e => e.type))]; }"""
@@ -27,7 +27,7 @@ def endless_mix(pg): return pg.evaluate(BATTLE, [12, ['yeti', 'treant', 'wisp', 
 def ab_root(pg):
     r = pg.evaluate(r"""()=>{ const s = R_.grass(); const tw = R_.tower('arrow', s); const t2 = G.tileAt(s[0] + 1, s[1]).t === 0 ? R_.tower('magic', [s[0] + 1, s[1]]) : null; const [x, z] = R_.xz(tw, 1.6, 3.2); const t = R_.at('treant', x, z); t.hp = t.max = 1e9;
       R_.runUntil(() => tw.rootT > 0, 8); G.sim(.35); t.g.rotation.y = Math.atan2(-1.6, -3.2); return R_.xz(tw, .8, 1.6); }""")
-    close(pg, *r, r=12); return r
+    close(pg, *r, r=17, phi=.95); return r
 @shot
 def ab_heal(pg):
     r = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(9, 8); const m = R_.at('mushroom', x, z); const L = [R_.at('goblin', x + 1.6, z + .6), R_.at('grunt', x - 1.4, z + 1), R_.at('wolf', x + .4, z + 1.8)]; L.forEach(e => e.hp = e.max * .4); m.hp = m.max * .7;
@@ -40,7 +40,7 @@ def ab_split(pg):
 @shot
 def ab_pack(pg):
     r = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(9, 8); [0, 1, 2].forEach(i => { const w = R_.at('icewolf', x + i * 1.1, z + (i % 2) * .7, false); w.g.rotation.y = 1.4; }); const lone = R_.at('icewolf', x + 1, z + 4.5); lone.g.rotation.y = 1.4; G.sim(.5); return [x + 1, z + 1.6]; }""")
-    close(pg, *r, r=11); return r
+    close(pg, *r, r=16, phi=.9); return r
 @shot
 def ab_frost(pg):
     r = pg.evaluate(r"""()=>{ const s = R_.grass(); const tw = R_.tower('cannon', s); const tw2 = R_.tower('arrow', [s[0] + 2, s[1]]) ; const [x, z] = R_.xz(tw, 2.2, 2.6); const y = R_.at('yeti', x, z); y.hp = y.max = 1e9; y.abT.snowball = .3;
@@ -68,7 +68,7 @@ with sync_playwright() as pw:
     for n, f in SHOTS.items():
         if only and n not in only: continue
         pg = b.new_page(viewport={'width': 1440, 'height': 860}); pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
-        st = STAGE_OF[n]; pg.goto(url + Q + (f'&stage={st}' if st else '')); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate(HELP); pg.evaluate("()=>G.choose('warrior')"); pg.evaluate(PRE)
+        st = STAGE_OF[n]; pg.goto(url + Q + (f'&stage={st}' if st else '')); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate(HELP); pg.evaluate("()=>G.choose('warrior')"); pg.evaluate(PRE); pg.evaluate('()=>R_.freeHero()')
         r = f(pg)
         if n != 'popup': pg.evaluate(HIDE)
         pg.wait_for_timeout(900); pg.screenshot(path=os.path.join(OUT, n + '.png')); print(n, r, flush=True); pg.close()
