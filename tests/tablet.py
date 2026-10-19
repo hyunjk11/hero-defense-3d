@@ -94,6 +94,11 @@ with sync_playwright() as pw:
             if t == 'dis': pg.tap('#disGrid .itile[data-id="it5"]')
         sweep(pg, 'smith_' + t, ['#scr_town'], prep=prep)
     J(pg, "()=>G.gear.closeSmith(true)")
+    for t in ['arrow', 'magic']:  # 타워 연구소
+        def prep(t=t):
+            J(pg, "()=>{ G.gear.Acc.update(d=>{ d.research={arrow:{atk:4,rng:2,spd:3,start:0},cannon:{},magic:{atk:10,rng:5,spd:8,start:2}}; return d; }); G.openLab(); }"); pg.tap(f'#labTabs .ftab[data-t="{t}"]'); pg.wait_for_timeout(150)
+        sweep(pg, 'lab_' + t, ['#scr_town'], prep=prep)
+    J(pg, "()=>G.closeLab(true)")
     def chest():
         J(pg, "()=>{ const {E}=G.gear; let q=7; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; G.gear.reveal([{it:{...E.makeItem('weapon','mage',4,r),id:'cx'},src:'boss'},{it:{...E.makeItem('armor','mage',2,r),id:'cy'},src:'chest'}]); }"); pg.wait_for_timeout(2000)
     sweep(pg, 'chest', ['#chestOv'], prep=chest)
@@ -122,6 +127,11 @@ with sync_playwright() as pw:
         J(pg, "()=>G.setTool('move')"); pg.touchscreen.tap(x, y); pg.wait_for_timeout(300)
         RES['tap_select'] = not hidden(pg, 'tinfo'); print('tap_select', RES['tap_select'])
     sweep(pg, 'hud_tinfo', ['#hud'])
+    # 타워 성장: ★★★ 진화 팝업 (터치 선택)
+    J(pg, "()=>{ const t=G.towers[G.towers.length-1]; G.select(t); G.towerXp(t, 99999); }"); pg.wait_for_function("()=>!document.getElementById('branchPop').classList.contains('hidden')", timeout=20000)
+    sweep(pg, 'branch', ['#branchPop', '#hud'])
+    pg.tap('#branchPop .bpCard[data-k="multi"]'); pg.wait_for_timeout(300); RES['tap_branch'] = J(pg, "()=>G.towers[G.towers.length-1].branch") == 'multi'; print('tap_branch', RES['tap_branch'])
+    sweep(pg, 'hud_tinfo_star', ['#hud'])
     pg.tap('#sndBtn'); pg.wait_for_timeout(200); sweep(pg, 'hud_sound', ['#hud']); pg.tap('#sndBtn')
     J(pg, "()=>{ G.select(null); G.startWave(); }"); pg.wait_for_timeout(2500); sweep(pg, 'hud_wave', ['#hud', '#bossHud'])
     J(pg, "()=>{ G.manual=true; G.wave=9; G.spawnQ=[]; G.phase='build'; G.startWave(); G.spawnQ=[]; }")
