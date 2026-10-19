@@ -4,6 +4,7 @@ import { $ } from '../core/util.js';
 import { CLASSES } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
 import * as E from '../account/equip.js';
+import { closeLab } from './lab.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ICON = { archer: '🏹', mage: '🪄', warrior: '🗡️', armor: '🛡️', acc: '💍' };
@@ -27,7 +28,7 @@ export function bonusHtml(b) { const e = Object.entries(b); return e.length ? e.
 export function heroDots(s, h) { return E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === (s.eq[h] || {})[sl]); return `<i class="dot" style="background:${it ? GC(it.g) : '#3a3450'}" title="${E.SLOTS[sl]}"></i>`; }).join(''); }
 
 // ---------- 가방 ----------
-export function openInv() { ui.inv = true; $('invPanel').classList.remove('hidden'); Snd.play('ui'); closeSmith(true); renderInv(); }
+export function openInv() { closeLab(true); ui.inv = true; $('invPanel').classList.remove('hidden'); Snd.play('ui'); closeSmith(true); renderInv(); }
 export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; $('invPanel').classList.add('hidden'); hideTip(); }
 function renderInv() {
   if (!ui.inv) return; const s = S(), h = s.hero, eq = s.eq[h] || {};
@@ -53,7 +54,7 @@ function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------
 export const smithOpen = () => ui.smith;
-export function openSmith() { if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
+export function openSmith() { closeLab(true); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
 export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; $('smithPanel').classList.add('hidden'); hideTip(); }
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');
 function renderSmith() {

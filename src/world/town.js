@@ -225,6 +225,9 @@ function gate() {
 }
 // ---------- 호수광장 + 여신탑 ----------
 export const tower = new THREE.Group(); export let smith = null; export const SMITH = new THREE.Vector2(-9, -12);
+export let lab = null; export const LAB = new THREE.Vector2(-9.5, 16.5), labFx = { t: 0 };
+// 연구소 앞 접근 지점 (정문 앞, 마을 로컬)
+export const labFront = () => { const a = Math.atan2(-LAB.x, -LAB.y); return new THREE.Vector3(LAB.x + Math.sin(a) * 4.0, 0, LAB.y + Math.cos(a) * 4.0); }; // 타워 연구소 (마을 로컬)
 function lakePlaza() {
   const LX = LAKE.x, LZ = LAKE.y, wm = waterMat(LR);
   const lake = new THREE.Mesh(new THREE.CircleGeometry(LR, 64), wm); lake.rotation.x = -Math.PI / 2; lake.position.set(LX, .07, LZ); T.add(lake);
@@ -288,6 +291,55 @@ function lakePlaza() {
   for (let k = 0; k < 4; k++) { const a = k / 4 * 6.283 + .785 + .39, x = LX + Math.cos(a) * 8.3, z = LZ + Math.sin(a) * 8.3, bg = new THREE.Group(); bg.position.set(x, 0, z); bg.rotation.y = -a + Math.PI / 2; T.add(bg);
     mk(Box(1.8, .12, .5), toon(0xa87a4a), 0, .5, 0, bg, .015); mk(Box(1.8, .5, .1), toon(0xa87a4a), 0, .85, -.25, bg, .015); for (const s of [-1, 1]) mk(Box(.12, .5, .5), toon(0x3a3a44), s * .8, .25, 0, bg, .01); blockers.push([x, z, .7]); }
 }
+// ---------- 타워 연구소: 둥근 석조 탑 + 유리 돔 천문대 + 회전하는 혼천의 + 미니 타워 받침대 (난수 R() 미사용 → 기존 마을 배치 불변) ----------
+function laboratory() {
+  const g = new THREE.Group(); g.position.set(LAB.x, 0, LAB.y); g.rotation.y = Math.atan2(-LAB.x, -LAB.y); T.add(g); lab = g;
+  const st = toon(0xcfc8e0), st2 = toon(0x9a92b8), br = toon(0xd8a040, { emissive: 0x2a1804 }), wd = toon(0x6a4a2a), BL = 0x6ad8ff;
+  mk(Cyl(2.9, 3.1, .4, 16), toon(0x8f887a), 0, .2, 0, g, .03); mk(Cyl(2.5, 2.6, .25, 16), st2, 0, .52, 0, g, .02);
+  mk(Cyl(2.1, 2.3, 3.4, 16), st, 0, 2.3, 0, g, .04); // 몸통
+  for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283; mk(Box(.32, 3.4, .32), st2, Math.cos(a) * 2.18, 2.3, Math.sin(a) * 2.18, g, .015).rotation.y = -a; }
+  for (const y of [1.0, 3.95]) mk(new THREE.TorusGeometry(2.2, .09, 6, 32), br, 0, y, 0, g, .015).rotation.x = Math.PI / 2;
+  const winM = glow(BL, 1.6); for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283 + .52; const w = mk(Box(.5, .9, .12), winM, Math.cos(a) * 2.16, 2.6, Math.sin(a) * 2.16, g, 0); w.rotation.y = -a + Math.PI / 2; mk(Box(.62, .1, .2), br, Math.cos(a) * 2.2, 3.08, Math.sin(a) * 2.2, g, 0).rotation.y = -a + Math.PI / 2; }
+  mk(Cyl(2.45, 2.35, .35, 16), st2, 0, 4.2, 0, g, .03); // 처마
+  for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283; mk(Box(.36, .36, .36), st, Math.cos(a) * 2.3, 4.55, Math.sin(a) * 2.3, g, .015); }
+  // 유리 돔 + 내부 빛
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.75, 24, 12, 0, 6.283, 0, Math.PI / 2), new THREE.MeshToonMaterial({ color: 0x9ae8ff, emissive: 0x1a4a6a, transparent: true, opacity: .55, depthWrite: false })); dome.position.y = 4.4; g.add(dome);
+  for (let k = 0; k < 6; k++) { const rib = mk(new THREE.TorusGeometry(1.76, .05, 5, 20, Math.PI), br, 0, 4.4, 0, g, 0); rib.rotation.y = k / 6 * Math.PI; }
+  const core = mk(new THREE.IcosahedronGeometry(.42, 1), glow(BL, 3), 0, 5.2, 0, g, 0);
+  // 혼천의 (회전 고리 3개)
+  const arm = new THREE.Group(); arm.position.y = 7.1; g.add(arm); mk(Cyl(.07, .07, 1.2, 6), br, 0, 6.3, 0, g, .01);
+  const rings = [0xffd27a, BL, 0xc08aff].map((c, k) => { const r = mk(new THREE.TorusGeometry(.95 - k * .18, .05, 6, 40), glow(c, 1.8), 0, 0, 0, arm, .01); r.rotation.x = k * 1.05; return r; });
+  const orb = mk(new THREE.SphereGeometry(.26, 16, 12), glow(0xfff0b0, 2.6), 0, 0, 0, arm, 0);
+  // 정문 + 간판
+  mk(Box(1.3, 2.1, .3), wd, 0, 1.6, 2.15, g, .02); mk(new THREE.TorusGeometry(.65, .12, 6, 16, Math.PI), st2, 0, 2.65, 2.2, g, .015);
+  mk(new THREE.SphereGeometry(.08, 8, 6), br, .42, 1.6, 2.33, g, 0);
+  const tx = signTex('연구소', '#22305a'); const sg = new THREE.Mesh(Box(1.9, .66, .1), [br, br, br, br, new THREE.MeshToonMaterial({ map: tx }), new THREE.MeshToonMaterial({ map: tx })]); sg.position.set(0, 3.35, 2.32); sg.castShadow = true; g.add(sg);
+  // 미니 타워 받침대 3개 (화살·대포·마법), 앞마당에 반원 배치
+  const peds = [[-2.5, 2.8, 0x3a7aff], [2.5, 2.8, 0xff8a3a], [3.15, .2, 0xc07aff]].map(([x, z, c], k) => { const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
+    mk(Cyl(.42, .5, .7, 8), st2, 0, .35, 0, p, .02); mk(Cyl(.48, .48, .08, 8), br, 0, .72, 0, p, 0);
+    const mini = new THREE.Group(); mini.position.y = 1.15; p.add(mini);
+    if (k === 0) { mk(Cyl(.16, .22, .55, 8), st, 0, 0, 0, mini, .012); mk(new THREE.ConeGeometry(.3, .35, 8), toon(c), 0, .45, 0, mini, .012); }
+    else if (k === 1) { mk(Cyl(.26, .3, .3, 10), st2, 0, -.1, 0, mini, .012); const b = mk(Cyl(.07, .1, .45, 8), toon(0x30333e), 0, .1, .15, mini, .012); b.rotation.x = 1.2; }
+    else { mk(Cyl(.12, .2, .45, 6), toon(0x6a4aa8), 0, -.05, 0, mini, .012); const cr = mk(new THREE.OctahedronGeometry(.17), glow(c, 2.4), 0, .35, 0, mini, 0); cr.scale.y = 1.5; }
+    const beam = new THREE.Mesh(Cyl(.32, .42, 1.1, 12, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .25, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); beam.position.y = 1.25; p.add(beam);
+    const wp = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), g.rotation.y); blockers.push([LAB.x + wp.x, LAB.y + wp.z, .65]);
+    return { mini, beam, k }; });
+  // 연금술 플라스크 굴뚝 + 떠다니는 책·수정
+  mk(Cyl(.22, .26, 1.4, 8), st2, -1.3, 5.0, -1.1, g, .02); const fl = mk(new THREE.SphereGeometry(.38, 12, 10), glow(0x7aff9a, 1.4), -1.3, 6.0, -1.1, g, .015);
+  const books = [0xd04a5a, 0x4a7ad0, 0x5ab85a, 0xe0b040].map((c, k) => { const b = mk(Box(.42, .1, .3), toon(c), 0, 0, 0, g, .012); b.userData.k = k; return b; });
+  const N = 70, PP = points(N, true, .18), pa = PP.geometry.attributes.position.array, ca = PP.geometry.attributes.color.array, pA = PP.geometry.attributes.aA.array;
+  for (let i = 0; i < N; i++) { col.set([BL, 0x7aff9a, 0xffd27a, 0xc08aff][i % 4]); ca.set([col.r, col.g, col.b], i * 3); }
+  const gl = new THREE.PointLight(BL, 10, 12); gl.position.set(0, 5.2, 0); g.add(gl);
+  const _w = new THREE.Vector3();
+  anims.push((t, dt) => { const boost = labFx.t > 0 ? (labFx.t -= dt, 1 + labFx.t * 4) : 1; arm.scale.setScalar(1 + (boost - 1) * .15); rings.forEach((r, k) => { r.rotation.y += dt * (.8 + k * .5) * boost; r.rotation.z += dt * (k % 2 ? -.6 : .4); }); orb.scale.setScalar(1 + Math.sin(t * 4) * .1); arm.rotation.y = t * .3;
+    core.rotation.y = t; core.rotation.x = t * .6; core.position.y = 5.2 + Math.sin(t * 1.7) * .15; gl.intensity = (9 + Math.sin(t * 3) * 2.5) * boost; winM.emissiveIntensity = 1.4 + Math.sin(t * 2.3) * .4;
+    peds.forEach(p => { p.mini.rotation.y = t * .9 + p.k; p.mini.position.y = 1.15 + Math.sin(t * 2 + p.k * 2) * .08; p.beam.material.opacity = .18 + Math.sin(t * 3 + p.k) * .08; });
+    fl.scale.setScalar(1 + Math.sin(t * 5) * .06);
+    books.forEach(b => { const k = b.userData.k, a = t * .6 + k * 1.571; b.position.set(Math.cos(a) * 3.0, 3.1 + Math.sin(t * 1.5 + k) * .35, Math.sin(a) * 3.0); b.rotation.set(Math.sin(t + k) * .3, -a, Math.cos(t * 1.3 + k) * .2); });
+    for (let i = 0; i < N; i++) { const q = (t * .18 + i / N) % 1, a = i * 2.39996 + t * .5, r = 1.2 + (i % 5) * .35; pa[i * 3] = LAB.x + Math.cos(a) * r * (1 - q * .4); pa[i * 3 + 1] = .8 + q * 8; pa[i * 3 + 2] = LAB.y + Math.sin(a) * r * (1 - q * .4); pA[i] = Math.sin(q * Math.PI); }
+    PP.geometry.attributes.position.needsUpdate = true; PP.geometry.attributes.aA.needsUpdate = true; });
+  blockers.push([LAB.x, LAB.y, 3.2]); labels.push({ obj: g, y: 8.6, html: '🔬 타워 연구소<small>타워 영구 연구</small>', cls: 'lab' });
+}
 // ---------- 하늘 생물·꽃잎·반딧불 ----------
 function ambient() {
   const N = 110, F = points(N, true, .16), fa = F.geometry.attributes.position.array, fA = F.geometry.attributes.aA.array, fc = F.geometry.attributes.color.array, fp = [];
@@ -329,7 +381,7 @@ export function buildTown(parent) {
   const H = [[4.5, 13, 0xffe4d0, 0x4a7ad0, 0xc05a3a], [-19, 3, 0xe8f0ff, 0xd07a3a, 0x3a7a5a], [12.5, 14.5, 0xfff0c0, 0xb04a8a, 0x4a6ab0], [16, -17, 0xe0f0d8, 0x4a4ab0, 0xb07a3a], [-4, 19, 0xffd8d8, 0xc0603a, 0x5a8a3a], [-17, 14, 0xf0e8d8, 0x7a4ab0, 0xc05a5a], [6, -21, 0xf8f0e0, 0x2a8a9a, 0xc06a3a]];
   H.forEach(([x, z, wall, roof, sh], k) => house({ x, z, w: RR(3.4, 4.2), d: RR(3, 3.6), h: RR(2.6, 3.2), wall, roof, shutter: sh, rot: RR(-.25, .25), chimney: k % 2 === 0 }));
   windmill(-21, -13);
-  lakePlaza();
+  lakePlaza(); laboratory();
   for (const [x, z] of [[-3.2, -8], [3.2, -8], [-5.6, 4.4], [5.6, 4.4], [8.2, -1.6], [8.2, 3.6], [-8.6, -2.2], [-2.4, 9]]) lamp(x, z);
   bunting([-3.2, -8], [3.2, -8]); bunting([-5.6, 4.4], [-8.6, -2.2]); bunting([5.6, 4.4], [8.2, 3.6], 4.1);
   for (const [x, z, c] of [[-4.6, -4.6, 0xd04a5a], [4.6, -4.6, 0x4a6ad0]]) banner(x, z, c, 4.4);

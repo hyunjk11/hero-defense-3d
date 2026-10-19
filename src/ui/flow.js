@@ -20,6 +20,9 @@ import { smith, SMITH } from '../world/town.js';
 import { initStageSel, openStageSel, closeStageSel, stageOpen } from './stagesel.js';
 import * as ST from '../data/stages.js';
 import { STAGE } from '../core/grid.js';
+import { initLab, openLab, closeLab, labOpen, renderLab } from './lab.js';
+import { lab, LAB, labFront } from '../world/town.js';
+let labNear = false;
 
 const TOWN_Z = -150, TOWN = new THREE.Vector3(0, 0, TOWN_Z), esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const SCREENS = ['intro', 'login', 'menu', 'town'];
@@ -94,12 +97,13 @@ function routeToTower() { const V = (x, z) => new THREE.Vector3(x, 0, z), p = th
   q.push(V(LAKE.x - 2.45, 0 + LAKE.y)); th.goal = q.shift(); th.goals = q; }
 // ---------- 여신의 축복 (여신탑 영구 강화 창) ----------
 let blessOpen = false, blessNear = false;
-function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeSmith(true); closeInv(); closeStageSel(true); $('twBless').classList.remove('hidden'); refreshTown(); }
+function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeSmith(true); closeInv(); closeStageSel(true); closeLab(true); $('twBless').classList.remove('hidden'); refreshTown(); }
 function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); }
 G.openBlessing = openBless; G.closeBlessing = closeBless;
 G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
 G.townGoal = (x, z) => { if (th) th.goal = new THREE.Vector3(x, 0, z); };
+G.townLab = () => { const f = labFront(); return [LAB.x, LAB.y, f.x, f.z]; }; G.closeLab = closeLab;
 G.townTower = () => [LAKE.x, LAKE.y]; G.townSmith = () => [SMITH.x, SMITH.y];
 G.stageSel = { openStageSel, departStage, ST };
 G.gear = { E, Acc, P, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal };
@@ -107,12 +111,14 @@ function spawnTownHero() {
   const s = Acc.load(); if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(s.hero); th.cls = s.hero; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null;
 }
 export function enterTown() {
-  hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; closeSmith(true); closeInv(); closeStageSel(true);
+  hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);
   cam.target.set(0, 1, TOWN_Z - 2); cam.r = 34; cam.phi = .78; cam.theta = 0; G.nightTarget = 0; refreshTown();
   const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'clear' ? `스테이지 ${r.stage} 클리어! <span class="popStars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</span>` : r.reason === 'retreat' ? '무사히 귀환했습니다' : r.stage ? `스테이지 ${r.stage} 실패 · 코어가 파괴되었습니다` : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${(r.loot || []).length ? `<br>획득 장비 <b>${r.loot.length}</b>개 <small>(🎒 가방 확인)</small>` : ''}`); if ((r.loot || []).length) setTimeout(() => reveal(r.loot, show2), 600); else show2(); }
 }
 function popup(html) { const p = $('townPop'); p.innerHTML = html + '<br><button id="popOk">확인</button>'; p.classList.remove('hidden'); $('popOk').onclick = () => { Snd.play('ui'); p.classList.add('hidden'); }; }
+function doOpenLab() { closeBless(); closeSmith(true); closeInv(); closeStageSel(true); openLab(); }
 function refreshTown() {
+  renderLab();
   if (G.screen !== 'town') return; const s = Acc.load(), A = Acc.A, cls = s.hero, L = s.heroLv[cls];
   $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP);
   $('twBonus').innerHTML = `<div class="lbl">${heroN(cls)} 장비 보너스</div>` + bonusHtml(E.bonus(s, cls)); $('twBest').textContent = s.bestWave; $('twRuns').textContent = s.stats.runs; $('twKills').textContent = s.stats.kills;
@@ -129,7 +135,7 @@ function refreshTown() {
 }
 export function depart() {
   if (departing || G.phase !== 'town') return; departing = true; const s = Acc.load(); Snd.play('meteorCast', { force: true }); Snd.play('confirm');
-  $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeSmith(true); closeInv(); closeStageSel(true); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
+  $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
     const bt = Object.entries(G.equip).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · '); if (bt) setTimeout(() => banner(`⚔ 장비 보너스: ${bt}`, '#ffe08a', 3200), 900); }, 650);
 }
 const sumKills = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + b, 0);
@@ -155,18 +161,20 @@ function bindUI() {
   for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; Snd.apply(); Snd.save(); });
   $('mnNickSave').onclick = async () => { Snd.play('ui'); await Acc.saveNick($('mnNick').value); refreshMenu(); };
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
-  $('twGo').onclick = () => { closeBless(); closeSmith(true); closeInv(); openStageSel(); };
-  initStageSel({ challenge: () => depart(), start: id => departStage(id) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeSmith(true); closeInv(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
+  $('twGo').onclick = () => { closeBless(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); };
+  initStageSel({ challenge: () => depart(), start: id => departStage(id) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!confirm('지금까지의 보상을 가지고 마을로 귀환할까요?')) return; onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
   addEventListener('keydown', e => { if (G.screen === 'town') tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);
   renderer.domElement.addEventListener('pointerdown', e => { if (G.screen !== 'town' || e.button !== 0 || !th) return; const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), rc = new THREE.Raycaster(); rc.setFromCamera(m, camera);
-    if (revealing()) return; const smithHit = smith && rc.intersectObject(smith, true).length > 0; if (smithHit) { th.goals = null; th.goal = new THREE.Vector3(SMITH.x + .6 * 3.4, 0, SMITH.y + .8 * 3.4); if (Math.hypot(th.g.position.x - SMITH.x, th.g.position.z - SMITH.y) < 4.1) openSmith(); return; }
+    if (revealing()) return; if (lab && rc.intersectObject(lab, true).length > 0) { th.goals = null; th.goal = labFront(); if (Math.hypot(th.g.position.x - LAB.x, th.g.position.z - LAB.y) < 4.6) doOpenLab(); return; }
+    const smithHit = smith && rc.intersectObject(smith, true).length > 0; if (smithHit) { th.goals = null; th.goal = new THREE.Vector3(SMITH.x + .6 * 3.4, 0, SMITH.y + .8 * 3.4); if (Math.hypot(th.g.position.x - SMITH.x, th.g.position.z - SMITH.y) < 4.1) openSmith(); return; }
     const towerHit = rc.intersectObject(tower, true).length > 0; // 여신탑 클릭 → 섬으로 걸어가서 축복 창
     const p = new THREE.Vector3(); if (!rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return; p.sub(TOWN).setY(0);
     if (towerHit || Math.hypot(p.x - LAKE.x, p.z - LAKE.y) < LR + .3) { routeToTower(); if (Math.hypot(th.g.position.x - LAKE.x, th.g.position.z - LAKE.y) < 3.4) openBless(); }
     else { th.goal = p; th.goals = null; } });
-  $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeStageSel(true); openInv(); };
+  $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeStageSel(true); closeLab(true); openInv(); };
+  initLab({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   addEventListener('keydown', e => { if (e.key === 'Escape' && blessOpen) closeBless(); });
 }
@@ -193,6 +201,7 @@ export function updFlow(dt) {
   const dl = Math.hypot(p.x - LAKE.x, p.z - LAKE.y); // 여신탑 접근 → 여신의 축복 창
   if (dl < 3.4 && !blessNear) { blessNear = true; openBless(); } else if (dl > 4.4 && blessNear) { blessNear = false; closeBless(); }
   const ds = Math.hypot(p.x - SMITH.x, p.z - SMITH.y); if (ds < 4.0 && !smithNear) { smithNear = true; closeStageSel(true); openSmith(); } else if (ds > 4.8 && smithNear) { smithNear = false; closeSmith(); }
-  const nearPortal = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) < 2.2; $('twHint').classList.toggle('go', nearPortal); if (nearPortal && !portalNear && !departing) { portalNear = true; closeBless(); closeSmith(true); closeInv(); openStageSel(); } else if (!nearPortal && portalNear && Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) > 3.2) { portalNear = false; closeStageSel(); }
+  const dlab = Math.hypot(p.x - LAB.x, p.z - LAB.y); if (dlab < 4.6 && !labNear) { labNear = true; doOpenLab(); } else if (dlab > 5.4 && labNear) { labNear = false; closeLab(); }
+  const nearPortal = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) < 2.2; $('twHint').classList.toggle('go', nearPortal); if (nearPortal && !portalNear && !departing) { portalNear = true; closeBless(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); } else if (!nearPortal && portalNear && Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) > 3.2) { portalNear = false; closeStageSel(); }
 }
 export { show as showScreen };
