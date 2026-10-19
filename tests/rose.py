@@ -18,6 +18,7 @@ PACK = """([n, d]) => { const h=G.hero.g.position, a0=G.hero.face; for (let i=0;
   const x=h.x+Math.sin(a)*r, z=h.z+Math.cos(a)*r; e.g.position.set(x,0,z); e.tile=G.toTileXZ?G.toTileXZ(x,z):e.tile; e.state='walk'; e.spawnT=0; e.next=null; } return G.enemies.length; }"""
 AIM = "()=>{ const L=G.enemies.filter(e=>!e.dead); if(!L.length) return null; let x=0,z=0; for(const e of L){x+=e.g.position.x;z+=e.g.position.z;} x/=L.length; z/=L.length; G.mouseGround.set(x,0,z); const h=G.hero.g.position; G.hero.face=Math.atan2(x-h.x,z-h.z); return [x,z]; }"
 HP = "()=>G.enemies.reduce((a,e)=>a+(e.dead?e.max:e.max-e.hp),0)"
+HPB = "()=>window.__bp.reduce((a,e)=>a+(e.dead?e.max:e.max-Math.max(0,e.hp)),0)"  # 탄막 직전 살아 있던 적 기준 (죽은 적이 G.enemies에서 빠져도 합계가 줄지 않게)
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     c = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); c.add_init_script(MOCK); pg = c.new_page()
@@ -53,9 +54,9 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.hero.lsk='rosebarrage'; G.hero.lcd=0; G.legendN={}; G.sim(.2); }"); pg.wait_for_timeout(100); J(pg, "()=>G.sim(.2)")
     ok('legbtn_shown', not hidden(pg, 'legBtn') and '장미 탄막' in pg.inner_text('#legBtn'))
     if J(pg, "()=>G.enemies.filter(e=>!e.dead).length") < 5: J(pg, PACK, [9, 5])
-    pg.mouse.move(5, 5); J(pg, AIM); h2 = J(pg, HP); pg.keyboard.press('e'); J(pg, "()=>G.sim(.05)")
+    pg.mouse.move(5, 5); J(pg, AIM); J(pg, "()=>{ window.__bp=G.enemies.filter(e=>!e.dead) }"); h2 = J(pg, HPB); pg.keyboard.press('e'); J(pg, "()=>G.sim(.05)")
     ok('barrage_cast', J(pg, "()=>G.legendN['rosebarrage']") == 1 and J(pg, "()=>G.hero.lcd") > 1)
-    J(pg, "()=>G.sim(.4)"); shot(pg, 'rose_barrage'); J(pg, "()=>G.sim(2.5)"); ok('barrage_damage', J(pg, HP) > h2)
+    J(pg, "()=>G.sim(.4)"); shot(pg, 'rose_barrage'); J(pg, "()=>G.sim(2.5)"); ok('barrage_damage', J(pg, HPB) > h2, (h2, J(pg, HPB)))
     J(pg, "()=>{ G.hero.lcd=0; G.sim(.2) }"); pg.tap('#legBtn'); J(pg, "()=>G.sim(.05)"); ok('barrage_touch', J(pg, "()=>G.legendN['rosebarrage']") == 2)
     J(pg, "()=>G.sim(4)"); ok('fx_cleanup', J(pg, "()=>G.lfx.length") == 0, J(pg, "()=>G.lfx.length"))
     ok('no_nan', J(pg, "()=>Number.isFinite(G.hero.g.position.x) && G.enemies.every(e=>Number.isFinite(e.hp))"))
