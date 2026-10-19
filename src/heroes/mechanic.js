@@ -7,7 +7,7 @@ import { inGrid, isBlock, T, toTile } from '../core/grid.js';
 import { G, later } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
-import { makeHeroModel, play } from '../render/characters.js';
+import { gearAct, makeHeroModel, play } from '../render/characters.js';
 import { hurt as hurt0 } from '../monsters/enemy.js';
 import { groundY } from '../monsters/ai.js';
 import { tileAt } from '../world/terrain.js';
@@ -67,10 +67,10 @@ export function mechSwing(t, moving, proc) {
     else { play(h.ch, 'Hammer', { once: true, force: true, speed: spd }); later(1.0 / spd, () => robotSlam(proc)); }
     return; }
   const k = M.n++ & 1;
-  if (k === 0) { if (!moving) play(h.ch, 'Drill', { once: true, force: true, speed: spd }); h.atkT = Math.min(.9, 1 / stat.rate()); G.mechN.drill++; drillSpin(true);
+  if (k === 0) { if (!moving) play(h.ch, 'Drill', { once: true, force: true, speed: spd }); else gearAct(h.ch, 'drill', spd); /* 달리며 공격: 몸은 달리기, 로봇 팔만 공격 */ h.atkT = Math.min(.9, 1 / stat.rate()); G.mechN.drill++; drillSpin(true);
     Snd.whoosh(h.g.position, .5, 900, 2600, .25);
     for (let i = 0; i < 3; i++) later((.5 + i * .17) / spd, () => { if (hero.dead > 0 || M.rT > 0) return; drillHit(.42); if (i === 0 && proc) proc(t); if (i === 2) drillSpin(false); }); }
-  else { if (!moving) play(h.ch, 'Hammer', { once: true, force: true, speed: spd }); h.atkT = Math.min(.9, 1 / stat.rate()); G.mechN.hammer++;
+  else { if (!moving) play(h.ch, 'Hammer', { once: true, force: true, speed: spd }); else gearAct(h.ch, 'hammer', spd); h.atkT = Math.min(.9, 1 / stat.rate()); G.mechN.hammer++;
     Snd.whoosh(h.g.position, .35, 300, 1200, .4); later((h.ch.hamHit || 1) / spd, () => { if (hero.dead > 0 || M.rT > 0) return; hammerHit(t); if (proc) proc(t); }); }
 }
 function drillHit(mul) { const from = tipPos('drill'), dmg = stat.dmg() * mul; let n = 0;

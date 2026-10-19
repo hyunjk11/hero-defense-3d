@@ -8,7 +8,7 @@ import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'mechanic_meshy', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
 async function loadAssets() {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); let n = 0;
   await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
@@ -23,6 +23,9 @@ function lockRoot(clips) { for (const c of clips) for (const t of c.tracks) { if
 const LEG_RE = /^(Hips|.*(UpLeg|Leg|Foot|Toe).*)$/;
 function extraClips(list, M) {
   const by = n => list.find(x => x.name === n);
+  // yaw: 몸 전체가 옆으로 서 있는 클립 → Hips 회전 키 전체에 Y축 회전(도)을 미리 곱해 정면으로 (루트를 돌리는 방식이 아니라 데이터 보정)
+  for (const [n, deg] of Object.entries(M.yaw || {})) { const c = by(n); if (!c) continue; const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), deg * Math.PI / 180), q = new THREE.Quaternion();
+    for (const t of c.tracks) if (t.name === 'Hips.quaternion') { const v = t.values; for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).premultiply(qy); q.toArray(v, i); } } }
   for (const [n, src, a, b] of M.sub || []) { const c = by(src); if (c) list.push(THREE.AnimationUtils.subclip(c, n, Math.round(a * 30), Math.round(b * 30), 30)); }
   for (const [n, up, lo] of M.mix || []) { const u = by(up), l = by(lo); if (!u || !l) continue; const k = u.duration / l.duration, bone = t => t.name.split('.')[0];
     const tr = [...u.tracks.filter(t => !LEG_RE.test(bone(t))).map(t => t.clone()), ...l.tracks.filter(t => LEG_RE.test(bone(t))).map(t => { const c = t.clone(); c.times = c.times.map(x => x * k); return c; })];
@@ -50,13 +53,10 @@ const MESHY = {
     aim: { Shoot: -2.15, ShootQuick: -1.7, ShootCharged: -1.75 } }, // 사격 클립은 몸이 옆으로 서서 활이 왼쪽(+X)을 겨눔 → 활 방향이 정면(목표)이 되게 모델 회전
   // Meshy 총사 로즈: 쌍권총(왼손·오른손 뼈에 스킨). ShootLoop = Shoot 1.1–2.7초(뽑기 동작 제외) 반복, ShootCharged = 회전 사격(스킬), Flourish = 총 돌리기(선택 화면·승리)
   gunner_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'Flourish', Melee_Show: 'Flourish' }, sub: [['ShootLoop', 'Shoot', 1.1, 2.7]], mix: [['ShootStand', 'ShootWalk', 'Idle']], aim: { ShootStand: .38, ShootWalk: .58 } }, // 두 총의 평균 조준 방향이 정면(목표)이 되게 모델 회전
-  // Meshy 메카닉 버들: 등의 로봇 팔이 팔 뼈에 스킨됨 (오른팔 = 드릴, 왼팔 = 집게 주먹). Drill = 펀치 콤보 구간(다단 히트), Hammer = 해머 스윙 구간(내려찍기)
-  // (HammerSwing은 허리를 깊게 숙여 머리가 132°·키의 23%까지 떨어짐 → 1초마다 반복되면 '고개를 자꾸 숙이는' 어색한 모션이라 사용 안 함. 해머 = 양손 내지르기 구간)
-  // calm: 기본 공격·피격 클립의 목/머리 회전을 첫 프레임 쪽으로 k만큼 당겨 끄덕임을 줄임
-  // 기본 Idle은 엉덩이가 94°씩 돌며 몸을 돌려 버림 → 제자리 자세가 안정된 IdleAlt 사용. 공격 클립은 몸통·목·머리를 IdleAlt 자세 쪽으로 당겨(팔=로봇 팔은 그대로) 허리 비틀기·고개 숙임 제거
-  mechanic_meshy: { alias: { Idle: 'IdleAlt', Running_A: 'Run', Death_A: 'Death', Cheer: 'FistPump', Melee_Show: 'Uppercut' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'DoublePunch', .2, 1.6]], hamHit: .45, arms: 1,
-    calm: [{ clips: ['Drill', 'Hammer', 'Uppercut'], bones: ['Hips', 'Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .7, ref: 'IdleAlt' }, { clips: ['Hit', 'FistPump'], bones: ['neck', 'Head'], k: .6 }],
-    aim: { IdleAlt: .47, Drill: .47, Hammer: .47, Uppercut: .47 } }, // 안정 자세가 옆으로 27° 서 있음 → 정면(목표)으로 보정
+  // Meshy 메카닉 버들 (몸만 리깅 · 등의 로봇 팔/백팩은 별도 강체 모델 budeul_gear → Spine02 뼈에 고정, 팔은 어깨 관절에서 절차적으로 회전 = 스킨 변형·늘어남 없음)
+  // 몸 클립은 위치 트랙(Hips 제외)·스케일 트랙을 모델 파일에서 제거함. Drill/Hammer = 몸이 로봇 팔을 지휘하는 짧은 동작 구간
+  budeul_meshy: { alias: { Idle: 'IdleAlt', Running_A: 'Run', Death_A: 'Death', Cheer: 'FistPump', Melee_Show: 'CheerUp' }, yaw: { IdleAlt: 25, Hit: 59, Combat: 52, Idle5: 52 }, sub: [['Drill', 'DoublePunch', .75, 2.15], ['Hammer', 'FistPump', .05, 1.25]], hamHit: .46, gear: 1, // 해머 = 주먹 들어 올렸다 내려치기(0.4초 정점 → 0.5초 내림)와 로봇 주먹 내려찍기 동기
+    calm: [{ clips: ['Drill', 'Hammer', 'FistPump', 'CheerUp', 'Uppercut'], bones: ['Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .65, ref: 'IdleAlt' }, { clips: ['Hit', 'Run'], bones: ['Spine01', 'Spine02', 'neck', 'Head'], k: .45, ref: 'IdleAlt' }] }, // 허리 굽힘·고개 끄덕임 완화(가슴 변형도 줄어듦)
   // 변신 로봇 (버들 [Q] 변신 중 교체되는 모델). Run = Monster_Walk(느린 거구 걸음) → 빠르게 재생
   mech_robot_meshy: { alias: { Running_A: 'Run', Death_A: 'Hit', Cheer: 'FistPump' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'HammerSwing', .5, 1.75], ['Rocket', 'DoublePunch', .2, 1.7], ['StompS', 'Stomp', 0, 1.3]], hamHit: 1.0, arms: 1, runSpd: 2.4, h: 4.6,
     calm: [{ clips: ['Drill', 'Hammer', 'Uppercut', 'Hit'], bones: ['neck', 'Head'], k: .5 }] },
@@ -77,9 +77,9 @@ function attach(ch, key, bone) {
 }
 function play(ch, name, o = {}) {
   const a = ch.acts && ch.acts[name]; if (!a) return null; const { fade = .18, once = false, speed = 1, force = false } = o;
-  if (ch.cur === a) { if (force) { a.reset(); a.timeScale = speed; a.play(); } else a.timeScale = speed; return a; }
+  if (ch.cur === a) { if (force) { a.reset(); a.timeScale = speed; a.play(); if (ch.gear) gearOn(ch, name, a, speed); } else a.timeScale = speed; return a; }
   a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once; a.timeScale = speed; a.setEffectiveWeight(1); a.fadeIn(fade).play();
-  if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; if (ch.aim) ch.yawT = ch.aim[a.getClip().name] || 0; return a;
+  if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; if (ch.aim) ch.yawT = ch.aim[a.getClip().name] || 0; if (ch.gear) gearOn(ch, name, a, speed); return a;
 }
 function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
 const heroClips = () => (GL.warrior || GL.warrior_meshy).animations, skClips = () => GL.sk_minion.animations;
@@ -91,6 +91,7 @@ function makeHeroModel(cls, key0) {
     if (key === 'mage_meshy') { const hand = ch.root.getObjectByName('RightHand'); if (hand) { const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
       tip.position.copy(hand.worldToLocal(staffTop(ch, hp))); hand.add(tip); ch.tip = tip; } } // 지팡이 수정 위치
     else if (key === 'gunner_meshy') gunMuzzles(ch);
+    else if (M.gear) mechGear(ch, M);
     else if (M.arms) mechArms(ch, M);
     else if (key === 'archer_meshy') { const hand = ch.root.getObjectByName('LeftHand'); if (hand) { const tip = new THREE.Object3D(); tip.position.copy(hand.worldToLocal(bowGrip(ch, hand.getWorldPosition(new THREE.Vector3())))); hand.add(tip); ch.tip = tip; } } } // 활 손잡이(왼손에 스킨된 활) = 화살 발사 지점
   if (key0) return ch; // 변신 로봇: 링/색은 본체 것을 사용
@@ -113,6 +114,56 @@ function mechArms(ch, M) {
       const c1 = new THREE.Mesh(new THREE.ConeGeometry(.26, .75, 10, 3, true).translate(0, -.32, 0), mat), c2 = new THREE.Mesh(new THREE.ConeGeometry(.34, .5, 7, 1, true).translate(0, -.5, 0), mat.clone()); c2.material.color.setHex(0xfff0a0); c2.material.opacity = .4;
       g.add(c1, c2); g.visible = false; ch.drillFx = { g, c1, c2 }; } }
 }
+// ---- 버들 로봇 팔 (강체): budeul_gear = Pack / ArmR(드릴, 버들의 오른쪽) / ArmL(집게 주먹). 팔 노드 원점 = 어깨 관절, extras.tip = 팔 끝
+// 몸에 스킨하지 않고 Spine02 뼈에 통째로 붙임(크기 고정) → 몸이 움직여도 늘어나거나 찌그러지지 않음. 팔은 어깨에서 회전만 함(절차적 동작)
+// 모델 정면(+Z, 초록 패널)을 등 바깥으로: z 축 반전(= Y 180° 회전 + 좌우 반전) → 드릴은 그대로 버들의 오른쪽(-X)
+export const GEAR = { s: .9, off: [0, -.3, -.59], rest: 1.05, splay: .3 }; // off = Spine02 기준(게임 단위): 팩 윗면이 머리카락 아래(1.92), 안쪽 면이 등 뒤(-0.15)
+const GEAR_ACT = { Drill: 'drill', Hammer: 'hammer', Uppercut: 'up', FistPump: 'cheer', CheerUp: 'cheer', Hit: 'hit', Death: 'death' };
+function mechGear(ch, M) {
+  ch.hamHit = M.hamHit || 1; ch.runSpd = 0; ch.tips = {}; const src = GL.budeul_gear && GL.budeul_gear.scene; if (!src) return;
+  const S = GEAR.s, g = new THREE.Group(), body = new THREE.Group(); body.scale.set(S, S, -S); g.add(body); const arms = {};
+  for (const n of ['Pack', 'ArmR', 'ArmL']) { const node = src.getObjectByName(n); if (!node) continue; const c = node.clone(true); body.add(c);
+    c.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.e = o.material.emissive.clone(); ch.mats.push(o.material); o.castShadow = true; o.frustumCulled = false; } });
+    if (n !== 'Pack') { c.rotation.order = 'XYZ'; arms[n] = c; const tip = new THREE.Object3D(); tip.position.fromArray(node.userData.tip || [0, -1, 0]); c.add(tip); ch.tips[n === 'ArmR' ? 'drill' : 'fist'] = tip; } }
+  attachProp(ch, 'Spine02', g, GEAR.off); ch.root.updateMatrixWorld(true);
+  g.traverse(o => { if (o.isMesh && !o.userData.ol) addOutline(o, .032 / o.getWorldScale(wsV).x); });
+  // 드릴 잔상: 드릴 끝에서 팔 쪽으로 원뿔 2겹 (축 = 팔 아래쪽 정점 중심 → 끝)
+  const R = arms.ArmR; if (R) { const tip = ch.tips.drill, mesh = R.children.find(o => o.isMesh) || R, P = mesh.geometry && mesh.geometry.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3(); let n = 0;
+    if (P) for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i); if (v.y < tip.position.y + .42) { c.add(v); n++; } }
+    const ax = n ? tip.position.clone().sub(c.divideScalar(n)).normalize() : new THREE.Vector3(0, -1, 0), fx = new THREE.Group(); fx.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ax); fx.scale.setScalar(.75 / S); tip.add(fx);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x9aff6a, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, wireframe: true });
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(.26, .75, 10, 3, true).translate(0, -.32, 0), mat), c2 = new THREE.Mesh(new THREE.ConeGeometry(.34, .5, 7, 1, true).translate(0, -.5, 0), mat.clone()); c2.material.color.setHex(0xfff0a0); c2.material.opacity = .4;
+    fx.add(c1, c2); fx.visible = false; ch.drillFx = { g: fx, c1, c2 }; }
+  ch.gear = { g, arms, act: null, clock: 0 }; ch.gearOn = (name, a, spd = 1) => gearOn(ch, name, a, spd); const up = ch.mixer.update.bind(ch.mixer); ch.mixer.update = dt => { const r = up(dt); gearUpd(ch, dt); return r; };
+  gearUpd(ch, 0);
+}
+// 공격/동작 시작: 몸 클립과 같은 시간축(클립 시간) 사용. 움직이며 공격(몸 클립 없음)은 gearAct로 자체 시계
+function gearOn(ch, name, a, spd) { const k = GEAR_ACT[a.getClip().name] || GEAR_ACT[name]; if (k) ch.gear.act = { k, a, t: 0, spd }; else if (ch.gear.act && ch.gear.act.k === 'death') ch.gear.act = null; }
+function gearAct(ch, k, spd = 1) { if (ch.gear) ch.gear.act = { k, a: null, t: 0, spd }; }
+const sm = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x), lerp = (a, b, k) => a + (b - a) * k;
+// 시간 t(클립 초)의 팔 자세: x = 앞뒤 회전(+ = 앞으로 들어 올림), z = 바깥 벌림, push = 어깨에서 앞으로 내지르기(게임 단위)
+function gearPose(k, t) {
+  const r = GEAR.rest, R = { x: r, z: GEAR.splay, push: 0 }, L = { x: r, z: GEAR.splay, push: 0 };
+  if (k === 'drill') { const up = sm(t / .38) * (1 - sm((t - 1.0) / .4)); R.x = lerp(r, 1.72, up); R.z = lerp(GEAR.splay, -.12, up); L.x = lerp(r, .5, up);
+    if (t > .42 && t < 1.0) { const j = ((t - .42) / .17) % 1; R.push = .16 * Math.sin(j * Math.PI); R.x += .05 * Math.sin(j * Math.PI * 2); } }
+  else if (k === 'hammer') { const raise = sm(t / .33), slam = sm((t - .33) / .13), back = sm((t - .8) / .4); L.x = lerp(lerp(r, 2.8, raise), 1.42, slam); L.x = lerp(L.x, r, back); L.z = lerp(GEAR.splay, -.08, raise * (1 - back)); R.x = lerp(r, .6, raise * (1 - back)); if (t > .4 && t < .8) L.push = .16 * Math.min(1, (t - .4) / .06) * (1 - (t - .4) / .4); }
+  else if (k === 'up') { const d = sm(t / .25), u = sm((t - .25) / .2), b = sm((t - .7) / .3); L.x = lerp(lerp(r, .55, d), 2.55, u); L.x = lerp(L.x, r, b); L.z = lerp(GEAR.splay, -.1, u * (1 - b)); R.x = lerp(r, 1.05, u * (1 - b)); }
+  else if (k === 'cheer') { const u = sm(t / .3) * (1 - sm((t - 1.1) / .35)), w = .18 * Math.sin(t * 9) * u; R.x = L.x = lerp(r, 2.45, u); R.x += w; L.x -= w; R.z = L.z = lerp(GEAR.splay, .32, u); }
+  else if (k === 'hit') { const j = Math.sin(Math.min(1, t / .45) * Math.PI); R.x = L.x = r - .32 * j; R.z = L.z = GEAR.splay + .14 * j; }
+  else if (k === 'death') { const d = sm(t / .8); R.x = L.x = lerp(r, .18, d); R.z = L.z = lerp(GEAR.splay, .45, d); }
+  return { R, L }; }
+const ACT_LEN = { drill: 1.45, hammer: 1.2, up: 1.05, cheer: 1.5, hit: .5, death: 1e9 };
+function gearUpd(ch, dt) {
+  const G0 = ch.gear; G0.clock += dt; let act = G0.act; if (act) { act.t = act.a && act.a === ch.cur && act.a.isRunning() ? act.a.time : act.t + dt * act.spd; /* 몸 클립이 끝났거나(LoopOnce) 다른 클립이면 자체 시계 */ if (act.t > ACT_LEN[act.k]) act = G0.act = null; }
+  const P = gearPose(act ? act.k : 'rest', act ? act.t : 0), cn = ch.cur ? ch.cur.getClip().name : '', mv = cn === 'Run' ? 1 : cn === 'Walk' ? .5 : 0, c = G0.clock;
+  // 대기 = 숨쉬듯 흔들림, 걷기·달리기 = 팔을 번갈아 앞뒤로 (몸 동작과 같은 주기)
+  const ph = ch.cur && mv ? ch.cur.time / ch.cur.getClip().duration * Math.PI * 2 : 0, sw = .035 * Math.sin(c * 2.1);
+  for (const [n, side, p] of [['ArmR', -1, P.R], ['ArmL', 1, P.L]]) { const a = G0.arms[n]; if (!a) continue;
+    a.rotation.x = p.x + sw + (act ? 0 : mv * .2 * Math.sin(ph + (side > 0 ? Math.PI : 0)));
+    a.rotation.z = side * (p.z + (act ? 0 : .02 * Math.sin(c * 1.7 + side))); a.rotation.y = 0;
+    const b = a.userData.p0 || (a.userData.p0 = a.position.clone()); a.position.set(b.x, b.y, b.z - p.push / GEAR.s); } /* 몸체 공간이 z 반전 → 앞(+Z 월드) = -z */
+}
+export { gearAct };
 // 총구: 각 손 뼈 로컬 (0, 26, -3) (뼈 월드 스케일 0.01, 총열 = 로컬 +Y) + 총구 섬광(가산 별 모양, 평소엔 숨김)
 let flashTex = null;
 function starTex() { if (flashTex) return flashTex; const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'), c = 64;
