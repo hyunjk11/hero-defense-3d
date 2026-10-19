@@ -64,9 +64,14 @@ with sync_playwright() as pw:
         if pg.evaluate("()=>G.phase==='build'"): break
     pp = pg.evaluate("()=>__pp"); ok('branches_in_combat', pp['frozen'] > 0 and pp['multi'] >= 2 and pp['pierceMax'] >= 1, pp)
     if SHOTS:
-        pg.evaluate("()=>{ G.select(null); G.wave = 6; G.startWave(); G.sim(6); const t = G.towers[0]; G.cam.target.set(t.m.g.position.x + 2, 0, t.m.g.position.z); G.cam.r = 26; G.cam.phi = .95; G.sim(.1); }"); pg.wait_for_timeout(600)
+        # 낮(건설 단계)에 별 1/2/3 타워가 함께 보이도록: 분기 없는 ★1·★★ 타워 2개 추가
+        pg.evaluate("""()=>{ G.select(null); const used = G.towers.map(t=>t.c+','+t.r), t0 = G.towers[0]; let best = null, bd = 1e9;
+          for (let r = 0; r < G.GH; r++) for (let c = 0; c < G.GW; c++) { if (used.includes(c+','+r) || G.buildReason(c, r, 'magic')) continue; const d = Math.hypot(c - t0.c, r - t0.r); if (d > 1.5 && d < bd) { bd = d; best = [c, r]; } }
+          if (best) G.build(best[0], best[1], 'magic'); used.push(best+''); let b2 = null; bd = 1e9; for (let r = 0; r < G.GH; r++) for (let c = 0; c < G.GW; c++) { if (used.includes(c+','+r) || G.buildReason(c, r, 'cannon')) continue; const d = Math.hypot(c - t0.c, r - t0.r); if (d > 1.5 && d < bd) { bd = d; b2 = [c, r]; } }
+          if (b2) { G.build(b2[0], b2[1], 'cannon'); const t = G.towers[G.towers.length-1]; G.upgradeTower(t); G.towerXp(t, 900); }
+          G.sim(1.5); const xs = [t0, ...G.towers.slice(-2)].map(t=>t.m.g.position); const cx = xs.reduce((a,p)=>a+p.x,0)/xs.length, cz = xs.reduce((a,p)=>a+p.z,0)/xs.length;
+          G.cam.target.set(cx, 1.5, cz); G.cam.r = 19; G.cam.phi = .92; G.cam.theta = .35; document.getElementById('note').classList.add('hidden'); document.getElementById('banner').classList.remove('show'); G.sim(.2); }"""); pg.wait_for_timeout(800)
         pg.screenshot(path=f'{OUT}/stars_ingame.png')
-        pg.evaluate("()=>{ for (let i=0;i<80 && G.phase!=='build';i++) G.sim(1); }")
     # 판매: 환급은 투자 골드 기준(별·분기 무관) → 별 올린 타워를 사고팔아도 골드가 늘지 않음
     pg.evaluate("()=>{ G.coreHp = 999; for (const t of G.towers) { t.hp = t.max; } }")
     r = pg.evaluate("""()=>{ const t = G.towers[0], g0 = G.gold, inv = t.invest; G.select(t); G.sellTower(t); return [G.gold - g0, Math.floor(inv * .7)]; }""")
@@ -88,7 +93,7 @@ with sync_playwright() as pw:
     pg.evaluate("()=>{ localStorage.setItem('hd3d_save', JSON.stringify({ souls: 5000, mat: { steel: 200, crystal: 40 }, stats: { runs: 2 } })); }")
     pg.mouse.click(700, 400); pg.wait_for_timeout(300); pg.click('#lgGuest'); pg.wait_for_timeout(300); pg.click('#mnCont'); pg.wait_for_function("()=>G.screen==='town'", timeout=30000); pg.wait_for_timeout(1000)
     if SHOTS:
-        pg.evaluate("()=>{ const [x,z,fx,fz]=G.townLab(); G.townTeleport(fx+6, fz+1); window.__k=setInterval(()=>{G.cam.target.set(x+1,3.2,-150+z); G.cam.r=22; G.cam.phi=1.02; G.cam.theta=-.55;},16); }"); pg.wait_for_timeout(1500)
+        pg.evaluate("()=>{ const [x,z,fx,fz]=G.townLab(); G.townTeleport(fx+2.5, fz+.5); window.__k=setInterval(()=>{G.cam.target.set(x+.5,3.4,-150+z+.5); G.cam.r=21; G.cam.phi=1.08; G.cam.theta=.3;},16); }"); pg.wait_for_timeout(1500)
         pg.screenshot(path=f'{OUT}/lab_building.png'); pg.evaluate("()=>clearInterval(window.__k)")
     pg.evaluate("()=>{ const [x,z,fx,fz]=G.townLab(); G.townTeleport(fx+3, fz+2); G.townGoal(fx, fz); }")
     pg.wait_for_function("()=>!document.getElementById('labPanel').classList.contains('hidden')", timeout=15000); ok('walk_opens_lab', True)

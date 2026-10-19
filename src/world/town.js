@@ -225,9 +225,9 @@ function gate() {
 }
 // ---------- 호수광장 + 여신탑 ----------
 export const tower = new THREE.Group(); export let smith = null; export const SMITH = new THREE.Vector2(-9, -12);
-export let lab = null; export const LAB = new THREE.Vector2(-9.5, 16.5), labFx = { t: 0 };
+export let lab = null; export const LAB = new THREE.Vector2(-9.5, 16.5), LAB_ROT = .45, labFx = { t: 0 }; // 정문이 남남동(기본 카메라 쪽)을 향함
 // 연구소 앞 접근 지점 (정문 앞, 마을 로컬)
-export const labFront = () => { const a = Math.atan2(-LAB.x, -LAB.y); return new THREE.Vector3(LAB.x + Math.sin(a) * 4.0, 0, LAB.y + Math.cos(a) * 4.0); }; // 타워 연구소 (마을 로컬)
+export const labFront = () => { const a = LAB_ROT; return new THREE.Vector3(LAB.x + Math.sin(a) * 4.0, 0, LAB.y + Math.cos(a) * 4.0); }; // 타워 연구소 (마을 로컬)
 function lakePlaza() {
   const LX = LAKE.x, LZ = LAKE.y, wm = waterMat(LR);
   const lake = new THREE.Mesh(new THREE.CircleGeometry(LR, 64), wm); lake.rotation.x = -Math.PI / 2; lake.position.set(LX, .07, LZ); T.add(lake);
@@ -293,7 +293,7 @@ function lakePlaza() {
 }
 // ---------- 타워 연구소: 둥근 석조 탑 + 유리 돔 천문대 + 회전하는 혼천의 + 미니 타워 받침대 (난수 R() 미사용 → 기존 마을 배치 불변) ----------
 function laboratory() {
-  const g = new THREE.Group(); g.position.set(LAB.x, 0, LAB.y); g.rotation.y = Math.atan2(-LAB.x, -LAB.y); T.add(g); lab = g;
+  const g = new THREE.Group(); g.position.set(LAB.x, 0, LAB.y); g.rotation.y = LAB_ROT; T.add(g); lab = g;
   const st = toon(0xcfc8e0), st2 = toon(0x9a92b8), br = toon(0xd8a040, { emissive: 0x2a1804 }), wd = toon(0x6a4a2a), BL = 0x6ad8ff;
   mk(Cyl(2.9, 3.1, .4, 16), toon(0x8f887a), 0, .2, 0, g, .03); mk(Cyl(2.5, 2.6, .25, 16), st2, 0, .52, 0, g, .02);
   mk(Cyl(2.1, 2.3, 3.4, 16), st, 0, 2.3, 0, g, .04); // 몸통
