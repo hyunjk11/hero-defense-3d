@@ -49,11 +49,11 @@ const bedrock = new THREE.Group(); scene.add(bedrock);
 function initTerrainColors() {
   for (let c = 0; c < GW; c++) for (let r = 0; r < GH; r++) {
     const t = tileAt(c, r), i = c * GH + r;
-    dirtIM.setColorAt(i, SNOW ? tmpC.setHSL(.58, .3, .5 + t.s * .06) : tmpC.setHSL(.065, .55, .26 + t.s * .05));
-    capIM.setColorAt(i, SNOW ? tmpC.setHSL(.58, .35, .86 + t.s * .06) : tmpC.setHSL(.22 + t.s2 * .04, .58, .38 + t.s * .05));
-    for (let k = 0; k < 2; k++) leafIM.setColorAt(i * 2 + k, SNOW ? (k ? tmpC.setHSL(.58, .2, .93) : tmpC.setHSL(.42, .35, .32 + t.s2 * .05)) : tmpC.setHSL(.27 + t.s * .07 + k * .02, .6, .4 + k * .07 + t.s2 * .05));
+    dirtIM.setColorAt(i, SNOW ? tmpC.setHSL(.6, .22, .4 + t.s * .06) : tmpC.setHSL(.065, .55, .26 + t.s * .05));
+    capIM.setColorAt(i, SNOW ? tmpC.setHSL(.58, .3, .78 + t.s * .05) : tmpC.setHSL(.22 + t.s2 * .04, .58, .38 + t.s * .05));
+    for (let k = 0; k < 2; k++) leafIM.setColorAt(i * 2 + k, SNOW ? (k ? tmpC.setHSL(.58, .22, .8) : tmpC.setHSL(.42, .38, .27 + t.s2 * .05)) : tmpC.setHSL(.27 + t.s * .07 + k * .02, .6, .4 + k * .07 + t.s2 * .05));
     for (let k = 0; k < 2; k++) rockIM.setColorAt(i * 2 + k, tmpC.setHSL(.6 + t.s * .05, .08 + t.s2 * .06, .55 + k * .08 + t.s * .06));
-    for (let k = 0; k < 3; k++) tuftIM.setColorAt(i * 3 + k, SNOW ? tmpC.setHSL(.55, .3, .85) : tmpC.setHSL(.26 + t.s * .06, .6, .38 + k * .05));
+    for (let k = 0; k < 3; k++) tuftIM.setColorAt(i * 3 + k, SNOW ? tmpC.setHSL(.57, .3, .72) : tmpC.setHSL(.26 + t.s * .06, .6, .38 + k * .05));
     for (let k = 0; k < 2; k++) flowerIM.setColorAt(i * 2 + k, tmpC.set([0xff8ac0, 0xffe05a, 0xffffff, 0xa0c8ff][Math.floor(t.s3 * 4 + k * 1.7) % 4]));
     if (t.t === T.BEDROCK) makeBedrock(t);
   }
@@ -69,10 +69,10 @@ function refreshTile(t) {
   const i = t.c * GH + t.r, x = tileX(t.c), z = tileZ(t.r);
   const jx = t.shk > 0 ? rnd(-.09, .09) : 0, jz = t.shk > 0 ? rnd(-.09, .09) : 0, low = t.t === T.CARVED;
   setI(groundIM, i, x, low ? -.88 : -.4, z, 1);
-  if (low) groundIM.setColorAt(i, SNOW ? tmpC.setHSL(.54, .6, .72 + t.s * .05) : tmpC.setHSL(.09, .55, .56 + t.s * .05)); // 설원: 얼음 길
+  if (low) groundIM.setColorAt(i, SNOW ? tmpC.setHSL(.54, .62, .5 + t.s * .05) : tmpC.setHSL(.09, .55, .56 + t.s * .05)); // 설원: 얼음 길
   else if (t.t === T.SPAWN) groundIM.setColorAt(i, tmpC.set(0x5a4a7a));
   else if (t.t === T.CORE) groundIM.setColorAt(i, tmpC.set(0xc8c0d8));
-  else groundIM.setColorAt(i, SNOW ? tmpC.setHSL(.6, .25, .84 + t.ck + t.s2 * .04) : tmpC.setHSL(.25 + t.s * .04, .55, .44 + t.ck + t.s2 * .04));
+  else groundIM.setColorAt(i, SNOW ? tmpC.setHSL(.6, .24, .62 + t.ck * 2 + t.s2 * .04) : tmpC.setHSL(.25 + t.s * .04, .55, .44 + t.ck + t.s2 * .04));
   groundIM.instanceColor.needsUpdate = true;
   [dirtIM, capIM, trunkIM].forEach(m => hideI(m, i)); for (let k = 0; k < 2; k++) { hideI(leafIM, i * 2 + k); hideI(rockIM, i * 2 + k); hideI(flowerIM, i * 2 + k); }
   for (let k = 0; k < 3; k++) { hideI(tuftIM, i * 3 + k); hideI(pebbleIM, i * 3 + k); }
@@ -92,14 +92,14 @@ function refreshAll() { for (let c = 0; c < GW; c++) for (let r = 0; r < GH; r++
 
 // 주변 장식
 (function deco() {
-  const R = mulberry32(99), base = new THREE.Mesh(new THREE.CircleGeometry(260, 48), toon(SNOW ? 0xdfe8f4 : 0x5aa84a)); base.rotation.x = -Math.PI / 2; base.position.y = -.81; base.receiveShadow = true; scene.add(base);
+  const R = mulberry32(99), base = new THREE.Mesh(new THREE.CircleGeometry(260, 48), toon(SNOW ? 0xa9b8cc : 0x5aa84a)); base.rotation.x = -Math.PI / 2; base.position.y = -.81; base.receiveShadow = true; scene.add(base);
   const rim = new THREE.Mesh(new RoundedBoxGeometry(GW * S + 1.2, 1.6, GH * S + 1.2, 2, .4), toon(0x7a5a3a)); rim.position.y = -1.6; rim.receiveShadow = true; scene.add(rim);
   const n = 140, tr = IM(new THREE.CylinderGeometry(.22, .32, 1.6, 7), toon(0x7a4a2a), n, .04), lf = IM(new THREE.IcosahedronGeometry(1, 2), toon(0xffffff), n * 2, .045);
   for (let i = 0; i < n; i++) {
     let x, z; do { x = (R() - .5) * 130; z = (R() - .5) * 100; } while ((Math.abs(x) < GW + 3 && Math.abs(z) < GH + 3) || (Math.abs(x) < 16 && z > 14 && z < 40));
     const s = .9 + R() * .9; setI(tr, i, x, -.8 + .8 * s, z, s);
     setI(lf, i * 2, x, -.8 + 2.2 * s, z, 1.5 * s, 1.3 * s, 1.5 * s, R() * 6); setI(lf, i * 2 + 1, x + .2, -.8 + 3.4 * s, z, s, .9 * s, s, R() * 6);
-    if (SNOW) { R(); R(); R(); R(); lf.setColorAt(i * 2, tmpC.setHSL(.45, .3, .3 + (i % 5) * .02)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.58, .25, .92)); } else { lf.setColorAt(i * 2, tmpC.setHSL(.25 + R() * .1, .55, .38 + R() * .1)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.27 + R() * .1, .55, .45 + R() * .1)); }
+    if (SNOW) { R(); R(); R(); R(); lf.setColorAt(i * 2, tmpC.setHSL(.45, .3, .3 + (i % 5) * .02)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.58, .22, .8)); } else { lf.setColorAt(i * 2, tmpC.setHSL(.25 + R() * .1, .55, .38 + R() * .1)); lf.setColorAt(i * 2 + 1, tmpC.setHSL(.27 + R() * .1, .55, .45 + R() * .1)); }
   }
   lf.instanceColor.needsUpdate = true;
   for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .3, m = mk(new THREE.ConeGeometry(18 + R() * 10, 22 + R() * 14, 7), toon(new THREE.Color().setHSL(.58, .25, .55 + R() * .1)), Math.cos(a) * 140, 8, Math.sin(a) * 110, scene, 0); m.castShadow = false; }

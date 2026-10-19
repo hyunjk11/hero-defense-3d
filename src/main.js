@@ -17,7 +17,7 @@ import { CLASSES } from './data/heroes.js';
 import { ETYPES } from './data/monsters.js';
 import { TOWERS } from './data/towers.js';
 import { G } from './core/state.js';
-import { renderer, DAY, NIGHT, bloom, cam, composer, hemi, moon, scene, skyU, sun, updateCam } from './render/scene.js';
+import { renderer, DAY, NIGHT, LIGHT, bloom, cam, composer, hemi, moon, scene, skyU, sun, updateCam } from './render/scene.js';
 import { P, PB, emit, stars, updCoins, updDebris, updFx, updParticles } from './render/vfx.js';
 import { BARS, updBars } from './render/hpbars.js';
 import { GL, loadAssets, makeEnemyModel, play } from './render/characters.js';
@@ -52,7 +52,7 @@ G.heroShotMode = () => { G.heroShot = true; $('select').classList.add('hidden');
 function updLighting(dt) {
   G.night += (G.nightTarget - G.night) * Math.min(1, dt * 1.5); const n = G.night;
   skyU.top.value.copy(DAY.top).lerp(NIGHT.top, n); skyU.bot.value.copy(DAY.bot).lerp(NIGHT.bot, n); scene.fog.color.copy(DAY.fog).lerp(NIGHT.fog, n);
-  sun.intensity = 2.6 * (1 - n) + .25; moon.intensity = 1.4 * n; hemi.intensity = 1.35 - .75 * n; stars.material.opacity = n;
+  sun.intensity = (2.6 * (1 - n) + .25) * LIGHT.sun; moon.intensity = 1.4 * n; hemi.intensity = (1.35 - .75 * n) * LIGHT.hemi; stars.material.opacity = n;
   sun.color.setHSL(.1, .6 - n * .3, .88 - n * .2); bloom.strength = .32 + n * .22; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
 }
 let lastT = performance.now(), hudT = 0;

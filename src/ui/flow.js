@@ -34,6 +34,8 @@ let town = null, th = null, tKeys = {}, labels = [], portalPos = null, departing
 function show(id) { for (const s of SCREENS) $('scr_' + s).classList.toggle('hidden', s !== id); G.screen = id; G.screenMusic = id === 'intro' ? 'wave' : 'build'; }
 function hideAll() { for (const s of SCREENS) $('scr_' + s).classList.add('hidden'); G.screen = null; G.screenMusic = null; }
 const heroN = c => heroLabel(c);
+// 출정 시 장비 보너스 배너: 큰 값 3개만 + '외 N개' (전부 나열하면 화면 밖으로 넘쳤음)
+export function equipLine(eq) { const e = Object.entries(eq || {}).sort((a, b) => b[1] - a[1]); if (!e.length) return ''; return '⚔ 장비 · ' + e.slice(0, 3).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · ') + (e.length > 3 ? ` 외 ${e.length - 3}개` : ''); }
 
 // ---------- 스테이지 ----------
 function departStage(id) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
@@ -45,7 +47,7 @@ function startStageRun2(logged) {
   const s = Acc.load(); if (!logged) Acc.autoLogin().catch(() => {}); showSelect(); $('select').classList.add('hidden'); hideAll(); s.hero = Sh.usableHero(s.hero); // 잠긴 유료 영웅이면 기본 영웅
   G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.stage = STAGE; G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden');
   const C = ST.CHAPTERS.find(c => c.id === STAGE.ch); setTimeout(() => banner(`${STAGE.id} ${STAGE.n} · 웨이브 ${STAGE.waves} · ${C.propN}`, C.color, 3200), 500);
-  const bt = Object.entries(G.equip).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · '); if (bt) setTimeout(() => banner(`⚔ 장비 보너스: ${bt}`, '#ffe08a', 3000), 3900);
+  const bt = equipLine(G.equip); if (bt) setTimeout(() => banner(bt, '#ffe08a', 2200), 3900);
 }
 G.onStageClear = () => {
   if (G.runSaved) return; G.runSaved = true; G.phase = 'over'; const wave = G.wave, kills = sumKills(), stars = ST.starsFor(G.coreHp, G.coreMax); let got = 0, loot = [], info = null, best = false;
@@ -144,7 +146,7 @@ function refreshTown() {
 export function depart() {
   if (departing || G.phase !== 'town') return; departing = true; const s = Acc.load(); s.hero = Sh.usableHero(s.hero); Snd.play('meteorCast', { force: true }); Snd.play('confirm');
   $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
-    const bt = Object.entries(G.equip).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · '); if (bt) setTimeout(() => banner(`⚔ 장비 보너스: ${bt}`, '#ffe08a', 3200), 900); }, 650);
+    const bt = equipLine(G.equip); if (bt) setTimeout(() => banner(bt, '#ffe08a', 2200), 900); }, 650);
 }
 const sumKills = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + b, 0);
 // 판 종료(패배/귀환) → 보상 저장 후 마을로
