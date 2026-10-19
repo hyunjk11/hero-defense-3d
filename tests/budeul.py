@@ -94,15 +94,16 @@ with sync_playwright() as pw:
       for(const need2 of [1,0]){ let best=null, bd=1e9; for(let c=1;c<G.GW-1;c++) for(let r=1;r<G.GH-1;r++){ const d=Math.hypot(c-G.CORE[0],r-G.CORE[1]); if(d<6||d>=bd||!ok(c,r)||(need2&&!ok(c,r+3))) continue; bd=d; best=[c,r]; }
         if(best){ const [x,z]=G.tileXZ(best[0],best[1]); G.hero.g.position.set(x,0,z); G.hero.path=[]; G.hero.face=0; G.hero.g.rotation.y=0; return [...best, need2]; } } return null; }""")
     print('spot', spot)
+    J(pg, "()=>G.sim(.6)"); i0 = frame(pg, 'budeul_ingame', 8, .35)  # 적 없이 서 있는 모습 (깨끗한 스크린샷)
     J(pg, "()=>{ G.manual=true; G.legendSeed(7); G.legendN={}; G.legendDmg=0; G.hero.C={...G.hero.C, armor:1}; }")
     J(pg, PACK, [8, 2.2]); J(pg, FACE); J(pg, SNAP); h0 = J(pg, HPB); n0 = J(pg, "()=>({...G.mechN})")
-    J(pg, "()=>G.sim(.35)"); a1 = frame(pg, 'budeul_attack', 11, .5)
+    J(pg, "()=>G.sim(.35)"); a1 = frame(pg, 'budeul_attack', 9, .5)
     for _ in range(8): J(pg, "()=>G.sim(.25)")
     n1 = J(pg, "()=>G.mechN")
     ok('drill_and_hammer', n1['drill'] > n0['drill'] and n1['hammer'] > n0['hammer'] and n1['drillHits'] >= 3, n1)
     ok('attacks_damage', J(pg, HPB) > h0, (h0, J(pg, HPB)))
     ok('hammer_knockback', n1['knock'] > n0['knock'])
-    i0 = frame(pg, 'budeul_ingame', 13, .35); ok('not_black_ingame', i0 > 25 and a1 > 25, (i0, a1))
+    i1 = frame(pg, None, 13, .35); ok('not_black_ingame', i0 > 25 and a1 > 25 and i1 > 25, (i0, a1, i1))
     for _ in range(60):
         if J(pg, "()=>G.legendN['overdrill']||0"): break
         J(pg, "()=>G.sim(.25)")
