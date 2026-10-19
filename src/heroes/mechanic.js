@@ -39,7 +39,7 @@ const fwd = () => new THREE.Vector3(Math.sin(hero.face), 0, Math.cos(hero.face))
 function cone(range, dot, ox, oz) { const f = fwd(), x0 = ox ?? hero.g.position.x, z0 = oz ?? hero.g.position.z, out = [];
   for (const e of alive()) { const dx = e.g.position.x - x0, dz = e.g.position.z - z0, d = Math.hypot(dx, dz); if (d < range && (d < .6 || (dx * f.x + dz * f.z) / d > dot)) out.push(e); } return out; }
 function tipPos(k) { const ch = hero.ch; if (!ch.tips || !ch.tips[k]) return hero.g.position.clone().addScaledVector(fwd(), 1.2).setY(1.4); hero.g.updateMatrixWorld(true); return ch.tips[k].getWorldPosition(new THREE.Vector3()); }
-function sparks(p, n = 8, col = SPARK) { emit(P, p.x, p.y, p.z, n, col, 5, .28, -12, .2); emit(P, p.x, p.y, p.z, Math.ceil(n / 3), 0xffffff, 3, .15, 0, .1); }
+function sparks(p, n = 8, col = SPARK) { emit(P, p.x, p.y, p.z, n, col, 5, .28, -12, .2); if (n >= 10) emit(P, p.x, p.y, p.z, 2, 0xffffff, 3, .12, 0, .1); }
 function drillSpin(on, fast = 1) { const f = hero.ch.drillFx; if (!f) return; f.g.visible = on; f.fast = fast; }
 function shock(c, R, col = GREEN, dur = .5) { ringFx(c, R, col, dur); ringFx(c, R * .6, 0xffffff, dur * .7);
   const m = new THREE.Mesh(new THREE.RingGeometry(.6, 1, 48), ADD(col, .8)); m.rotation.x = -Math.PI / 2; m.position.set(c.x, groundY(c.x, c.z) + .15, c.z); scene.add(m); let t = 0;
@@ -71,10 +71,10 @@ export function mechSwing(t, moving, proc) {
     Snd.whoosh(h.g.position, .5, 900, 2600, .25);
     for (let i = 0; i < 3; i++) later((.5 + i * .17) / spd, () => { if (hero.dead > 0 || M.rT > 0) return; drillHit(.42); if (i === 0 && proc) proc(t); if (i === 2) drillSpin(false); }); }
   else { if (!moving) play(h.ch, 'Hammer', { once: true, force: true, speed: spd }); h.atkT = Math.min(.9, 1 / stat.rate()); G.mechN.hammer++;
-    Snd.whoosh(h.g.position, .35, 300, 1200, .4); later(1.0 / spd, () => { if (hero.dead > 0 || M.rT > 0) return; hammerHit(t); if (proc) proc(t); }); }
+    Snd.whoosh(h.g.position, .35, 300, 1200, .4); later((h.ch.hamHit || 1) / spd, () => { if (hero.dead > 0 || M.rT > 0) return; hammerHit(t); if (proc) proc(t); }); }
 }
 function drillHit(mul) { const from = tipPos('drill'), dmg = stat.dmg() * mul; let n = 0;
-  for (const e of cone(stat.range() + .5, .35)) { hurt(e, dmg, '#c8ff9a', false, { x: hero.g.position.x, z: hero.g.position.z, kind: 'melee' }); n++; const p = e.g.position; sparks(_v.set(p.x, 1.2, p.z), 6); }
+  for (const e of cone(stat.range() + .5, .35)) { hurt(e, dmg, '#c8ff9a', false, { x: hero.g.position.x, z: hero.g.position.z, kind: 'melee' }); n++; const p = e.g.position; if (n <= 4) sparks(_v.set(p.x, 1.2, p.z), 3); }
   G.mechN.drillHits += n; sparks(from, n ? 14 : 6); emit(P, from.x, from.y, from.z, 3, GREEN, 2, .3, 0, .2); Snd.play(n ? 'hitArmor' : 'sword', { pos: from, rate: 1.6 + Math.random() * .3, vol: .6 }); }
 function hammerHit(t) { const h = hero, f = fwd(), c = h.g.position.clone().addScaledVector(f, 1.6), main = !t.dead && d2(t, h.g.position.x, h.g.position.z) < (stat.range() + 1) ** 2 ? t : null, dmg = stat.dmg();
   if (main) { hurt(main, dmg * 1.1, '#ffd28a', true, { x: h.g.position.x, z: h.g.position.z, kind: 'melee' }); knock(main, h.g.position.x, h.g.position.z, 1.4); }
@@ -171,7 +171,7 @@ export function updMech(dt) {
 // 과부하 드릴 (proc): 앞쪽 부채꼴 6연속 갈기 (각 45%) + 40% 둔화 1.2초
 export function overdrill(t, s) { const dmg = stat.dmg() * s.mul; G.mechN.overdrill++; drillSpin(true, 3); banner('과부하 드릴!', '#c8ff6a', 700); Snd.whoosh(hero.g.position, .6, 1200, 4000, .4);
   for (let i = 0; i < 6; i++) later(.05 + i * .08, () => { if (!hero || hero.dead > 0) return; const tp = tipPos('drill'); let n = 0;
-    for (const e of cone(stat.range() + 1.4, .3)) { lsk = true; hurt(e, dmg, '#e0ff7a', false); lsk = false; if (!e.dead) { e.slowT = Math.max(e.slowT, 1.2); e.slowAmt = Math.max(e.slowAmt || 0, .4); } n++; sparks(_v.set(e.g.position.x, 1.2, e.g.position.z), 8, 0xfff07a); }
+    for (const e of cone(stat.range() + 1.4, .3)) { lsk = true; hurt(e, dmg, '#e0ff7a', false); lsk = false; if (!e.dead) { e.slowT = Math.max(e.slowT, 1.2); e.slowAmt = Math.max(e.slowAmt || 0, .4); } n++; if (n <= 4) sparks(_v.set(e.g.position.x, 1.2, e.g.position.z), 4, 0xfff07a); }
     sparks(tp, 18, 0xfff07a); emit(P, tp.x, tp.y, tp.z, 6, GREEN, 4, .3, 0, .3); Snd.play('hitArmor', { pos: tp, rate: 1.8 + i * .08, vol: .5 }); if (i === 5) drillSpin(false); }); }
 // 기가 해머 낙하 (active): 목표 지점에 거대 해머 → 400% · 밀쳐내기 · 1초 기절
 const hammerG = (() => { const g = new THREE.Group(), o = new THREE.MeshToonMaterial({ color: 0xf08a1a }), d = new THREE.MeshToonMaterial({ color: 0x2a2a30 }), gl = new THREE.MeshBasicMaterial({ color: 0x8aff5a, toneMapped: false });

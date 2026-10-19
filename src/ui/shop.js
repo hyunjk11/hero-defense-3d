@@ -17,7 +17,7 @@ const ST_N = { pending: '승인 대기', approved: '승인됨', rejected: '거�
 const PROD = {
   hero_gunner: { anim: 'Flourish', col: 0xff6aa8, icon: '🌹', stats: ['⚡ 공격 속도 <b>매우 빠름</b>', '🎯 사거리 <b>중간</b>', '❤ 체력 <b>{hp}</b>', '🔫 쌍권총 교차 연사'],
     sk: '회전하며 사방으로 탄환 난사 + 두 번의 피니시 폭발', lg: '<b>✦ 전설 쌍권총</b> 도탄 난사(튕기는 탄환) · 장미 탄막([E] 부채꼴 일제 사격)' },
-  hero_mechanic: { anim: 'FistPump', col: 0x7aff5a, icon: '🦾', stats: ['❤ 체력 <b>{hp} (최고)</b>', '🛡 방어 <b>높음</b>', '🦾 근접 · 드릴/해머 교대', '💥 해머 넉백'],
+  hero_mechanic: { anim: 'Idle', col: 0x7aff5a, icon: '🦾', stats: ['❤ 체력 <b>{hp} (최고)</b>', '🛡 방어 <b>높음</b>', '🦾 근접 · 드릴/해머 교대', '💥 해머 넉백'],
     sk: '부품이 날아와 합체! 10초간 거대 로봇(보호막 · 넓은 범위 강펀치 · 드릴 돌진) → 로켓 펀치 피니시', lg: '<b>✦ 전설 건틀릿</b> 과부하 드릴(다단 갈기 · 둔화) · 기가 해머 낙하([E] 거대 해머 · 기절)' },
 };
 const PKEYS = Object.keys(SHOP.items);

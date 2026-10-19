@@ -93,7 +93,7 @@ export function unequip(save, hero, slot) { if (save.eq[hero]) delete save.eq[he
 const fin = (v, lo, hi, d = lo) => { v = Math.floor(+v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
 // 무기 영웅 키 별칭 (직접 입력한 세이브 호환): 총/권총/로즈 → gunner 등
 export const HERO_ALIAS = { gun: 'gunner', guns: 'gunner', pistol: 'gunner', rose: 'gunner', '총사': 'gunner', '로즈': 'gunner', bow: 'archer', '궁수': 'archer', staff: 'mage', '마법사': 'mage', sword: 'warrior', '전사': 'warrior', mech: 'mechanic', mecha: 'mechanic', robot: 'mechanic', drill: 'mechanic', wrench: 'mechanic', gauntlet: 'mechanic', budeul: 'mechanic', '메카닉': 'mechanic', '버들': 'mechanic', '정비공': 'mechanic' };
-export const heroKey = h => (typeof h === 'string' && HERO_ALIAS[h.trim().toLowerCase()]) || h;
+export const heroKey = h => { if (typeof h !== 'string') return h; const k = h.trim().toLowerCase(); return HERO_ALIAS[k] || k; }; // 대소문자·공백 무시
 export function cleanItem(x, heroes) {
   if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !SLOT_KEYS.includes(x.s)) return null; const g = fin(x.g, 0, 4);
   const okStat = k => Object.prototype.hasOwnProperty.call(STAT, k), m = Array.isArray(x.m) && okStat(x.m[0]) ? [x.m[0], Math.max(0, Math.min(100, +x.m[1] || 0))] : null; if (!m) return null;
