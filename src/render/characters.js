@@ -120,14 +120,14 @@ function mechArms(ch, M) {
 // ---- 버들 로봇 팔 (강체): budeul_gear = Pack / ArmR(드릴, 버들의 오른쪽) / ArmL(집게 주먹). 팔 노드 원점 = 어깨 관절, extras.tip = 팔 끝
 // 몸에 스킨하지 않고 Spine02 뼈에 통째로 붙임(크기 고정) → 몸이 움직여도 늘어나거나 찌그러지지 않음. 팔은 어깨에서 회전만 함(절차적 동작)
 // 모델 정면(+Z, 초록 패널)을 등 바깥으로: z 축 반전(= Y 180° 회전 + 좌우 반전) → 드릴은 그대로 버들의 오른쪽(-X)
-export const GEAR = { s: .9, off: [0, -.3, -.59], rest: 1.05, splay: .3 }; // off = Spine02 기준(게임 단위): 팩 윗면이 머리카락 아래(1.92), 안쪽 면이 등 뒤(-0.15)
+export const GEAR = { s: .9, off: [0, -.3, -.59], rest: .6, splay: .42, arm: 1.3, sx: .08, sy: .05 }; // arm = 로봇 팔만 1.3배(어깨 관절 기준, 강체) · sx/sy = 어깨를 팩 바깥·위로 → 컨셉처럼 등에서 뻗은 큰 팔(옆으로 벌려 늘어뜨림) // off = Spine02 기준(게임 단위): 팩 윗면이 머리카락 아래(1.92), 안쪽 면이 등 뒤(-0.15)
 const GEAR_ACT = { Drill: 'drill', Hammer: 'hammer', Uppercut: 'up', FistPump: 'cheer', CheerUp: 'cheer', Hit: 'hit', Death: 'death' };
 function mechGear(ch, M) {
   ch.hamHit = M.hamHit || 1; ch.runSpd = 0; ch.tips = {}; const src = GL.budeul_gear && GL.budeul_gear.scene; if (!src) return;
   const S = GEAR.s, g = new THREE.Group(), body = new THREE.Group(); body.scale.set(S, S, -S); g.add(body); const arms = {};
   for (const n of ['Pack', 'ArmR', 'ArmL']) { const node = src.getObjectByName(n); if (!node) continue; const c = node.clone(true); body.add(c);
     c.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.e = o.material.emissive.clone(); ch.mats.push(o.material); o.castShadow = true; o.frustumCulled = false; } });
-    if (n !== 'Pack') { c.rotation.order = 'XYZ'; arms[n] = c; const tip = new THREE.Object3D(); tip.position.fromArray(node.userData.tip || [0, -1, 0]); c.add(tip); ch.tips[n === 'ArmR' ? 'drill' : 'fist'] = tip; } }
+    if (n !== 'Pack') { c.rotation.order = 'XYZ'; arms[n] = c; c.scale.multiplyScalar(GEAR.arm || 1); c.position.x += Math.sign(c.position.x || 1) * (GEAR.sx || 0); c.position.y += GEAR.sy || 0; const tip = new THREE.Object3D(); tip.position.fromArray(node.userData.tip || [0, -1, 0]); c.add(tip); ch.tips[n === 'ArmR' ? 'drill' : 'fist'] = tip; } }
   attachProp(ch, 'Spine02', g, GEAR.off); ch.root.updateMatrixWorld(true);
   g.traverse(o => { if (o.isMesh && !o.userData.ol) addOutline(o, .032 / o.getWorldScale(wsV).x); });
   // 드릴 잔상: 드릴 끝에서 팔 쪽으로 원뿔 2겹 (축 = 팔 아래쪽 정점 중심 → 끝)

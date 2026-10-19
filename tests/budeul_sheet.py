@@ -18,7 +18,7 @@ CW, CH = (176, 224) if '--big' not in sys.argv else (330, 420)
 srv, url = serve(); F = ImageFont.truetype('/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc', 20)
 SETUP = """async (key)=>{ const {makeHeroModel}=await import('./src/render/characters.js'); const {cam,updateCam}=await import('./src/render/scene.js'); const THREE=G.THREE; G.manual=true; G.pauseRender=true;
   document.getElementById('select').classList.add('hidden'); const ch=makeHeroModel('mechanic', key==='budeul_meshy'?undefined:key); const X=14, Z=G.GH+5; ch.g.position.set(X,0,Z); G.scene.add(ch.g); window.__ch=ch;
-  const H=key.includes('robot')?4.6:2.8; window.__view=(side)=>{ cam.target.set(X,H*.5,Z); cam.r=H*(key.includes("robot")?2.4:1.65); cam.phi=1.45; cam.theta=side===2?.75:side?Math.PI/2:0; updateCam(); };
+  const H=key.includes('robot')?4.6:2.8; window.__view=(side)=>{ cam.target.set(X,H*.5,Z); cam.r=H*(key.includes("robot")?2.4:1.65); cam.phi=1.45; cam.theta=side===2?.75:side?(key.includes("robot")?-Math.PI/2:Math.PI/2):0; updateCam(); };
   /* 스킨 메시 변(edge) 목록 + 바인드 길이 (메시 로컬, 스킨 전) */
   const sk=[], rigid=[]; ch.root.traverse(o=>{ if(o.isSkinnedMesh&&!o.userData.ol) sk.push(o); else if(o.isMesh&&!o.isSkinnedMesh&&!o.userData.ol) rigid.push(o); });
   window.__E=sk.map(m=>{ const g=m.geometry, P=g.attributes.position, I=g.index?g.index.array:null, n=I?I.length:P.count, E=[], L0=[], seen=new Set(), a=new THREE.Vector3(), b=new THREE.Vector3();
