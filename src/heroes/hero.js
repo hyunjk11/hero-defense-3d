@@ -32,7 +32,7 @@ function spawnHero(cls) {
   hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle');
-  $('heroName').textContent = `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill;
+  $('heroName').textContent = `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill; $('skillName').classList.toggle('long', C.skill.length > 5);
 }
 function heroDamage(d) {
   if (hero.dead > 0) return; d *= 1 - hero.C.armor; hero.hp -= d; hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }

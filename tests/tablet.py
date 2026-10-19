@@ -57,6 +57,8 @@ def sweep(pg, screen, roots, prep=None, settle=250, shot=True):
     for w, h in SIZES:
         pg.set_viewport_size({'width': w, 'height': h}); pg.wait_for_timeout(settle)
         if prep: prep(); pg.wait_for_timeout(150)
+        try: pg.wait_for_function("()=>document.getAnimations().every(a=>a.playState!=='running'||a.effect.getComputedTiming().iterations===Infinity)", timeout=8000)  # 등장 애니메이션(scale) 끝난 뒤 측정
+        except Exception: pass
         rec(screen, (w, h), J(pg, CHECK, [roots, ONE, TOUCH]))
         if A.shots and shot and (not A.shotsizes or f'{w}x{h}' in A.shotsizes.split(',')):
             J(pg, RAF); pg.screenshot(path=f'{A.shots}/{screen}_{w}.png' if A.short else f'{A.shots}/{screen}_{w}x{h}.png', timeout=180000)
@@ -106,12 +108,28 @@ with sync_playwright() as pw:
         if hidden(pg, 'chestOv'): break
         pg.tap('.cvStage', force=True); pg.wait_for_timeout(700)
     J(pg, "()=>{ const p=document.getElementById('townPop'); }")
-    pg.tap('#twGo'); pg.wait_for_timeout(500); pg.tap('.snode[data-id="1-4"]'); pg.wait_for_timeout(300)
+    pg.tap('#twGo'); pg.wait_for_timeout(500); pg.tap('.snode[data-id="1-4"]', force=True); pg.wait_for_timeout(300)
     sweep(pg, 'stagesel', ['#scr_town'])
     pg.tap('.chtab[data-c="0"]'); pg.wait_for_timeout(200); sweep(pg, 'stagesel_chal', ['#scr_town'])
     pg.tap('#stClose'); pg.wait_for_timeout(200)
     J(pg, "()=>{ const p=document.getElementById('townPop'); p.innerHTML='<h3>스테이지 1-3 클리어!</h3>획득 영혼석 <span class=soul>+120</span><br>장비 3개<br><button id=popOk>확인</button>'; p.classList.remove('hidden'); document.getElementById('popOk').onclick=()=>p.classList.add('hidden'); }")
     sweep(pg, 'townpop', ['#scr_town']); pg.tap('#popOk')
+    # 상점 · 우편함 · 관리자 (관리자 계정으로 로그인, 가짜 서버에 구매 신청·우편 준비)
+    pg.tap('#twMenu'); pg.wait_for_timeout(300); pg.tap('#mnAuth'); pg.wait_for_timeout(400); pg.fill('#lgEmail', 'hyunjk11@daum.net'); pg.fill('#lgPw', 'secret12'); pg.tap('#lgUp')
+    pg.wait_for_function("()=>G.screen==='menu'", timeout=15000); pg.wait_for_timeout(600); sweep(pg, 'menu_admin', ['#scr_menu'])
+    J(pg, """()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const me=Object.values(d.users)[0].id, t=i=>new Date(Date.UTC(2026,9,19,5,i)).toISOString(); d.seq=10;
+      d.hd3d_orders={1:{id:1,user_id:me,email:'hyunjk11@daum.net',nickname:'관리자',item:'hero_gunner',status:'pending',created_at:t(1)},2:{id:2,user_id:'ux',email:'player.with.long.address@example.com',nickname:'장미기사단장',item:'hero_gunner',status:'approved',created_at:t(0),decided_at:t(2)},3:{id:3,user_id:'uy',email:'b@test.kr',nickname:'',item:'hero_gunner',status:'rejected',created_at:t(0),decided_at:t(3)}};
+      d.hd3d_mail={4:{id:4,user_id:me,title:'🎁 구매하신 상품이 도착했습니다',body:'유료 영웅 · 총사 로즈 구매가 승인되었습니다. 감사합니다! \\'받기\\'를 눌러 수령하세요.',reward:{hero:'gunner'},claimed:false,created_at:t(4)},5:{id:5,user_id:me,title:'운영자의 선물',body:'모험에 도움이 되길 바랍니다!',reward:{souls:500,steel:20,crystal:5},claimed:true,created_at:t(3)},6:{id:6,user_id:me,title:'공지',body:'점검 안내입니다.',reward:null,claimed:false,created_at:t(2)}};
+      localStorage.setItem('__mockdb', JSON.stringify(d)); }""")
+    pg.tap('#mnCont'); pg.wait_for_function("()=>G.screen==='town'", timeout=30000); pg.wait_for_timeout(1500)
+    sweep(pg, 'shop', ['#scr_town'], prep=lambda: (J(pg, "()=>G.shop.openShop()"), pg.wait_for_function("()=>!document.getElementById('shopBuyBtn').textContent.includes('불러오는')", timeout=15000), pg.wait_for_timeout(400)))
+    J(pg, "()=>G.shop.closeShop(true)")
+    sweep(pg, 'mailbox', ['#scr_town'], prep=lambda: (J(pg, "()=>G.shop.openMail()"), pg.wait_for_function("()=>document.querySelectorAll('#mailList .mailItem').length===3", timeout=15000), pg.wait_for_timeout(400)))
+    J(pg, "()=>G.shop.closeMail(true)")
+    sweep(pg, 'admin_orders', ['#adminPanel'], prep=lambda: (pg.tap('#twAdmin'), pg.wait_for_function("()=>document.querySelectorAll('#admBody .admRow').length===3", timeout=15000), pg.wait_for_timeout(400)))
+    def amail(): pg.tap('#admTabs .ftab[data-t="mail"]'); pg.wait_for_timeout(150)
+    sweep(pg, 'admin_mail', ['#adminPanel'], prep=amail)
+    pg.tap('#admClose'); pg.wait_for_timeout(200)
     # 인게임
     pg.tap('#twGo'); pg.wait_for_timeout(300); pg.tap('.chtab[data-c="1"]'); pg.tap('.snode[data-id="1-1"]'); pg.tap('#stGo')
     pg.wait_for_function("()=>window.G&&G.ready&&G.stage&&G.phase==='build'", timeout=180000); pg.wait_for_timeout(1500)
