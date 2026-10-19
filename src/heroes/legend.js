@@ -16,6 +16,7 @@ import { LSK } from '../account/equip.js';
 import { banner } from '../ui/hud.js';
 import { mouseGround } from '../ui/input.js';
 import { hero, heroTip, passAt, stat } from './hero.js';
+import { ricochet, rosebarrage, updGun } from './gunner.js';
 
 const lr = mulberry32(((+QS.get('rng') || (Math.random() * 1e9 | 0)) ^ 0x1e9e7d) >>> 0);
 let lrNext = lr; const LR = () => lrNext(); G.legendSeed = s => { lrNext = mulberry32(s >>> 0); }; // 테스트: 발동 난수 고정
@@ -45,7 +46,7 @@ function aim(maxD) {
 export function legendProc(t) {
   const s = legendSkill(); if (!s || s.type !== 'proc' || hero.licd > 0 || !t || t.dead) return;
   if (LR() >= (G.legendForce ? 1 : s.chance)) return; hero.licd = s.icd; count(hero.lsk);
-  ({ multishot, frostorb, boomerang })[hero.lsk](t, s);
+  ({ multishot, frostorb, boomerang, ricochet })[hero.lsk](t, s);
 }
 // 멀티샷: 황금 화살 5발 부채꼴
 function multishot(t, s) {
@@ -94,8 +95,8 @@ function boomerang(t, s) {
 // ---------- active ([E]) ----------
 export function castLegend() {
   const s = legendActive(); if (!s || !hero || hero.dead > 0 || hero.lcd > 0 || hero.leap || (G.phase !== 'build' && G.phase !== 'wave')) { if (s && hero && hero.lcd > 0) Snd.play('error'); return false; }
-  if (hero.warpT > 0) return false; hero.lcd = legendCd(); hero.spinT = 0; if (hero.swirl) hero.swirl.visible = false; count(hero.lsk);
-  ({ pierce, meteorstorm, quake })[hero.lsk](s); return true;
+  if (hero.warpT > 0) return false; hero.lcd = legendCd(); hero.spinT = 0; hero.roseT = 0; if (hero.swirl) hero.swirl.visible = false; count(hero.lsk);
+  if (hero.lsk === 'rosebarrage') rosebarrage(s, aim(14)); else ({ pierce, meteorstorm, quake })[hero.lsk](s); return true;
 }
 // 관통샷: 충전 → 일직선 모든 적 관통하는 황금 화살 + 큰 잔상
 function pierce(s) {
@@ -169,4 +170,5 @@ function smash(c, s) {
 export function updLegend(dt) {
   if (hero && hero.lsk) { if (hero.lcd > 0) hero.lcd -= dt; if (hero.licd > 0) hero.licd -= dt; }
   for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
+  updGun(dt);
 }

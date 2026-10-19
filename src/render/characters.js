@@ -8,10 +8,10 @@ import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
 async function loadAssets() {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); let n = 0;
-  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (MESHY[k]) lockRoot(g.animations); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
+  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
 }
 function prep(g) {
   g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; } });
@@ -19,6 +19,15 @@ function prep(g) {
 }
 // Meshy 마법사: 루트 모션 잠금 (Hips 위치 트랙의 X/Z를 첫 프레임 값으로 고정, Y는 유지 → 쓰러짐/피격이 제자리에서)
 function lockRoot(clips) { for (const c of clips) for (const t of c.tracks) { if (!/Hips\.position$/.test(t.name)) continue; const v = t.values, x0 = v[0], z0 = v[2]; for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; } } }
+// 파생 클립: sub = [이름, 원본, 시작초, 끝초] 구간 잘라내기 · mix = [이름, 상체 원본, 하체 원본] (하체=Hips·다리 트랙을 하체 원본에서 가져와 상체 길이에 맞춰 늘림 → 제자리 사격)
+const LEG_RE = /^(Hips|.*(UpLeg|Leg|Foot|Toe).*)$/;
+function extraClips(list, M) {
+  const by = n => list.find(x => x.name === n);
+  for (const [n, src, a, b] of M.sub || []) { const c = by(src); if (c) list.push(THREE.AnimationUtils.subclip(c, n, Math.round(a * 30), Math.round(b * 30), 30)); }
+  for (const [n, up, lo] of M.mix || []) { const u = by(up), l = by(lo); if (!u || !l) continue; const k = u.duration / l.duration, bone = t => t.name.split('.')[0];
+    const tr = [...u.tracks.filter(t => !LEG_RE.test(bone(t))).map(t => t.clone()), ...l.tracks.filter(t => LEG_RE.test(bone(t))).map(t => { const c = t.clone(); c.times = c.times.map(x => x * k); return c; })];
+    list.push(new THREE.AnimationClip(n, u.duration, tr)); }
+}
 // 바인드 포즈에서 오른손 근처(수평 0.35 이내) 정점 중 가장 높은 곳 = 지팡이 끝 수정 → 조금 아래를 발사 지점으로
 function staffTop(ch, hp) { let best = null; const v = new THREE.Vector3();
   ch.root.traverse(o => { if (!o.isSkinnedMesh || o.userData.ol) return; const n = o.geometry.attributes.position.count;
@@ -35,6 +44,8 @@ const MESHY = {
   mage_meshy: { alias: MAGE_ALIAS },
   archer_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '2H_Ranged_Shoot': 'Shoot', Ranged_Skill: 'ShootQuick' },
     aim: { Shoot: -2.15, ShootQuick: -1.7, ShootCharged: -1.75 } }, // 사격 클립은 몸이 옆으로 서서 활이 왼쪽(+X)을 겨눔 → 활 방향이 정면(목표)이 되게 모델 회전
+  // Meshy 총사 로즈: 쌍권총(왼손·오른손 뼈에 스킨). ShootLoop = Shoot 1.1–2.7초(뽑기 동작 제외) 반복, ShootCharged = 회전 사격(스킬), Flourish = 총 돌리기(선택 화면·승리)
+  gunner_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'Flourish', Melee_Show: 'Flourish' }, sub: [['ShootLoop', 'Shoot', 1.1, 2.7]], mix: [['ShootStand', 'ShootWalk', 'Idle']], aim: { ShootStand: .38, ShootWalk: .58 } }, // 두 총의 평균 조준 방향이 정면(목표)이 되게 모델 회전
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
@@ -65,9 +76,23 @@ function makeHeroModel(cls) {
     if (M.aim) { ch.aim = M.aim; ch.yawT = 0; const up = ch.mixer.update.bind(ch.mixer); ch.mixer.update = dt => { ch.root.rotation.y += (ch.yawT - ch.root.rotation.y) * Math.min(1, dt * 16); return up(dt); }; }
     if (key === 'mage_meshy') { const hand = ch.root.getObjectByName('RightHand'); if (hand) { const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
       tip.position.copy(hand.worldToLocal(staffTop(ch, hp))); hand.add(tip); ch.tip = tip; } } // 지팡이 수정 위치
+    else if (key === 'gunner_meshy') gunMuzzles(ch);
     else if (key === 'archer_meshy') { const hand = ch.root.getObjectByName('LeftHand'); if (hand) { const tip = new THREE.Object3D(); tip.position.copy(hand.worldToLocal(bowGrip(ch, hand.getWorldPosition(new THREE.Vector3())))); hand.add(tip); ch.tip = tip; } } } // 활 손잡이(왼손에 스킨된 활) = 화살 발사 지점
   const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
   return ch;
+}
+// 총구: 각 손 뼈 로컬 (0, 26, -3) (뼈 월드 스케일 0.01, 총열 = 로컬 +Y) + 총구 섬광(가산 별 모양, 평소엔 숨김)
+let flashTex = null;
+function starTex() { if (flashTex) return flashTex; const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'), c = 64;
+  const gr = x.createRadialGradient(c, c, 0, c, c, c); gr.addColorStop(0, '#fff'); gr.addColorStop(.18, 'rgba(255,240,190,.95)'); gr.addColorStop(.45, 'rgba(255,150,80,.35)'); gr.addColorStop(1, 'rgba(255,90,60,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  x.globalCompositeOperation = 'lighter'; x.fillStyle = 'rgba(255,230,160,.9)'; for (let k = 0; k < 6; k++) { x.save(); x.translate(c, c); x.rotate(k / 6 * Math.PI * 2); x.beginPath(); x.moveTo(-5, 0); x.lineTo(0, -62); x.lineTo(5, 0); x.fill(); x.restore(); }
+  return (flashTex = new THREE.CanvasTexture(cv)); }
+function gunMuzzles(ch) {
+  ch.muz = []; ch.flashes = [];
+  for (const bn of ['LeftHand', 'RightHand']) { const hand = ch.root.getObjectByName(bn); if (!hand) continue; const m = new THREE.Object3D(); m.position.set(0, 26, -3); hand.add(m); ch.muz.push(m);
+    const ws = hand.getWorldScale(wsV).x || .01, f = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ map: starTex(), color: 0xffd8a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    for (const r of [0, Math.PI / 2]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(.55, .55), mat); p.rotation.y = r; p.position.y = .12; f.add(p); }
+    const disk = new THREE.Mesh(new THREE.PlaneGeometry(.42, .42), mat); disk.rotation.x = Math.PI / 2; f.add(disk); f.scale.setScalar(1 / ws); f.visible = false; m.add(f); ch.flashes.push({ g: f, t: 0, s: 1 / ws, mat }); }
 }
 // 귀여운 유령 박쥐 (절차적 모델)
 function makeBat() {

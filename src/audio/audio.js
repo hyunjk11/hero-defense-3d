@@ -85,6 +85,12 @@ export const Snd = {
   fuse(pos) { // 자폭병 심지 타는 소리 (치익 + 짧은 경고음)
     if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime, out = this.out(pos, .5); this.noiseHit(t, .7, .5, out, 5500, 1.2, 'highpass'); for (let k = 0; k < 3; k++) this.osc('square', 1400, t + k * .22, .06, .05, out, 0);
   },
+  // 총성 (합성): 고역 노이즈 '탕' + 중역 몸통 + 낮은 쿵 + 금속성 클릭. ping = 도탄 '팅', big = 피니시
+  gun(pos, o = {}) { if (!this.ctx || !this.cfg.sfxOn || this.voices > 30) return; const now = this.ctx.currentTime; if (!o.big && !o.ping && this.last.gun && now - this.last.gun < .035) return; if (!o.ping) this.last.gun = now;
+    const r = (o.rate || 1) * (.95 + Math.random() * .1), v = o.vol ?? 1, out = this.out(pos, .55 * v), t = now + .005; this.voices++; setTimeout(() => this.voices--, 300);
+    if (o.ping) { this.osc('sine', 2600 * r, t, .18, .12, out, 1700 * r); this.osc('triangle', 3900 * r, t, .08, .05, out); this.noiseHit(t, .03, .4, out, 6000, 1, 'highpass'); return; }
+    this.noiseHit(t, .07, 1, out, 3200 * r, .7, 'highpass'); this.noiseHit(t, o.big ? .35 : .14, .8, out, 1100 * r, .9); this.osc('triangle', (o.big ? 110 : 190) * r, t, o.big ? .25 : .08, o.big ? .9 : .55, out, 45);
+    this.osc('square', 2400 * r, t, .018, .12, out, 700); },
   whoosh(pos, dur = .35, f0 = 500, f1 = 2500, v = .45) { if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime, out = this.out(pos, v), f = this.noiseHit(t, dur, .9, out, f0, 2.5); f.frequency.exponentialRampToValueAtTime(f1, t + dur * .6); },
   beep(f, d = .08, type = 'square', v = .03, slide = 0) { if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime; this.osc(type, f, t, d, v * 4, this.out(null, 1), slide ? Math.max(30, f + slide) : 0); },
 };
