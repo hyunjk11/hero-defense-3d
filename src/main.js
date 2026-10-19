@@ -42,6 +42,7 @@ import './world/barricades.js';
 import { pendingSpawns, towerRateK } from './monsters/abilities.js';
 import { ROSTERS } from './data/monsters.js';
 import * as ROSTER from './core/roster.js';
+import { updVolcano } from './render/volcano.js';
 
 Object.assign(G, { STAGE_CFG: STAGE, ROSTERS, ROSTER, towerRateK, pendingSpawns, towerXp, chooseBranch, GROW, castLegend, SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
@@ -56,7 +57,7 @@ function updLighting(dt) {
   G.night += (G.nightTarget - G.night) * Math.min(1, dt * 1.5); const n = G.night;
   skyU.top.value.copy(DAY.top).lerp(NIGHT.top, n); skyU.bot.value.copy(DAY.bot).lerp(NIGHT.bot, n); scene.fog.color.copy(DAY.fog).lerp(NIGHT.fog, n);
   sun.intensity = (2.6 * (1 - n) + .25) * LIGHT.sun; moon.intensity = 1.4 * n; hemi.intensity = (1.35 - .75 * n) * LIGHT.hemi; stars.material.opacity = n;
-  sun.color.setHSL(.1, .6 - n * .3, .88 - n * .2); bloom.strength = .32 + n * .22; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
+  sun.color.setHSL(LIGHT.sunH, .6 - n * .3, .88 - n * .2); bloom.strength = (.32 + n * .22) * LIGHT.bloomK; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
 }
 let lastT = performance.now(), hudT = 0;
 function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05)); if (!G.pauseRender) composer.render(); }
@@ -75,7 +76,7 @@ function step(dt) {
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }
   for (const t of G.dirty) { refreshTile(t); if (t.shk > 0) t.shk -= dt; else G.dirty.delete(t); }
-  updFlow(dt); updLoot(dt); updPreview(dt); updFx(dt); updParticles(P, dt); updParticles(PB, dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.screenMusic) Snd.setMusic(G.screenMusic); else if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
+  updFlow(dt); updLoot(dt); updPreview(dt); updFx(dt); updParticles(P, dt); updParticles(PB, dt); updVolcano(dt); updDebris(dt); updCoins(dt); updLighting(dt); updRoute(); updBars(dt); updBossBar(dt); Snd.listener = cam.target; if (G.screenMusic) Snd.setMusic(G.screenMusic); else if (G.phase !== 'over') Snd.setMusic(G.phase === 'wave' ? (G.enemies.some(e => e.E.boss && !e.dead) ? 'boss' : 'wave') : 'build');
   portalDisk.rotation.z -= dt * 2.5; if (rand() < .6) emit(P, portal.position.x + rnd(-.3, .3), rnd(.6, 3.2), portal.position.z + rnd(-1.4, 1.4), 1, 0xc07aff, 1.5, .8, 2, .3);
   crystal.rotation.y += dt * 1.2; crystal.position.y = 3.6 + Math.sin(G.t * 2) * .2; coreRings.forEach((r, k) => r.rotation.z += dt * (k ? -1.5 : 1));
   if (moveMark.visible) { moveMark.scale.multiplyScalar(1 - dt * 3); moveMark.material.opacity = moveMark.scale.x; if (moveMark.scale.x < .2) moveMark.visible = false; }

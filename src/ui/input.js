@@ -33,6 +33,7 @@ function tileInfo(t) {
   if (t.tower) return `<b>${TOWERS[t.tower.type].n} Lv.${t.tower.lvl}${G.grow ? ' ' + '★'.repeat(t.tower.stars) : ''}</b> · 클릭하여 강화/판매`;
   if (t.bar) return `<b>바리케이드</b> ${Math.ceil(t.bar.hp)}/${Math.ceil(t.bar.max)}`;
   if (isBlock(t.t)) return `<b>${BLK[t.t].n}</b> 내구도 ${Math.ceil(t.hp)}/${t.max} · 개간 ${BLK[t.t].clear}G`;
+  if (t.lava) return '<b>용암 강</b> · 지나갈 수 없음 · 건설 불가';
   return `<b>${TNAME[t.t]}</b>${t.t === T.GRASS ? ' · 타워 건설 가능' : t.t === T.CARVED ? ' · 바리케이드 설치 가능' : t.t === T.BEDROCK ? ' · 파괴 불가' : ''}`;
 }
 function onMove(cx, cy) {

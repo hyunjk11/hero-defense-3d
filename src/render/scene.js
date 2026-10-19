@@ -12,10 +12,18 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 const COARSE = matchMedia('(pointer: coarse)').matches; // 태블릿: 고해상도 화면에서 GPU 부담 줄이기
 renderer.setPixelRatio(Math.min(devicePixelRatio, COARSE ? 1.5 : 1.75)); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12;
-// 설원(2장): 거의 흰 눈이 강한 햇빛·노출·블룸에서 하얗게 날아가 판이 안 보였음 → 노출·조명 낮추고 블룸은 진짜 발광체만 (LIGHT 는 main.js updLighting 에서 곱함)
-const SNOW = !!(STAGE && STAGE.ch === 2), LIGHT = SNOW ? { sun: .8, hemi: .78, bloomTh: 1.35 } : { sun: 1, hemi: 1, bloomTh: .95 }; if (SNOW) renderer.toneMappingExposure = .9;
+// 챕터별 조명·하늘·블룸 (THEMES[테마]). 설원(2장): 거의 흰 눈이 강한 햇빛·노출·블룸에서 하얗게 날아가 판이 안 보였음 → 노출·조명 낮추고 블룸은 진짜 발광체만 (LIGHT 는 main.js updLighting 에서 곱함)
+// 화산(3장): 어두운 현무암 + 용암 발광 → 블룸 문턱을 조금 올려 용암 가장 뜨거운 곳만 은은하게 번지게 (하얗게 날아가지 않게), 햇빛은 붉고 약하게
+const THEMES = {
+  default: { sun: 1, hemi: 1, bloomTh: .95, exposure: 1.12, sunH: .1, fog: [80, 170], day: [0x3d9cff, 0xd6efff, 0xcfeaff], night: [0x05071c, 0x2c1d55, 0x1a1438] },
+  snow: { sun: .8, hemi: .78, bloomTh: 1.35, exposure: .9, sunH: .1, fog: [95, 200], day: [0x5a8ac8, 0xb4c6da, 0xa8bcd2], night: [0x05071c, 0x2c1d55, 0x1a1438] },
+  volcano: { sun: .78, hemi: .82, bloomTh: 1.05, exposure: 1.05, sunH: .055, fog: [85, 190], day: [0x2a1410, 0x8a4228, 0x4a2a20], night: [0x0c0606, 0x3a160c, 0x24100a], hemiC: [0xffd8c0, 0x5a2a1a], bloomK: .85 },
+};
+const THEME_KEY = STAGE ? ({ 2: 'snow', 3: 'volcano' })[STAGE.ch] || 'default' : 'default', TH = THEMES[THEME_KEY];
+const SNOW = THEME_KEY === 'snow', VOLCANO = THEME_KEY === 'volcano', LIGHT = { sun: TH.sun, hemi: TH.hemi, bloomTh: TH.bloomTh, sunH: TH.sunH, bloomK: TH.bloomK || 1 };
+renderer.toneMappingExposure = TH.exposure;
 $('app').appendChild(renderer.domElement);
-const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xcfeaff, 80, 170); if (STAGE && STAGE.ch === 2) { scene.fog.near = 95; scene.fog.far = 200; } // 설원 안개는 판 바깥 가장자리에만
+const scene = new THREE.Scene(); scene.fog = new THREE.Fog(TH.day[2], TH.fog[0], TH.fog[1]); // 설원·화산 안개는 판 바깥 가장자리에만
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .5, 600);
 const cam = { theta: .22, phi: .9, r: 58, target: new THREE.Vector3(0, 0, 1) };
 function updateCam() {
@@ -23,15 +31,15 @@ function updateCam() {
   camera.position.set(t.x + cam.r * Math.sin(cam.phi) * Math.sin(cam.theta) + sx, t.y + cam.r * Math.cos(cam.phi) + sy, t.z + cam.r * Math.sin(cam.phi) * Math.cos(cam.theta));
   camera.lookAt(t.x + sx * .3, t.y, t.z);
 }
-const DAY = SNOW ? { top: new THREE.Color(0x5a8ac8), bot: new THREE.Color(0xb4c6da), fog: new THREE.Color(0xa8bcd2) } : { top: new THREE.Color(0x3d9cff), bot: new THREE.Color(0xd6efff), fog: new THREE.Color(0xcfeaff) };
-const NIGHT = { top: new THREE.Color(0x05071c), bot: new THREE.Color(0x2c1d55), fog: new THREE.Color(0x1a1438) };
+const C3 = a => ({ top: new THREE.Color(a[0]), bot: new THREE.Color(a[1]), fog: new THREE.Color(a[2]) });
+const DAY = C3(TH.day), NIGHT = C3(TH.night);
 const skyU = { top: { value: DAY.top.clone() }, bot: { value: DAY.bot.clone() } };
 scene.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.ShaderMaterial({
   uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
   vertexShader: 'varying vec3 vP; void main(){ vP = (modelMatrix*vec4(position,1.)).xyz; gl_Position = projectionMatrix*viewMatrix*vec4(vP,1.); }',
   fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying vec3 vP; void main(){ float h = clamp(normalize(vP).y*1.8+.08,0.,1.); gl_FragColor = vec4(mix(bot,top,h),1.); }',
 })));
-const hemi = new THREE.HemisphereLight(0xe6f4ff, 0x5a4a3a, 1.35); scene.add(hemi);
+const hemi = new THREE.HemisphereLight(TH.hemiC ? TH.hemiC[0] : 0xe6f4ff, TH.hemiC ? TH.hemiC[1] : 0x5a4a3a, 1.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.6); sun.position.set(-22, 42, 26); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 30, bottom: -30, near: 5, far: 120 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .03; scene.add(sun);
 const moon = new THREE.DirectionalLight(0x7a8aff, 0); moon.position.set(20, 30, -20); scene.add(moon);
@@ -47,4 +55,4 @@ bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragm
 composer.addPass(bloom); composer.addPass(new OutputPass());
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
 
-export { renderer, scene, camera, cam, updateCam, DAY, NIGHT, skyU, hemi, sun, moon, composer, bloom, LIGHT, SNOW };
+export { renderer, scene, camera, cam, updateCam, DAY, NIGHT, skyU, hemi, sun, moon, composer, bloom, LIGHT, SNOW, VOLCANO, THEME_KEY };

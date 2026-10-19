@@ -17,7 +17,18 @@ export const CHAPTERS = [
       { id: '2-3', n: '서리 협곡', waves: 14, core: [12, 7], spawns: [[0, 2], [23, 13]], q: [.18, .5, .66], bed: .06, hp: 1.2, seed: 2303 },
       { id: '2-4', n: '빙결의 군주', waves: 15, core: [22, 8], spawns: [[0, 2], [0, 14], [12, 15]], q: [.18, .5, .66], bed: .06, hp: 1.3, seed: 2404, boss: true },
     ] },
-  { id: 3, n: '3장 · 불타는 화산', short: '화산', theme: 'volcano', prop: 'lava', propN: '용암', propD: '용암 지대를 피해 다녀요. 자폭병이 많아요.', color: '#ff7a3a', bg: 'linear-gradient(160deg,#5a1e10,#200806)', soon: true, stages: [] },
+  { id: 3, n: '3장 · 불타는 화산', short: '화산', theme: 'volcano', prop: 'lava', propN: '용암 강', propD: '흐르는 용암은 아무도 건널 수 없어요(타워 건설·굴착 불가). 몬스터는 용암 사이 틈으로 몰려요. 자폭병·공성병이 많아요.', color: '#ff7a3a', bg: 'linear-gradient(160deg,#5a1e10,#200806)',
+    // lava: 용암 강 (꺾은선 [c,r] 목록, 칸 단위로 칠함). 포털·코어 주변 1칸은 항상 비움. 끊긴 곳 = 건널 수 있는 틈
+    stages: [
+      { id: '3-1', n: '잿빛 산기슭', waves: 12, core: [22, 8], spawns: [[0, 5]], q: [.2, .5, .66], bed: .03, hp: 1.4, seed: 3101,
+        lava: [[[10, 0], [11, 4]], [[12, 7], [11, 11]], [[11, 13], [12, 15]]] },
+      { id: '3-2', n: '용암 강', waves: 13, core: [22, 3], spawns: [[0, 12], [6, 15]], q: [.18, .48, .64], bed: .03, hp: 1.48, seed: 3202,
+        lava: [[[3, 0], [8, 5]], [[10, 6], [15, 9]], [[17, 10], [20, 11], [23, 12]], [[13, 0], [14, 3]]] },
+      { id: '3-3', n: '불꽃 협곡', waves: 14, core: [12, 8], spawns: [[0, 2], [23, 13]], q: [.18, .48, .64], bed: .03, hp: 1.56, seed: 3303,
+        lava: [[[3, 4], [7, 4]], [[10, 4], [20, 4]], [[3, 12], [13, 12]], [[16, 12], [20, 12]], [[20, 5], [20, 7]], [[3, 9], [3, 11]]] },
+      { id: '3-4', n: '화염의 군주', waves: 15, core: [22, 8], spawns: [[0, 2], [0, 14], [12, 15]], q: [.16, .46, .62], bed: .03, hp: 1.65, seed: 3404, boss: true,
+        lava: [[[17, 1], [17, 5]], [[17, 11], [17, 14]], [[7, 6], [9, 7]], [[6, 10], [8, 10]], [[12, 0], [12, 3]]] },
+    ] },
   { id: 4, n: '4장 · 잊혀진 폐허', short: '폐허', theme: 'ruins', prop: 'collapse', propN: '무너지는 벽', propD: '벽이 무너지며 길이 바뀌어요.', color: '#c0a0ff', bg: 'linear-gradient(160deg,#3a2a50,#140c20)', soon: true, stages: [] },
 ];
 export const STAGES = Object.fromEntries(CHAPTERS.flatMap(ch => ch.stages.map((s, i) => [s.id, { ...s, ch: ch.id, idx: i, last: i === ch.stages.length - 1 }])));
@@ -32,3 +43,11 @@ export function stageUnlocked(save, id) { const S = STAGES[id]; if (!S || !chapt
 export const STAR_STEP = 5; // 별 5개마다 별 보상 상자
 export const stageReward = (id, first) => { const S = STAGES[id]; const base = 40 + S.idx * 15 + (S.ch - 1) * 60 + (S.boss ? 60 : 0); return first ? base : Math.round(base / 2); };
 export const PREFIX = { 1: '숲의 ', 2: '서리 ', 3: '화염 ', 4: '폐허의 ' };
+// 용암 강 칸 목록 (꺾은선 → 칸, 포털·코어 주변 1칸 제외). 순수 함수: 렌더/경로/테스트 공용
+export function lavaTiles(S, GW = 24, GH = 16) {
+  const out = new Set(); if (!S || !S.lava) return out; const near = (c, r) => [S.core, ...S.spawns].some(p => Math.abs(c - p[0]) <= 1 && Math.abs(r - p[1]) <= 1);
+  for (const line of S.lava) for (let i = 0; i < line.length; i++) { const a = line[i], b = line[Math.min(i + 1, line.length - 1)], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 1);
+    let pc = null, pr = null; const add = (c, r) => { if (c >= 0 && r >= 0 && c < GW && r < GH && !near(c, r)) out.add(c + ',' + r); };
+    for (let k = 0; k <= n; k++) { const c = Math.round(a[0] + (b[0] - a[0]) * k / n), r = Math.round(a[1] + (b[1] - a[1]) * k / n); if (pc !== null && c !== pc && r !== pr) add(c, pr); add(c, r); pc = c; pr = r; } } // 대각선 이음새도 채움(4방향으로 새지 않게)
+  return out;
+}
