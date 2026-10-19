@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CORE, DIRS, GH, GW, NT, S, SPAWN, T, inGrid, isBlock, tileX, tileZ } from '../core/grid.js';
+import { CORE, DIRS, GH, GW, NT, S, SPAWNS, T, inGrid, isBlock, tileX, tileZ } from '../core/grid.js';
 import { G } from '../core/state.js';
 import { scene } from './scene.js';
 import { IM, dummy, hideI, setI } from './toon.js';
@@ -26,18 +26,21 @@ const chevGeo = (() => { const sh = new THREE.Shape(); sh.moveTo(.32, 0); sh.lin
 const flowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const dashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, opacity: .85, depthWrite: false });
 const olMat = new THREE.MeshBasicMaterial({ color: 0x140a04, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide });
-const NCH = 60, NDASH = 260, chevIM = IM(chevGeo, flowMat, NCH, 0, false), dashIM = IM(new THREE.BoxGeometry(.4, .07, .2), dashMat, NDASH, 0, false);
+const NCH = 60 + 30 * (SPAWNS.length - 1), NDASH = 260 + 130 * (SPAWNS.length - 1), chevIM = IM(chevGeo, flowMat, NCH, 0, false), dashIM = IM(new THREE.BoxGeometry(.4, .07, .2), dashMat, NDASH, 0, false);
 const chevOL = IM(chevGeo, olMat, NCH, 0, false), dashOL = IM(new THREE.BoxGeometry(.4, .07, .2), olMat, NDASH, 0, false);
 chevIM.renderOrder = dashIM.renderOrder = 6; chevOL.renderOrder = dashOL.renderOrder = 5;
 const olM = new THREE.Matrix4(), olS = new THREE.Matrix4();
 function olWrite(im, i, k) { olS.makeScale(k, 1, k); olM.copy(dummy.matrix).multiply(olS); olM.elements[13] -= .015; im.setMatrixAt(i, olM); }
-let routeCurve = null, routeLen = 0, routeDig = []; const C_DASHO = new THREE.Color(0xfffbe8).multiplyScalar(1.5), C_DASHD = new THREE.Color(0xffe0b0).multiplyScalar(1.5); const C_OPEN = new THREE.Color(0xfff07a).multiplyScalar(1.5), C_DIG = new THREE.Color(0xff6a3a).multiplyScalar(1.5), C_FLOW = new THREE.Color(0xffe27a).multiplyScalar(1.6), C_FLOWD = new THREE.Color(0xff7a3a).multiplyScalar(1.6);
+const C_DASHO = new THREE.Color(0xfffbe8).multiplyScalar(1.5), C_DASHD = new THREE.Color(0xffe0b0).multiplyScalar(1.5); const C_OPEN = new THREE.Color(0xfff07a).multiplyScalar(1.5), C_DIG = new THREE.Color(0xff6a3a).multiplyScalar(1.5), C_FLOW = new THREE.Color(0xffe27a).multiplyScalar(1.6), C_FLOWD = new THREE.Color(0xff7a3a).multiplyScalar(1.6);
 G.route = [];
 // 경로 리본 (테두리 어두운 띠 + 빛나는 띠), 경로가 바뀔 때마다 다시 만듦
 const ribbonMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: .7, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
 const ribbonOLMat = new THREE.MeshBasicMaterial({ color: 0x1a0c04, transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide });
-const ribbon = new THREE.Mesh(new THREE.BufferGeometry(), ribbonMat), ribbonOL = new THREE.Mesh(new THREE.BufferGeometry(), ribbonOLMat);
-ribbon.renderOrder = 4; ribbonOL.renderOrder = 3; ribbon.frustumCulled = ribbonOL.frustumCulled = false; scene.add(ribbonOL, ribbon);
+// 입구(포털)마다 경로 하나: { curve, len, dig, ribbon, ribbonOL }. 메시는 입구 수만큼 한 번만 만들고 재사용(지오메트리만 교체)
+const routes = SPAWNS.map(() => { const ribbon = new THREE.Mesh(new THREE.BufferGeometry(), ribbonMat), ribbonOL = new THREE.Mesh(new THREE.BufferGeometry(), ribbonOLMat);
+  ribbon.renderOrder = 4; ribbonOL.renderOrder = 3; ribbon.frustumCulled = ribbonOL.frustumCulled = false; ribbon.visible = ribbonOL.visible = false; scene.add(ribbonOL, ribbon);
+  return { curve: null, len: 0, dig: [], tiles: [], ribbon, ribbonOL }; });
+G.routes = []; G.routeVis = () => routes.map(R => ({ tiles: R.tiles.length, len: Math.round(R.len * 10) / 10, ribbon: R.ribbon.visible && R.ribbon.geometry.index ? R.ribbon.geometry.index.count : 0, dashes: R.nDash || 0, chevs: R.nChev || 0, start: R.tiles[0] || null, end: R.tiles[R.tiles.length - 1] || null }));
 function ribbonGeo(curve, dig, w, dy, colored) {
   const N = Math.max(8, Math.ceil(curve.getLength() * 3)), pos = [], col = [], idx = [], p = new THREE.Vector3(), t = new THREE.Vector3(), c = new THREE.Color();
   for (let i = 0; i <= N; i++) { const u = i / N; curve.getPointAt(u, p); curve.getTangentAt(u, t); const nx = -t.z, nz = t.x, l = Math.hypot(nx, nz) || 1;
@@ -46,29 +49,38 @@ function ribbonGeo(curve, dig, w, dy, colored) {
     if (i < N) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); if (colored) g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); return g;
 }
+const tileY = t => { const d = isBlock(t.t) || !!t.bar; return d ? (t.bar ? 1.6 : t.t === T.ROCK ? 1.25 : t.t === T.FOREST ? 2.3 : 1.15) : t.t === T.CARVED ? -.32 : .14; };
+// 각 입구에서 코어까지 따라감. 2번째 이후 경로는 앞 경로와 합류하는 칸에서 멈춤(겹쳐 그리지 않음 → 같은 밝기·적은 인스턴스).
+// 단 입구가 앞 경로 위/바로 옆이어도 입구에서 나오는 길이 보이도록 최소 4칸은 그림
 function drawRoute() {
-  const pts = [], dig = []; let cur = SPAWN.slice(), k = 0; G.route = [];
-  while (cur && k++ < 199) { const t = tileAt(cur[0], cur[1]), d = isBlock(t.t) || !!t.bar; G.route.push(cur);
-    pts.push(new THREE.Vector3(tileX(cur[0]), d ? (t.bar ? 1.6 : t.t === T.ROCK ? 1.25 : t.t === T.FOREST ? 2.3 : 1.15) : t.t === T.CARVED ? -.32 : .14, tileZ(cur[1]))); dig.push(d);
-    if (cur[0] === CORE[0] && cur[1] === CORE[1]) break; cur = nextStep(cur[0], cur[1]); }
-  routeDig = dig; if (pts.length < 2) { routeCurve = null; return; }
-  routeCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', .5); routeLen = routeCurve.getLength(); refreshEdges();
-  ribbon.geometry.dispose(); ribbon.geometry = ribbonGeo(routeCurve, dig, .36, .02, true); ribbonOL.geometry.dispose(); ribbonOL.geometry = ribbonGeo(routeCurve, dig, .56, 0, false);
+  const seen = new Set(); G.routes = [];
+  routes.forEach((R, si) => { const pts = [], dig = [], tiles = []; let cur = SPAWNS[si].slice(), k = 0;
+    while (cur && k++ < 199) { const t = tileAt(cur[0], cur[1]), key = cur[0] * GH + cur[1]; tiles.push(cur);
+      pts.push(new THREE.Vector3(tileX(cur[0]), tileY(t), tileZ(cur[1]))); dig.push(isBlock(t.t) || !!t.bar);
+      if ((cur[0] === CORE[0] && cur[1] === CORE[1]) || (si > 0 && tiles.length >= 4 && seen.has(key))) break; cur = nextStep(cur[0], cur[1]); }
+    for (const [c, r] of tiles) seen.add(c * GH + r);
+    R.tiles = tiles; R.dig = dig; G.routes.push(tiles); R.ribbon.geometry.dispose(); R.ribbonOL.geometry.dispose();
+    if (pts.length < 2) { R.curve = null; R.len = 0; R.ribbon.geometry = new THREE.BufferGeometry(); R.ribbonOL.geometry = new THREE.BufferGeometry(); return; }
+    R.curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', .5); R.len = R.curve.getLength();
+    R.ribbon.geometry = ribbonGeo(R.curve, dig, .36, .02, true); R.ribbonOL.geometry = ribbonGeo(R.curve, dig, .56, 0, false); });
+  G.route = G.routes[0] || []; refreshEdges();
 }
 const rv = new THREE.Vector3(), rt = new THREE.Vector3();
+const digAt = (R, u) => R.dig[Math.min(R.dig.length - 1, Math.round(u * (R.dig.length - 1)))];
 function updRoute() {
-  const show = (G.phase === 'build' || G.phase === 'wave') && routeCurve, build = G.phase === 'build';
-  let n = 0; edgeMat.opacity = .75 + Math.sin(G.t * 3) * .15; floorMat.opacity = .2 + G.night * .22 + Math.sin(G.t * 2.2) * .05;
-  if (show) { // 점선: 건설 단계에선 선명하게, 전투 중엔 은은하게. 천천히 코어 쪽으로 흐름
-    const gap = .85, off = (G.t * 1.2) % gap;
-    for (let s = off; s < routeLen && n < NDASH; s += gap) { const u = s / routeLen; routeCurve.getPointAt(u, rv); routeCurve.getTangentAt(u, rt); rv.y += .05;
-      const di = routeDig[Math.min(routeDig.length - 1, Math.round(u * (routeDig.length - 1)))]; dashIM.setColorAt(n, di ? C_DASHD : C_DASHO);
-      dummy.position.copy(rv); dummy.rotation.set(0, Math.atan2(-rt.z, rt.x), Math.asin(Math.max(-1, Math.min(1, rt.y)))); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); dashIM.setMatrixAt(n, dummy.matrix); olWrite(dashOL, n, 1.45); n++; } }
+  const live = (G.phase === 'build' || G.phase === 'wave'), build = G.phase === 'build';
+  let n = 0, m = 0; edgeMat.opacity = .75 + Math.sin(G.t * 3) * .15; floorMat.opacity = .2 + G.night * .22 + Math.sin(G.t * 2.2) * .05;
+  for (const R of routes) { const show = live && R.curve; R.ribbon.visible = R.ribbonOL.visible = !!show; R.nDash = R.nChev = 0; if (!show) continue; const L = R.len, n0 = n, m0 = m;
+    // 점선: 건설 단계에선 선명하게, 전투 중엔 은은하게. 천천히 코어 쪽으로 흐름
+    { const gap = .85, off = (G.t * 1.2) % gap;
+      for (let s = off; s < L && n < NDASH; s += gap) { const u = s / L; R.curve.getPointAt(u, rv); R.curve.getTangentAt(u, rt); rv.y += .05; dashIM.setColorAt(n, digAt(R, u) ? C_DASHD : C_DASHO);
+        dummy.position.copy(rv); dummy.rotation.set(0, Math.atan2(-rt.z, rt.x), Math.asin(Math.max(-1, Math.min(1, rt.y)))); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); dashIM.setMatrixAt(n, dummy.matrix); olWrite(dashOL, n, 1.45); n++; } }
+    { const gap = 2.6, off = (G.t * 3.4) % gap;
+      for (let s = off; s < L && m < NCH; s += gap) { const u = s / L; R.curve.getPointAt(u, rv); R.curve.getTangentAt(u, rt); const fade = Math.min(1, s / 2, (L - s) / 2);
+        dummy.position.set(rv.x, rv.y + .1 + Math.sin(G.t * 5 + s) * .04, rv.z); dummy.rotation.set(0, Math.atan2(-rt.z, rt.x), 0); const sc = (build ? 1.6 : 1.25) * Math.max(.05, fade); dummy.scale.set(sc, 1, sc); dummy.updateMatrix(); chevIM.setMatrixAt(m, dummy.matrix); olWrite(chevOL, m, 1.4); chevIM.setColorAt(m++, digAt(R, u) ? C_FLOWD : C_FLOW); } }
+    R.nDash = n - n0; R.nChev = m - m0; }
   for (let i = n; i < NDASH; i++) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); dashIM.setMatrixAt(i, dummy.matrix); dashOL.setMatrixAt(i, dummy.matrix); } dashOL.instanceMatrix.needsUpdate = true;
-  dashMat.opacity = build ? 1 : .85; ribbon.visible = ribbonOL.visible = !!show; ribbonMat.opacity = (build ? .8 : .6) + Math.sin(G.t * 3) * .08; ribbonOLMat.opacity = build ? .5 : .35; dashIM.instanceMatrix.needsUpdate = true; if (dashIM.instanceColor) dashIM.instanceColor.needsUpdate = true;
-  let m = 0; if (show) { const gap = 2.6, off = (G.t * 3.4) % gap;
-    for (let s = off; s < routeLen && m < NCH; s += gap) { const u = s / routeLen; routeCurve.getPointAt(u, rv); routeCurve.getTangentAt(u, rt); const fade = Math.min(1, s / 2, (routeLen - s) / 2);
-      dummy.position.set(rv.x, rv.y + .1 + Math.sin(G.t * 5 + s) * .04, rv.z); dummy.rotation.set(0, Math.atan2(-rt.z, rt.x), 0); const sc = (build ? 1.6 : 1.25) * Math.max(.05, fade); dummy.scale.set(sc, 1, sc); dummy.updateMatrix(); chevIM.setMatrixAt(m, dummy.matrix); olWrite(chevOL, m, 1.4); chevIM.setColorAt(m++, routeDig[Math.min(routeDig.length - 1, Math.round(u * (routeDig.length - 1)))] ? C_FLOWD : C_FLOW); } }
+  dashMat.opacity = build ? 1 : .85; ribbonMat.opacity = (build ? .8 : .6) + Math.sin(G.t * 3) * .08; ribbonOLMat.opacity = build ? .5 : .35; dashIM.instanceMatrix.needsUpdate = true; if (dashIM.instanceColor) dashIM.instanceColor.needsUpdate = true;
   for (let i = m; i < NCH; i++) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); chevIM.setMatrixAt(i, dummy.matrix); chevOL.setMatrixAt(i, dummy.matrix); } chevOL.instanceMatrix.needsUpdate = true; olMat.opacity = build ? .6 : .4;
   chevIM.instanceMatrix.needsUpdate = true; if (chevIM.instanceColor) chevIM.instanceColor.needsUpdate = true; flowMat.opacity = build ? .95 : .8;
 }
