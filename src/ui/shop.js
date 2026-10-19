@@ -20,7 +20,7 @@ const PROD = {
   hero_mechanic: { anim: 'Idle', col: 0x7aff5a, icon: '🦾', stats: ['❤ 체력 <b>{hp} (최고)</b>', '🛡 방어 <b>높음</b>', '🦾 근접 · 드릴/해머 교대', '💥 해머 넉백'],
     sk: '부품이 날아와 합체! 10초간 거대 로봇(보호막 · 넓은 범위 강펀치 · 드릴 돌진) → 로켓 펀치 피니시', lg: '<b>✦ 전설 건틀릿</b> 과부하 드릴(다단 갈기 · 둔화) · 기가 해머 낙하([E] 거대 해머 · 기절)' },
 };
-const PKEYS = Object.keys(SHOP.items);
+const PKEYS = Object.keys(SHOP.items).filter(k => !(CLASSES[SHOP.items[k].hero] || {}).hidden); // 숨긴 영웅 상품 제외
 let ui = { prod: 'hero_gunner', shop: false, mail: false, admin: false, msg: '', msgOk: true, mailMsg: '', adm: 'orders', admMsg: '', busy: false };
 let hooks = { onChange: () => {}, closeOthers: () => {}, cheer: () => {} };
 export const shopOpen = () => ui.shop, mailOpen = () => ui.mail, adminOpen = () => ui.admin;
@@ -54,7 +54,7 @@ export function updShop(dt) {
 }
 
 // ---------- 상점 ----------
-export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (SHOP.items[k]) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
+export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (PKEYS.includes(k)) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
 export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; $('shopPanel').classList.add('hidden'); }
 function itemState(k) {
   const A = Acc.A, st = Sh.S.status;
@@ -131,7 +131,7 @@ function renderAdmin() {
       body.querySelectorAll('.admNo').forEach(b => b.onclick = () => decide(b, Sh.reject(+b.dataset.id, $('admReason').value.trim()), '거절 완료 · 안내 우편을 보냈어요')); } }
   else if (!body._mailForm) { body._h = ''; body._mailForm = true; body.innerHTML = `<div class="admForm"><label>받는 사람 이메일<input id="amEmail" type="email" placeholder="user@example.com"></label><label>제목<input id="amTitle" maxlength="60" value="운영자의 선물"></label>
       <label>내용<textarea id="amBody" maxlength="1000" rows="3">모험에 도움이 되길 바랍니다!</textarea></label><div class="amRw"><label>영혼석<input id="amSouls" type="number" min="0" max="1000000" value="0"></label><label>강철<input id="amSteel" type="number" min="0" max="1000000" value="0"></label><label>마력석<input id="amCrystal" type="number" min="0" max="1000000" value="0"></label></div>
-      <label class="amChk">영웅 지급 <select id="amHero"><option value="">없음</option>${PKEYS.map(x => SHOP.items[x].hero).map(h => `<option value="${h}">${esc(heroLabel(h))}</option>`).join('')}</select></label><button class="gbtn main" id="amSend">✉ 우편 보내기</button></div>`;
+      <label class="amChk">영웅 지급 <select id="amHero"><option value="">없음</option>${Object.keys(SHOP.items).map(x => SHOP.items[x].hero).map(h => `<option value="${h}">${esc(heroLabel(h))}</option>`).join('')}</select></label><button class="gbtn main" id="amSend">✉ 우편 보내기</button></div>`;
     $('amSend').onclick = async () => { const n = id => Math.max(0, Math.min(1e6, Math.floor(+$(id).value || 0))), rw = {}; if (n('amSouls')) rw.souls = n('amSouls'); if (n('amSteel')) rw.steel = n('amSteel'); if (n('amCrystal')) rw.crystal = n('amCrystal'); if ($('amHero').value) rw.hero = $('amHero').value;
       const em = $('amEmail').value.trim(), ti = $('amTitle').value.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em) || !ti) { ui.admMsg = '⚠ 이메일과 제목을 확인해 주세요.'; Snd.play('error'); renderAdmin(); return; }
       $('amSend').disabled = true; const r = await Sh.sendMail(em, ti, $('amBody').value, rw); $('amSend').disabled = false; ui.admMsg = r.ok ? `✅ ${esc(em)} 에게 우편을 보냈어요.` : '⚠ ' + esc(r.msg); Snd.play(r.ok ? 'confirm' : 'error'); renderAdmin(); }; }

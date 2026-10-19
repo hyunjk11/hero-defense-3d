@@ -17,7 +17,7 @@ JS = """async (names) => { const { makeHeroModel } = await import('./src/render/
 NAMES = ['Idle', 'Running_A', 'Drill', 'Hammer', 'Hit', 'Cheer']
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(); errs = []; pg.on('pageerror', lambda x: errs.append(str(x)))
-    pg.goto(url + '?seed=12345&rng=777&test=1'); pg.wait_for_function('()=>window.G&&G.ready', timeout=180000)
+    pg.goto(url + '?seed=12345&rng=777&test=1&budeul=1'); pg.wait_for_function('()=>window.G&&G.ready', timeout=180000)
     r = pg.evaluate(JS, NAMES); b.close()
 fails = []
 for n in NAMES:

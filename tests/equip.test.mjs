@@ -44,5 +44,12 @@ assert.ok(JSON.stringify(rt).length < 12000, 'save size');
   for (let g = 0; g < 5; g++) { const it = E.makeItem('weapon', 'gunner', g, r); assert.equal(it.h, 'gunner'); assert.ok(/쌍권총/.test(it.n)); if (g === 4) assert.ok(['ricochet', 'rosebarrage'].includes(it.u)); }
   gs.souls = 1e4; gs.mat = { steel: 500, crystal: 50 }; let gr, gi; [, gr, gi] = E.craft(gs, 'master', 'weapon', 'gunner', r); assert.equal(gr, 'ok'); assert.equal(gi.h, 'gunner');
   const ch = E.chestsFor(20, 'gunner', r); assert.equal(ch.length, 4); ch.filter(x => x.s === 'weapon').forEach(x => assert.equal(x.h, 'gunner'));
+  // 메카닉 버들: 전설 건틀릿 + 별칭(메카닉/버들/robot/드릴) 정규화, 고유 스킬 풀, 이름에 undefined 없음
+  const ms = P.clean({ hero: 'mechanic', inv: [{ id: 'mec4', s: 'weapon', h: 'mechanic', g: 4, n: '버들의 개조암 그린기어', m: ['atk', 25], sub: [['hp', 10]], e: 0, u: 'gigahammer' }, { id: 'mecA', s: 'weapon', h: '버들', g: 1, n: '증기 해머 건틀릿', m: ['atk', 9], sub: [], e: 0 }, { id: 'mecB', s: 'weapon', h: 'Robot', g: 2, n: '덩굴 드릴암', m: ['atk', 13], sub: [], e: 0 }, { id: 'mecC', s: 'weapon', h: '메카닉', g: 4, n: 'x', m: ['atk', 25], sub: [], e: 0 }], eq: { mechanic: { weapon: 'mec4' } } });
+  assert.equal(ms.hero, 'mechanic'); assert.equal(ms.inv.length, 4); ms.inv.forEach(x => assert.equal(x.h, 'mechanic')); assert.equal(ms.eq.mechanic.weapon, 'mec4'); assert.equal(E.legendOf(ms, 'mechanic'), 'gigahammer');
+  assert.ok(['overdrill', 'gigahammer'].includes(ms.inv[3].u)); assert.deepEqual(E.LPOOL.mechanic, ['overdrill', 'gigahammer']); assert.equal(E.LSK.overdrill.type, 'proc'); assert.equal(E.LSK.gigahammer.type, 'active');
+  for (const k of ['mech', 'robot', 'drill', 'wrench', 'budeul', '메카닉', '버들', '정비공', ' MECHANIC ']) assert.equal(E.heroKey(k), 'mechanic', k);
+  for (let g = 0; g < 5; g++) { const it = E.makeItem('weapon', 'mechanic', g, r); assert.equal(it.h, 'mechanic'); assert.ok(it.n && !/undefined/.test(it.n), it.n); if (g === 4) assert.ok(['overdrill', 'gigahammer'].includes(it.u)); }
+  const mc = E.chestsFor(20, 'mechanic', r); mc.filter(x => x.s === 'weapon').forEach(x => assert.equal(x.h, 'mechanic'));
   assert.deepEqual(E.dismantleYield(gs.inv[0]), { steel: 20, crystal: 8 }); }
 console.log('equip tests OK');

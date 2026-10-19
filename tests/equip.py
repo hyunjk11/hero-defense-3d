@@ -47,6 +47,21 @@ with sync_playwright() as pw:
     ok('unknown_icon_fallback', J(pg, "async()=>{ const m=await import('./src/ui/gear.js'); return [m.icon({s:'weapon',h:'nope'}), m.icon({s:'weird'}), m.icon(null)].join('') }") == '⚔️📦📦')
     if SHOTS: os.makedirs('shots/shop', exist_ok=True); pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(300); pg.locator('#invPanel').screenshot(path='shots/shop/gun_gear.png')
     J(pg, "()=>{ G.gear.Acc.update(d=>{ d.hero='mage'; d.inv=d.inv.filter(x=>!['gun4','gun1','zzz1'].includes(x.id)); delete d.eq.gunner.weapon; return d; }); }")
+    # 메카닉(버들) 전설 건틀릿: SQL 모양 + 별칭 h('버들', 'robot') → 아이콘 🦾 · '메카닉 전용' · 고유 스킬 이름, undefined 없음
+    J(pg, """()=>{ const {Acc}=G.gear; Acc.update(d=>{ d.hero='mechanic';
+        d.inv.push({id:'mec4', s:'weapon', h:'mechanic', g:4, n:'버들의 개조암 그린기어', m:['atk',25], sub:[['hp',10],['spd',9]], e:0, u:'gigahammer'},
+                   {id:'mec1', s:'weapon', h:'버들', g:1, n:'증기 해머 건틀릿', m:['atk',9], sub:[['crit',4]], e:0},
+                   {id:'mec2', s:'weapon', h:'robot', g:2, n:'덩굴 드릴암', m:['atk',13], sub:[], e:0});
+        d.eq.mechanic={weapon:'mec4'}; return d; }); }""")
+    pg.wait_for_timeout(300)
+    ml = J(pg, "()=>G.gear.Acc.load().inv.filter(x=>x.s==='weapon'&&x.h==='mechanic').map(x=>x.id).sort()")
+    ok('mech_items_kept_and_alias', ml == ['mec1', 'mec2', 'mec4'], ml)
+    pg.click('#invGrid .itile[data-id="mec4"]'); pg.wait_for_timeout(150)
+    txt = pg.inner_text('#invPanel'); ok('mech_no_undefined', 'undefined' not in txt and '🦾' in J(pg, "()=>document.querySelector('#invGrid .itile[data-id=\"mec4\"] .ic').textContent"), txt.count('undefined'))
+    ok('mech_detail', '🦾' in pg.inner_text('#invDetail .ic') and '기가 해머 낙하' in pg.inner_text('#invDetail'), pg.inner_text('#invDetail')[:200])
+    ok('mech_legend', J(pg, "()=>G.gear.E.legendOf(G.gear.Acc.load(),'mechanic')") == 'gigahammer')
+    if SHOTS: os.makedirs('shots/budeul', exist_ok=True); pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(300); pg.locator('#invPanel').screenshot(path='shots/budeul/mech_gear.png')
+    J(pg, "()=>{ G.gear.Acc.update(d=>{ d.hero='mage'; d.inv=d.inv.filter(x=>!['mec4','mec1','mec2'].includes(x.id)); delete d.eq.mechanic.weapon; return d; }); }")
     pg.click('#invClose')
     # 대장간: 걸어가면 열림
     J(pg, "()=>{ const [x,z]=G.townSmith(); G.townTeleport(x+5*.6+1.5, z+5*.8+1.5); G.townGoal(x+.6*3.3, z+.8*3.3); }")
