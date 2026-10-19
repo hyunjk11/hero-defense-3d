@@ -38,8 +38,8 @@
     const SHOPT = ['hd3d_orders', 'hd3d_mail', 'hd3d_owned'], isAdm = () => (sess()?.user?.email || '').toLowerCase() === 'hyunjk11@daum.net';
     const nid = d => (d.seq = (d.seq || 0) + 1), now = () => new Date(Date.now() + (db().seq || 0)).toISOString();
     const missing = t => flags().noTables || (flags().noShop && SHOPT.includes(t));
-    const VALID = r => r == null || (typeof r === 'object' && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.hero == null || r.hero === 'gunner'));
-    const REW = { hero_gunner: { hero: 'gunner' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈' };
+    const VALID = r => r == null || (typeof r === 'object' && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic'));
+    const REW = { hero_gunner: { hero: 'gunner' }, hero_mechanic: { hero: 'mechanic' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈', hero_mechanic: '유료 영웅 · 메카닉 버들' };
     const mail = (d, user_id, title, body, reward, order_id) => { const id = nid(d); d.hd3d_mail[id] = { id, user_id, title, body, reward: reward || null, order_id: order_id || null, claimed: false, claimed_at: null, created_at: now() }; return id; };
     function from(t) {
       const q = { t, f: [], op: 'select', lim: null, ord: null, single: false };
@@ -50,7 +50,7 @@
         const d = db(); for (const k of SHOPT) d[k] = d[k] || {};
         if (q.op === 'insert') {
           if (t !== 'hd3d_orders' || !uid()) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' }, status: 403 };
-          const item = q.row.item; if (item !== 'hero_gunner') return { data: null, error: { code: '23514', message: 'check constraint' }, status: 400 };
+          const item = q.row.item; if (item !== 'hero_gunner' && item !== 'hero_mechanic') return { data: null, error: { code: '23514', message: 'check constraint' }, status: 400 };
           if (d.hd3d_owned[uid() + ':' + item]) return { data: null, error: { code: '23505', message: 'already owned', hint: 'hd3d_owned' }, status: 409 };
           if (Object.values(d.hd3d_orders).some(o => o.user_id === uid() && o.item === item && o.status === 'pending')) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "hd3d_orders_one_pending"' }, status: 409 };
           const id = nid(d), nick = (d.hd3d_profiles[uid()] || {}).nickname || null; d.hd3d_orders[id] = { id, user_id: uid(), email: sess().user.email, nickname: nick, item, status: 'pending', note: null, created_at: now(), decided_at: null }; put(d); return { data: null, error: null, status: 201 };

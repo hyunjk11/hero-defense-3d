@@ -13,7 +13,15 @@ import { SHOP, PAY_INFO } from '../config/shop.js';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtD = s => { const d = new Date(s); return isNaN(d) ? '' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const ST_N = { pending: '승인 대기', approved: '승인됨', rejected: '거절됨' };
-let ui = { shop: false, mail: false, admin: false, msg: '', msgOk: true, mailMsg: '', adm: 'orders', admMsg: '', busy: false };
+// 상품별 표시 정보 (상점 카드 · 미리보기 동작 · 색)
+const PROD = {
+  hero_gunner: { anim: 'Flourish', col: 0xff6aa8, icon: '🌹', stats: ['⚡ 공격 속도 <b>매우 빠름</b>', '🎯 사거리 <b>중간</b>', '❤ 체력 <b>{hp}</b>', '🔫 쌍권총 교차 연사'],
+    sk: '회전하며 사방으로 탄환 난사 + 두 번의 피니시 폭발', lg: '<b>✦ 전설 쌍권총</b> 도탄 난사(튕기는 탄환) · 장미 탄막([E] 부채꼴 일제 사격)' },
+  hero_mechanic: { anim: 'FistPump', col: 0x7aff5a, icon: '🦾', stats: ['❤ 체력 <b>{hp} (최고)</b>', '🛡 방어 <b>높음</b>', '🦾 근접 · 드릴/해머 교대', '💥 해머 넉백'],
+    sk: '부품이 날아와 합체! 10초간 거대 로봇(보호막 · 넓은 범위 강펀치 · 드릴 돌진) → 로켓 펀치 피니시', lg: '<b>✦ 전설 건틀릿</b> 과부하 드릴(다단 갈기 · 둔화) · 기가 해머 낙하([E] 거대 해머 · 기절)' },
+};
+const PKEYS = Object.keys(SHOP.items);
+let ui = { prod: 'hero_gunner', shop: false, mail: false, admin: false, msg: '', msgOk: true, mailMsg: '', adm: 'orders', admMsg: '', busy: false };
 let hooks = { onChange: () => {}, closeOthers: () => {}, cheer: () => {} };
 export const shopOpen = () => ui.shop, mailOpen = () => ui.mail, adminOpen = () => ui.admin;
 
@@ -29,11 +37,14 @@ function preview() {
     const ring = new THREE.Mesh(new THREE.RingGeometry(1.55, 1.68, 64), new THREE.MeshBasicMaterial({ color: 0xffd0e8, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .02; sc.add(ring);
     const pg = new THREE.BufferGeometry(), N = 60, pp = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pp[i * 3] = (Math.random() - .5) * 3.4; pp[i * 3 + 1] = Math.random() * 3; pp[i * 3 + 2] = (Math.random() - .5) * 2; } pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xffb0d8, size: .07, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); sc.add(pts);
-    const ch = makeHeroModel('gunner'); ch.ring.visible = false; sc.add(ch.g); play(ch, 'Flourish'); ch.g.rotation.y = .35;
-    pv = { r, sc, cam, ch, pts, ring, t: 0, spin: 0 };
+    pv = { r, sc, cam, ch: null, chs: {}, pts, ring, disc, rim, t: 0, spin: 0 }; pvSet(ui.prod);
   } catch (e) { console.warn('shop preview', e); pv = false; }
   return pv;
 }
+// 미리보기 모델 교체 (상품마다 한 번만 생성)
+function pvSet(k) { if (!pv) return; const I = SHOP.items[k], D = PROD[k] || PROD.hero_gunner; if (!I) return; if (pv.ch) pv.ch.g.visible = false;
+  let ch = pv.chs[k]; if (!ch) { ch = pv.chs[k] = makeHeroModel(I.hero); ch.ring.visible = false; pv.sc.add(ch.g); play(ch, D.anim) || play(ch, 'Idle'); ch.g.rotation.y = .35; }
+  ch.g.visible = true; pv.ch = ch; pv.key = k; pv.disc.material.color.setHex(D.col); pv.rim.color.setHex(D.col); pv.pts.material.color.setHex(D.col).lerp(new THREE.Color(0xffffff), .45); pv.spin = 6.28; }
 export function updShop(dt) {
   if (!ui.shop || !pv) return; const cv = $('shopPv'), w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
   if (pv.w !== w || pv.h !== h) { pv.w = w; pv.h = h; pv.r.setSize(w, h, false); pv.cam.aspect = w / h; pv.cam.updateProjectionMatrix(); }
@@ -43,7 +54,7 @@ export function updShop(dt) {
 }
 
 // ---------- 상점 ----------
-export function openShop() { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) pv.spin = 6.28; render(); if (Acc.A.user) Sh.refresh().then(render); }
+export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (SHOP.items[k]) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
 export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; $('shopPanel').classList.add('hidden'); }
 function itemState(k) {
   const A = Acc.A, st = Sh.S.status;
@@ -57,14 +68,17 @@ function itemState(k) {
 }
 function render() {
   if (ui.shop) {
-    const k = 'hero_gunner', I = SHOP.items[k], C = CLASSES[I.hero], s = itemState(k);
-    const body = $('shopBody'); if (!body._built) { body._built = true; body.innerHTML = `<div class="shopCard"><div class="pvWrap"><canvas id="shopPvSlot"></canvas><div class="pvTag">${esc(I.tag)}</div><div class="pvName">${esc(C.nm)}<small>${esc(C.n)}</small></div></div>
+    const k = ui.prod, I = SHOP.items[k], C = CLASSES[I.hero], D = PROD[k] || PROD.hero_gunner, s = itemState(k);
+    const body = $('shopBody'), bk = k + ':' + PKEYS.map(x => +Sh.owns(x)).join(''); if (body._built !== bk) { const cv = $('shopPv'); body._built = bk; // 상품 탭(2개 이상) + 선택한 상품 카드 (미리보기 캔버스는 재사용)
+      const tabs = PKEYS.length > 1 ? `<div class="shopTabs" id="shopTabs">${PKEYS.map(x => { const X = SHOP.items[x], XC = CLASSES[X.hero], XD = PROD[x] || {}; return `<button class="shopTab ${x === k ? 'on' : ''} ${Sh.owns(x) ? 'own' : ''}" data-k="${x}" style="--pc:#${new THREE.Color(XD.col || 0xff6aa8).getHexString()}"><i>${XD.icon || '🎁'}</i><b>${esc(XC.nm)}</b><small>${esc(XC.n)} · ${esc(X.price)}</small>${Sh.owns(x) ? '<em>보유</em>' : ''}</button>`; }).join('')}</div>` : '';
+      body.innerHTML = `${tabs}<div class="shopCard p_${esc(I.hero)}"><div class="pvWrap"><canvas id="shopPvSlot"></canvas><div class="pvTag">${esc(I.tag)}</div><div class="pvName">${esc(C.nm)}<small>${esc(C.n)}</small></div></div>
       <div class="shopInfo"><div class="shopTitle">${esc(I.n)}</div><div class="shopDesc">${esc(I.desc)}</div>
-      <div class="shopStats"><span>⚡ 공격 속도 <b>매우 빠름</b></span><span>🎯 사거리 <b>중간</b></span><span>❤ 체력 <b>${C.hp}</b></span><span>🔫 쌍권총 교차 연사</span></div>
-      <div class="shopSk"><b>Q · ${esc(C.skill)}</b> 회전하며 사방으로 탄환 난사 + 두 번의 피니시 폭발</div><div class="shopSk lg"><b>✦ 전설 쌍권총</b> 도탄 난사(튕기는 탄환) · 장미 탄막([E] 부채꼴 일제 사격)</div>
+      <div class="shopStats">${D.stats.map(x => `<span>${x.replace('{hp}', C.hp)}</span>`).join('')}</div>
+      <div class="shopSk"><b>Q · ${esc(C.skill)}</b> ${esc(D.sk)}</div><div class="shopSk lg">${D.lg}</div>
       <div class="shopBuy"><div class="price" id="shopPrice"></div><button class="gbtn main" id="shopBuyBtn"></button></div><div class="shopNote" id="shopNote"></div><div class="shopPay">${esc(PAY_INFO)}</div></div></div>
       <div class="shopFlow">구매 신청 → 관리자 결제 확인·승인 → <b>✉ 우편함</b>에서 받기</div><div id="shopMsg" class="shopMsg"></div>`;
-      const slot = $('shopPvSlot'); slot.replaceWith($('shopPv')); $('shopBuyBtn').onclick = () => buy(k); }
+      $('shopPvSlot').replaceWith(cv); $('shopBuyBtn').onclick = () => buy(k);
+      body.querySelectorAll('.shopTab').forEach(b => b.onclick = () => { if (b.dataset.k === ui.prod) return; Snd.play('select'); ui.prod = b.dataset.k; ui.msg = ''; pvSet(ui.prod); render(); }); }
     $('shopPrice').textContent = I.price; const b = $('shopBuyBtn'); b.textContent = s.btn; b.disabled = s.dis || ui.busy; b.className = 'gbtn main st_' + s.cls; $('shopNote').textContent = s.note;
     $('shopMsg').innerHTML = ui.msg ? `<span class="${ui.msgOk ? 'ok' : 'bad'}">${ui.msg}</span>` : '';
   }
@@ -72,7 +86,7 @@ function render() {
 }
 async function buy(k) {
   if (ui.busy) return; ui.busy = true; Snd.play('ui'); render(); const r = await Sh.order(k); ui.busy = false;
-  ui.msgOk = r.ok; ui.msg = r.ok ? `✅ ${esc(r.msg)}<br>관리자가 결제를 확인하고 승인하면 <b>우편함</b>으로 로즈가 지급됩니다.<br><small>${esc(PAY_INFO)}</small>` : '⚠ ' + esc(r.msg);
+  ui.msgOk = r.ok; ui.msg = r.ok ? `✅ ${esc(r.msg)}<br>관리자가 결제를 확인하고 승인하면 <b>우편함</b>으로 ${esc(heroLabel(SHOP.items[k].hero))} 영웅이 지급됩니다.<br><small>${esc(PAY_INFO)}</small>` : '⚠ ' + esc(r.msg);
   Snd.play(r.ok ? 'confirm' : 'error'); if (r.ok) Snd.play('coins'); render();
 }
 
@@ -87,12 +101,12 @@ function renderMail() {
   else if (st !== 'ok' && !L.length) h = '<div class="emptyMsg">불러오는 중…</div>';
   else if (!L.length) h = '<div class="emptyMsg">받은 우편이 없어요.</div>';
   else h = L.map(m => { const rw = Sh.rewardText(m.reward), hero = m.reward && m.reward.hero;
-    return `<div class="mailItem ${m.claimed ? 'done' : ''} ${!m.claimed && (m.reward || !m.read) ? 'new' : ''}" data-id="${m.id}"><div class="mIco">${hero ? '🎁' : m.reward ? '💰' : '✉'}</div><div class="mMain"><div class="mT">${esc(m.title)}</div><div class="mB">${esc(m.body)}</div>${rw ? `<div class="mR">${hero ? '<i class="rose">🌹</i>' : ''}${esc(rw)}</div>` : ''}<div class="mD">${fmtD(m.created_at)}</div></div>
+    return `<div class="mailItem ${m.claimed ? 'done' : ''} ${!m.claimed && (m.reward || !m.read) ? 'new' : ''}" data-id="${m.id}"><div class="mIco">${hero ? '🎁' : m.reward ? '💰' : '✉'}</div><div class="mMain"><div class="mT">${esc(m.title)}</div><div class="mB">${esc(m.body)}</div>${rw ? `<div class="mR">${hero ? `<i class="rose">${(PROD['hero_' + hero] || {}).icon || '🎁'}</i>` : ''}${esc(rw)}</div>` : ''}<div class="mD">${fmtD(m.created_at)}</div></div>
       <div class="mAct">${m.reward ? (m.claimed ? '<span class="got">받음 ✓</span>' : `<button class="gbtn main mClaim" data-id="${m.id}">받기</button>`) : ''}</div></div>`; }).join('');
   if ($('mailList')._h !== h) { $('mailList')._h = h; $('mailList').innerHTML = h;
     document.querySelectorAll('#mailList .mailItem').forEach(el => el.onclick = () => { const id = +el.dataset.id, m = Sh.S.mail.find(x => x.id === id); if (m && !m.read) { Sh.markRead(id); render(); } });
     document.querySelectorAll('#mailList .mClaim').forEach(b => b.onclick = async e => { e.stopPropagation(); b.disabled = true; const r = await Sh.claim(+b.dataset.id); ui.mailMsg = (r.ok ? '✅ ' : '⚠ ') + esc(r.msg);
-      if (r.ok && !r.already) { Snd.play('levelUp'); Snd.play('coins'); if (r.reward && r.reward.hero) { ui.mailMsg = `🌹 <b>${esc(heroLabel(r.reward.hero))}</b> 해금! 영웅 선택에서 고를 수 있어요.`; hooks.cheer(); } } else Snd.play(r.ok ? 'ui' : 'error');
+      if (r.ok && !r.already) { Snd.play('levelUp'); Snd.play('coins'); if (r.reward && r.reward.hero) { ui.mailMsg = `${(PROD['hero_' + r.reward.hero] || {}).icon || '🎁'} <b>${esc(heroLabel(r.reward.hero))}</b> 해금! 영웅 선택에서 고를 수 있어요.`; hooks.cheer(); } } else Snd.play(r.ok ? 'ui' : 'error');
       hooks.onChange(); render(); }); }
   $('mailMsg').innerHTML = ui.mailMsg;
 }
@@ -117,8 +131,8 @@ function renderAdmin() {
       body.querySelectorAll('.admNo').forEach(b => b.onclick = () => decide(b, Sh.reject(+b.dataset.id, $('admReason').value.trim()), '거절 완료 · 안내 우편을 보냈어요')); } }
   else if (!body._mailForm) { body._h = ''; body._mailForm = true; body.innerHTML = `<div class="admForm"><label>받는 사람 이메일<input id="amEmail" type="email" placeholder="user@example.com"></label><label>제목<input id="amTitle" maxlength="60" value="운영자의 선물"></label>
       <label>내용<textarea id="amBody" maxlength="1000" rows="3">모험에 도움이 되길 바랍니다!</textarea></label><div class="amRw"><label>영혼석<input id="amSouls" type="number" min="0" max="1000000" value="0"></label><label>강철<input id="amSteel" type="number" min="0" max="1000000" value="0"></label><label>마력석<input id="amCrystal" type="number" min="0" max="1000000" value="0"></label></div>
-      <label class="amChk"><input id="amHero" type="checkbox"> 영웅 지급: 로즈 · 총사</label><button class="gbtn main" id="amSend">✉ 우편 보내기</button></div>`;
-    $('amSend').onclick = async () => { const n = id => Math.max(0, Math.min(1e6, Math.floor(+$(id).value || 0))), rw = {}; if (n('amSouls')) rw.souls = n('amSouls'); if (n('amSteel')) rw.steel = n('amSteel'); if (n('amCrystal')) rw.crystal = n('amCrystal'); if ($('amHero').checked) rw.hero = 'gunner';
+      <label class="amChk">영웅 지급 <select id="amHero"><option value="">없음</option>${PKEYS.map(x => SHOP.items[x].hero).map(h => `<option value="${h}">${esc(heroLabel(h))}</option>`).join('')}</select></label><button class="gbtn main" id="amSend">✉ 우편 보내기</button></div>`;
+    $('amSend').onclick = async () => { const n = id => Math.max(0, Math.min(1e6, Math.floor(+$(id).value || 0))), rw = {}; if (n('amSouls')) rw.souls = n('amSouls'); if (n('amSteel')) rw.steel = n('amSteel'); if (n('amCrystal')) rw.crystal = n('amCrystal'); if ($('amHero').value) rw.hero = $('amHero').value;
       const em = $('amEmail').value.trim(), ti = $('amTitle').value.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em) || !ti) { ui.admMsg = '⚠ 이메일과 제목을 확인해 주세요.'; Snd.play('error'); renderAdmin(); return; }
       $('amSend').disabled = true; const r = await Sh.sendMail(em, ti, $('amBody').value, rw); $('amSend').disabled = false; ui.admMsg = r.ok ? `✅ ${esc(em)} 에게 우편을 보냈어요.` : '⚠ ' + esc(r.msg); Snd.play(r.ok ? 'confirm' : 'error'); renderAdmin(); }; }
   if (ui.adm === 'orders') body._mailForm = false;

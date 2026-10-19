@@ -38,7 +38,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #select{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6vh;background:linear-gradient(transparent 40%,#05060ccc)}
 #select h1{font-size:52px;margin:0;color:#ffd23a;text-shadow:0 0 24px #ff8a2a,0 4px 0 #3a1a00;letter-spacing:4px}#select p{margin:4px 0 16px;color:#ddd}
 #cards{display:flex;gap:18px}
-.card{width:min(230px,calc((100vw - 100px) / 4));box-sizing:border-box;background:linear-gradient(#1c1830f0,#0c0a16f0);border:2px solid #c9a24a;border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.card{width:min(220px,calc((100vw - 110px) / 5));box-sizing:border-box;background:linear-gradient(#1c1830f0,#0c0a16f0);border:2px solid #c9a24a;border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
 .card:hover{transform:translateY(-8px);box-shadow:0 0 28px #ffd23a88}.card h2{margin:0;color:#ffe08a}.card h2 small{font-size:.62em;color:#d8c8a0;font-weight:600}.card .role{color:#9fe8ff;font-size:13px;margin:2px 0 6px}.card ul{margin:0;padding-left:18px;font-size:13px;color:#ddd;line-height:1.6}
 .card[data-cls=archer]{border-color:#6aff8a}.card[data-cls=mage]{border-color:#b07aff}.card[data-cls=warrior]{border-color:#ff7a5a}
 #over{position:fixed;inset:0;background:#000b;display:flex;flex-direction:column;align-items:center;justify-content:center}#over h1{font-size:60px;color:#ff4a5a;margin:0}#over button{margin-top:16px;padding:12px 30px;font:inherit;font-size:18px;border-radius:10px;border:2px solid #c9a24a;background:#3a1a2a;color:#fff;cursor:pointer}
@@ -293,7 +293,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   .bar.hp{width:190px}.bar{width:130px}.bar.boss{width:min(420px,60vw)}
   #bossHud{top:calc(54px + env(safe-area-inset-top))}
   #banner{font-size:clamp(20px,3.6vw,38px)}#banner.long{font-size:clamp(14px,2.1vw,22px)}
-  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(170px,21.5vw,230px)}
+  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(150px,18vw,220px)}
   #over h1{font-size:clamp(40px,6vw,60px)}
   .logo h1{font-size:clamp(52px,8vw,84px)}
   .bigPanel{padding:12px 14px;gap:8px}
@@ -388,3 +388,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #scr_login .fcard>*,#scr_menu .fcard>*{flex-shrink:0}
 .mailBtn{white-space:nowrap;flex-shrink:0}.mailBtn .lbl{white-space:nowrap}
 .admForm .amChk{min-height:46px}
+
+/* 버들 (메카닉) 카드 · 상점 상품 탭 */
+.card.paid.mech{border-color:#7aff5a;box-shadow:0 0 18px #7aff5a55}.card.paid.mech h2{color:#c8ffb0}.card.mech .lockTag{color:#c8ffb0}
+.shopTabs{display:flex;gap:8px;margin-bottom:10px}.shopTab{flex:1;display:flex;align-items:center;gap:8px;background:#1a1226;border:2px solid #fff2;border-radius:12px;padding:6px 10px;color:#eee;cursor:pointer;font:inherit;text-align:left;position:relative}
+.shopTab i{font-style:normal;font-size:22px}.shopTab b{font-size:16px}.shopTab small{color:#bbb;font-size:12px;margin-left:auto}.shopTab em{font-style:normal;font-size:11px;background:#3a8a3a;color:#fff;border-radius:8px;padding:1px 6px}
+.shopTab.on{border-color:var(--pc);box-shadow:0 0 12px var(--pc);background:#261a34}.shopTab:hover{border-color:var(--pc)}
+.shopCard.p_mechanic .pvTag{background:linear-gradient(#5ad83a,#2a8a1a);box-shadow:0 0 10px #5ad83a}.shopCard.p_mechanic .pvName{color:#e8ffe0;text-shadow:0 0 12px #3aff3a,0 2px 0 #1a5a10}
+.shopCard.p_mechanic .shopTitle{color:#c8ffb0}.shopCard.p_mechanic .shopStats span{background:#14301a;border-color:#7aff5a66}.shopCard.p_mechanic .shopStats b{color:#b0ff9a}.shopCard.p_mechanic .shopSk b{color:#9aff6a}.shopCard.p_mechanic .shopSk.lg b{color:#ffc94a}
+@media (max-height:680px){.shopTabs{margin-bottom:6px}.shopTab{padding:3px 8px}.shopTab i{font-size:18px}}
