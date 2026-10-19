@@ -38,4 +38,11 @@ const shared = E.makeItem('armor', 'mage', 1, r), la = E.makeItem('acc', 'mage',
 const mg = P.merge({ inv: [shared, la], eq: { mage: { acc: la.id } }, mat: { steel: 5, crystal: 1 } }, { inv: [shared, cb], eq: { mage: { armor: cb.id } }, mat: { steel: 3, crystal: 4 } });
 assert.equal(mg.inv.length, 3); assert.equal(mg.eq.mage.acc, la.id); assert.equal(mg.eq.mage.armor, cb.id); assert.deepEqual(mg.mat, { steel: 5, crystal: 4 });
 assert.ok(JSON.stringify(rt).length < 12000, 'save size');
+// 총사(로즈) 쌍권총: SQL로 넣은 전설 무기 · 별칭 h 정규화 · 제작/드롭/분해
+{ const gs = P.clean({ hero: 'gunner', inv: [{ id: 'gun4', s: 'weapon', h: 'gunner', g: 4, n: '심홍의 쌍권총 블러디로즈', m: ['atk', 25], sub: [['crit', 8], ['spd', 9]], e: 0, u: 'rosebarrage' }, { id: 'gunA', s: 'weapon', h: 'Pistol', g: 1, n: '은탄 쌍권총', m: ['atk', 9], sub: [], e: 0 }], eq: { gunner: { weapon: 'gun4' } } });
+  assert.equal(gs.inv.length, 2); assert.equal(gs.inv[0].h, 'gunner'); assert.equal(gs.inv[0].u, 'rosebarrage'); assert.equal(gs.inv[1].h, 'gunner'); assert.equal(gs.eq.gunner.weapon, 'gun4'); assert.equal(E.legendOf(gs, 'gunner'), 'rosebarrage');
+  for (let g = 0; g < 5; g++) { const it = E.makeItem('weapon', 'gunner', g, r); assert.equal(it.h, 'gunner'); assert.ok(/쌍권총/.test(it.n)); if (g === 4) assert.ok(['ricochet', 'rosebarrage'].includes(it.u)); }
+  gs.souls = 1e4; gs.mat = { steel: 500, crystal: 50 }; let gr, gi; [, gr, gi] = E.craft(gs, 'master', 'weapon', 'gunner', r); assert.equal(gr, 'ok'); assert.equal(gi.h, 'gunner');
+  const ch = E.chestsFor(20, 'gunner', r); assert.equal(ch.length, 4); ch.filter(x => x.s === 'weapon').forEach(x => assert.equal(x.h, 'gunner'));
+  assert.deepEqual(E.dismantleYield(gs.inv[0]), { steel: 20, crystal: 8 }); }
 console.log('equip tests OK');

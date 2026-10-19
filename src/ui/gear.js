@@ -7,8 +7,12 @@ import * as E from '../account/equip.js';
 import { closeLab } from './lab.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ICON = { archer: '🏹', mage: '🪄', warrior: '🗡️', armor: '🛡️', acc: '💍' };
-export const icon = it => it.s === 'weapon' ? ICON[it.h] : ICON[it.s];
+const ICON = { archer: '🏹', mage: '🪄', warrior: '🗡️', gunner: '🔫', armor: '🛡️', acc: '💍' };
+const FALLBACK = { weapon: '⚔️', any: '📦' }; // 모르는 영웅/슬롯 키 → 'undefined' 대신 일반 아이콘
+export const iconKey = k => ICON[k] || FALLBACK.any;
+export const weaponIcon = h => ICON[h] || FALLBACK.weapon;
+export const icon = it => !it ? FALLBACK.any : it.s === 'weapon' ? weaponIcon(it.h) : iconKey(it.s);
+const clsN = h => (CLASSES[h] || {}).n || '알 수 없는 영웅';
 const pct = (k, v) => `${E.STAT[k]} +${v}%`;
 const GC = g => E.GRADES[g].c;
 let ui = { inv: false, smith: false, invSel: null, invF: 'all', smTab: 'enh', smSel: null, dis: new Set(), crSlot: 'weapon', busy: false };
@@ -17,12 +21,12 @@ export function initGear(h) { hooks = { ...hooks, ...h }; bind(); }
 const S = () => Acc.load(), hero = () => S().hero;
 const eqOf = (s, id) => { for (const h in s.eq) for (const sl in s.eq[h]) if (s.eq[h][sl] === id) return h; return null; };
 function sorted(list, s) { return [...list].sort((a, b) => (!!eqOf(s, b.id) - !!eqOf(s, a.id)) || b.g - a.g || b.e - a.e || E.power(b) - E.power(a)); }
-function tile(it, s, extra = '') { const h = eqOf(s, it.id); return `<button class="itile g${it.g} ${extra}" data-id="${it.id}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span>${it.e ? `<span class="en">+${it.e}</span>` : ''}${h ? `<span class="eqb">${CLASSES[h].n[0]}</span>` : ''}${E.legendKey(it) ? '<span class="lst">✦</span>' : ''}</button>`; }
+function tile(it, s, extra = '') { const h = eqOf(s, it.id); return `<button class="itile g${it.g} ${extra}" data-id="${it.id}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span>${it.e ? `<span class="en">+${it.e}</span>` : ''}${h ? `<span class="eqb">${clsN(h)[0]}</span>` : ''}${E.legendKey(it) ? '<span class="lst">✦</span>' : ''}</button>`; }
 export function lskHtml(it) { const k = E.legendKey(it); if (!k) return ''; const L = E.LSK[k]; return `<div class="lsk"><div class="lskH">✦ ${L.n} <i>${L.type === 'proc' ? '공격 시 발동' : '액티브 · E키'}</i></div><div class="lskD">${L.d}</div></div>`; }
 export function card(it, cmp) {
   if (!it) return '<div class="icard empty">빈 칸</div>'; const st = E.itemStats(it), cs = cmp ? E.itemStats(cmp) : null, keys = new Set([...Object.keys(st), ...(cs ? Object.keys(cs) : [])]);
   const lines = [...keys].map(k => { const v = st[k] || 0, d = cs ? Math.round((v - (cs[k] || 0)) * 10) / 10 : 0; return `<div class="sl ${k === it.m[0] ? 'main' : ''}">${E.STAT[k]} <b>+${v}%</b>${cs && d ? `<i class="${d > 0 ? 'gup' : 'gdn'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</i>` : ''}</div>`; }).join('');
-  return `<div class="icard g${it.g}" style="--gc:${GC(it.g)}"><div class="ih"><span class="ic">${icon(it)}</span><div><div class="in">${esc(it.n)}${it.e ? ` <span class="en">+${it.e}</span>` : ''}</div><div class="ig">${E.GRADES[it.g].n} · ${E.SLOTS[it.s]}${it.h ? ' · ' + CLASSES[it.h].n + ' 전용' : ''}</div></div></div>${lines}${lskHtml(it)}${cmp ? `<div class="cmpn">장착 중인 장비와 비교</div>` : ''}</div>`;
+  return `<div class="icard g${it.g}" style="--gc:${GC(it.g)}"><div class="ih"><span class="ic">${icon(it)}</span><div><div class="in">${esc(it.n)}${it.e ? ` <span class="en">+${it.e}</span>` : ''}</div><div class="ig">${E.GRADES[it.g].n} · ${E.SLOTS[it.s]}${it.h ? ' · ' + clsN(it.h) + ' 전용' : ''}</div></div></div>${lines}${lskHtml(it)}${cmp ? `<div class="cmpn">장착 중인 장비와 비교</div>` : ''}</div>`;
 }
 export function bonusHtml(b) { const e = Object.entries(b); return e.length ? e.map(([k, v]) => `<span>${pct(k, v)}</span>`).join('') : '<span class="none">장착한 장비 없음</span>'; }
 export function heroDots(s, h) { return E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === (s.eq[h] || {})[sl]); return `<i class="dot" style="background:${it ? GC(it.g) : '#3a3450'}" title="${E.SLOTS[sl]}"></i>`; }).join(''); }
@@ -35,13 +39,13 @@ function renderInv() {
   const list = sorted(s.inv.filter(x => ui.invF === 'all' || x.s === ui.invF), s);
   const sel = s.inv.find(x => x.id === ui.invSel), cur = sel ? s.inv.find(x => x.id === eq[sel.s]) : null;
   $('invHead').innerHTML = `🎒 가방 <b class="${s.inv.length >= E.CAP ? 'full' : ''}">${s.inv.length}/${E.CAP}</b> · <span style="color:#ffe08a">${heroLabel(h)}</span>`;
-  $('invSlots').innerHTML = E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === eq[sl]); return `<div class="slot" data-sl="${sl}"><div class="slh">${E.SLOTS[sl]}</div>${it ? tile(it, s) : `<div class="itile emptyT"><span class="ic">${sl === 'weapon' ? ICON[h] : ICON[sl]}</span></div>`}</div>`; }).join('');
+  $('invSlots').innerHTML = E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === eq[sl]); return `<div class="slot" data-sl="${sl}"><div class="slh">${E.SLOTS[sl]}</div>${it ? tile(it, s) : `<div class="itile emptyT"><span class="ic">${sl === 'weapon' ? weaponIcon(h) : iconKey(sl)}</span></div>`}</div>`; }).join('');
   $('invBonus').innerHTML = bonusHtml(E.bonus(s, h));
   $('invFilt').innerHTML = [['all', '전체'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${ui.invF === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('');
   $('invGrid').innerHTML = list.length ? list.map(it => tile(it, s, it.id === ui.invSel ? 'sel' : '')).join('') : '<div class="emptyMsg">장비가 없어요. 출정해서 5웨이브마다 보상 상자를, 보스에게서 장비를 얻거나 대장간에서 제작하세요!</div>';
   const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 새 장비는 자동으로 분해됩니다 — 대장간에서 분해해 공간을 만드세요.' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : '';
   let act = '';
-  if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${CLASSES[sel.h].n} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${CLASSES[who].n}에게서 가져오기)` : ''}</button>`; }
+  if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${clsN(sel.h)} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${clsN(who)}에게서 가져오기)` : ''}</button>`; }
   $('invDetail').innerHTML = sel ? card(sel, cur && cur.id !== sel.id ? cur : null) + `<div class="acts">${act}</div>` : '<div class="hintS">장비를 눌러 자세히 보기 · 마우스를 올리면 비교</div>';
   document.querySelectorAll('#invPanel .itile[data-id]').forEach(b => { b.onclick = () => { ui.invSel = b.dataset.id; Snd.play('select'); renderInv(); };
     b.onpointerenter = e => { if (e.pointerType !== 'mouse') return; const it = S().inv.find(x => x.id === b.dataset.id); if (!it) return; const c = S().inv.find(x => x.id === (S().eq[h] || {})[it.s]); showTip(b, card(it, c && c.id !== it.id ? c : null)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); }; });
@@ -85,7 +89,7 @@ function renderSmith() {
     $('disGo').onclick = () => doDismantle();
   } else {
     const h = s.hero; const slots = [['weapon', `무기 (${CLASSES[h].n})`], ['armor', '방어구'], ['acc', '장신구']];
-    body.innerHTML = `<div class="crSlots">${slots.map(([k, n]) => `<button class="ftab ${ui.crSlot === k ? 'on' : ''}" data-s="${k}">${k === 'weapon' ? ICON[h] : ICON[k]} ${n}</button>`).join('')}</div>
+    body.innerHTML = `<div class="crSlots">${slots.map(([k, n]) => `<button class="ftab ${ui.crSlot === k ? 'on' : ''}" data-s="${k}">${k === 'weapon' ? weaponIcon(h) : iconKey(k)} ${n}</button>`).join('')}</div>
       <div class="recipes">${E.RECIPES.map(R => `<div class="recipe"><div class="rn">${R.n}</div><div class="odds">${R.odds.map((o, i) => o ? `<div class="ob" style="--gc:${GC(i)};flex:${o}"><span>${E.GRADES[i].n} ${o}%</span></div>` : '').join('')}</div><div class="costs">${costHtml(R.cost, s)}</div><button class="gbtn main crGo" data-r="${R.k}">⚒ 제작</button></div>`).join('')}</div>
       ${s.inv.length >= E.CAP ? '<div class="warn">가방이 가득 차서 제작할 수 없어요. 먼저 분해하세요!</div>' : ''}`;
     body.querySelectorAll('.crSlots .ftab').forEach(b => b.onclick = () => { ui.crSlot = b.dataset.s; Snd.play('ui'); renderSmith(); });

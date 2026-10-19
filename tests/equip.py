@@ -30,6 +30,23 @@ with sync_playwright() as pw:
     ok('bonus_shown', '공격력' in pg.inner_text('#invBonus') and '공격력' in pg.inner_text('#twBonus'))
     pg.hover('#invGrid .itile[data-id="arm1"]'); pg.wait_for_timeout(150); ok('tooltip', not hidden(pg, 'itemTip'))
     if SHOTS: pg.click('#invGrid .itile[data-id="arw1"]'); pg.mouse.move(5, 5); pg.wait_for_timeout(300); pg.screenshot(path='inventory.png')
+    # 총사(로즈) 전설 쌍권총: SQL로 직접 넣은 모양 그대로 → 가방 어디에도 'undefined' 없음 (아이콘 누락 회귀)
+    J(pg, """()=>{ const {Acc}=G.gear; Acc.update(d=>{ d.hero='gunner';
+        d.inv.push({id:'gun4', s:'weapon', h:'gunner', g:4, n:'심홍의 쌍권총 블러디로즈', m:['atk',25], sub:[['crit',8],['spd',9]], e:0, u:'rosebarrage'},
+                   {id:'gun1', s:'weapon', h:'gun', g:1, n:'은탄 쌍권총', m:['atk',9], sub:[['crit',4]], e:0},
+                   {id:'zzz1', s:'weapon', h:'gunner', g:2, n:'황혼의 쌍권총', m:['atk',13], sub:[], e:0});
+        d.eq.gunner={weapon:'gun4'}; return d; }); }""")
+    pg.click('#invClose'); pg.wait_for_timeout(150); pg.click('#twBag'); pg.wait_for_timeout(200)
+    gl = J(pg, "()=>G.gear.Acc.load().inv.filter(x=>x.s==='weapon'&&x.h==='gunner').map(x=>x.id).sort()")
+    ok('gun_items_kept_and_alias', gl == ['gun1', 'gun4', 'zzz1'], gl)
+    pg.click('#invGrid .itile[data-id="gun4"]'); pg.wait_for_timeout(150)
+    txt = J(pg, "()=>document.getElementById('invPanel').innerText")
+    ok('gun_no_undefined', 'undefined' not in txt and '🔫' in J(pg, "()=>document.querySelector('#invSlots .slot[data-sl=\"weapon\"] .ic').textContent"), txt.count('undefined'))
+    ok('gun_detail', '🔫' in pg.inner_text('#invDetail .ic') and '총사 전용' in pg.inner_text('#invDetail') and '장미 탄막' in pg.inner_text('#invDetail'))
+    ok('gun_legend_bonus', J(pg, "()=>G.gear.E.legendOf(G.gear.Acc.load(),'gunner')") == 'rosebarrage')
+    ok('unknown_icon_fallback', J(pg, "async()=>{ const m=await import('./src/ui/gear.js'); return [m.icon({s:'weapon',h:'nope'}), m.icon({s:'weird'}), m.icon(null)].join('') }") == '⚔️📦📦')
+    if SHOTS: os.makedirs('shots/shop', exist_ok=True); pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(300); pg.locator('#invPanel').screenshot(path='shots/shop/gun_gear.png')
+    J(pg, "()=>{ G.gear.Acc.update(d=>{ d.hero='mage'; d.inv=d.inv.filter(x=>!['gun4','gun1','zzz1'].includes(x.id)); delete d.eq.gunner.weapon; return d; }); }")
     pg.click('#invClose')
     # 대장간: 걸어가면 열림
     J(pg, "()=>{ const [x,z]=G.townSmith(); G.townTeleport(x+5*.6+1.5, z+5*.8+1.5); G.townGoal(x+.6*3.3, z+.8*3.3); }")
