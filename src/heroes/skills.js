@@ -11,11 +11,14 @@ import { hero, stat } from './hero.js';
 import { banner } from '../ui/hud.js';
 import { mouseGround } from '../ui/input.js';
 import { gunSkill } from './gunner.js';
+import { mechTransform } from './mechanic.js';
 
 // ================= 스킬 =================
 function castSkill() {
   if (!hero || hero.dead > 0 || hero.skillCd > 0 || G.phase === 'select' || G.phase === 'over') return;
-  const mul = stat.skillMul(), base = stat.dmg(); hero.skillCd = stat.skillCd();
+  const mul = stat.skillMul(), base = stat.dmg();
+  if (hero.cls === 'mechanic') { if (mechTransform(mul, base)) hero.skillCd = stat.skillCd(); return; } // 메카닉: 변신 (이미 로봇이면 무시)
+  hero.skillCd = stat.skillCd();
   const tgt = mouseGround.clone(); const hp = hero.g.position; if (hp.distanceTo(tgt) > 16) tgt.sub(hp).setLength(16).add(hp);
   if (hero.cls !== 'warrior') hero.face = Math.atan2(tgt.x - hp.x, tgt.z - hp.z);
   if (hero.cls === 'archer') {

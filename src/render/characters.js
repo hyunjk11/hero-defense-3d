@@ -8,7 +8,7 @@ import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'mechanic_meshy', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
 async function loadAssets() {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); let n = 0;
   await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
@@ -46,6 +46,10 @@ const MESHY = {
     aim: { Shoot: -2.15, ShootQuick: -1.7, ShootCharged: -1.75 } }, // 사격 클립은 몸이 옆으로 서서 활이 왼쪽(+X)을 겨눔 → 활 방향이 정면(목표)이 되게 모델 회전
   // Meshy 총사 로즈: 쌍권총(왼손·오른손 뼈에 스킨). ShootLoop = Shoot 1.1–2.7초(뽑기 동작 제외) 반복, ShootCharged = 회전 사격(스킬), Flourish = 총 돌리기(선택 화면·승리)
   gunner_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'Flourish', Melee_Show: 'Flourish' }, sub: [['ShootLoop', 'Shoot', 1.1, 2.7]], mix: [['ShootStand', 'ShootWalk', 'Idle']], aim: { ShootStand: .38, ShootWalk: .58 } }, // 두 총의 평균 조준 방향이 정면(목표)이 되게 모델 회전
+  // Meshy 메카닉 버들: 등의 로봇 팔이 팔 뼈에 스킨됨 (오른팔 = 드릴, 왼팔 = 집게 주먹). Drill = 펀치 콤보 구간(다단 히트), Hammer = 해머 스윙 구간(내려찍기)
+  mechanic_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'FistPump', Melee_Show: 'Uppercut' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'HammerSwing', .5, 1.75]], arms: 1 },
+  // 변신 로봇 (버들 [Q] 변신 중 교체되는 모델). Run = Monster_Walk(느린 거구 걸음) → 빠르게 재생
+  mech_robot_meshy: { alias: { Running_A: 'Run', Death_A: 'Hit', Cheer: 'FistPump' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'HammerSwing', .5, 1.75], ['Rocket', 'DoublePunch', .2, 1.7], ['StompS', 'Stomp', 0, 1.3]], arms: 1, runSpd: 2.4, h: 4.6 },
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
@@ -69,17 +73,35 @@ function play(ch, name, o = {}) {
 }
 function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
 const heroClips = () => (GL.warrior || GL.warrior_meshy).animations, skClips = () => GL.sk_minion.animations;
-function makeHeroModel(cls) {
-  const key = CLASSES[cls].model, M = MESHY[key], ch = makeChar(key, M ? 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
+function makeHeroModel(cls, key0) {
+  const key = key0 || CLASSES[cls].model, M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
   if (M) { for (const [a, b] of Object.entries(M.alias)) if (ch.acts[b]) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
     ch.hitAt = M.hitAt || 0; ch.root.updateMatrixWorld(true);
     if (M.aim) { ch.aim = M.aim; ch.yawT = 0; const up = ch.mixer.update.bind(ch.mixer); ch.mixer.update = dt => { ch.root.rotation.y += (ch.yawT - ch.root.rotation.y) * Math.min(1, dt * 16); return up(dt); }; }
     if (key === 'mage_meshy') { const hand = ch.root.getObjectByName('RightHand'); if (hand) { const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
       tip.position.copy(hand.worldToLocal(staffTop(ch, hp))); hand.add(tip); ch.tip = tip; } } // 지팡이 수정 위치
     else if (key === 'gunner_meshy') gunMuzzles(ch);
+    else if (M.arms) mechArms(ch, M);
     else if (key === 'archer_meshy') { const hand = ch.root.getObjectByName('LeftHand'); if (hand) { const tip = new THREE.Object3D(); tip.position.copy(hand.worldToLocal(bowGrip(ch, hand.getWorldPosition(new THREE.Vector3())))); hand.add(tip); ch.tip = tip; } } } // 활 손잡이(왼손에 스킨된 활) = 화살 발사 지점
+  if (key0) return ch; // 변신 로봇: 링/색은 본체 것을 사용
   const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
   return ch;
+}
+// 메카닉 로봇 팔: 바인드 포즈에서 손 주변 정점 중 아래팔 뼈에서 가장 먼 점 = 드릴 끝 / 주먹 끝. 드릴 끝에는 회전하는 가산 드릴 잔상(평소 숨김)
+function armTip(ch, hand, fore, rad) { const hp = hand.getWorldPosition(new THREE.Vector3()), fp = fore.getWorldPosition(new THREE.Vector3()), v = new THREE.Vector3(); let best = null, bd = -1;
+  ch.root.traverse(o => { if (!o.isSkinnedMesh || o.userData.ol) return; const n = o.geometry.attributes.position.count;
+    for (let i = 0; i < n; i += 3) { o.getVertexPosition(i, v); o.localToWorld(v); if (v.distanceTo(hp) < rad) { const d = v.distanceTo(fp); if (d > bd) { bd = d; best = v.clone(); } } } });
+  return { p: best || hp, axis: (best || hp).clone().sub(fp).normalize() }; }
+function mechArms(ch, M) {
+  ch.runSpd = M.runSpd || 0; const s = (M.h || 2.8) / 2.8; ch.tips = {};
+  for (const [k, hb, fb] of [['drill', 'RightHand', 'RightForeArm'], ['fist', 'LeftHand', 'LeftForeArm']]) { const hand = ch.root.getObjectByName(hb), fore = ch.root.getObjectByName(fb); if (!hand || !fore) continue;
+    const t = armTip(ch, hand, fore, .75 * s), o = new THREE.Object3D(); o.position.copy(hand.worldToLocal(t.p.clone())); hand.add(o); ch.tips[k] = o;
+    if (k === 'drill') { // 드릴 잔상: 손 로컬에서 드릴 축 방향(+Y)으로 맞춘 원뿔 2겹
+      const ws = hand.getWorldScale(wsV).x || .01, q = hand.getWorldQuaternion(new THREE.Quaternion()).invert(), ax = t.axis.clone().applyQuaternion(q).normalize();
+      const g = new THREE.Group(); g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ax); g.scale.setScalar(s / ws); o.add(g);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x9aff6a, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, wireframe: true });
+      const c1 = new THREE.Mesh(new THREE.ConeGeometry(.26, .75, 10, 3, true).translate(0, -.32, 0), mat), c2 = new THREE.Mesh(new THREE.ConeGeometry(.34, .5, 7, 1, true).translate(0, -.5, 0), mat.clone()); c2.material.color.setHex(0xfff0a0); c2.material.opacity = .4;
+      g.add(c1, c2); g.visible = false; ch.drillFx = { g, c1, c2 }; } }
 }
 // 총구: 각 손 뼈 로컬 (0, 26, -3) (뼈 월드 스케일 0.01, 총열 = 로컬 +Y) + 총구 섬광(가산 별 모양, 평소엔 숨김)
 let flashTex = null;
@@ -168,4 +190,4 @@ function addProp(ch, kind, E) {
     attachProp(ch, 'chest', g, [0, -.15 * s, .55 * s]); g.scale.multiplyScalar(s * .75); ch.ram = g; }
 }
 
-export { GL, loadAssets, play, flashMats, makeHeroModel, makeEnemyModel };
+export { GL, MESHY, loadAssets, play, flashMats, makeHeroModel, makeEnemyModel };

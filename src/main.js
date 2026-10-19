@@ -59,6 +59,7 @@ let lastT = performance.now(), hudT = 0;
 function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05)); if (!G.pauseRender) composer.render(); }
 G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
 function step(dt) {
+  if (G.slowT > 0) { dt *= G.slowF || .4; G.slowT -= dt; } // 메카닉 변신 연출: 잠깐 슬로 모션 (변신할 때만)
   G.t += dt;
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
   if (G.phase === 'select') updSelect(dt);

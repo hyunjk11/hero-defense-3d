@@ -17,12 +17,13 @@ import { banner } from '../ui/hud.js';
 import { keys } from '../ui/input.js';
 import { legendProc, updLeap } from './legend.js';
 import { gunAttack, updRose } from './gunner.js';
+import { mechAbsorb, mechInit, mechRevert, mechSwing, updMech } from './mechanic.js';
 
 // ================= 영웅 =================
 let hero = null;
 const stat = {
   dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
-  rate: () => hero.C.rate * (1 + .1 * G.ups.spd), range: () => hero.C.range * (1 + .08 * G.ups.rng),
+  rate: () => hero.C.rate * (1 + .1 * G.ups.spd), range: () => hero.C.range * (1 + .08 * G.ups.rng) * (hero.robo ? 1.45 : 1), // 메카닉 로봇: 사거리 +45%
   skillMul: () => (1 + .25 * G.ups.skill) * (1 + ((hero.eq && hero.eq.skill) || 0) / 100), skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100),
 };
 function spawnHero(cls) {
@@ -31,12 +32,12 @@ function spawnHero(cls) {
   const ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
   hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
-  hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle');
+  hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle'); if (cls === 'mechanic') mechInit(hero);
   $('heroName').textContent = `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill; $('skillName').classList.toggle('long', C.skill.length > 5);
 }
 function heroDamage(d) {
-  if (hero.dead > 0) return; d *= 1 - hero.C.armor; hero.hp -= d; hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
-  if (hero.hp <= 0) { hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
+  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } hero.hp -= d; hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
+  if (hero.hp <= 0) { if (hero.mech) mechRevert(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
 }
 const heroPass = (c, r) => { if (!inGrid(c, r)) return false; const t = tileAt(c, r); return (t.t === T.GRASS || t.t === T.CARVED || t.t === T.SPAWN || t.t === T.CORE) && !t.tower && !t.bar; };
 function passAt(x, z) { for (const [ox, oz] of [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]]) { const [c, r] = toTile(x + ox, z + oz); if (!heroPass(c, r)) return false; } return true; }
@@ -55,7 +56,7 @@ function unstuck() { const h = hero, p = h.g.position, goal = h.path.length ? h.
 // ================= 워프 (T): 1초 채널링 → 코어 앞 빈 칸으로 순간이동, 쿨다운 10초 =================
 const WARP_CH = 1, WARP_CD = 10;
 function warpTarget() { return freeTileNear(CORE[0] - 1, CORE[1]); }
-function startWarp() { const h = hero; if (!h || h.dead > 0 || G.phase === 'select' || G.phase === 'over') return false;
+function startWarp() { const h = hero; if (!h || h.dead > 0 || G.phase === 'select' || G.phase === 'over' || (h.mech && h.mech.busy > 0)) return false;
   if (h.warpT > 0) return false; if (h.warpCd > 0) { Snd.play('error'); banner(`워프 재사용 대기 ${Math.ceil(h.warpCd)}초`, '#9ae8ff', 800); return false; }
   h.path = []; h.spinT = 0; h.roseT = 0; h.gunT = 0; if (h.swirl) h.swirl.visible = false; h.warpT = WARP_CH; play(h.ch, 'Cheer');
   if (!h.warpFx) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, 6, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x7ad8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); m.position.y = 3; h.warpFx = m; h.g.add(m); }
@@ -97,12 +98,13 @@ function updHero(dt) {
   let fromPath = false; if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right);
   if (h.warpCd > 0) h.warpCd -= dt;
   if (h.leap) { updLeap(dt); h.hb.set(h.hp / h.max); return; } // 천지파열무 도약 중
+  if (h.mech && updMech(dt)) { h.g.rotation.y += Math.atan2(Math.sin(h.face - h.g.rotation.y), Math.cos(h.face - h.g.rotation.y)) * Math.min(1, dt * 10); h.hb.set(h.hp / h.max); return; } // 메카닉 변신/피니시 연출 중
   if (h.warpT > 0) { // 워프 채널링: 이동 입력 시 취소
     if (mv.lengthSq() > 0 || h.path.length) cancelWarp(); else { h.warpT -= dt; warpChannelFx(dt); if (h.warpT <= 0) doWarp(); h.hb.set(h.hp / h.max); return; } }
   if (mv.lengthSq() > 0) h.path = [];
   else if (h.path.length) { fromPath = true; mv.subVectors(h.path[0], h.g.position).setY(0); if (mv.length() < .15) { h.path.shift(); if (!h.path.length) mv.set(0, 0, 0); } }
   let moving = false;
-  if (mv.lengthSq() > 0) { const want = mv.length(), stp = h.C.speed * dt * (h.spinT > 0 || h.roseT > 0 ? .7 : 1); mv.normalize().multiplyScalar(fromPath ? Math.min(stp, want) : stp); const p = h.g.position; // 경로 지점을 지나치며 왕복하던 떨림 방지 const p = h.g.position;
+  if (mv.lengthSq() > 0) { const want = mv.length(), stp = h.C.speed * dt * (h.spinT > 0 || h.roseT > 0 ? .7 : 1) * (h.robo ? .9 : 1); mv.normalize().multiplyScalar(fromPath ? Math.min(stp, want) : stp); const p = h.g.position; // 경로 지점을 지나치며 왕복하던 떨림 방지 const p = h.g.position;
     // 근본 원인 수정: 현재 위치가 이미 막힌 칸과 겹쳐 있으면(타워/바리케이드가 옆에 생기거나 밀려서) 4모서리 검사가 모든 이동을 거부해 영구히 갇혔음.
     // 겹친 상태에서는 '덜 겹치는' 방향(중심 칸이 통과 가능)으로의 이동을 허용해 빠져나오게 함
     const ok = (x, z) => passAt(x, z) || (!passAt(p.x, p.z) && heroPassXZ(x, z) && overlap(x, z) <= overlap(p.x, p.z));
@@ -119,6 +121,8 @@ function updHero(dt) {
   if (h.roseT > 0) updRose(dt); // 로즈 피니시 중: 일반 사격 대신 난사
   else if (h.cls === 'gunner' && tgt) { h.face = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); // 총사: 이동 중에도 목표를 겨누며 연사
     if (h.cd <= 0) { h.cd = 1 / stat.rate(); h.gunT = .45; const t0 = tgt; later(.02, () => { if (!t0.dead && hero.dead <= 0) { gunAttack(t0); if (hero.lsk) legendProc(t0); } }); } }
+  else if (h.cls === 'mechanic' && tgt) { const want = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); if (!moving || h.robo) h.face = want; // 메카닉: 드릴/해머 교대 (로봇: 펀치·드릴 돌진·해머)
+    if (h.cd <= 0) { h.cd = 1 / stat.rate() * (h.robo ? 1.1 : 1); mechSwing(tgt, moving, hero.lsk ? legendProc : null); } }
   else if (tgt && h.spinT <= 0) { const want = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); if (!moving) h.face = want;
     if (h.cd <= 0) { h.cd = 1 / stat.rate();
       let hitD = h.cls === 'warrior' ? .12 : .08;
@@ -130,7 +134,7 @@ function updHero(dt) {
     h.swirl.rotation.z += dt * 15; if (h.spinT <= 0) { h.swirl.visible = false; play(h.ch, 'Idle'); } }
   else { let d = h.face - h.g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); h.g.rotation.y += d * Math.min(1, dt * 14); }
   if (h.roseT > 0) { /* ShootCharged 재생 중 */ } else if (h.gunT > 0) play(h.ch, moving ? 'ShootWalk' : 'ShootStand', { speed: moving ? 1.3 : 1, fade: .12 });
-  else if (h.spinT <= 0) { if (moving) play(h.ch, 'Running_A', { speed: 1.1 }); else if (h.atkT <= 0) play(h.ch, 'Idle', { fade: .25 }); }
+  else if (h.spinT <= 0) { if (moving) play(h.ch, 'Running_A', { speed: h.ch.runSpd || 1.1 }); else if (h.atkT <= 0) play(h.ch, 'Idle', { fade: .25 }); }
   h.ch.ring.material.opacity = .5 + Math.sin(G.t * 4) * .2;
   if (h.flash > 0) { h.flash -= dt; flashMats(h.ch.mats, true, 0xff3030); } else flashMats(h.ch.mats, false);
   if (!G.enemies.some(e => !e.dead && e.g.position.distanceTo(h.g.position) < 4)) h.hp = Math.min(h.max, h.hp + h.max * .03 * dt);

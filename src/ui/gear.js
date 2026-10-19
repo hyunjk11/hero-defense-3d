@@ -7,7 +7,7 @@ import * as E from '../account/equip.js';
 import { closeLab } from './lab.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ICON = { archer: '🏹', mage: '🪄', warrior: '🗡️', gunner: '🔫', armor: '🛡️', acc: '💍' };
+const ICON = { archer: '🏹', mage: '🪄', warrior: '🗡️', gunner: '🔫', mechanic: '🦾', armor: '🛡️', acc: '💍' };
 const FALLBACK = { weapon: '⚔️', any: '📦' }; // 모르는 영웅/슬롯 키 → 'undefined' 대신 일반 아이콘
 export const iconKey = k => ICON[k] || FALLBACK.any;
 export const weaponIcon = h => ICON[h] || FALLBACK.weapon;
