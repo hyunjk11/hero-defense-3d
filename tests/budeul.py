@@ -114,7 +114,7 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.hero.C={...G.hero.C, armor:0}; G.heroDamage(300); }"); ok('invulnerable_during_tf', J(pg, "()=>G.hero.hp") == hp0)
     J(pg, "()=>G.sim(.2)")  # 슬로 모션: 실제 0.2초 → 게임 시간 ~0.07초
     ok('slowmo', 0 < J(pg, "()=>G.hero.mech.seq.t") < .12, J(pg, "()=>G.hero.mech.seq.t"))
-    J(pg, "()=>{ let n=0; while(!G.hero.mech.seq.swap && n++<200) G.sim(.02); G.sim(.06); }"); t0 = frame(pg, 'transform', 13, .45)
+    J(pg, "()=>{ let n=0; while(!G.hero.mech.seq.swap && n++<200) G.sim(.02); while(G.hero.mech.seq && !G.hero.mech.seq.land && n++<400) G.sim(.02); G.sim(.1); }"); t0 = frame(pg, 'transform', 13, .45)  # 착지 직후(섬광이 걷힌 뒤): 충격파·균열·파편
     ok('swap_robot_model', J(pg, "()=>G.hero.ch===G.hero.robot && G.hero.robot.root.visible && !G.hero.human.root.visible"))
     J(pg, "()=>G.sim(1)")
     ok('robot_active', J(pg, "()=>G.hero.robo && G.hero.mech.rT>8 && G.hero.mech.busy===0 && !G.hero.mech.inv && G.hero.mech.shield>0 && G.mechN.knock>0"), J(pg, "()=>[G.hero.robo, G.hero.mech]"))

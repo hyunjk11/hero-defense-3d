@@ -18,7 +18,7 @@ CW, CH = (176, 224) if '--big' not in sys.argv else (330, 420)
 srv, url = serve(); F = ImageFont.truetype('/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc', 20)
 SETUP = """async (key)=>{ const {makeHeroModel}=await import('./src/render/characters.js'); const {cam,updateCam}=await import('./src/render/scene.js'); const THREE=G.THREE; G.manual=true; G.pauseRender=true;
   document.getElementById('select').classList.add('hidden'); const ch=makeHeroModel('mechanic', key==='budeul_meshy'?undefined:key); const X=14, Z=G.GH+5; ch.g.position.set(X,0,Z); G.scene.add(ch.g); window.__ch=ch;
-  const H=key.includes('robot')?4.6:2.8; window.__view=(side)=>{ cam.target.set(X,H*.5,Z); cam.r=H*1.65; cam.phi=1.45; cam.theta=side===2?.75:side?Math.PI/2:0; updateCam(); };
+  const H=key.includes('robot')?4.6:2.8; window.__view=(side)=>{ cam.target.set(X,H*.5,Z); cam.r=H*(key.includes("robot")?2.4:1.65); cam.phi=1.45; cam.theta=side===2?.75:side?Math.PI/2:0; updateCam(); };
   /* 스킨 메시 변(edge) 목록 + 바인드 길이 (메시 로컬, 스킨 전) */
   const sk=[], rigid=[]; ch.root.traverse(o=>{ if(o.isSkinnedMesh&&!o.userData.ol) sk.push(o); else if(o.isMesh&&!o.isSkinnedMesh&&!o.userData.ol) rigid.push(o); });
   window.__E=sk.map(m=>{ const g=m.geometry, P=g.attributes.position, I=g.index?g.index.array:null, n=I?I.length:P.count, E=[], L0=[], seen=new Set(), a=new THREE.Vector3(), b=new THREE.Vector3();
@@ -27,16 +27,17 @@ SETUP = """async (key)=>{ const {makeHeroModel}=await import('./src/render/chara
   /* 뼈 거리 기준 = 애니메이션 적용 전 기본 자세 */
   const pos=(m,i,t)=>m.getVertexPosition(i,t); window.__len=(e)=>{ const a=new THREE.Vector3(), b=new THREE.Vector3(), out=new Float32Array(e.L0.length); for(let k=0;k<e.L0.length;k++){ pos(e.m,e.E[2*k],a); pos(e.m,e.E[2*k+1],b); out[k]=a.distanceTo(b); } return out; };
   for(const e of window.__E){ const J=e.m.geometry.attributes.skinIndex, W=e.m.geometry.attributes.skinWeight; e.D=new Uint16Array(e.L0.length); for(let k=0;k<e.L0.length;k++){ const i=e.E[2*k]; let bw=-1,bi=0; for(let j=0;j<4;j++){ const w=W.getComponent(i,j); if(w>bw){ bw=w; bi=J.getComponent(i,j); } } e.D[k]=bi; } }
+  for(const e of window.__E){ const J=e.m.geometry.attributes.skinIndex, W=e.m.geometry.attributes.skinWeight, one=i=>W.getComponent(i,0)>.999; let h=0; e.R=new Uint8Array(e.L0.length); for(let k=0;k<e.L0.length;k++){ const i=e.E[2*k], j=e.E[2*k+1]; if(one(i)&&one(j)&&J.getComponent(i,0)===J.getComponent(j,0)){ e.R[k]=1; h++; } } e.hard=h/e.L0.length; } /* 강체 부품 변: 두 정점 모두 같은 뼈 하나에 가중치 1 */
   for(const e of window.__E) e.B=e.L0; /* 바인드 포즈의 스킨 결과 = 원래 정점 좌표 → 원래 변 길이가 기준 */
   const bones=[]; ch.root.traverse(o=>{ if(o.isBone&&o.parent&&o.parent.isBone) bones.push(o); }); const wp=o=>o.getWorldPosition(new THREE.Vector3()); ch.root.updateMatrixWorld(true);
   window.__bones=bones; window.__bd0=bones.map(o=>wp(o).distanceTo(wp(o.parent)));
   return {skinned:sk.length, rigid:rigid.length, edges:window.__E.reduce((s,e)=>s+e.L0.length,0), tris:[...sk,...rigid].reduce((s,m)=>s+(m.geometry.index?m.geometry.index.count:m.geometry.attributes.position.count)/3,0), bones:bones.length}; }"""
 POSE = """([n,f])=>{ const ch=window.__ch, a=ch.acts[n]; if(!a) return null; ch.mixer.stopAllAction(); const c=a.getClip(), x=ch.mixer.clipAction(c); x.reset(); x.setLoop(G.THREE.LoopRepeat,Infinity); x.play(); ch.cur=x; if(ch.gearOn) ch.gearOn(n,x); if(ch.aim) ch.yawT=ch.aim[c.name]||0; ch.root.rotation.y=ch.yawT||0;
   ch.mixer.setTime(c.duration*f); ch.g.updateMatrixWorld(true); return [c.name, +c.duration.toFixed(2)]; }"""
-MEAS = """([n,M])=>{ const ch=window.__ch, a=ch.acts[n]; if(!a) return null; const THREE=G.THREE, c=a.getClip(); let all=[], bmax=0, hs=[], ws=[]; const RG={}, WL=[]; let TL=0, SL=0; const bb=new THREE.Box3(), v=new THREE.Vector3();
+MEAS = """([n,M])=>{ const ch=window.__ch, a=ch.acts[n]; if(!a) return null; const THREE=G.THREE, c=a.getClip(); let all=[], bmax=0, hs=[], ws=[]; const RG={}, WL=[]; let TL=0, SL=0, RM=0; const bb=new THREE.Box3(), v=new THREE.Vector3();
   for(let f=0;f<M;f++){ ch.mixer.stopAllAction(); const x=ch.mixer.clipAction(c); x.reset(); x.play(); ch.cur=x; if(ch.gearOn) ch.gearOn(n,x); ch.mixer.setTime(c.duration*f/M); ch.g.updateMatrixWorld(true);
     for(const e of window.__E){ const L=window.__len(e); if(!e.s){ const r=[]; for(let k=0;k<L.length;k+=5) r.push(L[k]/e.B[k]); r.sort((p,q)=>p-q); e.s=r[r.length>>1]; } /* 바인드 행렬의 균일 배율(중앙값)로 정규화 */
-      for(let k=0;k<L.length;k+=2){ if(e.B[k]>1e-5){ const r=Math.abs(L[k]/e.B[k]/e.s-1); all.push(r); WL.push([r, e.B[k]]); TL+=e.B[k]; if(r>.25) SL+=e.B[k]; const b=e.m.skeleton.bones[e.D[k]].name; (RG[b]||(RG[b]=[])).push(r); } } }
+      for(let k=0;k<L.length;k+=2){ if(e.B[k]>1e-5){ const r=Math.abs(L[k]/e.B[k]/e.s-1); if(e.R[k]) RM=Math.max(RM,r); all.push(r); WL.push([r, e.B[k]]); TL+=e.B[k]; if(r>.25) SL+=e.B[k]; const b=e.m.skeleton.bones[e.D[k]].name; (RG[b]||(RG[b]=[])).push(r); } } }
     window.__bones.forEach((o,i)=>{ const d0=window.__bd0[i]; if(d0>1e-4){ const d=o.getWorldPosition(new THREE.Vector3()).distanceTo(o.parent.getWorldPosition(new THREE.Vector3())); bmax=Math.max(bmax,Math.abs(d/d0-1)); } });
     bb.makeEmpty(); for(const e of window.__E){ const P=e.m.geometry.attributes.position; for(let i=0;i<P.count;i+=7){ e.m.getVertexPosition(i,v); e.m.localToWorld(v); bb.expandByPoint(v); } } const s=bb.getSize(new THREE.Vector3()); hs.push(s.y); ws.push(Math.max(s.x,s.z)); }
   /* 진단: 마지막 프레임에서 25% 넘게 늘어난(+)/줄어든(-) 변의 주 영향 뼈 */
@@ -46,7 +47,7 @@ MEAS = """([n,M])=>{ const ch=window.__ch, a=ch.acts[n]; if(!a) return null; con
   WL.sort((p,q)=>p[0]-q[0]); let acc=0, wp95=0; for(const [r,l] of WL){ acc+=l; if(acc>=TL*.95){ wp95=r; break; } }
   all.sort((p,q)=>p-q); const H=window.__bd0.length?hs[0]:1, q=p=>all[Math.min(all.length-1,Math.floor(all.length*p))];
   return {clip:c.name, p50:+q(.5).toFixed(4), p99:+q(.99).toFixed(4), p999:+q(.999).toFixed(4), max:+all[all.length-1].toFixed(3), over25:+(all.filter(x=>x>.25).length/all.length*100).toFixed(3), bone:+(bmax*100).toFixed(2),
-    wp95:+wp95.toFixed(3), len25:+(SL/TL*100).toFixed(2), worst:+rp[0][1].toFixed(3), worstBone:rp[0][0], regs:rp.slice(0,4).map(x=>x[0]+' '+x[1].toFixed(3)).join(', '), reg:Object.entries(reg).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x.join(':')).join(' '), hVar:+((Math.max(...hs)-Math.min(...hs))/hs[0]*100).toFixed(1), wVar:+((Math.max(...ws)-Math.min(...ws))/hs[0]*100).toFixed(1)}; }"""
+    wp95:+wp95.toFixed(3), len25:+(SL/TL*100).toFixed(2), worst:+rp[0][1].toFixed(3), worstBone:rp[0][0], regs:rp.slice(0,4).map(x=>x[0]+' '+x[1].toFixed(3)).join(', '), reg:Object.entries(reg).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x.join(':')).join(' '), hard:+(window.__E[0].hard*100).toFixed(1), rigidMax:+(RM*100).toFixed(3), hVar:+((Math.max(...hs)-Math.min(...hs))/hs[0]*100).toFixed(1), wVar:+((Math.max(...ws)-Math.min(...ws))/hs[0]*100).toFixed(1)}; }"""
 RAF = "()=>new Promise(r=>{ G.pauseRender=false; requestAnimationFrame(()=>requestAnimationFrame(()=>{ G.pauseRender=true; r(); })); })"
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 440, 'height': 560}); errs = []; pg.on('pageerror', lambda x: errs.append(str(x)))
@@ -71,8 +72,9 @@ with sync_playwright() as pw:
         p = f"{OUT}_{vn}.png"; os.makedirs(os.path.dirname(p), exist_ok=True); S.save(p); print('sheet', p, flush=True)
     for n in CL:
         m = pg.evaluate(MEAS, [n, 24])
-        if m: met[n] = m; print(f"{n:10s} {m['clip']:>12s}  strain p50 {m['p50']:.3f} p99 {m['p99']:.3f} p99.9 {m['p999']:.3f} max {m['max']:.2f}  >25%: {m['over25']:.2f}%  bone {m['bone']:.2f}%  bboxH {m['hVar']}% W {m['wVar']}%\n           표면(길이 가중) 25%↑ {m['len25']:.2f}%  가중 p95 {m['wp95']:.3f} | 부위 p90 {m['regs']}  | 25%↑ 변: {m['reg']}", flush=True)
+        if m: met[n] = m; print(f"{n:10s} {m['clip']:>12s}  strain p50 {m['p50']:.3f} p99 {m['p99']:.3f} p99.9 {m['p999']:.3f} max {m['max']:.2f}  >25%: {m['over25']:.2f}%  bone {m['bone']:.2f}%  bboxH {m['hVar']}% W {m['wVar']}%  강체변 {m['hard']}% 최대변형 {m['rigidMax']}%\n           표면(길이 가중) 25%↑ {m['len25']:.2f}%  가중 p95 {m['wp95']:.3f} | 부위 p90 {m['regs']}  | 25%↑ 변: {m['reg']}", flush=True)
     b.close()
 if arg('--json'): json.dump({'info': info, 'clips': met}, open(arg('--json'), 'w'), ensure_ascii=False, indent=1)
-bad = [n for n, m in met.items() if m['len25'] > LIM or m['bone'] > 1]
+# 하드 스킨(강체 부품, 변의 80%↑가 한 뼈에 고정): 부품 내부 변 최대 변형 0.5% 이하 = 늘어남 없음 (부품 사이 이음매 변은 관절이라 제외)
+bad = [n for n, m in met.items() if m['bone'] > 1 or (m['rigidMax'] > .5 if m['hard'] > 80 else m['len25'] > LIM)]
 print('errors', errs); print(('STRETCH FAIL: ' + ', '.join(bad)) if bad else 'NO STRETCH OK'); sys.exit(1 if bad or errs else 0)

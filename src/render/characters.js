@@ -56,10 +56,13 @@ const MESHY = {
   // Meshy 메카닉 버들 (몸만 리깅 · 등의 로봇 팔/백팩은 별도 강체 모델 budeul_gear → Spine02 뼈에 고정, 팔은 어깨 관절에서 절차적으로 회전 = 스킨 변형·늘어남 없음)
   // 몸 클립은 위치 트랙(Hips 제외)·스케일 트랙을 모델 파일에서 제거함. Drill/Hammer = 몸이 로봇 팔을 지휘하는 짧은 동작 구간
   budeul_meshy: { alias: { Idle: 'IdleAlt', Running_A: 'Run', Death_A: 'Death', Cheer: 'FistPump', Melee_Show: 'CheerUp' }, yaw: { IdleAlt: 25, Hit: 59, Combat: 52, Idle5: 52 }, sub: [['Drill', 'DoublePunch', .75, 2.15], ['Hammer', 'FistPump', .05, 1.25]], hamHit: .46, gear: 1, // 해머 = 주먹 들어 올렸다 내려치기(0.4초 정점 → 0.5초 내림)와 로봇 주먹 내려찍기 동기
-    calm: [{ clips: ['Drill', 'Hammer', 'FistPump', 'CheerUp', 'Uppercut'], bones: ['Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .65, ref: 'IdleAlt' }, { clips: ['Hit', 'Run'], bones: ['Spine01', 'Spine02', 'neck', 'Head'], k: .45, ref: 'IdleAlt' }] }, // 허리 굽힘·고개 끄덕임 완화(가슴 변형도 줄어듦)
+    calm: [{ clips: ['Drill', 'Hammer', 'FistPump', 'CheerUp', 'Uppercut'], bones: ['Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .65, ref: 'IdleAlt' }, { clips: ['Hit', 'Run'], bones: ['Spine01', 'Spine02', 'neck', 'Head'], k: .45, ref: 'IdleAlt' },
+      { clips: ['Drill', 'Hammer', 'FistPump', 'Hit'], bones: ['neck', 'Head'], k: .8, ref: 'IdleAlt' }, { clips: ['Drill'], bones: ['Hips'], k: .6, ref: 'IdleAlt' }] }, // 목·머리는 한 번 더 당김 → 공격 중 고개 숙임 ≤ 10° // 허리 굽힘·고개 끄덕임 완화(가슴 변형도 줄어듦)
   // 변신 로봇 (버들 [Q] 변신 중 교체되는 모델). Run = Monster_Walk(느린 거구 걸음) → 빠르게 재생
   mech_robot_meshy: { alias: { Running_A: 'Run', Death_A: 'Hit', Cheer: 'FistPump' }, sub: [['Drill', 'PunchCombo', .4, 1.9], ['Hammer', 'HammerSwing', .5, 1.75], ['Rocket', 'DoublePunch', .2, 1.7], ['StompS', 'Stomp', 0, 1.3]], hamHit: 1.0, arms: 1, runSpd: 2.4, h: 4.6,
-    calm: [{ clips: ['Drill', 'Hammer', 'Uppercut', 'Hit'], bones: ['neck', 'Head'], k: .5 }] },
+    // 로봇 원본 클립은 몸통이 옆으로 최대 120° 돌고(Idle −86°, Drill −119°, Hit −60°) 해머는 80° 앞으로 접힘 → 엉덩이·척추·목·머리를 정면 자세(FistPump 첫 프레임) 쪽으로 강하게 당김 (팔·다리 동작은 그대로)
+    // 메시는 정점마다 가장 큰 영향 뼈 하나에 묶음(rigidskin.mjs) + 스케일/위치(Hips 제외) 트랙 제거 → 장갑 부품이 늘어나지 않고 강체로 움직임
+    calm: [{ clips: ['Idle', 'Drill', 'Hammer', 'Rocket', 'StompS', 'Uppercut', 'Hit'], bones: ['Hips', 'Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .85, ref: 'FistPump' }, { clips: ['Run', 'Walk'], bones: ['Spine01', 'Spine02', 'neck', 'Head'], k: .5, ref: 'FistPump' }] },
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
