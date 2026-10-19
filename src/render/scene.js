@@ -38,7 +38,10 @@ const _soft = (() => { try { const gl = renderer.getContext(), ext = gl.getExten
 const _qm = new URLSearchParams(location.search).get('msaa'), MSAA = _qm ? (_qm === '1' ? 4 : 0) : _soft ? 0 : Math.min(4, renderer.capabilities.maxSamples || 0);
 const _pr = renderer.getPixelRatio(), _rt = new THREE.WebGLRenderTarget(innerWidth * _pr, innerHeight * _pr, { type: THREE.HalfFloatType, samples: MSAA });
 const composer = new EffectComposer(renderer, _rt); composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .35, .45, .95); composer.addPass(bloom); composer.addPass(new OutputPass());
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .35, .45, .95); // NaN/Inf 방어: 한 픽셀이라도 NaN이면 블룸 블러가 그것을 화면 전체로 번져 검은 화면이 됨(보스 처치 후 검은 화면 버그). 블룸 입력에서 비정상 값을 0으로
+bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );',
+  'vec4 texel = texture2D( tDiffuse, vUv ); if ( !all( lessThan( abs( texel ), vec4( 6.0e4 ) ) ) ) texel = vec4( 0.0 );'); bloom.materialHighPassFilter.needsUpdate = true;
+composer.addPass(bloom); composer.addPass(new OutputPass());
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
 
 export { renderer, scene, camera, cam, updateCam, DAY, NIGHT, skyU, hemi, sun, moon, composer, bloom };

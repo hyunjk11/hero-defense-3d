@@ -4,12 +4,14 @@ import { scene } from './scene.js';
 import { P, PB, emit, ringFx } from './vfx.js';
 import { G } from '../core/state.js';
 import { GRADES } from '../account/equip.js';
+// 셰이더 주의: MSAA(실제 GPU)에서는 varying이 삼각형 밖으로 외삽되어 vU.y가 1을 살짝 넘을 수 있음 → pow(음수)=NaN → 블룸이 NaN을 화면 전체로 번져 검은 화면.
+// 그래서 uv/밑/알파를 모두 clamp (scene.js 블룸 입력에도 NaN 방어가 있음)
 const L = [];
 export function lootFx(pos, g) {
   const c = new THREE.Color(GRADES[g].c), grp = new THREE.Group(); grp.position.set(pos.x, 0, pos.z); scene.add(grp);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.45, .7, 18, 20, 1, true), new THREE.ShaderMaterial({ uniforms: { uC: { value: c.clone().multiplyScalar(1.6) }, uT: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
     vertexShader: 'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: 'uniform vec3 uC; uniform float uT; varying vec2 vU; void main(){ float a=pow(1.-vU.y,1.4)*(.55+.25*sin(uT*8.-vU.y*25.)); gl_FragColor=vec4(uC, a); }' }));
+    fragmentShader: 'uniform vec3 uC; uniform float uT; varying vec2 vU; void main(){ float y=clamp(vU.y,0.,1.); float a=pow(max(1.-y,0.),1.4)*(.55+.25*sin(uT*8.-y*25.)); gl_FragColor=vec4(uC, clamp(a,0.,1.)); }' }));
   beam.position.y = 9; grp.add(beam);
   const gem = new THREE.Mesh(new THREE.OctahedronGeometry(.45), new THREE.MeshBasicMaterial({ color: c.clone().multiplyScalar(2), toneMapped: false })); gem.position.y = 1.4; grp.add(gem);
   const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1.3, 32), new THREE.MeshBasicMaterial({ color: c.clone().multiplyScalar(1.5), transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = .08; grp.add(ring);

@@ -265,7 +265,7 @@ function lakePlaza() {
   // 빛 기둥
   const beamMat = new THREE.ShaderMaterial({ uniforms: { uT: U.uT }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
     vertexShader: 'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: 'uniform float uT; varying vec2 vU; void main(){ float a=pow(1.-vU.y,1.6)*(.35+.15*sin(uT*3.-vU.y*30.))*(.7+.3*sin(vU.x*62.83+uT*2.)); gl_FragColor=vec4(vec3(1.,.88,.55)*1.2, a*.3); }' });
+    fragmentShader: 'uniform float uT; varying vec2 vU; void main(){ float y=clamp(vU.y,0.,1.); float a=pow(max(1.-y,0.),1.6)*(.35+.15*sin(uT*3.-y*30.))*(.7+.3*sin(vU.x*62.83+uT*2.)); gl_FragColor=vec4(vec3(1.,.88,.55)*1.2, clamp(a*.3,0.,1.)); }' });
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.55, .9, 46, 24, 1, true), beamMat); beam.position.y = 14 + 23; tower.add(beam);
   const gr = new THREE.Mesh(new THREE.RingGeometry(2.8, 4.2, 48), new THREE.MeshBasicMaterial({ color: 0xffe8a0, transparent: true, opacity: .35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); gr.rotation.x = -Math.PI / 2; gr.position.set(LX, .11, LZ); T.add(gr);
   const pl = new THREE.PointLight(0xffe0a0, 16, 18); pl.position.set(0, 9, 2); tower.add(pl);
