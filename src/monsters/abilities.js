@@ -119,7 +119,7 @@ function spawnPending() { while (pend.length) { const o = pend.shift(); bump('sp
     ch.stunT = .4; ch.kup = { t: 0, dur: .4, h: .9 }; }
   emit(P, o.x, .6, o.z, 18, 0x8aff6a, 4, .5, -8, 1); Snd.play('digSoft', { pos: { x: o.x, z: o.z }, rate: 1.7, vol: .6 }); } }
 // ---- 표시 (보호막 거품, 고리, 타워 상태) ----
-let _bubG, _bubM; function bubble(e, on) { if (on && !e.shBub) { _bubG ||= new THREE.SphereGeometry(1, 20, 14); _bubM ||= new THREE.MeshBasicMaterial({ color: 0x9ae0ff, transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+let _bubG, _bubM; function bubble(e, on) { if (on && !e.shBub) { _bubG ||= new THREE.SphereGeometry(1, 20, 14); _bubM ||= new THREE.MeshBasicMaterial({ color: 0x7ac8ff, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   const b = new THREE.Mesh(_bubG, _bubM.clone()); b.scale.setScalar(Math.max(.8, e.E.h * .55)); b.position.y = e.E.h * .5; b.userData.hit = 0; e.g.add(b); e.shBub = b; }
   if (e.shBub) e.shBub.visible = on; }
 function groundRing(g, r, color, op) { const m = new THREE.Mesh(new THREE.RingGeometry(r * .93, r, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
@@ -146,7 +146,7 @@ function updTowerFx(dt) { for (const tw of G.towers) { if (!(tw.rootT > 0 || tw.
   F.warn.visible = tw.warnT > 0; if (F.warn.visible) { F.warn.material.color.setHex(tw.warnC || 0x7aff4a); F.warn.material.opacity = .45 + .45 * Math.abs(Math.sin(G.t * 10)); F.warn.scale.setScalar(1 + Math.max(0, tw.warnT) * .25); } } }
 function updAbilities(dt) {
   if (pend.length) spawnPending(); if (balls.length) updBalls(dt); updTowerFx(dt);
-  for (const e of G.enemies) { if (e.shBub) { if (e.shieldT > 0) { e.shieldT -= dt; if (e.shieldT <= 0 && e.shield > 0) { e.shield = 0; bubble(e, false); } } const b = e.shBub; if (b.visible) { b.userData.hit = Math.max(0, b.userData.hit - dt); b.material.opacity = .22 + b.userData.hit * 2 + Math.sin(G.t * 4) * .05; b.rotation.y += dt; } if (e.dying !== undefined) b.visible = false; }
+  for (const e of G.enemies) { if (e.shBub) { if (e.shieldT > 0) { e.shieldT -= dt; if (e.shieldT <= 0 && e.shield > 0) { e.shield = 0; bubble(e, false); } } const b = e.shBub; if (b.visible) { b.userData.hit = Math.max(0, b.userData.hit - dt); b.material.opacity = .13 + b.userData.hit * 1.2 + Math.sin(G.t * 4) * .03; b.rotation.y += dt; } if (e.dying !== undefined) b.visible = false; }
     if (e.m.chillRing) { e.m.chillRing.visible = e.dying === undefined; e.m.chillRing.rotation.z += dt * .5; } }
 }
 function clearAbilities() { pend.length = 0; for (const b of balls) scene.remove(b.m); balls.length = 0; }

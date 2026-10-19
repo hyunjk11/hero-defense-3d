@@ -25,9 +25,9 @@ def ch2_snow(pg): return pg.evaluate(BATTLE, [9, ['frostgolem', 'yeti', 'wisp', 
 def endless_mix(pg): return pg.evaluate(BATTLE, [12, ['yeti', 'treant', 'wisp', 'slime']])
 @shot
 def ab_root(pg):
-    r = pg.evaluate(r"""()=>{ const s = R_.grass(); const tw = R_.tower('arrow', s); const t2 = G.tileAt(s[0] + 1, s[1]).t === 0 ? R_.tower('magic', [s[0] + 1, s[1]]) : null; const [x, z] = R_.xz(tw, 1.6, 3.2); const t = R_.at('treant', x, z); t.hp = t.max = 1e9;
-      R_.runUntil(() => tw.rootT > 0, 8); G.sim(.35); t.g.rotation.y = Math.atan2(-1.6, -3.2); return R_.xz(tw, .8, 1.6); }""")
-    close(pg, *r, r=17, phi=.95); return r
+    r = pg.evaluate(r"""()=>{ const s = R_.grass(); const tw = R_.tower('arrow', s); const t2 = G.tileAt(s[0] + 1, s[1]).t === 0 ? R_.tower('magic', [s[0] + 1, s[1]]) : null; const [x, z] = R_.xz(tw, -1.2, -3.4); const t = R_.at('treant', x, z); t.hp = t.max = 1e9; t.slowT = 0;
+      R_.runUntil(() => tw.rootT > 0, 8); G.sim(.35); t.slowT = 0; t.g.rotation.y = Math.atan2(1.2, 3.4); return R_.xz(tw, -.4, -1.2); }""")
+    close(pg, *r, r=15, phi=.95, theta=.2); return r
 @shot
 def ab_heal(pg):
     r = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(9, 8); const m = R_.at('mushroom', x, z); const L = [R_.at('goblin', x + 1.6, z + .6), R_.at('grunt', x - 1.4, z + 1), R_.at('wolf', x + .4, z + 1.8)]; L.forEach(e => e.hp = e.max * .4); m.hp = m.max * .7;
@@ -49,7 +49,7 @@ def ab_frost(pg):
 @shot
 def ab_shield(pg):
     r = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(9, 8); const L = [R_.at('grunt', x, z), R_.at('shield', x + 1.6, z + .5), R_.at('icewolf', x - 1.2, z + 1.2)]; const w = R_.at('wisp', x + 3, z + 2, false);
-      R_.runUntil(() => L.filter(e => e.shield > 0).length >= 3, 6); G.sim(.15); G.hurt(L[0], 5); return [x + .5, z + .8]; }""")
+      R_.runUntil(() => L.filter(e => e.shield > 0).length >= 3, 6); G.sim(.15); return [x + .5, z + .8]; }""")
     close(pg, *r, r=12, phi=1.08); return r
 @shot
 def ab_crack(pg):
