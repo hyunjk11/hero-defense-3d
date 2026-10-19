@@ -10,7 +10,7 @@ import { BRANCH, XP_NEED } from '../data/growth.js';
 const r2 = v => Math.round(v * 100) / 100;
 
 function banner(text, color = '#fff', ms = 1600) { const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.toggle('long', String(text).length > 22); /* 긴 문구는 작은 글씨 + 줄바꿈 */ b.classList.add('show'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), ms); }
-function showNote(list, ms = 7000) { const n = $('note'); n.innerHTML = list.map(o => `<div class="nc"><b>신규: ${o.name}</b>${o.desc}</div>`).join(''); n.classList.remove('hidden'); clearTimeout(n._t); n._t = setTimeout(() => n.classList.add('hidden'), ms); }
+function showNote(list, ms = 7000) { const n = $('note'); n.innerHTML = list.map(o => `<div class="nc${o.icon ? ' mon' : ''}" data-t="${o.type || ''}">${o.icon ? `<i>${o.icon}</i><small>신규 몬스터</small>` : ''}<b>${o.icon ? '' : '신규: '}${o.name}</b>${o.desc}</div>`).join(''); n.classList.remove('hidden'); clearTimeout(n._t); n._t = setTimeout(() => n.classList.add('hidden'), ms); }
 function setPhaseUI() { const ph = $('phase'); ph.textContent = G.phase === 'wave' ? '전투 중 (밤)' : '건설 단계 (낮)'; ph.classList.toggle('night', G.phase === 'wave'); $('startWave').disabled = G.phase !== 'build'; }
 function setBar(f, t, r) { const w = Math.max(0, Math.min(1, r)) * 100 + '%', a = $(f), b = $(t); if (a.style.width !== w) { a.style.width = w; b.style.width = w; } }
 function updBossBar() { const b = G.enemies.find(e => e.E.boss && !e.dead); $('bossHud').classList.toggle('hidden', !b); if (b) setBar('bossFill', 'bossTr', b.hp / b.max); }

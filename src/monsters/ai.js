@@ -11,6 +11,7 @@ import { enterCost, nextStep } from '../world/pathfinding.js';
 import { reachCore, removeEnemy } from './enemy.js';
 import { damageTower } from '../world/towers.js';
 import { hero, heroDamage } from '../heroes/hero.js';
+import { abilityTick, updAbilities } from './abilities.js';
 
 function groundY(x, z) { const [c, r] = toTile(x, z); return inGrid(c, r) && tileAt(c, r).t === T.CARVED ? -.46 : 0; }
 function enemyWalk(x, z) { const [c, r] = toTile(x, z); if (!inGrid(c, r)) return false; const t = tileAt(c, r); return !isBlock(t.t) && t.t !== T.BEDROCK && !t.tower && !t.bar; }
@@ -35,17 +36,21 @@ function updEnemies(dt) {
   const lod = G.enemies.length > 100; G.frameN = (G.frameN || 0) + 1;
   // 그림자/외곽선 LOD: 140마리 초과 시 적 그림자·외곽선 끔, 100마리 미만이면 다시 켬 (드로우콜 절감)
   const nE = G.enemies.length; if (!G.lowQ && nE > 140) setEnemyShadows(false); else if (G.lowQ && nE < 100) setEnemyShadows(true);
+  updAbilities(dt); // 챕터 몬스터 능력: 분열 대기·눈덩이·타워 상태 표시 (해당 몬스터가 없으면 아무 일도 없음)
   for (let i = G.enemies.length - 1; i >= 0; i--) {
     const e = G.enemies[i], E = e.E, g = e.g;
     if (e.m.mixer) { if (lod) { e.mixAcc = (e.mixAcc || 0) + dt; if (((i + G.frameN) & 1) === 0) { e.m.mixer.update(e.mixAcc); e.mixAcc = 0; } } else e.m.mixer.update(dt); }
+    if (e.m.anim) e.m.anim(e, dt); // 절차적 모델(늑대/슬라임/정령) 동작
     if (e.dying !== undefined) { e.dying -= dt; if (E.fly) { e.m.inner.position.y = Math.max(.3, e.m.inner.position.y - dt * 7); e.m.inner.rotation.z += dt * 8; } else if (e.dying < .5) g.position.y -= dt * 2.5; if (e.dying <= 0) removeEnemy(e); continue; }
     if (e.flash > 0) { e.flash -= dt; flashMats(e.m.mats, true, e.blockT > 0 ? 0x5a8aff : 0xffffff); if (e.blockT > 0) e.blockT -= dt; } else if (e.slowT > 0) flashMats(e.m.mats, true, 0x2a3aaa); else flashMats(e.m.mats, false);
     e.hb.set(Math.max(0, e.hp / e.max)); if (e.state === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.state = 'walk'; continue; }
     if (e.stunT > 0) { stunned(e, dt); continue; } // 전설 스킬: 빙결/띄우기 (설정될 때만)
-    const slowK = e.slowT > 0 ? 1 - (e.slowAmt || .45) : 1, spd = (e.ai === 'charger' ? chargeSpeed(e, dt) : E.spd) * slowK * (ICE && G.tiles[e.tile[0]]?.[e.tile[1]]?.t === T.CARVED ? 1.3 : 1); e.slowT -= dt; // 설원: 얼음 길에서 미끄러지듯 빠름
+    if (E.ab && abilityTick(e, dt)) { e.slowT -= dt; e.digging = false; g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8); continue; } // 능력 예고(시전) 중: 제자리
+    const slowK = e.slowT > 0 ? 1 - (e.slowAmt || .45) : 1, spd = (e.ai === 'charger' ? chargeSpeed(e, dt) : E.spd) * slowK * (ICE && G.tiles[e.tile[0]]?.[e.tile[1]]?.t === T.CARVED ? 1.3 : 1) * (e.spdK || 1); e.slowT -= dt; // 설원: 얼음 길에서 미끄러지듯 빠름
     if (E.fly) {
-      const tx = core.position.x, tz = core.position.z, dx = tx - g.position.x, dz = tz - g.position.z, d = Math.hypot(dx, dz);
-      if (d < 1) { reachCore(e); continue; } g.position.x += dx / d * spd * dt; g.position.z += dz / d * spd * dt; faceTo(g, tx, tz, dt);
+      const ft = e.flyTo, tx = ft ? ft.x : core.position.x, tz = ft ? ft.z : core.position.z, dx = tx - g.position.x, dz = tz - g.position.z, d = Math.hypot(dx, dz); // 서리 정령: 지상 동료 호위
+      if (ft) { if (d > .6) { const mv = Math.min(d - .5, spd * 1.2 * dt); g.position.x += dx / d * mv; g.position.z += dz / d * mv; } faceTo(g, tx, tz, dt); }
+      else { if (d < 1) { reachCore(e); continue; } g.position.x += dx / d * spd * dt; g.position.z += dz / d * spd * dt; faceTo(g, tx, tz, dt); }
       e.bob += dt; const f = Math.sin(G.t * 16 + e.bob); e.m.wings[0].rotation.y = f * .8; e.m.wings[1].rotation.y = -f * .8; e.m.inner.position.y = 3 + Math.sin(G.t * 3 + e.bob) * .35; e.m.inner.rotation.x = .15;
       const [tc, tr] = toTile(g.position.x, g.position.z); if (inGrid(tc, tr)) e.tile = [tc, tr]; continue;
     }
@@ -78,11 +83,13 @@ function updEnemies(dt) {
     g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8);
     // 끼임 감지: 굴착 중이 아닌데 1.5초 동안 거의 못 움직였으면(밀림/칸 불일치) 현재 칸 중심으로 보정 후 경로 재선택
     if (e.digging) { e.ckT = 0; e.ckP = null; } else { if (!e.ckP) { e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } e.ckT += dt;
-      if (e.ckT > 1.5) { if (Math.hypot(g.position.x - e.ckP[0], g.position.z - e.ckP[1]) < .3 && spd > .2 && wedged(e)) nudge(e); e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } }
+      if (e.ckT > 1.5) { if (Math.hypot(g.position.x - e.ckP[0], g.position.z - e.ckP[1]) < .3 && spd > .2) { if (wedged(e)) nudge(e); else if (jammedInNext(e)) { e.tile = e.next; e.next = null; G.unjamN = (G.unjamN || 0) + 1; } } e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } }
   }
 }
 // 진짜 끼임만: 몸이 통과 불가 칸에 있거나, 현재 칸/다음 칸 어디에도 속하지 않음 (단순 정체 행렬은 제외)
 function wedged(e) { const p = e.g.position, [c, r] = toTile(p.x, p.z); if (!enemyWalk(p.x, p.z)) return true; const on = (a) => a && a[0] === c && a[1] === r; return !on(e.tile) && !on(e.next); }
+// 혼잡 정체: 몸은 이미 다음 칸 안인데 서로 밀려 칸 목표점(오프셋)에 닿지 못한 채 1.5초 → 그 칸에 도착한 것으로 처리 (큰 몬스터 여럿이 한 칸 참호에 몰릴 때)
+function jammedInNext(e) { if (!e.next || e.digging) return false; const [c, r] = toTile(e.g.position.x, e.g.position.z); return c === e.next[0] && r === e.next[1] && walkable(tileAt(c, r)); }
 function nudge(e) { const g = e.g, [c, r] = toTile(g.position.x, g.position.z); G.nudgeN = (G.nudgeN || 0) + 1;
   if (inGrid(c, r) && enemyWalk(g.position.x, g.position.z)) e.tile = [c, r]; g.position.x = tileX(e.tile[0]); g.position.z = tileZ(e.tile[1]); e.next = null; }
 

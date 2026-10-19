@@ -1,0 +1,153 @@
+// 챕터 몬스터 능력 (데이터: ETYPES[type].ab). 모든 능력은 예고(고리/빛/아이콘) 후 발동하고, 몬스터가 없으면 아무것도 하지 않는다 (classic 기준선 불변)
+//  panic   고블린: 체력 at 이하 → dur초 동안 속도 ×k (1회)
+//  split   슬라임: 죽으면 type 몬스터 n마리 (부모 자리에서 튀어나옴)
+//  heal    버섯 주술사·숲의 군주: every초마다 windup초 예고(갓 초록빛 + 고리) → 반경 r 동료 최대 체력 pct 회복
+//  root    고목 정령·숲의 군주: every초마다 가까운 타워 n개에 windup초 예고(초록 고리) → dur초 동안 타워 공격 정지
+//  pack    서리늑대: 반경 r 안에 같은 무리 need마리 이상 → 속도 ×spd, 받는 피해 ×(1-red) (발밑 파란 고리)
+//  chill   설인·빙결의 군주: 반경 r 타워 공격속도 ×k (상시, 발밑 서리 고리)
+//  snowball 설인·빙결의 군주: every초마다 windup초 눈덩이 들기 → 사거리 안 타워(nova: 여러 개)에 투척, 맞으면 dur초 공격속도 ×k
+//  escort/shield 서리 정령: 지상 동료를 따라 날며 every초마다 반경 r 동료 n명에게 보호막(최대 체력 pct, 상한 cap×체력배수, dur초)
+//  crack   서리 골렘·빙결의 군주: 방어력 armor, 받은 피해(방어 전)가 최대 체력 at 이상이면 깨짐 → 방어력 after, 속도 ×spd (regen초 뒤 재생)
+import * as THREE from 'three';
+import { Snd } from '../audio/audio.js';
+import { G } from '../core/state.js';
+import { rand } from '../core/util.js';
+import { tileX, tileZ, toTile, inGrid } from '../core/grid.js';
+import { scene } from '../render/scene.js';
+import { P, PB, debris, dmgText, emit, ringFx } from '../render/vfx.js';
+import { play } from '../render/characters.js';
+import { glow, mk, toon } from '../render/toon.js';
+import { damageTower } from '../world/towers.js';
+import { spawnEnemy } from './enemy.js';
+
+const alive = () => G.enemies.filter(e => !e.dead && e.dying === undefined);
+const st = () => G.stats;
+const bump = k => { st()[k] = (st()[k] || 0) + 1; };
+const twPos = tw => new THREE.Vector3(tileX(tw.c), 0, tileZ(tw.r));
+const txt = (x, y, z, s, c, big) => dmgText(new THREE.Vector3(x, y, z), s, c, big);
+
+function initAbilities(e) {
+  const A = e.E.ab, t = {}; e.abT = t;
+  for (const k of ['heal', 'root', 'snowball', 'shield']) if (A[k]) t[k] = A[k].first ?? A[k].every * .6;
+  if (A.crack) { e.armor = A.crack.armor; e.crackAcc = 0; e.cracked = false; }
+}
+// 이동 방해 없는 상시 능력은 매 프레임, 예고(windup) 중이면 true → 그 자리에서 시전 동작
+function abilityTick(e, dt) {
+  const A = e.E.ab, g = e.g, t = e.abT; let spdK = 1;
+  if (A.panic) { if (!e.panicked && e.hp < e.max * A.panic.at) { e.panicked = true; e.panicT = A.panic.dur; bump('panics'); Snd.whoosh(g.position, .3, 900, 2600, .3); txt(g.position.x, e.E.h + .6, g.position.z, '겁먹음!', '#ffe27a'); }
+    if (e.panicT > 0) { e.panicT -= dt; spdK *= A.panic.k; if (rand() < dt * 14) emit(P, g.position.x, e.E.h * .9, g.position.z, 1, 0x9ae0ff, 1.5, .4, -4, .4); } }
+  if (A.pack) { e.packScan = (e.packScan || 0) - dt; if (e.packScan <= 0) { e.packScan = .25; let n = 0; for (const o of G.enemies) if (o !== e && !o.dead && o.E.ab && o.E.ab.pack && o.g.position.distanceToSquared(g.position) < A.pack.r * A.pack.r) n++; e.packN = n; e.packOn = n >= A.pack.need; }
+    if (e.packOn) spdK *= A.pack.spd; }
+  if (A.crack) { const C = A.crack; if (e.cracked) { spdK *= C.spd; if (C.regen) { e.regenT -= dt; if (e.regenT <= 0) reforge(e); } } }
+  if (A.chill) chillAura(e, A.chill);
+  if (A.escort) escort(e, A.escort, dt);
+  e.spdK = spdK;
+  // 예고 → 발동
+  if (e.cast) { const c = e.cast; c.t -= dt; e.castT = c.t; castFx(e, c, dt); if (c.t <= 0) { e.cast = null; e.castT = 0; fire(e, c); } return !e.E.fly; }
+  for (const k of ['heal', 'root', 'snowball', 'shield']) { if (!A[k]) continue; t[k] -= dt; if (t[k] > 0) continue;
+    const c = begin(e, k, A[k]); if (c) { e.cast = c; t[k] = A[k].every; return !e.E.fly; } t[k] = 1; } // 대상이 없으면 1초 뒤 다시
+  return false;
+}
+// ---- 시전 시작 (대상 선정 + 예고) ----
+function towersNear(p, r, n, skip) { return G.towers.filter(tw => !tw.dead && !skip(tw)).map(tw => [tw, Math.hypot(tileX(tw.c) - p.x, tileZ(tw.r) - p.z)]).filter(x => x[1] <= r).sort((a, b) => a[1] - b[1]).slice(0, n).map(x => x[0]); }
+function begin(e, k, S) {
+  const g = e.g, p = g.position;
+  if (k === 'root') { const tws = towersNear(p, S.r, S.n, tw => tw.rootT > 0 || tw.warnT > 0); if (!tws.length) return null;
+    for (const tw of tws) { tw.warnT = S.windup; tw.warnC = 0x7aff4a; ringFx(twPos(tw), 1.6, 0x7aff4a, S.windup); } play(e.m, 'Taunt', { speed: 1.2 }); Snd.play('digWood', { pos: p, rate: .6 }); return { k, S, t: S.windup, tws }; }
+  if (k === 'snowball') { const tws = towersNear(p, S.range, S.nova || 1, tw => tw.warnT > 0); if (!tws.length) return null;
+    for (const tw of tws) { tw.warnT = S.windup + .6; tw.warnC = 0x8ad8ff; } if (e.m.snowball) e.m.snowball.visible = true; play(e.m, '2H_Melee_Attack_Chop', { speed: .9 }); return { k, S, t: S.windup, tws }; }
+  if (k === 'heal') { const hurtN = alive().filter(o => o.hp < o.max * .98 && o.g.position.distanceToSquared(p) <= S.r * S.r).length; if (!hurtN) return null;
+    ringFx(p, S.r, 0x7aff7a, S.windup); play(e.m, 'Cheer', { speed: 1.4 }); return { k, S, t: S.windup }; }
+  if (k === 'shield') { const L = alive().filter(o => o !== e && !o.E.fly && o.g.position.distanceToSquared(p) <= S.r * S.r && !(o.shield > 0)); if (!L.length) return null;
+    L.sort((a, b) => a.g.position.distanceToSquared(p) - b.g.position.distanceToSquared(p)); return { k, S, t: .5, tgt: L.slice(0, S.n) }; }
+  return null;
+}
+function castFx(e, c) { const p = e.g.position;
+  if (c.k === 'heal' && e.m.capMat) { const f = 1 - c.t / c.S.windup; e.m.capMat.emissive.setHex(0x3aff3a).multiplyScalar(.3 + f * .9); if (e.m.cap) e.m.cap.scale.setScalar((e.m.cap.userData.s0 ??= e.m.cap.scale.x) * (1 + f * .25)); }
+  if (c.k === 'heal' && rand() < .5) emit(P, p.x + (rand() - .5) * 2, .4, p.z + (rand() - .5) * 2, 1, 0x8aff6a, 1.2, .6, 2, .3);
+  if (c.k === 'root' && rand() < .6) for (const tw of c.tws) emit(P, tileX(tw.c) + (rand() - .5) * 1.4, .2, tileZ(tw.r) + (rand() - .5) * 1.4, 1, 0x6ad03a, 2, .5, 3, .3);
+  if (c.k === 'shield' && rand() < .5) emit(P, p.x, e.m.inner ? e.m.inner.position.y : 2, p.z, 2, 0xbff4ff, 2, .4, 0, .4);
+}
+// ---- 발동 ----
+function fire(e, c) {
+  const S = c.S, p = e.g.position;
+  if (c.k === 'root') { for (const tw of c.tws) { if (tw.dead) continue; tw.rootT = S.dur; tw.warnT = 0; const q = twPos(tw); bump('roots');
+      emit(PB, q.x, .5, q.z, 16, 0x6ad03a, 4, .6, -4, 1.2); debris(q.x, .6, q.z, 8, [0x6a4a2a, 0x4aa83a], 4); txt(q.x, 3.4, q.z, '🌿 속박!', '#9aff6a', true); Snd.play('breakWood', { pos: q, rate: .8, vol: .7 }); } }
+  if (c.k === 'snowball') { if (e.m.snowball) e.m.snowball.visible = false; const from = p.clone(); from.y = e.E.h * .9;
+    for (const tw of c.tws) if (!tw.dead) throwBall(from, tw, S); Snd.whoosh(p, .35, 400, 1600, .4); }
+  if (c.k === 'heal') { if (e.m.capMat) { e.m.capMat.emissive.copy(e.m.capMat.userData.e); e.m.cap.scale.setScalar(e.m.cap.userData.s0); } let n = 0;
+    for (const o of alive()) { if (o.g.position.distanceToSquared(p) > S.r * S.r || o.hp >= o.max) continue; const h = Math.min(o.max - o.hp, o.max * S.pct); o.hp += h; n++; st().healed = (st().healed || 0) + h;
+      const q = o.g.position; emit(P, q.x, (o.E.fly ? 3 : o.E.h * .6), q.z, 8, 0x7aff6a, 2.5, .6, 2, .8); if (n <= 6) txt(q.x, (o.E.fly ? 3.6 : o.E.h + .4), q.z, '+' + Math.round(h), '#8aff7a'); }
+    ringFx(p, S.r, 0x9aff7a, .45); Snd.play('meteorCast', { pos: p, rate: 1.6, vol: .45 }); bump('heals'); }
+  if (c.k === 'shield') { for (const o of c.tgt) { if (o.dead || o.dying !== undefined) continue; const amt = Math.min(o.max * S.pct, S.cap * (G.hpMul || 1)); o.shield = amt; o.shieldMax = amt; o.shieldT = S.dur; bubble(o, true);
+      const a = e.g.position.clone(); a.y = e.m.inner.position.y; const b = o.g.position.clone(); b.y = o.E.h * .6; beam(a, b); bump('shields'); }
+    Snd.play('magic', { pos: p, rate: .7, vol: .6 }); }
+}
+// 눈덩이 (포물선) — 맞은 타워: 빙결(공격속도 ×k) + 약한 피해
+const balls = [];
+function throwBall(from, tw, S) { const m = mk(geoBall(), matBall(), from.x, from.y, from.z, scene, .02); balls.push({ m, from: from.clone(), tw, to: twPos(tw).setY(2.2), t: 0, dur: .65, S }); }
+let _gb, _mb; const geoBall = () => _gb || (_gb = new THREE.SphereGeometry(.32, 14, 10)), matBall = () => _mb || (_mb = toon(0xffffff, { emissive: 0x8ac8ff, emissiveIntensity: .35 }));
+function updBalls(dt) { for (let i = balls.length - 1; i >= 0; i--) { const b = balls[i]; b.t += dt; const f = Math.min(1, b.t / b.dur);
+  b.m.position.lerpVectors(b.from, b.to, f); b.m.position.y += Math.sin(f * Math.PI) * 2.4; b.m.rotation.x += dt * 9;
+  if (rand() < .5) emit(P, b.m.position.x, b.m.position.y, b.m.position.z, 1, 0xffffff, .6, .4, -2, .2);
+  if (f >= 1) { scene.remove(b.m); balls.splice(i, 1); const tw = b.tw; if (tw.dead) continue; tw.frostT = b.S.dur; tw.frostK = b.S.k; tw.warnT = 0; bump('frosts'); const q = b.to;
+    emit(PB, q.x, q.y, q.z, 18, 0xdaf6ff, 5, .6, -6, 1.2); emit(P, q.x, q.y, q.z, 24, 0xffffff, 4, .5, -8, 1); txt(q.x, 3.4, q.z, '❄ 빙결!', '#bfe8ff', true); Snd.play('glass', { pos: q, vol: .45, rate: 1.3 }); damageTower(tw, 12, { x: q.x, z: q.z, kind: 'snow' }); } } }
+function chillAura(e, S) { const p = e.g.position; for (const tw of G.towers) { if (tw.dead) continue; const d = Math.hypot(tileX(tw.c) - p.x, tileZ(tw.r) - p.z); if (d > S.r) continue;
+  if (!(tw.chillT > G.t) || S.k < tw.chillK) tw.chillK = S.k; tw.chillT = G.t + .12; } if (!e.m.chillRing) e.m.chillRing = groundRing(e.g, S.r, 0x9ad8ff, .35); }
+// 비행 호위: 가장 가까운 지상 동료 위로 (없으면 코어로)
+function escort(e, S, dt) { e.escT = (e.escT || 0) - dt; if (e.escT <= 0 || (e.esc && (e.esc.dead || e.esc.dying !== undefined))) { e.escT = .5; let best = null, bd = S.r * S.r;
+  for (const o of G.enemies) { if (o === e || o.dead || o.E.fly || o.dying !== undefined || o.state === 'spawn') continue; const d = o.g.position.distanceToSquared(e.g.position); if (d < bd) { bd = d; best = o; } } e.esc = best; }
+  e.flyTo = e.esc ? e.esc.g.position : null; }
+// ---- 방어력 / 보호막 / 갑옷 깨짐 ----
+function armorOf(e) { const base = e.armor !== undefined ? e.armor : (e.E.armor || 0); return e.packOn ? 1 - (1 - base) * (1 - e.E.ab.pack.red) : base; }
+function crackHit(e, raw) { const C = e.E.ab.crack; if (e.cracked) return; e.crackAcc += raw; const f = e.crackAcc / (e.max * C.at);
+  if (e.m.iceMat) e.m.iceMat.userData.e.setHex(0x3aa8ff).multiplyScalar(.7 * (1 - Math.min(1, f) * .7));
+  if (f >= 1) { e.cracked = true; e.armor = C.after; e.regenT = C.regen || 0; bump('cracks'); if (e.m.iceParts) e.m.iceParts.forEach(x => x.visible = false); const p = e.g.position;
+    debris(p.x, e.E.h * .7, p.z, 16, [0xc8f0ff, 0x8ad8ff, 0xffffff], 6); emit(PB, p.x, e.E.h * .6, p.z, 24, 0x9ae0ff, 6, .6, -6, 1.5); txt(p.x, e.E.h + .7, p.z, '갑옷 파괴!', '#9ae8ff', true); Snd.play('glass', { pos: p, force: true }); Snd.play('breakRock', { pos: p, rate: 1.4, vol: .6 }); } }
+function reforge(e) { const C = e.E.ab.crack; e.cracked = false; e.armor = C.armor; e.crackAcc = 0; if (e.m.iceParts) e.m.iceParts.forEach(x => x.visible = true); if (e.m.iceMat) e.m.iceMat.userData.e.setHex(0x3aa8ff).multiplyScalar(.7);
+  const p = e.g.position; emit(PB, p.x, e.E.h * .6, p.z, 30, 0xbff4ff, 3, .8, 2, 2); txt(p.x, e.E.h + .7, p.z, '얼음 갑옷 재생', '#bff4ff', true); Snd.play('magic', { pos: p, rate: .5 }); }
+function absorbShield(e, dmg) { const a = Math.min(e.shield, dmg); e.shield -= a; st().absorbed = (st().absorbed || 0) + a; if (e.shBub) e.shBub.userData.hit = .15;
+  if (e.shield <= 0) { e.shield = 0; bubble(e, false); const p = e.g.position; emit(P, p.x, e.E.h * .6, p.z, 14, 0xbff4ff, 4, .4, -4, 1); Snd.play('glass', { pos: p, vol: .35, rate: 1.6 }); }
+  else if (!(e.shTxt > G.t)) { e.shTxt = G.t + .7; const p = e.g.position; txt(p.x, e.E.h + .5, p.z, '보호막', '#bff4ff'); } return dmg - a; }
+// 죽음: 분열
+const pend = [];
+function onKilled(e) { const S = e.E.ab && e.E.ab.split; if (!S) return; const [c, r] = toTile(e.g.position.x, e.g.position.z);
+  pend.push({ S, x: e.g.position.x, z: e.g.position.z, tile: inGrid(c, r) ? [c, r] : e.tile.slice(), hpMul: e.max / e.E.hp, rot: e.g.rotation.y }); }
+const pendingSpawns = () => pend.length;
+function spawnPending() { while (pend.length) { const o = pend.shift(); bump('splits');
+  for (let k = 0; k < o.S.n; k++) { const a = o.rot + Math.PI / 2 + (k / Math.max(1, o.S.n - 1) - .5) * Math.PI * .9 * (o.S.n > 1 ? 1 : 0), ch = spawnEnemy(o.S.type, o.hpMul, { x: o.x + Math.sin(a) * .45, z: o.z + Math.cos(a) * .45, tile: o.tile });
+    ch.stunT = .4; ch.kup = { t: 0, dur: .4, h: .9 }; }
+  emit(P, o.x, .6, o.z, 18, 0x8aff6a, 4, .5, -8, 1); Snd.play('digSoft', { pos: { x: o.x, z: o.z }, rate: 1.7, vol: .6 }); } }
+// ---- 표시 (보호막 거품, 고리, 타워 상태) ----
+let _bubG, _bubM; function bubble(e, on) { if (on && !e.shBub) { _bubG ||= new THREE.SphereGeometry(1, 20, 14); _bubM ||= new THREE.MeshBasicMaterial({ color: 0x9ae0ff, transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const b = new THREE.Mesh(_bubG, _bubM.clone()); b.scale.setScalar(Math.max(.8, e.E.h * .55)); b.position.y = e.E.h * .5; b.userData.hit = 0; e.g.add(b); e.shBub = b; }
+  if (e.shBub) e.shBub.visible = on; }
+function groundRing(g, r, color, op) { const m = new THREE.Mesh(new THREE.RingGeometry(r * .93, r, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  m.rotation.x = -Math.PI / 2; m.position.y = .12; g.add(m); return m; }
+function beam(a, b) { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: 0xbff4ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); scene.add(l); G.fxs.push({ m: l, t: 0, dur: .3, kind: 'fade' }); }
+// 타워 위 상태 장식: 뿌리(속박), 얼음(빙결/한기), 예고 고리 — 타워 anchor 에 붙임, 공유 재질
+const TM = {}; const tm = (k, f) => TM[k] || (TM[k] = f());
+function towerFx(tw) { if (tw.dfx) return tw.dfx; const g = new THREE.Group(); tw.anchor.add(g);
+  const roots = new THREE.Group(), bark = tm('bark', () => toon(0x6a4a2a)), leaf = tm('leaf', () => toon(0x4aa83a));
+  for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28, p = new THREE.Group(); p.position.set(Math.cos(a) * .95, 0, Math.sin(a) * .95); p.rotation.y = -a; roots.add(p);
+    const v = mk(tm('rootG', () => new THREE.TorusGeometry(.6, .1, 6, 12, Math.PI * .9)), bark, 0, .1, 0, p, .02); v.rotation.y = Math.PI / 2; v.rotation.z = Math.PI / 2 + .3;
+    mk(tm('leafG', () => new THREE.SphereGeometry(.16, 8, 6)), leaf, 0, 1.15, -.35, p, .015).scale.set(1, .5, 1.4); }
+  const ice = new THREE.Group(), im = tm('ice', () => toon(0xd8f4ff, { emissive: 0x3a9ae0, emissiveIntensity: .6, transparent: true, opacity: .85 }));
+  for (let k = 0; k < 7; k++) { const a = k / 7 * 6.28, c = mk(tm('iceG', () => new THREE.OctahedronGeometry(.3)), im, Math.cos(a) * .85, .3 + (k % 3) * .35, Math.sin(a) * .85, ice, .02); c.scale.set(.6, 1.8, .6); c.rotation.z = Math.cos(a) * .3; c.rotation.x = Math.sin(a) * .3; }
+  const flake = mk(tm('flakeG', () => new THREE.OctahedronGeometry(.22)), tm('flake', () => glow(0xbff4ff, 1.4)), 0, 4.3, 0, g, .015);
+  const warn = new THREE.Mesh(tm('warnG', () => new THREE.RingGeometry(1.15, 1.4, 40)), new THREE.MeshBasicMaterial({ color: 0x7aff4a, transparent: true, opacity: .8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); warn.rotation.x = -Math.PI / 2; warn.position.y = .15;
+  g.add(roots, ice, warn); roots.visible = ice.visible = flake.visible = warn.visible = false; return (tw.dfx = { g, roots, ice, flake, warn }); }
+// 타워 공격 속도 배수 (속박 = 0). 디버프가 한 번도 없던 타워는 항상 정확히 1
+function towerRateK(tw) { if (tw.rootT > 0) return 0; let k = 1; if (tw.frostT > 0) k *= tw.frostK; if (tw.chillT > G.t) k *= tw.chillK; return k; }
+function updTowerFx(dt) { for (const tw of G.towers) { if (!(tw.rootT > 0 || tw.frostT > 0 || tw.warnT > 0 || tw.chillT > G.t || tw.dfx)) continue;
+  if (tw.rootT > 0) tw.rootT -= dt; if (tw.frostT > 0) tw.frostT -= dt; if (tw.warnT > 0) tw.warnT -= dt; const F = towerFx(tw);
+  F.roots.visible = tw.rootT > 0; if (F.roots.visible) F.roots.scale.set(1, Math.min(1, (F.roots.userData.k = Math.min(1, (F.roots.userData.k || 0) + dt * 5))), 1); else F.roots.userData.k = 0;
+  F.ice.visible = tw.frostT > 0; F.flake.visible = tw.frostT > 0 || tw.chillT > G.t; if (F.flake.visible) { F.flake.rotation.y += dt * 2; F.flake.position.y = 4.3 + Math.sin(G.t * 3) * .12; }
+  F.warn.visible = tw.warnT > 0; if (F.warn.visible) { F.warn.material.color.setHex(tw.warnC || 0x7aff4a); F.warn.material.opacity = .45 + .45 * Math.abs(Math.sin(G.t * 10)); F.warn.scale.setScalar(1 + Math.max(0, tw.warnT) * .25); } } }
+function updAbilities(dt) {
+  if (pend.length) spawnPending(); if (balls.length) updBalls(dt); updTowerFx(dt);
+  for (const e of G.enemies) { if (e.shBub) { if (e.shieldT > 0) { e.shieldT -= dt; if (e.shieldT <= 0 && e.shield > 0) { e.shield = 0; bubble(e, false); } } const b = e.shBub; if (b.visible) { b.userData.hit = Math.max(0, b.userData.hit - dt); b.material.opacity = .22 + b.userData.hit * 2 + Math.sin(G.t * 4) * .05; b.rotation.y += dt; } if (e.dying !== undefined) b.visible = false; }
+    if (e.m.chillRing) { e.m.chillRing.visible = e.dying === undefined; e.m.chillRing.rotation.z += dt * .5; } }
+}
+function clearAbilities() { pend.length = 0; for (const b of balls) scene.remove(b.m); balls.length = 0; }
+export { initAbilities, abilityTick, armorOf, crackHit, absorbShield, onKilled, pendingSpawns, updAbilities, towerRateK, clearAbilities };

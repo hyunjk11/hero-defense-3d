@@ -1,0 +1,866 @@
+{
+ "comp_1_1": {
+  "used": [
+   "bat",
+   "boss",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "slime",
+   "treant",
+   "wolf"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "grunt": 6,
+    "goblin": 5
+   },
+   {
+    "goblin": 4,
+    "wolf": 5,
+    "grunt": 3,
+    "digger": 2
+   }
+  ]
+ },
+ "comp_1_2": {
+  "used": [
+   "bat",
+   "boss",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "slime",
+   "treant",
+   "wolf"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "digger": 2,
+    "wolf": 4,
+    "slime": 2,
+    "goblin": 3
+   },
+   {
+    "goblin": 4,
+    "mushroom": 3,
+    "grunt": 1,
+    "imp": 3,
+    "slime": 2,
+    "digger": 1
+   }
+  ]
+ },
+ "comp_1_3": {
+  "used": [
+   "bat",
+   "boss",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "slime",
+   "treant",
+   "wolf"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   45
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "digger": 4,
+    "wolf": 2,
+    "bat": 2,
+    "goblin": 3
+   },
+   {
+    "goblin": 3,
+    "bat": 1,
+    "treant": 1,
+    "grunt": 2,
+    "wolf": 2,
+    "slime": 3,
+    "imp": 2
+   }
+  ]
+ },
+ "comp_1_4": {
+  "used": [
+   "bat",
+   "boss",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "slime",
+   "treant",
+   "wolf"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   45
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "slime": 3,
+    "wolf": 2,
+    "digger": 3,
+    "goblin": 3
+   },
+   {
+    "grunt": 3,
+    "goblin": 2,
+    "wolf": 2,
+    "slime": 3,
+    "imp": 2,
+    "mushroom": 1,
+    "digger": 1
+   }
+  ]
+ },
+ "comp_1_5": {
+  "used": [
+   "bat",
+   "boss",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "slime",
+   "treant",
+   "wolf"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   44,
+   47,
+   51
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "slime": 3,
+    "digger": 3,
+    "golem": 1,
+    "goblin": 3,
+    "wolf": 1
+   },
+   {
+    "grunt": 3,
+    "goblin": 2,
+    "wolf": 2,
+    "slime": 3,
+    "imp": 2,
+    "mushroom": 2
+   }
+  ]
+ },
+ "comp_1_6": {
+  "used": [
+   "bat",
+   "boss",
+   "boss_forest",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "slime",
+   "treant",
+   "wolf"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   44,
+   47,
+   50,
+   55
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "slime": 3,
+    "digger": 3,
+    "goblin": 3,
+    "wolf": 1,
+    "mushroom": 1
+   },
+   {
+    "grunt": 3,
+    "goblin": 2,
+    "wolf": 2,
+    "slime": 3,
+    "imp": 2,
+    "mushroom": 2
+   }
+  ]
+ },
+ "comp_2_1": {
+  "used": [
+   "bat",
+   "bomber",
+   "boss",
+   "charger",
+   "frostgolem",
+   "grunt",
+   "icewolf",
+   "shield",
+   "wisp",
+   "yeti"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   45
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "grunt": 4,
+    "icewolf": 7
+   },
+   {
+    "charger": 4,
+    "icewolf": 9,
+    "grunt": 1
+   }
+  ]
+ },
+ "comp_2_2": {
+  "used": [
+   "bat",
+   "bomber",
+   "boss",
+   "charger",
+   "frostgolem",
+   "grunt",
+   "icewolf",
+   "shield",
+   "wisp",
+   "yeti"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   45
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "yeti": 4,
+    "charger": 1,
+    "shield": 2,
+    "grunt": 2,
+    "icewolf": 2
+   },
+   {
+    "wisp": 4,
+    "grunt": 3,
+    "icewolf": 6,
+    "charger": 1
+   }
+  ]
+ },
+ "comp_2_3": {
+  "used": [
+   "bat",
+   "bomber",
+   "boss",
+   "charger",
+   "frostgolem",
+   "grunt",
+   "icewolf",
+   "shield",
+   "wisp",
+   "yeti"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   44,
+   47,
+   51
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "shield": 4,
+    "yeti": 1,
+    "frostgolem": 1,
+    "grunt": 2,
+    "icewolf": 3
+   },
+   {
+    "grunt": 3,
+    "icewolf": 3,
+    "bat": 3,
+    "charger": 2,
+    "yeti": 1,
+    "wisp": 2
+   }
+  ]
+ },
+ "comp_2_4": {
+  "used": [
+   "bat",
+   "bomber",
+   "boss",
+   "boss_snow",
+   "charger",
+   "frostgolem",
+   "grunt",
+   "icewolf",
+   "shield",
+   "wisp",
+   "yeti"
+  ],
+  "only_roster": true,
+  "signature_all": true,
+  "no_other_chapter": true,
+  "final_boss": true,
+  "counts": [
+   11,
+   14,
+   17,
+   20,
+   24,
+   26,
+   29,
+   32,
+   35,
+   39,
+   41,
+   44,
+   47,
+   50,
+   55
+  ],
+  "ok": true,
+  "first_waves": [
+   {
+    "wisp": 2,
+    "shield": 3,
+    "grunt": 2,
+    "icewolf": 3,
+    "yeti": 1
+   },
+   {
+    "grunt": 2,
+    "bomber": 3,
+    "charger": 2,
+    "yeti": 2,
+    "frostgolem": 1,
+    "wisp": 1,
+    "icewolf": 3
+   }
+  ]
+ },
+ "comp_endless": {
+  "early_types": [
+   "bat",
+   "boss",
+   "charger",
+   "digger",
+   "goblin",
+   "golem",
+   "grunt",
+   "imp",
+   "mushroom",
+   "shield",
+   "slime",
+   "wolf"
+  ],
+  "late_types": [
+   "bat",
+   "bomber",
+   "boss",
+   "boss_forest",
+   "boss_snow",
+   "charger",
+   "digger",
+   "frostgolem",
+   "goblin",
+   "golem",
+   "grunt",
+   "icewolf",
+   "imp",
+   "mushroom",
+   "shield",
+   "siege",
+   "slime",
+   "treant",
+   "wisp",
+   "wolf",
+   "yeti"
+  ],
+  "w5_boss": true,
+  "w10_boss_forest": true,
+  "w20_boss_snow": true,
+  "early_no_snow": true,
+  "early_has_forest": true,
+  "late_has_snow": true,
+  "late_still_skeletons": true,
+  "ok": true
+ },
+ "pack_spawn": {
+  "q": [
+   "grunt",
+   "grunt",
+   "grunt",
+   "grunt",
+   "icewolf",
+   "icewolf",
+   "icewolf",
+   "icewolf",
+   "icewolf",
+   "icewolf",
+   "icewolf"
+  ],
+  "runs": [
+   7
+  ],
+  "wolf_gaps": [
+   0.25,
+   0.25,
+   0.25,
+   0.25,
+   0.25,
+   0.25
+  ],
+  "ok": false
+ },
+ "forest_abilities": {
+  "split": {
+   "before_frame": 0,
+   "kids": 2,
+   "kid_hp": [
+    38,
+    38
+   ],
+   "near": true,
+   "hopping": true,
+   "grandkids": 0,
+   "splits": 1,
+   "phase_with_kids": "wave",
+   "kids_alive": 2,
+   "phase_end": "build",
+   "ok": true
+  },
+  "panic": {
+   "k0": 1,
+   "k1": 1.8,
+   "panicked": true,
+   "k2": 1,
+   "k3": 1,
+   "panics": 1,
+   "ok": true
+  },
+  "heal": {
+   "secs": 3.45,
+   "telegraph": true,
+   "cap_glow_g": 1.136,
+   "near_hp": 0.62,
+   "far_hp": 0.5,
+   "self_hp": 1,
+   "healed": 19,
+   "ok": true
+  },
+  "root": {
+   "t_warn": 4.25,
+   "telegraph": true,
+   "warn_ring": true,
+   "casting": true,
+   "rate_k": 0,
+   "shots_rooted": 0,
+   "roots_visible": true,
+   "shots_after": 3,
+   "rate_after": 1,
+   "roots": 1,
+   "roots_hidden_after": true,
+   "ok": true
+  },
+  "popup": {
+   "w1": "👺 신규 몬스터 고블린 작고 빠른 숲의 졸개. 체력이 절반 아래로 떨어지면 겁에 질려 잠깐 전력 질주합니다.",
+   "w1_cards": 1,
+   "w3": "🟢 신규 몬스터 숲 슬라임 죽으면 작은 슬라임 2마리로 분열합니다. 범위 공격(대포탑)이 효과적이에요. 🐺 신규 몬스터 숲늑대 매우 빠르지만 땅을 거의 못 팝니다. 이미 파인 길을 따라 질주하므로 길목 타워가 중요해요. ⛏ 신규 몬스터 굴착병 곡괭이로 지형을 아주 빠르게 부숴 새 터널을 엽니다. 터널은 모든 몬스터가 사용합니다.",
+   "w3_types": [
+    "slime",
+    "wolf",
+    "digger"
+   ],
+   "repeat_hidden": true,
+   "saved": [
+    "goblin",
+    "slime",
+    "wolf",
+    "digger"
+   ],
+   "ok": true
+  },
+  "nan": 0,
+  "ok": true
+ },
+ "snow_abilities": {
+  "pack": {
+   "pack_on": [
+    true,
+    true,
+    true
+   ],
+   "lone_on": false,
+   "spdK": 1.3,
+   "ring": true,
+   "pack_dmg": 40,
+   "lone_dmg": 50,
+   "after_pack_on": false,
+   "after_spdK": 1,
+   "ok": true
+  },
+  "chill": {
+   "rate_k": 0.7,
+   "flake": true,
+   "ring": true,
+   "shots_chilled": 11,
+   "rate_far": 1,
+   "shots_normal": 15,
+   "ok": true
+  },
+  "snowball": {
+   "secs": 4,
+   "telegraph": true,
+   "frost": 3.45,
+   "rate_k": 0.5,
+   "ice_vis": true,
+   "tower_dmg": 12,
+   "rate_after": 1,
+   "ice_after": false,
+   "ok": true
+  },
+  "shield": {
+   "secs": 2.05,
+   "amount": 24,
+   "expected": 24,
+   "bubble": true,
+   "escort_target": true,
+   "hp_after_small": 0,
+   "shield_left": 14,
+   "hp_after_big": 16,
+   "shield_end": 0,
+   "bubble_after": false,
+   "absorbed": 24,
+   "wisp_dist": 0.552,
+   "wisp_alive": true,
+   "ok": true
+  },
+  "crack": {
+   "hit1": 40,
+   "armor1": 0.6,
+   "cracked1": false,
+   "hit2": 100,
+   "cracked2": true,
+   "hit3": 100,
+   "ice_hidden": true,
+   "spdK": 1.25,
+   "cracks": 1,
+   "boss_hit": 50,
+   "boss_cracked": true,
+   "boss_armor": 0.1,
+   "boss_regen": true,
+   "ok": true
+  },
+  "nan": 0,
+  "ok": true
+ },
+ "boss_forest_roots": {
+  "towers": 2,
+  "secs": 5.55,
+  "rooted": 2,
+  "banner": "⚠ 보스 출현: 숲의 군주 ⚠",
+  "ok": true
+ },
+ "full_waves": {
+  "1-6": {
+   "waves": [
+    {
+     "w": 3,
+     "q": 17,
+     "secs": 54,
+     "phase": "build",
+     "kinds": [
+      "bat",
+      "digger",
+      "goblin",
+      "grunt",
+      "imp",
+      "slime",
+      "slime_s",
+      "wolf"
+     ],
+     "nan": 0
+    },
+    {
+     "w": 9,
+     "q": 35,
+     "secs": 63,
+     "phase": "build",
+     "kinds": [
+      "digger",
+      "goblin",
+      "grunt",
+      "imp",
+      "mushroom",
+      "slime",
+      "treant",
+      "wolf"
+     ],
+     "nan": 0
+    },
+    {
+     "w": 15,
+     "q": 55,
+     "secs": 63,
+     "phase": "over",
+     "kinds": [
+      "bat",
+      "boss",
+      "boss_forest",
+      "digger",
+      "goblin",
+      "grunt",
+      "imp",
+      "mushroom",
+      "slime",
+      "treant",
+      "wolf"
+     ],
+     "nan": 0
+    }
+   ],
+   "splits": 1,
+   "roots": 9,
+   "frosts": 0,
+   "shields": 0,
+   "heals": 19,
+   "cracks": 0,
+   "ok": true
+  },
+  "2-4": {
+   "waves": [
+    {
+     "w": 3,
+     "q": 17,
+     "secs": 51,
+     "phase": "build",
+     "kinds": [
+      "bat",
+      "charger",
+      "grunt",
+      "shield",
+      "wisp",
+      "yeti"
+     ],
+     "nan": 0
+    },
+    {
+     "w": 9,
+     "q": 35,
+     "secs": 63,
+     "phase": "build",
+     "kinds": [
+      "bomber",
+      "charger",
+      "frostgolem",
+      "grunt",
+      "icewolf",
+      "shield",
+      "wisp",
+      "yeti"
+     ],
+     "nan": 0
+    },
+    {
+     "w": 15,
+     "q": 55,
+     "secs": 63,
+     "phase": "over",
+     "kinds": [
+      "bat",
+      "bomber",
+      "boss",
+      "boss_snow",
+      "charger",
+      "frostgolem",
+      "grunt",
+      "icewolf",
+      "shield",
+      "wisp",
+      "yeti"
+     ],
+     "nan": 0
+    }
+   ],
+   "splits": 0,
+   "roots": 0,
+   "frosts": 20,
+   "shields": 97,
+   "heals": 0,
+   "cracks": 6,
+   "ok": true
+  },
+  "ok": true
+ },
+ "perf_and_screen": {
+  "enemies": 112,
+  "step_ms": 2.79,
+  "nan": 0,
+  "mean_luma": 147.6,
+  "dark_frac": 0.004,
+  "ok": true
+ },
+ "console_errors": []
+}

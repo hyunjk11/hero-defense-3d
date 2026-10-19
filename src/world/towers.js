@@ -19,6 +19,7 @@ import { select } from '../ui/input.js';
 import { BRANCH, resMods, starsFor } from '../data/growth.js';
 import { decorate, recalc, updDeco, updGrowFx } from './growth.js';
 import { later } from '../core/state.js';
+import { towerRateK } from '../monsters/abilities.js';
 
 // ================= 타워 =================
 const stoneM = toon(0xe0dacb), stoneD = toon(0x9e98ae), metalM = toon(0x4a4e5e), goldM = toon(0xffcc44, { emissive: 0x3a2200 });
@@ -102,7 +103,7 @@ function enemyAim(e) { return e.g.position.clone().setY(e.E.fly ? e.m.inner.posi
 function updTowers(dt) {
   if (G.grow) updGrowFx(dt);
   for (const tw of G.towers) {
-    const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position, S = tw.S, B = tw.branch ? BRANCH[tw.type][tw.branch] : null; if (tw.deco) updDeco(tw, dt); tw.cd -= dt; tw.pop = Math.min(1, tw.pop + dt * 3);
+    const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position, S = tw.S, B = tw.branch ? BRANCH[tw.type][tw.branch] : null; if (tw.deco) updDeco(tw, dt); tw.cd -= tw.rootT > 0 || tw.frostT > 0 || tw.chillT > G.t ? dt * towerRateK(tw) : dt; // 챕터 몬스터 디버프: 속박(정지)·빙결·한기 tw.pop = Math.min(1, tw.pop + dt * 3);
     const s = tw.pop < 1 ? 1 + Math.sin(tw.pop * Math.PI) * .25 : 1; m.g.scale.set(s, tw.pop < 1 ? .4 + tw.pop * .6 : 1, s);
     if (m.anim.crys) { m.head.position.y = m.anim.baseY + Math.sin(G.t * 2.4 + tw.c) * .15; m.anim.crys.rotation.y += dt * 1.6; m.anim.rings.forEach((r, k) => { r.rotation.z += dt * (1.2 + k * .7) * (k % 2 ? -1 : 1); }); }
     if (m.anim.flag) m.anim.flag.rotation.y = Math.sin(G.t * 5 + tw.c) * .4; if (m.anim.gem) m.anim.gem.rotation.y += dt * 2;
@@ -110,6 +111,7 @@ function updTowers(dt) {
     if (tw.hp < tw.max) { // 손상 연출: 피격 흔들림, 50% 이하 연기, 25% 이하 불꽃
       if (tw.hitT > 0) { tw.hitT -= dt; m.g.position.x = tileX(tw.c) + Math.sin(G.t * 70) * tw.hitT * .4; } else m.g.position.x = tileX(tw.c);
       tw.fxT -= dt; const k = tw.hp / tw.max; if (k < .5 && tw.fxT <= 0) { tw.fxT = k < .25 ? .08 : .2; emit(P, p.x + rnd(-.5, .5), 2.2, p.z + rnd(-.5, .5), 1, 0x5a5a62, .6, 1.4, 2.5, .3); if (k < .25) emit(P, p.x + rnd(-.4, .4), 1.6, p.z + rnd(-.4, .4), 2, 0xff8a2a, 1.2, .5, 3, .3); } }
+    if (tw.rootT > 0) continue; // 뿌리 속박: 조준·공격 정지
     const rng = S.range; let best = null, bd = Infinity; const many = B && B.targets ? [] : null, byHp = B && B.prio === 'hp';
     for (const e of G.enemies) { if (e.dead || (e.E.fly && !D.air)) continue; const dx = e.g.position.x - p.x, dz = e.g.position.z - p.z; if (dx * dx + dz * dz > rng * rng) continue;
       const prog = byHp ? -e.hp : e.E.fly ? Math.hypot(core.position.x - e.g.position.x, core.position.z - e.g.position.z) : dAt(e.tile[0], e.tile[1]); if (many) many.push([prog, e]); if (prog < bd) { bd = prog; best = e; } }

@@ -6,6 +6,7 @@ import { $ } from '../core/util.js';
 import { CLASSES } from '../data/heroes.js';
 import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
+import { makeWolf, makeSlime, makeWisp, extraProp } from './monsters3d.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
 const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
@@ -198,10 +199,10 @@ function makeBat() {
   return { g, inner, mats, wings, acts: null, mixer: null };
 }
 function makeEnemyModel(type) {
-  const E = ETYPES[type]; if (E.fly) return makeBat();
+  const E = ETYPES[type]; if (E.proc === 'wisp') return makeWisp(E); if (E.proc === 'wolf') return makeWolf(E); if (E.proc === 'slime') return makeSlime(E); if (E.fly) return makeBat();
   const ch = makeChar(E.model, E.h, skClips(), E.boss ? .05 : .03); attach(ch, E.w, 'handslotr'); if (E.sh) attach(ch, E.sh, 'handslotl');
   if (E.tint) { const tc = new THREE.Color(E.tint); ch.mats.forEach(m => m.color.multiply(tc)); }
-  if (E.prop) addProp(ch, E.prop, E);
+  if (E.prop) { addProp(ch, E.prop, E); extraProp(ch, E.prop, E, attachProp); }
   ch.root.traverse(o => { if (o.isMesh && !o.userData.ol && /Eyes/.test(o.name)) { o.material.emissive.setHex(E.boss ? 0xff2020 : E.eye || 0x40d0ff); o.material.emissiveIntensity = E.boss ? 3 : 1.6; o.material.userData.e = o.material.emissive.clone(); } });
   if (E.boss) { const head = ch.root.getObjectByName('head'); if (head) { const cr = new THREE.Group(), gm = glow(0xffc828, .7);
     const band = mk(new THREE.CylinderGeometry(.42, .38, .28, 12, 1, true), gm, 0, 0, 0, cr, .02); band.material.side = THREE.DoubleSide;

@@ -25,7 +25,7 @@ NAN = r"""()=>{ const bad=[], fin=Number.isFinite; G.scene.traverse(o=>{ if(!o.m
   for (const m of (o.material ? [].concat(o.material) : [])) { if (m.uniforms) for (const k in m.uniforms) { const v=m.uniforms[k].value; if (typeof v==='number'&&!fin(v)) bad.push('u:'+k); }
     if (m.opacity!==undefined&&!fin(m.opacity)) bad.push('op'); } }); const c=G.cam.target; if(![c.x,c.y,c.z,G.cam.r,G.shake,G.night].every(fin)) bad.push('cam'); return [...new Set(bad)]; }"""
 KILL = r"""(lsk)=>{ G.manual=true; G.perm=G.perm||1; G.forceDrop=true; G.legendForce=true; if (lsk) G.hero.lsk=lsk; G.runDrops=[];
-  G.wave = G.stage ? G.stage.waves-1 : 4; G.startWave(); G.spawnQ = G.spawnQ.filter(t=>t==='boss'); let k=0; while (G.spawnQ.length && k++<200) G.sim(.1);
+  G.wave = G.stage ? G.stage.waves-1 : 4; G.startWave(); G.spawnQ = G.spawnQ.filter(t=>G.ETYPES[t].boss); let k=0; while (G.spawnQ.length && k++<200) G.sim(.1);
   const h=G.hero.g.position, bs=G.enemies.filter(e=>e.E.boss); bs.forEach((b,i)=>{ b.g.position.set(h.x+3+i,0,h.z+1); b.state='walk'; b.spawnT=0; });
   for (const e of G.enemies) if (!e.E.boss) G.hurt(e,1e9,'#fff',false);
   if (lsk) G.castLegend(); G.sim(.6); bs.forEach(b=>{ b.hp=Math.min(b.hp, b.max*.05); }); G.sim(1); for (const b of bs) if (!b.dead) G.hurt(b,1e9,'#fff',false); if (lsk) G.castLegend();
