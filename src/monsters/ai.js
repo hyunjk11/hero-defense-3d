@@ -83,12 +83,12 @@ function updEnemies(dt) {
     g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8);
     // 끼임 감지: 굴착 중이 아닌데 1.5초 동안 거의 못 움직였으면(밀림/칸 불일치) 현재 칸 중심으로 보정 후 경로 재선택
     if (e.digging) { e.ckT = 0; e.ckP = null; } else { if (!e.ckP) { e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } e.ckT += dt;
-      if (e.ckT > 1.5) { if (Math.hypot(g.position.x - e.ckP[0], g.position.z - e.ckP[1]) < .3 && spd > .2) { if (wedged(e)) nudge(e); else if (jammedInNext(e)) { e.tile = e.next; e.next = null; G.unjamN = (G.unjamN || 0) + 1; } } e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } }
+      if (e.ckT > 1.5) { if (Math.hypot(g.position.x - e.ckP[0], g.position.z - e.ckP[1]) < .3 && spd > .2) { if (wedged(e)) nudge(e); else if (!G.classic && jammedInNext(e)) { e.tile = e.next; e.next = null; G.unjamN = (G.unjamN || 0) + 1; } } e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } }
   }
 }
 // 진짜 끼임만: 몸이 통과 불가 칸에 있거나, 현재 칸/다음 칸 어디에도 속하지 않음 (단순 정체 행렬은 제외)
 function wedged(e) { const p = e.g.position, [c, r] = toTile(p.x, p.z); if (!enemyWalk(p.x, p.z)) return true; const on = (a) => a && a[0] === c && a[1] === r; return !on(e.tile) && !on(e.next); }
-// 혼잡 정체: 몸은 이미 다음 칸 안인데 서로 밀려 칸 목표점(오프셋)에 닿지 못한 채 1.5초 → 그 칸에 도착한 것으로 처리 (큰 몬스터 여럿이 한 칸 참호에 몰릴 때)
+// (classic 기준선에서는 끔 → regress.py 기준선 불변) 혼잡 정체: 몸은 이미 다음 칸 안인데 서로 밀려 칸 목표점(오프셋)에 닿지 못한 채 1.5초 → 그 칸에 도착한 것으로 처리 (큰 몬스터 여럿이 한 칸 참호에 몰릴 때)
 function jammedInNext(e) { if (!e.next || e.digging) return false; const [c, r] = toTile(e.g.position.x, e.g.position.z); return c === e.next[0] && r === e.next[1] && walkable(tileAt(c, r)); }
 function nudge(e) { const g = e.g, [c, r] = toTile(g.position.x, g.position.z); G.nudgeN = (G.nudgeN || 0) + 1;
   if (inGrid(c, r) && enemyWalk(g.position.x, g.position.z)) e.tile = [c, r]; g.position.x = tileX(e.tile[0]); g.position.z = tileZ(e.tile[1]); e.next = null; }
