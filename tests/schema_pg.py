@@ -31,6 +31,9 @@ try:
     """
     ok('stub', psql(STUB)[0])
     sql = open(os.path.join(ROOT, 'supabase', 'schema.sql'), encoding='utf-8').read()
+    # 업그레이드 경로: 로즈만 팔던 이전 schema.sql(상품 check = hero_gunner 만)을 먼저 실행해 둔 DB 에 새 파일을 다시 실행
+    OLD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema_v1_rose.sql')
+    if os.path.exists(OLD): r0 = psql(open(OLD, encoding='utf-8').read()); ok('schema_old_v1', r0[0], r0[2][-300:])
     r1 = psql(sql); ok('schema_run1', r1[0], r1[2][-300:]); r2 = psql(sql); ok('schema_run2_idempotent', r2[0], r2[2][-300:])
     ok('cart_untouched', psql('select count(*) from public.cart_dummy')[1] == '1')
     ADM = {'sub': '00000000-0000-0000-0000-00000000000a', 'email': 'hyunjk11@daum.net', 'role': 'authenticated'}
@@ -70,6 +73,19 @@ try:
     r = A(f"select public.hd3d_admin_reject({oid}, '입금 확인 불가')", ADM); ok('admin_reject', r[0] and '"ok": true' in r[1], r)
     ok('reject_mail', '입금 확인 불가' in A('select body from public.hd3d_mail', U2)[1] and A('select count(*) from public.hd3d_mail where reward is not null', U2)[1] == '0')
     ok('reorder_after_reject', A("insert into public.hd3d_orders (item) values ('hero_gunner')", U2)[0])
+    # 두 번째 유료 영웅 버들(메카닉): 이전 스키마 위에 다시 실행한 DB 에서도 주문 → 승인 → 받기 → 소유 (멱등)
+    r = A("insert into public.hd3d_orders (item) values ('hero_mechanic') returning status", U1); ok('mechanic_order', r[0] and r[1] == 'pending', r)
+    oid = psql("select id from public.hd3d_orders where item = 'hero_mechanic' and status = 'pending'")[1]
+    r = A(f'select public.hd3d_admin_approve({oid})', ADM); ok('mechanic_approve', r[0] and '"ok": true' in r[1], r)
+    mm = A("select id || '|' || title || '|' || body from public.hd3d_mail where reward ->> 'hero' = 'mechanic'", U1)[1]; ok('mechanic_mail', '메카닉 버들' in mm, mm)
+    mid2 = mm.split('|')[0]; r = A(f'select public.hd3d_claim_mail({mid2})', U1); ok('mechanic_claim', r[0] and '"already": false' in r[1] and 'mechanic' in r[1], r)
+    ok('mechanic_claim_idempotent', '"already": true' in A(f'select public.hd3d_claim_mail({mid2})', U1)[1])
+    ok('owned_both', A("select string_agg(item, ',' order by item) from public.hd3d_owned", U1)[1] == 'hero_gunner,hero_mechanic')
+    ok('mechanic_owned_blocks_order', not A("insert into public.hd3d_orders (item) values ('hero_mechanic')", U1)[0])
+    ok('reward_names', psql("select public.hd3d_item_name('hero_mechanic') || '|' || (public.hd3d_item_reward('hero_mechanic') ->> 'hero') || '|' || coalesce(public.hd3d_item_reward('hero_x')::text, 'null')")[1] == '유료 영웅 · 메카닉 버들|mechanic|null')
+    VR = "select public.hd3d_valid_reward('{\"hero\":\"mechanic\"}') and public.hd3d_valid_reward('{\"hero\":\"gunner\"}') and not public.hd3d_valid_reward('{\"hero\":\"warrior\"}')"
+    ok('valid_reward_heroes', psql(VR)[1] == 't')
+    r = A("select public.hd3d_admin_send_mail('u2@test.kr', '선물', '버들', '{\"hero\":\"mechanic\"}')", ADM); ok('admin_send_mechanic', r[0] and '"ok": true' in r[1], r)
     # 관리자 우편 보내기
     r = A("""select public.hd3d_admin_send_mail('U2@test.kr', '선물', '영혼석 드려요', '{"souls": 500, "steel": 20}')""", ADM); ok('admin_send_mail', r[0] and '"ok": true' in r[1], r)
     ok('admin_send_bad_reward', '"bad_reward"' in A("""select public.hd3d_admin_send_mail('u2@test.kr', 'x', '', '{"gold": 5}')""", ADM)[1])
