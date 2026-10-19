@@ -1,19 +1,19 @@
-// 상점 · 우편함 · 관리자 클라이언트 (Supabase). 유료 영웅 소유권은 서버 테이블 hd3d_owned(사용자 쓰기 불가)만 신뢰하고, 기기에는 계정별 캐시만 둠.
+// 상점 · 우편함 · 관리자 클라이언트 (Supabase). 유료 영웅 소유권은 서버 테이블 hd3d_owned(사용자 쓰기 불가)에서 읽은 값만 메모리에 둠 (localStorage/세이브에 저장하지 않음).
 // 테이블/함수가 아직 없으면(schema.sql 미실행) status = 'missing' → UI는 '서버 준비 중'. 게스트는 구매/우편 불가.
 import { A, ensureClient, update as accUpdate, onChange as accOnChange } from './account.js';
 import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
 import { CLASSES } from '../data/heroes.js';
 
-const T = SHOP.tables, K_OWN = 'hd3d_owned_', K_UID = 'hd3d_uid';
+const T = SHOP.tables;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
-export const S = { status: 'idle', orders: [], mail: [], adminOrders: [], msg: '', listeners: [] }; // status: idle | guest | loading | ok | missing | error
+export const S = { status: 'idle', owned: [], ownedUid: null, orders: [], mail: [], adminOrders: [], msg: '', listeners: [] }; // status: idle | guest | loading | ok | missing | error
 const emit = () => S.listeners.forEach(f => { try { f(S); } catch (e) { console.warn(e); } });
 export const onShop = f => S.listeners.push(f);
 const isMissing = e => !!e && (e.code === 'PGRST205' || e.code === 'PGRST202' || e.code === '42P01' || e.code === '42883' || e.status === 404);
-const uid = () => (A.user && A.user.id) || ls.get(K_UID) || '';
+const uid = () => (A.user && A.user.id) || '';
 
-// ---------- 소유권 (계정별 캐시) ----------
-export function ownedList() { const u = uid(); if (!u) return []; try { const v = JSON.parse(ls.get(K_OWN + u) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+// ---------- 소유권 (서버 hd3d_owned 를 마지막으로 읽은 값, 현재 로그인 계정 것만) ----------
+export function ownedList() { const u = uid(); return u && S.ownedUid === u ? S.owned.slice() : []; }
 export const owns = item => ownedList().includes(item);
 export const heroOwned = cls => !!CLASSES[cls] && (!CLASSES[cls].paid || owns('hero_' + cls));
 export const usableHero = cls => heroOwned(cls) ? cls : 'mage'; // 저장된 영웅이 잠겨 있으면 기본 영웅
@@ -24,14 +24,14 @@ async function sb() { return A.sb || ensureClient(); }
 async function q(p) { try { const r = await p; return r; } catch (e) { return { data: null, error: { message: String(e && e.message || e) } }; } }
 // 서버에서 소유권·내 주문·우편을 다시 읽음
 export async function refresh() {
-  if (!A.user) { S.status = 'guest'; S.orders = []; S.mail = []; emit(); return S; }
+  if (!A.user) { S.status = 'guest'; S.owned = []; S.ownedUid = null; S.orders = []; S.mail = []; emit(); return S; }
   if (S.status !== 'ok') S.status = 'loading'; emit();
   const c = await sb(), u = A.user.id;
   const [o, r, m] = await Promise.all([q(c.from(T.owned).select('item').eq('user_id', u)), q(c.from(T.orders).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(50)), q(c.from(T.mail).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(100))]);
   const bad = [o, r, m].find(x => x.error);
   if (bad) { S.status = isMissing(bad.error) ? 'missing' : 'error'; S.msg = bad.error.message || ''; emit(); return S; }
   if (!A.user || A.user.id !== u) return S;
-  ls.set(K_OWN + u, JSON.stringify([...new Set((o.data || []).map(x => x.item))]));
+  S.owned = [...new Set((o.data || []).map(x => x.item))]; S.ownedUid = u;
   const rd = readSet(); S.orders = r.data || []; S.mail = (m.data || []).map(x => ({ ...x, read: rd.has(String(x.id)) })); S.status = 'ok'; emit(); return S;
 }
 const readKey = () => 'hd3d_mailread_' + uid();
@@ -81,4 +81,6 @@ export const reject = (id, reason) => adminRpc('hd3d_admin_reject', { p_order_id
 export const sendMail = (email, title, body, reward) => adminRpc('hd3d_admin_send_mail', { p_email: email, p_title: title, p_body: body || '', p_reward: reward && Object.keys(reward).length ? reward : null });
 
 // 로그인/로그아웃 시 자동 갱신
-let lastU = null; accOnChange(() => { const u = A.user ? A.user.id : null; if (u !== lastU) { lastU = u; S.orders = []; S.mail = []; S.adminOrders = []; S.status = u ? 'loading' : 'guest'; if (u) refresh().catch(() => {}); else emit(); } });
+let lastU = null; accOnChange(() => { const u = A.user ? A.user.id : null; if (u !== lastU) { lastU = u; S.owned = []; S.ownedUid = null; S.orders = []; S.mail = []; S.adminOrders = []; S.status = u ? 'loading' : 'guest'; if (u) refresh().catch(() => {}); else emit(); } });
+// 새로고침으로 출정할 때(?stage&run) 유료 영웅이면 로그인·서버 소유권 확인을 먼저 (최대 ms)
+export async function verifyOwned(ms = 8000) { const to = new Promise(r => setTimeout(r, ms)); try { await Promise.race([(async () => { if (!A.user) { const { autoLogin } = await import('./account.js'); await autoLogin(); } if (A.user) await refresh(); })(), to]); } catch (e) {} }
