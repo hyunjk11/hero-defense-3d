@@ -9,6 +9,7 @@ from playwright.sync_api import sync_playwright
 MOCK = (pathlib.Path(__file__).parent / 'sbmock.js').read_text(encoding='utf-8')
 SHOTS = '--shots' in sys.argv; OUT = 'shots/advance'; os.makedirs(OUT, exist_ok=True)
 ONLY = sys.argv[sys.argv.index('--only') + 1] if '--only' in sys.argv else ''
+PICK = sys.argv[sys.argv.index('--br') + 1].split(',') if '--br' in sys.argv else None
 srv, url = serve(); errs, res = [], {}
 def ok(name, cond, info=''): res[name] = bool(cond); print(('OK  ' if cond else 'FAIL'), name, info, flush=True)
 J = lambda pg, js, a=None: pg.evaluate(js, a) if a is not None else pg.evaluate(js)
@@ -19,23 +20,34 @@ def shot(pg, name, force=False):
 PACK = """([n, d]) => { const h=G.hero.g.position, a0=G.hero.face; for (let i=0;i<n;i++){ const e=G.spawnEnemy(i%3?'grunt':'imp', 40); const a=a0+(i-n/2)*.18, r=d+(i%3)*1.2;
   const x=h.x+Math.sin(a)*r, z=h.z+Math.cos(a)*r; e.g.position.set(x,0,z); e.tile=G.toTile(x,z); e.state='walk'; e.spawnT=0; e.next=null; e.max=e.hp=1e6; e.E={...e.E, spd:0}; } return G.enemies.length; }"""
 AIM = "()=>{ const L=G.enemies.filter(e=>!e.dead); if(!L.length) return null; let x=0,z=0; for(const e of L){x+=e.g.position.x;z+=e.g.position.z;} x/=L.length; z/=L.length; G.mouseGround.set(x,0,z); const h=G.hero.g.position; G.hero.face=Math.atan2(x-h.x,z-h.z); return [x,z]; }"
+TIGHT = """([n, d]) => { const h=G.hero.g.position, a=G.hero.face; for (let i=0;i<n;i++){ const e=G.spawnEnemy('grunt', 40); const x=h.x+Math.sin(a)*d+(i%3-1)*.5, z=h.z+Math.cos(a)*d+((i/3|0)-.5)*.6;
+  e.g.position.set(x,0,z); e.tile=G.toTile(x,z); e.state='walk'; e.spawnT=0; e.next=null; e.max=e.hp=1e6; e.E={...e.E, spd:0}; } }"""
+LINE = """([n, d]) => { const h=G.hero.g.position, a=G.hero.face; let x, z; for (let i=0;i<n;i++){ const e=G.spawnEnemy('grunt', 40); x=h.x+Math.sin(a)*(d+i*1.6); z=h.z+Math.cos(a)*(d+i*1.6);
+  e.g.position.set(x,0,z); e.tile=G.toTile(x,z); e.state='walk'; e.spawnT=0; e.next=null; e.max=e.hp=1e6; e.E={...e.E, spd:0}; } G.__aim=[x,z]; }"""
 CLEAR = "()=>{ for (const e of G.enemies) if(!e.dead) G.hurt(e, 1e9, '#fff'); G.sim(2); }"
-def page(b, vw=1280, vh=800):
+def page(b, vw=1280, vh=800, login=True):
     c = b.new_context(viewport={'width': vw, 'height': vh}, has_touch=True); c.add_init_script(MOCK); pg = c.new_page()
     pg.on('dialog', lambda d: d.accept()); pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     pg.goto(url + '?seed=12345&rng=777&flow=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=180000)
-    pg.mouse.click(vw // 2, vh // 2); pg.wait_for_timeout(300); pg.click('#lgGuest'); pg.wait_for_timeout(300); return c, pg
+    pg.mouse.click(vw // 2, vh // 2); pg.wait_for_timeout(300)
+    if login: pg.click('#lgGuest'); pg.wait_for_timeout(300)
+    return c, pg
+NUSER = [0]
+def own_gunner(pg):  # 가짜 서버(hd3d_owned)에 로즈 소유권 — 실서버라면 관리자 승인 → 우편으로 생김
+    NUSER[0] += 1; pg.fill('#lgEmail', f'adv{NUSER[0]}@test.kr'); pg.fill('#lgPw', 'secret12'); pg.click('#lgUp'); pg.wait_for_function("()=>G.screen==='menu'", timeout=15000); pg.wait_for_timeout(300)
+    J(pg, "()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const u=Object.values(d.users).slice(-1)[0].id; d.hd3d_owned={[u+':hero_gunner']:{user_id:u,item:'hero_gunner'}}; localStorage.setItem('__mockdb', JSON.stringify(d)); }")
 def run(b, hero, br):
-    c, pg = page(b)
+    c, pg = page(b, login=hero != 'gunner')
+    if hero == 'gunner': own_gunner(pg)
     J(pg, """([hero, br]) => { const {Acc}=G.gear; Acc.update(d=>{ d.souls=999; d.hero=hero; d.stats={runs:1,kills:1,waves:1,souls:1}; d.eq[hero]={}; d.adv = br ? {[hero]:{b:br,n:1}} : {}; return d; }); }""", [hero, br])
-    pg.click('#mnCont'); pg.wait_for_function("()=>G.screen==='town'", timeout=30000); pg.wait_for_timeout(800)
+    pg.click('#mnCont'); pg.wait_for_function("()=>G.screen==='town'" + (" && G.shop.Sh.heroOwned('gunner')" if hero == 'gunner' else ''), timeout=30000); pg.wait_for_timeout(800)
     pg.click('#twGo'); pg.wait_for_timeout(300); pg.click('.chtab[data-c="0"]'); J(pg, "()=>document.getElementById('stChalGo').click()"); pg.wait_for_function("()=>G.phase==='build'&&G.hero", timeout=60000); pg.wait_for_timeout(400)
     J(pg, "()=>{ G.manual=true; G.gold=0; G.hero.hp=G.hero.max; G.advN={}; G.advDmg=0; }")
     return c, pg
 def auto(pg, sec, n=9, d=5):
     J(pg, PACK, [n, d]); J(pg, AIM); J(pg, f"()=>G.sim({sec})")
-def cast(pg, mid):
-    pg.mouse.move(5, 5); J(pg, AIM); J(pg, "()=>{ G.hero.skillCd=0; G.hero.atkT=0; }"); pg.keyboard.press('q'); J(pg, f"()=>G.sim({mid})")
+def cast(pg, mid, aim=True):
+    pg.mouse.move(5, 5); J(pg, AIM) if aim else J(pg, "()=>{ G.mouseGround.set(G.__aim[0],0,G.__aim[1]); }"); J(pg, "()=>{ G.hero.skillCd=0; G.hero.atkT=0; }"); pg.keyboard.press('q'); J(pg, f"()=>G.sim({mid})")
 EXP = {  # 분기 → (스탯 확인 JS, 기대)
   ('archer', 'wind'): "Math.abs(G.hero.C.rate-2.5)<1e-6", ('archer', 'hawk'): "Math.abs(G.hero.C.range-14.3)<1e-6 && Math.abs(G.hero.C.dmg-24*1.7)<1e-6",
   ('mage', 'flame'): "G.hero.C.aoe===3", ('mage', 'frost'): "Math.abs(G.hero.C.rate-.95*1.1)<1e-6",
@@ -56,6 +68,7 @@ with sync_playwright() as pw:
         ok('no_adv', J(pg, "()=>G.hero.adv===null && !G.hero.aura && G.hero.C.rate===2 && !G.hero.C.title && !document.getElementById('heroName').textContent.includes('순찰자')"), J(pg, "()=>document.getElementById('heroName').textContent"))
         c.close()
         for (h, br), stat in EXP.items():
+            if PICK and br not in PICK: continue
             c, pg = run(b, h, br)
             ok(f'{br}_stats', J(pg, f"()=>!!G.hero.adv && G.hero.adv.k==='{br}' && ({stat})"), J(pg, "()=>[G.hero.C.hp,G.hero.C.dmg,G.hero.C.rate,G.hero.C.range,G.hero.C.armor,G.hero.C.aoe]"))
             ok(f'{br}_title_aura', J(pg, "()=>!!G.hero.aura && G.hero.aura.parent===G.hero.g && document.getElementById('heroName').textContent.includes(G.hero.adv.n) && document.getElementById('skillName').textContent===G.hero.adv.sk"), J(pg, "()=>document.getElementById('heroName').textContent"))
@@ -63,13 +76,15 @@ with sync_playwright() as pw:
                 J(pg, PACK, [4, 4]); J(pg, "()=>{ const L=G.enemies.filter(e=>!e.dead); const far=L[L.length-1]; far.hp=far.max=5e6; G.boss0=far; }"); J(pg, "()=>G.sim(1.2)")
                 ok('hawk_prio', J(pg, "()=>G.boss0.hp<5e6 && G.advN.ap>0"), J(pg, "()=>[G.boss0.hp, G.advN]")); J(pg, CLEAR)
             if br == 'paladin': J(pg, "()=>{ G.advForceStun=true; }")
+            if br == 'thorn': J(pg, TIGHT, [6, 5])  # 소폭발(반경 1.2) 검사용 밀집 무리
             auto(pg, 6 if h != 'warrior' else 4, d=5 if h != 'warrior' else 2)
             if br == 'paladin':
                 J(pg, "()=>{ G.hero.advStunCd=0; G.heroDamage(5); G.advForceStun=false; }"); ok('paladin_stun', J(pg, "()=>G.advN.stun===1 && G.advN.stunHit>0 && G.enemies.some(e=>!e.dead&&e.stunT>0)"), J(pg, "()=>G.advN"))
             if br == 'berserk': J(pg, "()=>{ G.hero.hp=G.hero.max*.4 }"); ok('berserk_low_atk', J(pg, "()=>{ const q=G.hero.eq; if(q) q.crit=0; let s=0; for(let i=0;i<5;i++) s+=G.stat?G.stat.dmg():0; return true; }"))
             ok(f'{br}_attack', J(pg, f"()=>{ATK[br]}"), J(pg, "()=>G.advN"))
-            mid, cond = SKL[br]; cast(pg, mid)
-            ok(f'{br}_skill', J(pg, f"()=>{cond}"), J(pg, "()=>[G.advN, G.hero.skillCd]"))
+            if br == 'hawk': J(pg, CLEAR); J(pg, LINE, [3, 4])  # 일섬 저격: 일직선 위 적 3명
+            mid, cond = SKL[br]; cast(pg, mid, br != 'hawk')
+            ok(f'{br}_skill', J(pg, f"()=>{cond}"), J(pg, "()=>[G.advN, G.hero.skillCd, G.projs.map(p=>p.kind), G.mouseGround.toArray(), G.hero.g.position.toArray()]"))
             if br in ('wind', 'frost', 'paladin', 'thorn', 'hawk', 'flame'): shot(pg, f'ingame_{h}_{br}', force=br in ('frost', 'paladin', 'wind', 'thorn'))
             c.close()
     print('console errors:', len(errs), errs[:5])
