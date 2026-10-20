@@ -16,7 +16,7 @@ J = lambda pg, js, a=None: pg.evaluate(js, a) if a is not None else pg.evaluate(
 LEG = {'archer': ['multishot', 'pierce'], 'mage': ['frostorb', 'meteorstorm'], 'warrior': ['boomerang', 'quake']}
 MIN_LUM = 45  # 정상 장면 ~90-140, 검은 화면 ~0-25
 MIN_LUM_VOLCANO = 28  # 화산(3장)은 원래 어두운 판(낮 ~43, 밤 ~34) — 검은 화면(0-25)과 구분 + 처치 전 밝기의 45% 이상 (밤 웨이브는 낮의 ~59%)
-CHB = {'1-6': 'boss_forest', '2-4': 'boss_snow', '3-4': 'boss_fire'}  # 챕터 보스 스테이지 최종 웨이브 = 챕터 보스 1마리만
+CHB = {'1-6': 'boss_forest', '2-4': 'boss_snow', '3-4': 'boss_fire', '4-4': 'boss_ruins'}  # 챕터 보스 스테이지 최종 웨이브 = 챕터 보스 1마리만
 HIDE = "(on)=>{ for (const id of ['stageClear','hud','fx','banner']) { const e=document.getElementById(id); if (e) e.style.visibility = on ? 'hidden' : ''; } }"
 def lum(pg):  # 캔버스(3D 장면)만의 평균 밝기: 결과 화면 등 DOM은 잠시 숨기고 2프레임 렌더 후 촬영
     J(pg, HIDE, True); pg.wait_for_timeout(120); png = pg.screenshot(); J(pg, HIDE, False)
@@ -53,6 +53,13 @@ def case(b, name, q, hero, lsk, stage):
             R.setRenderTarget(rt); R.render(sc,cam); const px=new Float32Array(16*16*4); R.readRenderTargetPixels(rt,0,0,16,16,px); R.setRenderTarget(prev); rt.dispose(); out.push([Math.min(...px), Math.max(...px), px.every(Number.isFinite)]); }
           return out; }""")
         ok(f'{name}_lava_shader_finite', lv and all(x[2] and x[0] >= 0 and x[1] <= 2.0001 for x in lv), lv)
+    if stage and 'stage=4-' in q:  # 폐허: 유령불 셰이더가 시간이 오래 흘러도 유한(NaN 없음)하고 0..1.3 범위
+        fv = J(pg, r"""()=>{ const T=G.THREE; let mat=null; G.scene.traverse(o=>{ if(o.material&&o.material.uniforms&&o.material.uniforms.cA) mat=o.material; }); if(!mat) return null; const out=[];
+          for (const t of [0, 1.7, 333.3, 999.9]) { const m=mat.clone(); m.blending=T.NoBlending; m.uniforms=T.UniformsUtils.clone(mat.uniforms); m.uniforms.uT.value=t; const q=new T.Mesh(new T.PlaneGeometry(2,2), m), sc=new T.Scene(); sc.add(q);
+            const cam=new T.OrthographicCamera(-1,1,1,-1,0,10); cam.position.z=1; const rt=new T.WebGLRenderTarget(16,16,{type:T.FloatType}); const R=G.renderer, prev=R.getRenderTarget();
+            R.setRenderTarget(rt); R.setClearColor(0,0); R.clear(); R.render(sc,cam); const px=new Float32Array(16*16*4); R.readRenderTargetPixels(rt,0,0,16,16,px); R.setRenderTarget(prev); rt.dispose(); out.push([Math.min(...px), Math.max(...px), px.every(Number.isFinite)]); }
+          return out; }""")
+        ok(f'{name}_ghostfire_shader_finite', fv and all(x[2] and x[0] >= -1e-6 and x[1] <= 1.3001 for x in fv), fv)
     if stage: ok(f'{name}_clear_screen', J(pg, "()=>G.phase") == 'over' and '스테이지 클리어' in pg.inner_text('#stageClear'))
     else: ok(f'{name}_wave_cleared', J(pg, "()=>G.phase") == 'build')
     return pg, c
@@ -80,7 +87,7 @@ with sync_playwright() as pw:
         for lsk in ([LEG[hero][1]] if QUICK else ([None] if hero != 'archer' else []) + LEG[hero]):
             pg, c = case(b, f'endless_{hero}_{lsk or "none"}', '?seed=12345&rng=777&test=1', hero, lsk, False); c.close()
     # 3) 챕터 보스 스테이지 최종 웨이브 (챕터 보스 1마리) → 결과 화면
-    for st, hero, lsk in ([('1-6', 'warrior', 'quake'), ('3-4', 'mage', 'meteorstorm')] if QUICK else [('1-6', 'warrior', 'quake'), ('1-6', 'archer', None), ('2-4', 'mage', 'meteorstorm'), ('3-4', 'gunner', 'rosebarrage'), ('3-4', 'warrior', None)]):
+    for st, hero, lsk in ([('1-6', 'warrior', 'quake'), ('3-4', 'mage', 'meteorstorm'), ('4-4', 'archer', 'multishot')] if QUICK else [('1-6', 'warrior', 'quake'), ('1-6', 'archer', None), ('2-4', 'mage', 'meteorstorm'), ('3-4', 'gunner', 'rosebarrage'), ('3-4', 'warrior', None), ('4-4', 'archer', 'multishot'), ('4-4', 'mechanic', None)]):
         pg, c = case(b, f'stage{st}_{hero}', f'?seed=12345&rng=777&test=1&flow=1&stage={st}&run=1', hero, lsk, st); c.close()
     b.close()
 ok('console_errors_0', not errs, errs[:5])
