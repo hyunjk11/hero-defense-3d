@@ -37,12 +37,18 @@ with sync_playwright() as pw:
         m = metrics[st] = shot(pg, st); ok(f'{st}_wave_readable', good(m) and pg.evaluate("()=>G.enemies.length") > 0, m)
         ok(f'{st}_no_nan', pg.evaluate(NAN) == 0)
     # 보스: 3-4 최종 웨이브, 화염의 군주를 타워 근처로 → 용암 웅덩이 + 운석 예고 + 분노
-    r = pg.evaluate("""()=>{ G.coreHp=G.coreMax=1e6; for (const e of [...G.enemies]) G.hurt(e,1e9,'#fff',false); G.sim(3); G.phase='build'; G.wave=14; G.startWave(); G.spawnQ=G.spawnQ.filter(t=>t==='boss_fire'); let k=0; while (G.spawnQ.length && k++<100) G.sim(.1);
+    r = pg.evaluate("""()=>{ G.coreHp=G.coreMax=1e6; for (const e of [...G.enemies]) G.hurt(e,1e9,'#fff',false); G.sim(3); G.phase='build'; G.wave=14; G.startWave(); const q0=[...G.spawnQ]; G.spawnQ=G.spawnQ.filter(t=>t==='boss_fire'); let k=0; while (G.spawnQ.length && k++<100) G.sim(.1);
         const bs=G.enemies.find(e=>e.type==='boss_fire'); const tw=G.towers[0]; const [x,z]=G.tileXZ(tw.c,tw.r); bs.g.position.set(x+3,0,z+1.5); bs.tile=G.toTile(x+3,z+1.5); bs.state='walk'; bs.spawnT=0; bs.E=Object.assign({},bs.E,{spd:1e-4});
         bs.hp=bs.max*.45; bs.abT.lavapool=.05; G.sim(2.2); bs.abT.meteor=.05; G.sim(.9); G.hero.g.position.set(x-4,0,z+4); G.cam.target.set(bs.g.position.x-1,0,bs.g.position.z+2); G.cam.r=30; G.sim(.05);
-        return { boss: !!bs, enraged: !!bs.enraged, pools: G.stats.pools||0, marks: G.scene.children.filter(m=>m.userData&&m.userData.ring).length }; }""")
+        return { q: q0.filter(t=>/^boss/.test(t)), hud: document.getElementById('bossName').textContent, boss: !!bs, enraged: !!bs.enraged, pools: G.stats.pools||0, marks: G.scene.children.filter(m=>m.userData&&m.userData.ring).length }; }""")
+    ok('boss_final_wave_only_fire', r['q'] == ['boss_fire'] and r['hud'] == '화염의 군주', {'q': r['q'], 'hud': r['hud']})
     ok('boss_scene', r['boss'] and r['enraged'] and r['pools'] >= 1 and r['marks'] >= 1, r)
     m = metrics['boss'] = shot(pg, 'boss'); ok('boss_readable', good(m), m); ok('boss_no_nan', pg.evaluate(NAN) == 0)
+    # 1-6 / 2-4 / 3-4 최종 웨이브: 챕터 보스 1마리만 (해골 군주 X), 보스 HP 바 이름 = 챕터 보스 이름
+    for st, bt, nm in [('1-6', 'boss_forest', '숲의 군주'), ('2-4', 'boss_snow', '빙결의 군주'), ('3-4', 'boss_fire', '화염의 군주')]:
+        pg.goto(url + Q + '&stage=' + st); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
+        r2 = pg.evaluate("()=>{ G.manual=true; G.coreHp=G.coreMax=1e6; G.phase='build'; G.wave=14; G.startWave(); const q=G.spawnQ.filter(t=>/^boss/.test(t)); let k=0; while (k++<600 && !G.enemies.some(e=>e.E.boss&&!e.dead)) G.sim(.1); G.sim(.05); return { q, hud: document.getElementById('bossName').textContent, alive: G.enemies.filter(e=>e.E.boss&&!e.dead).map(e=>e.type) }; }")
+        ok(f'{st}_final_boss', r2['q'] == [bt] and r2['hud'] == nm and bt in r2['alive'], r2)
     print('console errors:', errs); ok('no_console_errors', not errs)
     json.dump(metrics, open(os.path.join(OUT, 'metrics.json'), 'w'), indent=1)
     for f in os.listdir(OUT):

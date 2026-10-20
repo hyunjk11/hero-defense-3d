@@ -29,7 +29,7 @@ function startWave() {
       if (bias && n >= bias[1]) for (let i = 0; i < q.length; i++) if (q[i] === 'grunt' && rand() < bias[2]) q[i] = bias[0]; }
     if (n === STAGE.waves && !boss) q.splice(Math.floor(count / 2), 0, 'boss'); if (STAGE.boss && n === STAGE.waves) q.push(rq ? chapterBoss(STAGE.ch) : 'boss');
   } else if (!G.classic) { const mq = endlessMix(q, n, rand); q.length = 0; q.push(...mq); } // 도전 모드: 웨이브가 오를수록 숲 → 설원 구성이 섞임
-  if (boss) q.splice(Math.floor(count / 2), 0, G.classic || STAGE ? 'boss' : endlessBoss(n));
+  if (boss && !(STAGE && STAGE.boss && n === STAGE.waves)) q.splice(Math.floor(count / 2), 0, G.classic || STAGE ? 'boss' : endlessBoss(n)); // 챕터 보스 스테이지 최종 웨이브: 챕터 보스만 (해골 군주 중복 X)
   if (!G.classic) { const nt = newTypes(q, seenSet()).filter(t => !intro.includes(t) && ETYPES[t].desc); intro = intro.concat(nt); markSeen(intro); }
   G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul * (STAGE ? STAGE.hp : 1); Snd.horn(); Snd.duck(.4, 2.2); banner(STAGE && n === STAGE.waves ? `최종 웨이브 ${n}/${STAGE.waves} · ${STAGE.boss ? '챕터 보스 출현!' : '보스 웨이브!'}` : STAGE ? `웨이브 ${n}/${STAGE.waves}${boss ? ' · 보스 웨이브!' : ''}` : boss ? `웨이브 ${n} · 보스 웨이브!` : intro.length ? `웨이브 ${n} · 신규: ${intro.map(t => ETYPES[t].n).join(', ')}` : `웨이브 ${n}`, boss ? '#ff5a6a' : intro.length ? '#ffd27a' : '#ffffff', intro.length ? 2400 : undefined);
   if (intro.length) showNote(intro.slice(0, 4).map(t => ({ name: ETYPES[t].n, desc: ETYPES[t].desc, type: t, icon: ETYPES[t].icon })), 6500 + 900 * Math.min(4, intro.length)); setPhaseUI();

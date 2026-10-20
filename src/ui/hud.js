@@ -13,7 +13,8 @@ function banner(text, color = '#fff', ms = 1600) { const b = $('banner'); b.text
 function showNote(list, ms = 7000) { const n = $('note'); n.innerHTML = list.map(o => `<div class="nc${o.icon ? ' mon' : ''}" data-t="${o.type || ''}">${o.icon ? `<i>${o.icon}</i><small>신규 몬스터</small>` : ''}<b>${o.icon ? '' : '신규: '}${o.name}</b>${o.desc}</div>`).join(''); n.classList.remove('hidden'); clearTimeout(n._t); n._t = setTimeout(() => n.classList.add('hidden'), ms); }
 function setPhaseUI() { const ph = $('phase'); ph.textContent = G.phase === 'wave' ? '전투 중 (밤)' : '건설 단계 (낮)'; ph.classList.toggle('night', G.phase === 'wave'); $('startWave').disabled = G.phase !== 'build'; }
 function setBar(f, t, r) { const w = Math.max(0, Math.min(1, r)) * 100 + '%', a = $(f), b = $(t); if (a.style.width !== w) { a.style.width = w; b.style.width = w; } }
-function updBossBar() { const b = G.enemies.find(e => e.E.boss && !e.dead); $('bossHud').classList.toggle('hidden', !b); if (b) setBar('bossFill', 'bossTr', b.hp / b.max); }
+function updBossBar() { let b = null; for (const e of G.enemies) if (e.E.boss && !e.dead && (!b || e.max > b.max)) b = e; // 여러 보스면 가장 강한(챕터) 보스
+  $('bossHud').classList.toggle('hidden', !b); if (!b) return; setBar('bossFill', 'bossTr', b.hp / b.max); const nm = $('bossName'); if (nm.textContent !== b.E.n) nm.textContent = b.E.n; }
 function refreshHud() {
   $('gold').textContent = G.gold; $('wave').textContent = G.wave; setBar('coreBar', 'coreTr', G.coreHp / G.coreMax); if (G.coreHb) G.coreHb.set(G.coreHp / G.coreMax); $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
   $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
