@@ -40,7 +40,6 @@ const hashId = id => { let h = 2166136261; for (const ch of String(id)) h = Math
 // 무기의 고유 스킬 키 (전설 무기가 아니면 null). 저장값이 없거나 잘못됐으면 id에서 결정적으로 배정 → 구 세이브 호환
 export function legendKey(it) { if (!it || it.s !== 'weapon' || it.g !== 4 || !LPOOL[it.h]) return null; const P = LPOOL[it.h]; return P.includes(it.u) ? it.u : P[hashId(it.id) % P.length]; }
 export function legendOf(save, hero) { const id = ((save.eq || {})[hero] || {}).weapon, it = (save.inv || []).find(x => x.id === id); return legendKey(it); }
-export const MATS = { steel: '강철', crystal: '마력석' };
 const rid = r => (Math.floor(r() * 2176782336)).toString(36).padStart(6, '0') + (Date.now() % 1296).toString(36);
 const pick = (a, r) => a[Math.floor(r() * a.length) % a.length];
 export function rollGrade(w, r = Math.random) { const t = w.reduce((a, b) => a + b, 0); let x = r() * t; for (let i = 0; i < w.length; i++) { if ((x -= w[i]) < 0) return i; } return w.length - 1; }

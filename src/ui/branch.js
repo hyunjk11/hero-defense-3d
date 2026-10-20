@@ -24,7 +24,6 @@ export function openBranch(tw) {
 export function pick(k) { const tw = cur; closeBranch(true); if (chooseBranch(tw, k)) { if (G.sel === tw) refreshHud(); next(); return true; } Snd.play('error'); return false; }
 export function closeBranch(silent) { cur = null; $('branchPop').classList.add('hidden'); if (!silent) next(); }
 function next() { while (queue.length) { const tw = queue.shift(); if (!tw.dead && !tw.branch) { setTimeout(() => openBranch(tw), 250); return; } } }
-export const branchOpen = () => !!cur;
 G.onBranchReady = tw => { if (G.phase === 'over') return; if (cur) { if (!queue.includes(tw)) queue.push(tw); } else setTimeout(() => { if (!cur && !tw.branch && !tw.dead && G.phase !== 'over') openBranch(tw); else if (cur && cur !== tw && !queue.includes(tw)) queue.push(tw); }, 900); };
 G.openBranch = openBranch; G.pickBranch = pick;
 $('tEvo').onclick = () => { if (G.sel && G.sel.kind === 'tower') openBranch(G.sel); };

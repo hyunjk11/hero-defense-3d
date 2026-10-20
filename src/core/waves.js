@@ -1,5 +1,5 @@
 import { Snd } from '../audio/audio.js';
-import { $, QS, rand } from './util.js';
+import { $, rand } from './util.js';
 import { ETYPES, NEW_TYPES, NEW_WEIGHT, newShare, ROSTERS } from '../data/monsters.js';
 import { G } from './state.js';
 import { play } from '../render/characters.js';

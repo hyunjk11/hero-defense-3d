@@ -23,7 +23,6 @@ const PROD = {
 const PKEYS = Object.keys(SHOP.items);
 let ui = { prod: 'hero_gunner', shop: false, mail: false, admin: false, msg: '', msgOk: true, mailMsg: '', adm: 'orders', admMsg: '', busy: false };
 let hooks = { onChange: () => {}, closeOthers: () => {}, cheer: () => {} };
-export const shopOpen = () => ui.shop, mailOpen = () => ui.mail, adminOpen = () => ui.admin;
 
 // ---------- 로즈 3D 미리보기 (별도 작은 렌더러, 상점이 열려 있을 때만 그림) ----------
 let pv = null;

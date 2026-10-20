@@ -1,7 +1,6 @@
 import { Snd } from '../audio/audio.js';
-import { STAGE, CORE, DIRS, GH, GW, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+import { STAGE, CORE, DIRS, GH, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 const ICE = !!(STAGE && STAGE.ch === 2);
-import { rand, rnd } from '../core/util.js';
 import { BLK } from '../data/terrain.js';
 import { G } from '../core/state.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';

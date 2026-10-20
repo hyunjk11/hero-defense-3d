@@ -18,7 +18,6 @@ import { hpBar } from '../render/hpbars.js';
 import { select } from '../ui/input.js';
 import { BRANCH, resMods, starsFor } from '../data/growth.js';
 import { decorate, recalc, updDeco, updGrowFx } from './growth.js';
-import { later } from '../core/state.js';
 import { towerRateK } from '../monsters/abilities.js';
 
 // ================= 타워 =================

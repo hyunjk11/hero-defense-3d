@@ -43,7 +43,6 @@ export const CHAPTERS = [
     ] },
 ];
 export const STAGES = Object.fromEntries(CHAPTERS.flatMap(ch => ch.stages.map((s, i) => [s.id, { ...s, ch: ch.id, idx: i, last: i === ch.stages.length - 1 }])));
-export const chapterOf = id => CHAPTERS.find(c => c.id === STAGES[id]?.ch);
 export const STAR_D = ['스테이지 클리어', '코어 체력 70% 이상 유지', '코어 피해 없이 클리어'];
 export function starsFor(coreHp, coreMax) { const r = coreMax ? coreHp / coreMax : 0; return 1 + (r >= .7 ? 1 : 0) + (r >= 1 ? 1 : 0); }
 export const stars = (save, id) => (save.st || {})[id] || 0;

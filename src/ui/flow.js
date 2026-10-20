@@ -5,7 +5,6 @@ import { $, QS } from '../core/util.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
 import { cam, camera, scene, renderer } from '../render/scene.js';
-import { mk, toon, glow } from '../render/toon.js';
 import { makeHeroModel, play } from '../render/characters.js';
 import { showSelect, choose } from './select.js';
 import * as Acc from '../account/account.js';
@@ -14,17 +13,17 @@ import { labels as TL, buildTown as buildTownScene, updTown, townPass, LAKE, LR,
 let smithNear = false, portalNear = false;
 import { sun } from '../render/scene.js';
 import * as E from '../account/equip.js';
-import { initGear, openInv, closeInv, openSmith, closeSmith, smithOpen, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots } from './gear.js';
+import { initGear, openInv, closeInv, openSmith, closeSmith, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots } from './gear.js';
 import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
-import { initStageSel, openStageSel, closeStageSel, stageOpen } from './stagesel.js';
+import { initStageSel, openStageSel, closeStageSel } from './stagesel.js';
 import * as ST from '../data/stages.js';
 import { STAGE } from '../core/grid.js';
-import { initLab, openLab, closeLab, labOpen, renderLab } from './lab.js';
+import { initLab, openLab, closeLab, renderLab } from './lab.js';
 import { lab, LAB, labFront } from '../world/town.js';
 let labNear = false;
 import * as Sh from '../account/shop.js';
-import { initShop, openShop, closeShop, openMail, closeMail, closeAdmin, updShop } from './shop.js';
+import { initShop, openShop, closeShop, closeMail, closeAdmin, updShop } from './shop.js';
 import { shop as shopBld, SHOP_P, shopFront } from '../world/town.js';
 let shopNear = false; const closeShopUI = () => { closeShop(true); closeMail(true); };
 
@@ -219,4 +218,3 @@ export function updFlow(dt) {
   const dlab = Math.hypot(p.x - LAB.x, p.z - LAB.y); if (dlab < 4.6 && !labNear) { labNear = true; doOpenLab(); } else if (dlab > 5.4 && labNear) { labNear = false; closeLab(); }
   const nearPortal = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) < 2.2; $('twHint').classList.toggle('go', nearPortal); if (nearPortal && !portalNear && !departing) { portalNear = true; closeBless(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); } else if (!nearPortal && portalNear && Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) > 3.2) { portalNear = false; closeStageSel(); }
 }
-export { show as showScreen };

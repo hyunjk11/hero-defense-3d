@@ -1,7 +1,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $ } from '../core/util.js';
-import { GH, S, SPAWN, SPAWNS, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+import { GH, SPAWNS, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 import { BLK, TNAME } from '../data/terrain.js';
 import { UPS } from '../data/heroes.js';
 import { TOWERS } from '../data/towers.js';
