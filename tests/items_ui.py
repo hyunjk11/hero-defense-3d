@@ -46,6 +46,20 @@ with sync_playwright() as pw:
             if sm.count(): sm.first.hover(); pg.wait_for_timeout(200); ok('drop_tip_sample', not hidden(pg, 'itemTip')); pg.mouse.move(5, 5); pg.wait_for_timeout(100)
         J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')")
         shot(pg, f'{OUT}/stage_preview_{tag}.png')
+        # 고유 칸 아이콘: 모든 칸에 보이는 아이콘(빈 글자·잘림·진행도 겹침 없음) — 2-3 서리 협곡(미보유 보스 고유 🪄 · 별 만점 · 1.5% 천장 진행도)
+        pg.click('#stClose'); pg.wait_for_timeout(200)
+        J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st['2-1']=3; d.st['2-2']=3; d.st['2-3']=1; d.uqPity={...(d.uqPity||{}), s_acc:6}; return d; }); G.stageSel.openStageSel(); }"); pg.wait_for_timeout(300)
+        pg.click('.chtab[data-c="2"]'); pg.click('.snode[data-id="2-3"]'); pg.wait_for_timeout(300)
+        UQV = r"""()=>[...document.querySelectorAll('#stInfo .dru')].map(b=>{ const r=b.getBoundingClientRect(), ic=b.querySelector('.ic'), sm=b.querySelector('small'), a=ic.getBoundingClientRect(), t=sm.getBoundingClientRect(), f=getComputedStyle(ic).filter;
+          const br=/brightness\(([\d.]+)\)/.exec(f), op=/opacity\(([\d.]+)\)/.exec(f); let o=1; for (let x=ic; x; x=x.parentElement) o*=+getComputedStyle(x).opacity; if (op) o*=+op[1];
+          const inside=q=>q.left>=r.left-.5&&q.right<=r.right+.5&&q.top>=r.top-.5&&q.bottom<=r.bottom+.5;
+          return { k:b.dataset.k, ic:ic.textContent.trim(), tag:sm.textContent.trim(), icIn:inside(a)&&ic.scrollWidth<=ic.clientWidth+1, tagIn:inside(t)&&sm.scrollWidth<=sm.clientWidth+1, sep:a.bottom<=t.top+1, o:Math.round(o*100)/100, br:br?+br[1]:1, w:Math.round(r.width), h:Math.round(r.height) }; })"""
+        uv = J(pg, UQV)
+        ok(f'{tag}_unique_icons_visible', len(uv) == 3 and all(u['ic'] and u['ic'] != '?' and u['icIn'] and u['o'] >= .5 and u['br'] >= .8 for u in uv), uv)
+        ok(f'{tag}_unique_progress_readable', all(u['tag'] and u['tagIn'] and u['sep'] for u in uv) and any('/' in u['tag'] for u in uv), [(u['k'], u['tag'], u['tagIn'], u['sep']) for u in uv])
+        if tag == '1024x600': ok(f'{tag}_unique_touch_44', all(u['w'] >= 44 and u['h'] >= 44 for u in uv), [(u['w'], u['h']) for u in uv])
+        if tag == '1024x600' and (SHOTS or '--uq-shot' in sys.argv):
+            J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(200); pg.screenshot(path=f'{OUT}/stage_unique_fix.png'); J(pg, "()=>G.pauseRender=false")
         pg.click('.chtab[data-c="0"]'); pg.wait_for_timeout(200); ok(f'{tag}_challenge_milestones', pg.locator('#stMap .chalMs .msC').count() == 3 and pg.locator('#stMap .chalMs .msC.have').count() == 1, pg.inner_text('#stMap .chalMs').replace('\n', ' '))
         if tag == 'desktop': shot(pg, f'{OUT}/stage_challenge.png')
         J(pg, "()=>{ document.getElementById('stagePanel').classList.add('hidden'); }"); pg.wait_for_timeout(100)

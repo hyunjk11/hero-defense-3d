@@ -74,6 +74,7 @@ with sync_playwright() as pw:
         J(pg, """()=>{ const {Acc}=G.gear; Acc.update(d=>{ d.souls=2000; for (const id of ['2-1','2-2','2-3','2-4']) d.st[id]=2; d.hq={archer:{boss:1,clr:5}}; d.mat.essence=3; return d; }); G.blessTab('adv'); }"""); pg.wait_for_timeout(300)
         chk = J(pg, "()=>[...document.querySelectorAll('#twAdv .advChk li')].map(l=>l.className)"); ok('checklist_met', chk == ['ok'] * 4, chk)
         ok('buttons_open', J(pg, "()=>[...document.querySelectorAll('#twAdv .advBtn')].every(b=>!b.disabled)"))
+        pg.wait_for_function("()=>!document.getElementById('twBless').getAnimations().some(a=>a.playState==='running')", timeout=10000)  # blessIn(translateX·scale) 중엔 오른쪽이 22px 넘쳐 보임
         bb = J(pg, "()=>{ const r=document.getElementById('twBless').getBoundingClientRect(); return [r.left,r.top,r.right,r.bottom]; }"); ok('tablet_fits', bb[0] >= 0 and bb[1] >= 0 and bb[2] <= 1024 and bb[3] <= 600, bb)
         pg.click('#twAdv .advCard[data-b="wind"] h4'); pg.wait_for_timeout(200)
         ok('preview_ring', J(pg, "()=>{ const h=G.townHero(); return document.querySelector('#twAdv .advCard.pv').dataset.b; }") == 'wind')
