@@ -18,12 +18,13 @@ import { keys } from '../ui/input.js';
 import { legendProc, updLeap } from './legend.js';
 import { gunAttack, updRose } from './gunner.js';
 import { mechAbsorb, mechInit, mechRevert, mechSwing, updMech } from './mechanic.js';
+import { uqInit, uqPreHit, uqPostHit, uqOnDeath, uqRate } from './unique.js';
 
 // ================= 영웅 =================
 let hero = null;
 const stat = {
-  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
-  rate: () => hero.C.rate * (1 + .1 * G.ups.spd), range: () => hero.C.range * (1 + .08 * G.ups.rng) * (hero.robo ? 1.45 : 1), // 메카닉 로봇: 사거리 +45%
+  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk) * (hero.uqAtk || 1), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
+  rate: () => hero.C.rate * (1 + .1 * G.ups.spd) * uqRate(), range: () => hero.C.range * (1 + .08 * G.ups.rng) * (hero.robo ? 1.45 : 1), // 메카닉 로봇: 사거리 +45%
   skillMul: () => (1 + .25 * G.ups.skill) * (1 + ((hero.eq && hero.eq.skill) || 0) / 100), skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100),
 };
 function spawnHero(cls) {
@@ -32,11 +33,13 @@ function spawnHero(cls) {
   const ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
   hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
+  uqInit(hero); // 고유 방어구·장신구 자동 궁극기 + 고유 무기 각성 (마을 출정 때만, 없으면 hero.uqs 없음)
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle'); if (cls === 'mechanic') mechInit(hero);
   $('heroName').textContent = `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill; $('skillName').classList.toggle('long', C.skill.length > 5);
 }
 function heroDamage(d) {
-  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } hero.hp -= d; hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
+  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.uqs) uqPostHit(hp0); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
+  if (hero.hp <= 0 && hero.uqs && uqOnDeath()) return; // 불사조 부활
   if (hero.hp <= 0) { if (hero.mech) mechRevert(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
 }
 const heroPass = (c, r) => { if (!inGrid(c, r)) return false; const t = tileAt(c, r); return (t.t === T.GRASS || t.t === T.CARVED || t.t === T.SPAWN || t.t === T.CORE) && !t.tower && !t.bar; };

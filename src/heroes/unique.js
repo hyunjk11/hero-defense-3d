@@ -25,6 +25,7 @@ const ADD = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opac
 const A3 = x => x.a >= 3, pow = x => awakeMul(x.a), cdOf = (x, v) => v * awakeCd(x.a);
 const has = tr => hero && hero.uqs ? hero.uqs.filter(x => x.U.tr === tr) : [];
 
+G.uqInit = h => { h.uqs = null; uqInit(h); }; // 테스트: G.uq 바꾼 뒤 다시 적용
 // 출정 시(spawnHero) — G.uq = E.uniquesOf(save, hero) { weapon?, armor?, acc? }
 export function uqInit(h) {
   const q = G.perm && G.uq ? G.uq : null; if (!q) return; if (q.weapon) h.uqA = q.weapon.a || 0;
@@ -93,7 +94,7 @@ export function updUnique(dt) {
     if (x.U.tr === 'wave' && G.wave !== x.w) { x.w = G.wave; const st = Math.min(p.max, Math.floor(Math.max(0, G.wave - 1) / p.per) * (A3(x) ? 4 : p.add)) * pow(x); if (st > (h.uqAtkP || 0)) { h.uqAtkP = st; h.uqAtk = 1 + st / 100; count(x.k); banner(`🌑 심연 적응 · 공격력 +${Math.round(st)}%`, '#b89aff', 1200); } }
     if (h.dead > 0 || G.phase === 'over') continue;
     if (x.U.tr === 'shield' && !h.uqShield) { x.t += dt; if (x.t >= (A3(x) ? 3.5 : p.wait)) { h.uqShield = true; showShield(true); } }
-    if (x.U.tr === 'every' && G.phase === 'wave') { x.t += dt; if (x.t >= cdOf(x, p.cd)) { x.t = 0; count(x.k); (x.k === 'c_acc' ? timeStop : spores)(x); } }
+    if (x.U.tr === 'every' && (G.phase === 'wave' || G.uqForce)) { x.t += dt; if (x.t >= cdOf(x, p.cd)) { x.t = 0; count(x.k); (x.k === 'c_acc' ? timeStop : spores)(x); } }
   }
 }
 // 포자 구름: 주변 적 공격력 80% + 2초 40% 둔화

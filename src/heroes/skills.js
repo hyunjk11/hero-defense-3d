@@ -12,12 +12,13 @@ import { banner } from '../ui/hud.js';
 import { mouseGround } from '../ui/input.js';
 import { gunSkill } from './gunner.js';
 import { mechTransform } from './mechanic.js';
+import { uqOnSkill } from './unique.js';
 
 // ================= 스킬 =================
 function castSkill() {
   if (!hero || hero.dead > 0 || hero.skillCd > 0 || G.phase === 'select' || G.phase === 'over') return;
   const mul = stat.skillMul(), base = stat.dmg();
-  if (hero.cls === 'mechanic') { if (mechTransform(mul, base)) hero.skillCd = stat.skillCd(); return; } // 메카닉: 변신 (이미 로봇이면 무시)
+  if (hero.cls === 'mechanic') { if (mechTransform(mul, base)) { hero.skillCd = stat.skillCd(); if (hero.uqs) uqOnSkill(hero.g.position); } return; } // 메카닉: 변신 (이미 로봇이면 무시)
   hero.skillCd = stat.skillCd();
   const tgt = mouseGround.clone(); const hp = hero.g.position; if (hp.distanceTo(tgt) > 16) tgt.sub(hp).setLength(16).add(hp);
   if (hero.cls !== 'warrior') hero.face = Math.atan2(tgt.x - hp.x, tgt.z - hp.z);
@@ -38,6 +39,7 @@ function castSkill() {
   if (hero.cls === 'archer') { Snd.play('draw', { pos: hp }); Snd.whoosh(tgt, .9, 300, 3000, .35); for (let k = 1; k < 7; k++) Snd.play('arrow', { pos: tgt, delay: k * .12, force: true, vol: .7 }); }
   else if (hero.cls === 'mage') { Snd.play('meteorCast', { pos: hp, rate: .8 }); Snd.whoosh(tgt, 1.1, 150, 900, .5); }
   else if (hero.cls !== 'gunner') { Snd.whoosh(hp, .5, 400, 1600, .5); for (let k = 0; k < 4; k++) Snd.play('sword', { pos: hp, delay: k * .3, force: true, rate: 1.1 }); }
+  if (hero.uqs) uqOnSkill(tgt); // 고유 장신구: 요정의 춤 · 눈보라 정령 · 망령 행진
 }
 
 export { castSkill };
