@@ -7,7 +7,7 @@
 - [x] Part A-1 사용하지 않는 import 14개 · export 7개 제거 (`cd84132`)
 - [x] Part A-2 영웅 목록 단일 기준 + 완전성 테스트 `tests/heroes.test.mjs` (`b6ff421`)
 - [x] Part A-3 안 쓰는 모델 4개 · 루트 스크린샷 3개 삭제 (5.7 MB)
-- [ ] Part A-4 장비 id HTML 이스케이프 (낮음, 방어적)
+- [x] Part A-4 장비 id HTML 이스케이프 (낮음, 방어적) + equip.py `item_id_name_escaped` (수정 전 FAIL → 수정 후 OK 확인)
 - [x] Part B 보안 · 안정성 · 게임플레이 리뷰 (이 문서)
 
 ---
@@ -57,7 +57,7 @@
 
 ### 2.3 XSS (innerHTML)
 - 서버/사용자 문자열 전수 확인: 닉네임(`flow.js twAcct`, 관리자 주문 목록), 이메일, 우편 제목·본문, 보상 문구, 주문 상품명, 오류 메시지(`r.msg`, `error.message`) → **모두 `esc()` 적용** 또는 `textContent` 사용 ✓. 장비 이름 `it.n` → `esc()` ✓ (게다가 `cleanItem`이 24자로 자름).
-- **LOW (수정함/예정)**: 장비 id(`data-id="${it.id}"`, 분해 목록 `data-id="${id}"`)는 이스케이프 없음. 출처가 본인 세이브뿐이라 self-XSS 수준이지만(16자 제한), 방어적으로 `esc()` 적용.
+- **LOW (수정함)**: 장비 id(`data-id="${it.id}"`, 분해 목록 `data-id="${id}"`)는 이스케이프 없음. 출처가 본인 세이브뿐이라 self-XSS 수준이지만(16자 제한), 방어적으로 `esc()` 적용.
 - 서버 id(`m.id`, `o.id`)는 bigint identity, 날짜는 `fmtD`가 숫자로 재구성 → 안전.
 - 제안: CSP `<meta http-equiv="Content-Security-Policy">` (`default-src 'self'; connect-src 'self' https://tlfnyxtsftamjkrftpoz.supabase.co wss://...; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'`) — 인라인 style 속성이 많아 style은 unsafe-inline 필요. 스크립트는 전부 모듈 파일이라 `script-src 'self'` 가능 (importmap 인라인 → 해시 필요) (S–M, 전체 테스트 필수).
 

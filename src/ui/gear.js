@@ -21,7 +21,7 @@ export function initGear(h) { hooks = { ...hooks, ...h }; bind(); }
 const S = () => Acc.load(), hero = () => S().hero;
 const eqOf = (s, id) => { for (const h in s.eq) for (const sl in s.eq[h]) if (s.eq[h][sl] === id) return h; return null; };
 function sorted(list, s) { return [...list].sort((a, b) => (!!eqOf(s, b.id) - !!eqOf(s, a.id)) || b.g - a.g || b.e - a.e || E.power(b) - E.power(a)); }
-function tile(it, s, extra = '') { const h = eqOf(s, it.id); return `<button class="itile g${it.g} ${extra}" data-id="${it.id}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span>${it.e ? `<span class="en">+${it.e}</span>` : ''}${h ? `<span class="eqb">${clsN(h)[0]}</span>` : ''}${E.legendKey(it) ? '<span class="lst">✦</span>' : ''}</button>`; }
+function tile(it, s, extra = '') { const h = eqOf(s, it.id); return `<button class="itile g${it.g} ${extra}" data-id="${esc(it.id)}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span>${it.e ? `<span class="en">+${it.e}</span>` : ''}${h ? `<span class="eqb">${clsN(h)[0]}</span>` : ''}${E.legendKey(it) ? '<span class="lst">✦</span>' : ''}</button>`; }
 export function lskHtml(it) { const k = E.legendKey(it); if (!k) return ''; const L = E.LSK[k]; return `<div class="lsk"><div class="lskH">✦ ${L.n} <i>${L.type === 'proc' ? '공격 시 발동' : '액티브 · E키'}</i></div><div class="lskD">${L.d}</div></div>`; }
 export function card(it, cmp) {
   if (!it) return '<div class="icard empty">빈 칸</div>'; const st = E.itemStats(it), cs = cmp ? E.itemStats(cmp) : null, keys = new Set([...Object.keys(st), ...(cs ? Object.keys(cs) : [])]);
@@ -99,7 +99,7 @@ function renderSmith() {
 // 마우스: 올리면 툴팁 · 터치: 누를 때 툴팁 (잠시 후/다른 곳을 누르면 닫힘)
 function tipBind(b) { const sh = () => { const it = S().inv.find(x => x.id === b.dataset.id); if (it) showTip(b, card(it)); };
   b.onpointerenter = e => { if (e.pointerType === 'mouse') sh(); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); };
-  b.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { const id = b.dataset.id; setTimeout(() => { const nb = document.querySelector(`#smBody .itile[data-id="${id}"]`); if (nb) { const it = S().inv.find(x => x.id === id); if (it) showTip(nb, card(it)); clearTimeout(tipT); tipT = setTimeout(hideTip, 2600); } }, 0); } }); }
+  b.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { const id = b.dataset.id; setTimeout(() => { const nb = document.querySelector(`#smBody .itile[data-id="${CSS.escape(id)}"]`); if (nb) { const it = S().inv.find(x => x.id === id); if (it) showTip(nb, card(it)); clearTimeout(tipT); tipT = setTimeout(hideTip, 2600); } }, 0); } }); }
 let tipT = 0; addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !(e.target.closest && e.target.closest('.itile'))) hideTip(); }, true);
 function sparks(n, color) { const w = $('sparks'); if (!w) return; for (let i = 0; i < n; i++) { const p = document.createElement('i'), a = Math.random() * 6.283, d = 40 + Math.random() * 90; p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', (Math.sin(a) * d - 30) + 'px'); p.style.background = color; p.style.animationDelay = Math.random() * .1 + 's'; w.appendChild(p); setTimeout(() => p.remove(), 900); } }
 export function doEnhance(id, quick) {
