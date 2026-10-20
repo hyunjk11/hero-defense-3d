@@ -42,7 +42,10 @@ with sync_playwright() as pw:
         if tag == '1440x860': shot(pg, 'open_all_button.png')
         if tag == '1024x600': shot(pg, 'open_all_button_tablet.png')
         s0 = J(pg, "()=>G.gear.Acc.load()"); exp = sum(c['souls'] for c in s0['chests'][:10]); J(pg, SAVES)
-        if touch: pg.tap('#cbAll'); pg.tap('#cbAll', force=True, no_wait_after=True) if pg.locator('#cbAll').count() else None
+        if touch:
+            pg.tap('#cbAll')
+            try: pg.tap('#cbAll', force=True, no_wait_after=True, timeout=1500)  # 연타 — 첫 탭에 버튼이 사라졌으면(정상) 무시
+            except Exception: pass
         else: pg.dblclick('#cbAll')
         J(pg, "()=>{ const b=document.getElementById('cbAll'); if (b) { b.disabled=false; b.click(); b.click(); } }")  # 비활성화를 우회한 연타도 무시돼야 함
         pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(2600)
