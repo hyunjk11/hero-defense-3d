@@ -8,7 +8,9 @@ for (const [h, pool] of Object.entries(E.LPOOL)) { assert.ok(pool.length >= 2); 
 // 전설 무기만 스킬 보유, 영웅 풀에서
 const seen = {};
 for (const h of Object.keys(E.LPOOL)) for (let i = 0; i < 60; i++) { const w = E.makeItem('weapon', h, 4, r); assert.ok(E.LPOOL[h].includes(w.u), 'legend has skill'); seen[w.u] = 1; }
-assert.equal(Object.keys(seen).length, Object.keys(E.LSK).length, '모든 스킬이 나옴');
+assert.equal(Object.keys(seen).length, Object.keys(E.LSK).filter(k => !E.LSK[k].uq).length, '모든 (일반 전설) 스킬이 나옴'); assert.ok(!Object.keys(seen).some(k => E.LSK[k].uq), '고유 전용 스킬은 일반 전설에 안 나옴');
+// 고유 무기 → 고정 [E] 스킬 (data/items.js UQ.sk), 장착하면 legendOf 가 그 키
+{ const map = { f_bow: 'rootshot', s_staff: 'zeroabs', v_sword: 'eruption', r_guns: 'execution' }; for (const [k, sk] of Object.entries(map)) { const it = E.makeUnique(k); assert.equal(E.legendKey(it), sk); assert.equal(E.legendKey({ ...it, u: 'pierce' }), sk); let t = P.empty(); t.inv.push(it); [t] = E.equip(t, it.h, it.id); assert.equal(E.legendOf(t, it.h), sk); assert.deepEqual(E.uniquesOf(t, it.h), { weapon: { k, a: 0 } }); } }
 for (let g = 0; g < 4; g++) { const w = E.makeItem('weapon', 'mage', g, r); assert.equal(w.u, undefined); assert.equal(E.legendKey(w), null); }
 assert.equal(E.makeItem('armor', 'mage', 4, r).u, undefined);
 // 난수 소비가 바뀌지 않음 (기존 시드 결과 동일): 서브스탯 수가 같은 영웅(g3) 무기와 호출 횟수 동일

@@ -62,4 +62,7 @@ assert.ok(/const ASSETS = ALL_ASSETS\.filter\(k => !HIDDEN_ASSETS\.includes\(k\)
   }
   for (const h of VISIBLE_HEROES) if (CLASSES[h].paid) assert.equal((await import('../src/account/shop.js')).onSale('hero_' + h), true, `${h} 판매 중`);
 }
+// 챕터 세트 이름 표(data/items.js CHSET): 모든 영웅(숨김 포함)의 무기 이름 5등급 · 고유 무기는 보이는 영웅만
+{ const { CHSET, UQ } = await import('../src/data/items.js'); for (const ch in CHSET) for (const h of HERO_KEYS) { assert.equal((CHSET[ch].names[h] || []).length, 5, `CHSET ${ch} ${h}`); for (let g = 0; g < 5; g++) { const it = E.makeItem('weapon', h, g, r, +ch); assert.equal(it.n, CHSET[ch].names[h][g]); assert.equal(it.c, +ch); } }
+  for (const k in UQ) if (UQ[k].h) assert.ok(VISIBLE_HEROES.includes(UQ[k].h), `고유 무기 ${k}: 숨긴 영웅 전용 금지`); }
 console.log('heroes.test OK', HERO_KEYS.length, 'heroes,', HIDDEN_HEROES.size, 'hidden');

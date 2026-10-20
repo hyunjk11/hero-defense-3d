@@ -59,7 +59,8 @@ function killEnemy(e) {
   emit(P, p.x, p.y, p.z, e.E.boss ? 160 : 22, e.E.fly ? 0xb08aff : 0xe8e0d0, e.E.boss ? 10 : 5, .8, -10, 1.5); emit(P, p.x, p.y, p.z, 10, 0xffe066, 4, .6);
   if (!e.E.fly) debris(p.x, p.y, p.z, e.E.boss ? 30 : 5, [0xf0ead8, 0xd8d0c0], 5);
   if (e.E.boss) { G.shake = 1.1; emit(PB, p.x, p.y, p.z, 60, 0xff8a3a, 12, 1.2, -3, 3); banner(`${e.E.n} 처치!`, '#ffd23a'); Snd.play('boom', { pos: p, force: true }); later(.6, () => Snd.play('victory', { force: true, exact: true })); }
-  if (e.E.boss && G.perm && G.hero && (G.forceDrop || Math.random() < BOSS_DROP)) { const it = randomItem(G.hero.cls, bossOdds(G.wave)); (G.runDrops ||= []).push(it); lootFx(p, it.g); // 보스 장비 드롭 (마을 출정 때만)
+  if (e.E.boss && G.perm) (G.runBossKills ||= []).push(G.wave); // 고유 ③ 숨은 보물 / 도전 모드 정수 판정용 (판 종료 applyRun)
+  if (e.E.boss && G.perm && G.hero && (G.forceDrop || Math.random() < BOSS_DROP)) { const it = randomItem(G.hero.cls, bossOdds(G.wave), Math.random, undefined, G.dropCh); /* 스테이지 = 그 챕터 세트, 도전 모드 = 열린 챕터 무작위 */ (G.runDrops ||= []).push(it); lootFx(p, it.g); // 보스 장비 드롭 (마을 출정 때만)
     later(1.2, () => { banner(`✦ ${GRADES[it.g].n} 장비 획득: ${it.n} ✦`, GRADES[it.g].c, 2600); Snd.play('levelUp', { force: true }); Snd.play('coins', { force: true }); }); }
   G.gold += e.E.gold; G.stats.goldEarned += e.E.gold; G.stats.kills[e.type] = (G.stats.kills[e.type] || 0) + 1; popCoins(p, Math.ceil(e.E.gold / 2)); Snd.play(e.E.fly ? 'poof' : 'bones', { pos: p, rate: e.E.boss ? .6 : 1, force: e.E.boss }); e.dying = e.E.fly ? .7 : 1.6;
   if (!e.E.fly) play(e.m, 'Death_A', { once: true, fade: .1 });
