@@ -7,17 +7,18 @@ import { hero, stat, WARP_CD } from '../heroes/hero.js';
 import { upCost } from './input.js';
 import { legendActive, legendCd } from '../heroes/legend.js';
 import { BRANCH, XP_NEED } from '../data/growth.js';
+import { refreshWavePrev } from './waveprev.js';
 const r2 = v => Math.round(v * 100) / 100;
 
 function banner(text, color = '#fff', ms = 1600) { const b = $('banner'); b.textContent = text; b.style.color = color; b.classList.toggle('long', String(text).length > 22); /* 긴 문구는 작은 글씨 + 줄바꿈 */ b.classList.add('show'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), ms); }
 function showNote(list, ms = 7000) { const n = $('note'); n.innerHTML = list.map(o => `<div class="nc${o.icon ? ' mon' : ''}" data-t="${o.type || ''}">${o.icon ? `<i>${o.icon}</i><small>신규 몬스터</small>` : ''}<b>${o.icon ? '' : '신규: '}${o.name}</b>${o.desc}</div>`).join(''); n.classList.remove('hidden'); clearTimeout(n._t); n._t = setTimeout(() => n.classList.add('hidden'), ms); }
-function setPhaseUI() { const ph = $('phase'); ph.textContent = G.phase === 'wave' ? '전투 중 (밤)' : '건설 단계 (낮)'; ph.classList.toggle('night', G.phase === 'wave'); $('startWave').disabled = G.phase !== 'build'; }
+function setPhaseUI() { const ph = $('phase'); ph.textContent = G.phase === 'wave' ? '전투 중 (밤)' : '건설 단계 (낮)'; ph.classList.toggle('night', G.phase === 'wave'); $('startWave').disabled = G.phase !== 'build'; refreshWavePrev(); }
 function setBar(f, t, r) { const w = Math.max(0, Math.min(1, r)) * 100 + '%', a = $(f), b = $(t); if (a.style.width !== w) { a.style.width = w; b.style.width = w; } }
 function updBossBar() { let b = null; for (const e of G.enemies) if (e.E.boss && !e.dead && (!b || e.max > b.max)) b = e; // 여러 보스면 가장 강한(챕터) 보스
   $('bossHud').classList.toggle('hidden', !b); if (!b) return; setBar('bossFill', 'bossTr', b.hp / b.max); const nm = $('bossName'); if (nm.textContent !== b.E.n) nm.textContent = b.E.n; }
 function refreshHud() {
   $('gold').textContent = G.gold; $('wave').textContent = G.wave; setBar('coreBar', 'coreTr', G.coreHp / G.coreMax); if (G.coreHb) G.coreHb.set(G.coreHp / G.coreMax); $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
-  $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
+  refreshWavePrev(); $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
   document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); const h = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; if (b._h !== h) { b._h = h; b.innerHTML = h; } const dis = G.gold < c; if (b.disabled !== dis) b.disabled = dis; }); // 바뀔 때만 다시 그림 (매 프레임 innerHTML 교체 → 클릭 씹힘 방지)
   document.querySelectorAll('.tool').forEach(b => { const T2 = TOWERS[b.dataset.tool]; if (T2) b.disabled = G.gold < T2.cost; if (b.dataset.tool === 'barricade') b.disabled = G.gold < 30; });
   const s = G.sel;

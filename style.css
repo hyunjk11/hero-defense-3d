@@ -436,3 +436,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .gfxSeg button+button{border-left:1px solid #c9a24a55}.gfxSeg button.on{background:linear-gradient(#e8c86a,#b8902a);color:#1a1020;font-weight:bold}
 .gfxNow{font-size:11px;color:#a9a0c0;min-height:14px}
 @media (pointer:coarse){.gfxSeg button{min-height:44px}}
+
+/* 다음 웨이브 미리보기 — src/ui/waveprev.js (top/width/max-height 는 JS 가 영웅 강화 패널 아래 빈 공간에 맞춤) */
+#wavePrev{right:calc(12px + env(safe-area-inset-right));width:200px;padding:7px 9px;gap:2px;overflow:hidden;pointer-events:auto}
+#wavePrev .ptitle{font-size:13px;margin:0 0 2px}#wavePrev .ptitle b{color:#ffe066}
+.wpList{display:flex;flex-direction:column;gap:1px}
+.wpRow{display:flex;align-items:center;gap:5px;height:18px;font-size:12px;white-space:nowrap;color:#efe6ff}
+.wpRow .wpI{width:18px;text-align:center;font-style:normal;flex:none}.wpNm{flex:1;min-width:0;display:flex;align-items:center}.wpNm>span{min-width:0;overflow:hidden;text-overflow:ellipsis}.wpNm em{flex:none}
+.wpNm em{font-style:normal;font-size:9px;font-weight:bold;color:#1a1020;background:#ffd23a;border-radius:4px;padding:0 3px;margin-left:3px;vertical-align:1px}
+.wpT{color:#b8aed4;font-size:10.5px;flex:none;max-width:60px;overflow:hidden;text-overflow:ellipsis}.wpP{color:#ffe066;font-size:10.5px;width:26px;text-align:right;flex:none}
+.wpRow.boss .wpNm{color:#ff8a9a;font-weight:bold}.wpMore{font-size:11px;color:#a9a0c0;text-align:right}
+#wavePrev.compact .wpList{flex-direction:row;flex-wrap:nowrap;gap:4px;overflow:hidden}#wavePrev.compact .wpI{font-style:normal;font-size:17px;width:22px;text-align:center}#wavePrev.compact .wpI.boss{filter:drop-shadow(0 0 3px #ff4a5a)}

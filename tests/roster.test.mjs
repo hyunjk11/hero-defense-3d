@@ -39,3 +39,14 @@ assert.ok(ETYPES[ETYPES.boss_ruins.ab.summon.type] && ETYPES.boss_ruins.ab.curse
 assert.ok(ETYPES.boss_ruins.hp > ETYPES.boss_fire.hp);
 assert.deepEqual(newTypes(['goblin', 'slime', 'slime_s', 'goblin'], new Set(['goblin'])), ['slime']);
 console.log('roster.test.mjs OK');
+// 다음 웨이브 미리보기 (previewWave): 난수 없이 결정적, 비율 합 ≈ 1, 스테이지 표본 분포와 일치(보장 몬스터 제외 근사), 최종 웨이브 보스, 특성 문구는 짧게
+{ const { previewWave, monTrait, monIcon } = await import('../src/core/roster.js');
+  for (const id of Object.keys(STAGES)) { const S = STAGES[id];
+    for (const n of [1, 2, Math.ceil(S.waves / 2), S.waves]) { const P = previewWave(S, n); assert.deepEqual(P, previewWave(S, n), 'deterministic');
+      const sum = P.list.reduce((a, x) => a + x.share, 0); assert.ok(P.list.length && Math.abs(sum - 1) < .02, `${id} w${n} sum ${sum}`);
+      for (const x of P.list) { assert.ok(ETYPES[x.t] && !ETYPES[x.t].child, x.t); const tr = monTrait(x.t); assert.ok(tr && tr.length <= 12, `${x.t} trait '${tr}'`); assert.ok(monIcon(x.t), x.t); }
+      if (n === S.waves && S.boss) assert.ok(P.boss && ETYPES[P.boss].boss, `${id} boss`);
+      const q = []; for (let k = 0; k < 40; k++) q.push(...(stageWave(S, n, 40, rand) || [])); const allow = new Set(P.list.map(x => x.t)); for (const t of q) if (!ETYPES[t].child) assert.ok(allow.has(t), `${id} w${n} ${t} not in preview`);
+      const top = P.list.slice().sort((a, b) => b.share - a.share)[0], frac = q.filter(t => t === top.t).length / q.length; assert.ok(Math.abs(frac - top.share) < .12, `${id} w${n} ${top.t} ${frac} vs ${top.share}`); } }
+  for (const n of [1, 3, 5, 12, 25]) { const P = previewWave(null, n); assert.ok(P.list.length && Math.abs(P.list.reduce((a, x) => a + x.share, 0) - 1) < .02); assert.equal(!!P.boss, n % 5 === 0); const C = previewWave(null, n, true); assert.ok(C.list.every(x => ['grunt', 'imp', 'golem', 'bat'].includes(x.t))); } }
+console.log('roster preview OK');
