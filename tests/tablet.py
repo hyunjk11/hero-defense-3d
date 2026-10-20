@@ -107,6 +107,13 @@ with sync_playwright() as pw:
     for _ in range(6):
         if hidden(pg, 'chestOv'): break
         pg.tap('.cvStage', force=True); pg.wait_for_timeout(700)
+    CSEED = "()=>{ const {Acc,E}=G.gear; let q=11; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; const keep=Acc.load().inv.slice(0,10); window.__keepInv=window.__keepInv||keep; Acc.update(d=>{ d.inv=window.__keepInv.slice(); for (let i=0;i<20;i++) d.inv.push(E.makeItem('armor','mage',0,r)); d.chests=[]; const g=[4,0,1,3,2,0,1,0,4,2,1,0,3,0]; E.addChests(d, g.map((x,i)=>({it:E.makeItem(E.SLOT_KEYS[i%3],'mage',x,r), src:i%5?'chest':'boss'}))); return d; }); }"
+    J(pg, CSEED); sweep(pg, 'town_chestbtn', ['#scr_town']); RES['chest_btn_visible'] = not hidden(pg, 'twChest'); print('chest_btn_visible', RES['chest_btn_visible'])
+    def chestbar(): J(pg, CSEED); J(pg, "()=>G.gear.openChestUI()"); pg.wait_for_timeout(900)
+    sweep(pg, 'chest_bar', ['#chestOv'], prep=chestbar)
+    def chestsum(): J(pg, CSEED); J(pg, "()=>G.gear.openChestUI()"); pg.wait_for_timeout(500); pg.tap('#cbAll'); pg.wait_for_selector('#cbSum', timeout=8000); pg.wait_for_timeout(400)
+    sweep(pg, 'chest_summary', ['#chestOv'], prep=chestsum)
+    pg.tap('#cbOk'); pg.wait_for_timeout(300); J(pg, "()=>G.gear.Acc.update(d=>{ d.inv=(window.__keepInv||[]).slice(); d.chests=[]; return d; })")
     J(pg, "()=>{ const p=document.getElementById('townPop'); }")
     pg.tap('#twGo'); pg.wait_for_timeout(500); pg.tap('.snode[data-id="1-4"]', force=True); pg.wait_for_timeout(300)
     sweep(pg, 'stagesel', ['#scr_town'])

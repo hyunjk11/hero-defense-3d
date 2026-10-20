@@ -72,7 +72,9 @@ with sync_playwright() as pw:
         # 3) 공간 확보 → 한 개씩 탭 열기 (기존 흐름) → 남은 3개 모두 열기
         J(pg, "()=>G.gear.Acc.update(d=>{ d.inv=d.inv.slice(0,20); return d; })"); pg.click('#twChest'); pg.wait_for_timeout(700)
         ok(f'{tag}_no_ten_when_few', pg.locator('#cbTen').count() == 0 and pg.locator('#cbAll').count() == 1)
-        (pg.tap if touch else pg.click)('.cvStage', force=True); pg.wait_for_timeout(1300)
+        (pg.tap if touch else pg.click)('.cvStage', force=True)
+        try: pg.wait_for_function("()=>document.querySelector('.cvStage.open') && G.gear.Acc.load().chests.length===3", timeout=10000)
+        except Exception: pass
         s2 = J(pg, "()=>G.gear.Acc.load()"); ok(f'{tag}_single_open', len(s2['chests']) == 3 and len(s2['inv']) == 21 and 'undefined' not in pg.inner_text('#chestOv'), (len(s2['chests']), len(s2['inv']), pg.inner_text('#chestOv')[:80]))
         (pg.tap if touch else pg.click)('#cbAll'); pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(600)
         ok(f'{tag}_open_rest', pg.locator('#cbGrid .sumT').count() == 3 and J(pg, "()=>G.gear.Acc.load().chests.length") == 0 and '가득' not in pg.inner_text('#cbSum'))
