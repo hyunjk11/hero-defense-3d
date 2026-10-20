@@ -18,6 +18,8 @@ import { mouseGround } from '../ui/input.js';
 import { hero, heroTip, passAt, stat } from './hero.js';
 import { ricochet, rosebarrage, updGun } from './gunner.js';
 import { gigahammer, overdrill, updMechFx } from './mechanic.js';
+import { updUnique } from './unique.js';
+import { awakeMul, awakeCd } from '../data/items.js';
 
 const lr = mulberry32(((+QS.get('rng') || (Math.random() * 1e9 | 0)) ^ 0x1e9e7d) >>> 0);
 let lrNext = lr; const LR = () => lrNext(); G.legendSeed = s => { lrNext = mulberry32(s >>> 0); }; // 테스트: 발동 난수 고정
@@ -31,7 +33,8 @@ const d2 = (e, x, z) => { const dx = e.g.position.x - x, dz = e.g.position.z - z
 const fade = (m, dur) => { scene.add(m); G.fxs.push({ m, t: 0, dur, kind: 'fade' }); };
 export const legendSkill = () => hero && hero.lsk ? LSK[hero.lsk] : null;
 export const legendActive = () => { const s = legendSkill(); return s && s.type === 'active' ? s : null; };
-export const legendCd = () => { const s = legendActive(); return s ? s.cd * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100) : 0; };
+export const legendCd = () => { const s = legendActive(); return s ? s.cd * (s.uq ? awakeCd(hero.uqA) : 1) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100) : 0; }; // 고유 무기: 각성마다 쿨 -4%
+const AW = s => (s.uq ? awakeMul(hero.uqA) : 1), A3 = () => (hero.uqA || 0) >= 3; // 고유 무기 각성: 위력 +8%/★, ★3 추가 효과
 
 // 목표 지점: 마우스는 커서 위치, 터치(버튼을 누름)는 영웅 근처 적이 가장 많이 모인 곳 → 없으면 바라보는 방향
 function aim(maxD) {
@@ -97,23 +100,26 @@ function boomerang(t, s) {
 export function castLegend() {
   const s = legendActive(); if (!s || !hero || hero.dead > 0 || hero.lcd > 0 || hero.leap || (hero.mech && hero.mech.busy > 0) || (G.phase !== 'build' && G.phase !== 'wave')) { if (s && hero && hero.lcd > 0) Snd.play('error'); return false; }
   if (hero.warpT > 0) return false; hero.lcd = legendCd(); hero.spinT = 0; hero.roseT = 0; if (hero.swirl) hero.swirl.visible = false; count(hero.lsk);
-  if (hero.lsk === 'rosebarrage') rosebarrage(s, aim(14)); else if (hero.lsk === 'gigahammer') gigahammer(s, aim(12)); else ({ pierce, meteorstorm, quake })[hero.lsk](s); return true;
+  if (hero.lsk === 'rosebarrage') rosebarrage(s, aim(14)); else if (hero.lsk === 'gigahammer') gigahammer(s, aim(12)); else ({ pierce, meteorstorm, quake, rootshot: pierce, zeroabs, eruption: quake, execution })[hero.lsk](s); return true;
 }
 // 관통샷: 충전 → 일직선 모든 적 관통하는 황금 화살 + 큰 잔상
 function pierce(s) {
-  const tg = aim(30), h = hero.g.position, ang = hero.face = Math.atan2(tg.x - h.x, tg.z - h.z); hero.path = []; banner('관통샷!', '#ffd86a', 800);
+  const tg = aim(30), h = hero.g.position, ang = hero.face = Math.atan2(tg.x - h.x, tg.z - h.z), root = !!s.root, CC = root ? 0x8aff6a : 0xffe07a; hero.path = []; banner(root ? '뿌리 감옥 화살!' : '관통샷!', root ? '#9aff7a' : '#ffd86a', 800); // rootshot(고유) = 관통샷 + 속박
   play(hero.ch, hero.ch.acts.Ranged_Skill ? 'Ranged_Skill' : '2H_Ranged_Shoot', { once: true, force: true, speed: .9 }); hero.atkT = .9;
-  const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(.25, 1), glow(0xffe07a, 6)); scene.add(orb); ringFx(h, 2.6, 0xffd86a, .45);
+  const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(.25, 1), glow(CC, 6)); scene.add(orb); ringFx(h, 2.6, 0xffd86a, .45);
   Snd.play('draw', { pos: h, rate: .7, force: true }); Snd.whoosh(h, .45, 200, 3000, .4); let ch = 0;
   FX.push(dt => { ch += dt; hero.face = ang; const tip = heroTip(); orb.position.copy(tip); orb.scale.setScalar(1 + ch * 6); const a = Math.random() * 6.28; emit(P, tip.x + Math.cos(a) * 1.4, tip.y + Math.sin(a) * .8, tip.z + Math.sin(a) * 1.4, 2, 0xffe07a, -2.5, .3, 0, 0);
     if (ch < .4) return true; scene.remove(orb); fire(tip); return false; });
   const fire = from => {
-    const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang)), dmg = stat.dmg() * s.mul * stat.skillMul(), m = makeArrow(0xffe07a), hit = new Set(), L = 30; let dist = 0;
+    const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang)), dmg = stat.dmg() * s.mul * AW(s) * stat.skillMul(), m = makeArrow(CC), hit = new Set(), L = 30; let dist = 0;
     m.scale.set(3.2, 3.2, 2.4); m.position.copy(from).setY(1.3); m.rotation.y = ang; scene.add(m); const start = m.position.clone();
     Snd.play('bolt', { pos: from, rate: .55, force: true }); Snd.play('boom', { pos: from, vol: .4, rate: 1.6 }); Snd.whoosh(from, .6, 600, 4000, .5); G.shake = Math.max(G.shake || 0, .3); emit(PB, from.x, 1.3, from.z, 8, 0xffd86a, 4, .4, 0, .5);
-    FX.push(dt => { const st = 60 * dt; m.position.addScaledVector(dir, st); dist += st; const p = m.position;
+    FX.push(dt => { const st = 60 * dt, px = m.position.x, pz = m.position.z; m.position.addScaledVector(dir, st); dist += st; const p = m.position;
       emit(PB, p.x, p.y, p.z, 2, 0xffc84a, .5, .35, 0, .3); emit(P, p.x, p.y, p.z, 6, 0xfff0b0, 1.5, .45, 0, .4);
-      for (const e of alive()) if (!hit.has(e) && d2(e, p.x, p.z) < 1.3 * 1.3) { hit.add(e); hurt(e, dmg, '#ffd86a', true); emit(P, e.g.position.x, 1.4, e.g.position.z, 20, 0xffe08a, 6, .4); }
+      // 이번 프레임 이동 구간(선분) 기준 판정 → 느린 프레임(dt 0.05 = 3칸)에서도 적을 건너뛰지 않음
+      const segD2 = e => { const ex = e.g.position.x - px, ez = e.g.position.z - pz, t = Math.max(0, Math.min(st, ex * dir.x + ez * dir.z)), qx = ex - dir.x * t, qz = ez - dir.z * t; return qx * qx + qz * qz; };
+      for (const e of alive()) if (!hit.has(e) && segD2(e) < 1.3 * 1.3) { hit.add(e); hurt(e, dmg, root ? '#b8ff9a' : '#ffd86a', true); emit(P, e.g.position.x, 1.4, e.g.position.z, 20, root ? 0x9aff7a : 0xffe08a, 6, .4);
+        if (root && !e.dead && !e.E.fly) { const t = e.E.boss ? s.rootBoss : s.root; e.stunT = Math.max(e.stunT || 0, t); e.frozen = false; if (A3()) { e.vulnT = G.t + t; e.vulnAmt = .15; } ringFx(e.g.position, 1.1, 0x6aff4a, t); G.legendRoot = (G.legendRoot || 0) + 1; } }
       if (dist < L) return true; scene.remove(m);
       const len = start.distanceTo(p), beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .5, len, 10, 1, true), ADD(0xffd86a)); beam.rotation.set(Math.PI / 2, 0, 0); beam.position.set(0, 0, 0);
       const holder = new THREE.Group(); holder.add(beam); beam.position.z = len / 2; holder.position.copy(start); holder.rotation.y = ang; scene.add(holder); beam.material.opacity = .8; G.fxs.push({ m: beam, t: 0, dur: .6, kind: 'fade', holder });
@@ -142,7 +148,7 @@ function scorch(p, r) { const m = new THREE.Mesh(new THREE.CircleGeometry(r * .8
 function quake(s) {
   const h = hero.g.position, tg = aim(8), from = h.clone(); let to = tg.clone(); const n = 16;
   for (let k = 0; k <= n && !passAt(to.x, to.z); k++) to = tg.clone().lerp(from, k / n); if (!passAt(to.x, to.z)) to = from.clone();
-  hero.face = Math.atan2(to.x - h.x, to.z - h.z) || hero.face; hero.path = []; banner('천지파열무!', '#ffaa5a', 1000);
+  hero.face = Math.atan2(to.x - h.x, to.z - h.z) || hero.face; hero.path = []; banner(s.pool ? '분화 일격!' : '천지파열무!', s.pool ? '#ff7a3a' : '#ffaa5a', 1000);
   play(hero.ch, hero.ch.acts.Jump_Full_Long ? 'Jump_Full_Long' : hero.ch.acts.Jump_Full_Short ? 'Jump_Full_Short' : '2H_Melee_Attack_Chop', { once: true, force: true, speed: 1.4 });
   Snd.whoosh(h, .6, 200, 1400, .5); Snd.play('stomp', { pos: h, rate: 1.3 }); emit(P, h.x, .3, h.z, 30, 0xc8b090, 4, .5, -4, 1.5);
   hero.leap = { t: 0, dur: .6, from, to, s };
@@ -156,7 +162,7 @@ export function updLeap(dt) {
   if (k < 1) return; hero.leap = null; p.y = groundY(p.x, p.z); hero.atkT = .5; smash(p.clone(), L.s);
 }
 function smash(c, s) {
-  const R = 5.5, dmg = stat.dmg() * s.mul * stat.skillMul(); G.shake = Math.max(G.shake, 1.1);
+  const R = 5.5, dmg = stat.dmg() * s.mul * AW(s) * stat.skillMul(); G.shake = Math.max(G.shake, 1.1); if (s.pool) lavaPool(c, s);
   for (const e of alive()) if (!e.E.fly && d2(e, c.x, c.z) <= R * R) { hurt(e, dmg, '#ffb07a', true); if (!e.dead) { e.stunT = e.E.boss ? .3 : .8; e.kup = { t: 0, dur: e.stunT, h: e.E.boss ? .4 : 1.6 }; e.frozen = false; } }
   for (let i = 0; i < 3; i++) later(i * .1, () => ringFx(c, R + 1.5 - i, [0xffa04a, 0xffd0a0, 0xff6a2a][i], .55));
   const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), ADD(0xffb06a)); dome.position.set(c.x, .1, c.z); dome.material.opacity = .5; scene.add(dome);
@@ -171,5 +177,39 @@ function smash(c, s) {
 export function updLegend(dt) {
   if (hero && hero.lsk) { if (hero.lcd > 0) hero.lcd -= dt; if (hero.licd > 0) hero.licd -= dt; }
   for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
-  updGun(dt); updMechFx(dt);
+  updGun(dt); updMechFx(dt); updUnique(dt);
+}
+
+// ---------- 고유 무기 [E] (data/items.js UQ.sk, LSK uq:true) ----------
+// 분화 일격 용암 장판: 착지점 반경 3, 0.5초마다 공격력 30% (★3 6초)
+function lavaPool(c, s) {
+  const dur = A3() ? 6 : s.pool, R = s.poolR, m = new THREE.Mesh(new THREE.CircleGeometry(R, 40), new THREE.MeshBasicMaterial({ color: 0xff5a0a, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(c.x, groundY(c.x, c.z) + .23, c.z); scene.add(m); let t = 0, tick = 0; const mul = s.poolMul * AW(s);
+  FX.push(dt => { t += dt; tick -= dt; m.material.opacity = .4 + Math.sin(t * 8) * .12; if (LR() < .6) { const a = LR() * 6.28, rr = Math.sqrt(LR()) * R; emit(P, c.x + Math.cos(a) * rr, .4, c.z + Math.sin(a) * rr, 1, 0xff8a2a, 1.2, .5, 3, .3); }
+    if (tick <= 0) { tick = .5; for (const e of alive()) if (!e.E.fly && d2(e, c.x, c.z) <= R * R) hurt(e, stat.dmg() * mul, '#ff9a4a'); G.legendPool = (G.legendPool || 0) + 1; }
+    if (t < dur) return true; scene.remove(m); return false; });
+}
+// 절대영도: 목표 지점 반경 4.5 — 300% + 빙결 1.5초(보스 0.5, ★3 2초) + 이후 3초 50% 둔화
+function zeroabs(s) {
+  const tg = aim(16), h = hero.g.position, R = s.r; hero.face = Math.atan2(tg.x - h.x, tg.z - h.z); hero.path = []; banner('절대영도!', '#bfefff', 1000);
+  play(hero.ch, 'Spellcast_Long', { once: true, force: true, speed: 1.4 }); hero.atkT = .8; ringFx(tg, R + .5, 0xbfefff, .6); ringFx(tg, R * .5, 0xffffff, .5);
+  const warn = new THREE.Mesh(new THREE.CircleGeometry(R, 48), ADD(0x7ad8ff)); warn.rotation.x = -Math.PI / 2; warn.position.set(tg.x, .25, tg.z); warn.material.opacity = .25; scene.add(warn);
+  Snd.play('magic', { pos: h, rate: 1.4, force: true }); Snd.play('glass', { pos: tg, rate: .7 }); let wt = 0;
+  FX.push(dt => { wt += dt; warn.material.opacity = .2 + wt * .5; emit(P, tg.x + (LR() - .5) * R * 2, 5, tg.z + (LR() - .5) * R * 2, 2, 0xdaf6ff, .5, .6, -14, .3); if (wt < .5) return true; scene.remove(warn);
+    const dmg = stat.dmg() * s.mul * AW(s) * stat.skillMul(), frz = A3() ? 2 : s.frz;
+    for (const e of alive()) if (d2(e, tg.x, tg.z) <= R * R) { hurt(e, dmg, '#dff8ff', true); if (e.dead) continue; const t = e.E.boss ? s.frzBoss : frz; e.stunT = Math.max(e.stunT || 0, t); e.frozen = true; e.slowT = Math.max(e.slowT, t + 3); e.slowAmt = Math.max(e.slowAmt || 0, .5); G.legendFreeze = (G.legendFreeze || 0) + 1; }
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), ADD(0xbfefff)); dome.position.set(tg.x, .1, tg.z); dome.material.opacity = .45; scene.add(dome); G.fxs.push({ m: dome, t: 0, dur: .9, kind: 'fade' });
+    emit(P, tg.x, 1, tg.z, 160, 0xdaf6ff, 11, .9, -6, R); emit(PB, tg.x, 1, tg.z, 20, 0x7ad8ff, 4, .7, 0, R * .6); debris(tg.x, .5, tg.z, 18, [0xdaf6ff, 0x9ae0ff, 0xffffff], 7); G.shake = Math.max(G.shake || 0, .5);
+    Snd.play('glass', { pos: tg, force: true }); Snd.play('zap', { pos: tg, rate: .5 }); return false; });
+}
+// 왕가의 처형: 체력이 가장 높은 적(보스 우선) 1명에게 6연사(각 200%, ★3 8연사). 이 스킬로 처치하면 재사용 50% 반환(1회)
+function execution(s) {
+  const pick = () => alive().sort((a, b) => (!!b.E.boss - !!a.E.boss) || b.hp - a.hp)[0]; let tg = pick(); const n = A3() ? 8 : s.shots, mul = s.mul * AW(s); let refund = false;
+  banner('왕가의 처형!', '#ffb0d8', 900); hero.atkT = n * .12 + .2; if (hero.ch.acts.ShootLoop) play(hero.ch, 'ShootLoop', { force: true, speed: 1.6 });
+  for (let i = 0; i < n; i++) later(i * .12, () => { if (!hero || hero.dead > 0) return; if (!tg || tg.dead || tg.dying !== undefined) tg = pick(); if (!tg) return; const from = heroTip(), to = tg.g.position.clone().setY(1.3);
+    hero.face = Math.atan2(to.x - hero.g.position.x, to.z - hero.g.position.z); const len = from.distanceTo(to), beam = new THREE.Mesh(new THREE.CylinderGeometry(.07, .12, len, 6, 1, true), ADD(0xffc0e0));
+    const holder = new THREE.Group(); holder.add(beam); beam.rotation.x = Math.PI / 2; beam.position.z = len / 2; holder.position.copy(from); holder.lookAt(to); scene.add(holder); beam.material.opacity = .9; G.fxs.push({ m: beam, t: 0, dur: .18, kind: 'fade', holder }); later(.2, () => scene.remove(holder));
+    Snd.play('bolt', { pos: from, rate: 1.6 + i * .05, force: true }); emit(P, to.x, to.y, to.z, 14, i === n - 1 ? 0xffd86a : 0xff9ac8, 4, .35);
+    const e = tg; hurt(e, stat.dmg() * mul * stat.skillMul(), '#ffd0e8', true); G.legendExec = (G.legendExec || 0) + 1;
+    if (e.dead && !refund) { refund = true; hero.lcd *= .5; banner('처형! 재사용 50% 반환', '#ffd86a', 700); } });
 }

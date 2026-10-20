@@ -2,6 +2,7 @@
 import * as P from '../src/account/progress.js';
 import * as ST from '../src/data/stages.js';
 import * as E from '../src/account/equip.js';
+import { CHSET } from '../src/data/items.js';
 import assert from 'node:assert/strict';
 let seed = 3; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 // 데이터 무결성: 코어/포털이 격자 안, 서로 겹치지 않음, 10~15 웨이브, 챕터 마지막 = 보스
@@ -13,7 +14,7 @@ assert.equal(ST.starsFor(30, 30), 3); assert.equal(ST.starsFor(21, 30), 2); asse
 // 해금
 let s = P.empty(); assert.ok(ST.stageUnlocked(s, '1-1')); assert.ok(!ST.stageUnlocked(s, '1-2')); assert.ok(!ST.chapterUnlocked(s, 2)); assert.ok(!ST.chapterUnlocked(s, 3));
 let info; [s, info] = P.applyStage(s, '1-1', 2, 'mage', r);
-assert.equal(s.st['1-1'], 2); assert.ok(info.first); assert.equal(info.souls, ST.stageReward('1-1', true)); assert.equal(info.loot.length, 1); assert.equal(info.loot[0].it.c, 1); assert.ok(info.loot[0].it.n.startsWith('숲의 '));
+assert.equal(s.st['1-1'], 2); assert.ok(info.first); assert.equal(info.souls, ST.stageReward('1-1', true)); assert.equal(info.loot.length, 1); assert.equal(info.loot[0].it.c, 1); { const it = info.loot[0].it, row = it.s === 'weapon' ? it.h : it.s; assert.equal(it.n, CHSET[1].names[row][it.g], '첫 클리어 = 숲 세트 이름'); }
 assert.deepEqual(info.unlocked, ['1-2']); assert.ok(ST.stageUnlocked(s, '1-2'));
 // 재도전: 별은 최고값, 영혼석 절반, 첫 클리어 장비 없음
 const souls0 = s.souls; [s, info] = P.applyStage(s, '1-1', 1, 'mage', r); assert.equal(s.st['1-1'], 2); assert.equal(s.souls - souls0, Math.round(ST.stageReward('1-1', true) / 2)); assert.equal(info.loot.length, 0);
@@ -21,9 +22,11 @@ const souls0 = s.souls; [s, info] = P.applyStage(s, '1-1', 1, 'mage', r); assert
 // 챕터 1 전부 클리어 → 2장 해금, 별 보상 상자 (5개마다)
 for (const st of ST.CHAPTERS[0].stages.slice(1)) [s, info] = P.applyStage(s, st.id, 3, 'mage', r);
 assert.ok(ST.chapterUnlocked(s, 2)); assert.ok(ST.stageUnlocked(s, '2-1')); assert.equal(ST.totalStars(s), 18); assert.equal(s.starRw, 3);
-assert.equal(s.inv.length, 0); assert.equal(s.chests.filter(c => c.it.c === 1).length, 6); // 미개봉 상자로 보관
+assert.equal(s.inv.length, 0); assert.equal(s.chests.filter(c => c.it.c === 1 && c.src === 'stage').length, 6); // 미개봉 상자로 보관
+assert.equal(s.chests.filter(c => c.src === 'star').length, 3); assert.ok(s.chests.filter(c => c.src === 'star').every(c => c.it.c === 1), '별 보상 상자 = 방금 클리어한 챕터 세트');
+assert.deepEqual(s.chests.filter(c => c.it.uq).map(c => c.it.uq).sort(), ['f_acc', 'f_bow'], '1-6 첫 클리어 ① + 별 18 ② 고유');
 const rc = P.clean(JSON.parse(JSON.stringify(s))); assert.equal(rc.chests.length, s.chests.length); s = P.clean(s); E.openChests(s); assert.equal(s.chests.length, 0);
-assert.equal(s.inv.filter(x => x.c === 1).length, 6);
+assert.equal(s.inv.filter(x => x.c === 1).length, 9);
 // 저장 왕복 / 구버전 / 잘못된 값 / 병합
 const rt = P.clean(JSON.parse(JSON.stringify(s))); assert.deepEqual(rt.st, s.st); assert.equal(rt.starRw, 3); assert.equal(rt.inv.find(x => x.c === 1).c, 1);
 assert.deepEqual(P.clean({ souls: 3 }).st, {}); assert.deepEqual(P.clean({ st: { '1-1': 9, 'x-9': 2, '1-2': -1 } }).st, { '1-1': 3 });
@@ -35,7 +38,7 @@ const m = P.merge({ st: { '1-1': 3, '1-2': 1 }, starRw: 0 }, { st: { '1-2': 2, '
   let v = P.empty(); for (const st of ST.CHAPTERS[0].stages) [v] = P.applyStage(v, st.id, 1, 'mage', r); assert.ok(!ST.chapterUnlocked(v, 3));
   for (const st of ST.CHAPTERS[1].stages.slice(0, 3)) [v] = P.applyStage(v, st.id, 1, 'mage', r); assert.ok(!ST.chapterUnlocked(v, 3));
   let inf; [v, inf] = P.applyStage(v, '2-4', 2, 'mage', r); assert.ok(ST.chapterUnlocked(v, 3) && ST.stageUnlocked(v, '3-1') && !ST.stageUnlocked(v, '3-2')); assert.deepEqual(inf.unlocked, ['3-1']); assert.ok(!ST.chapterUnlocked(v, 4));
-  [v, inf] = P.applyStage(v, '3-1', 3, 'mage', r); assert.ok(inf.loot[0].it.n.startsWith('화염 ') && inf.loot[0].it.c === 3);
+  [v, inf] = P.applyStage(v, '3-1', 3, 'mage', r); assert.ok(inf.loot[0].it.n === CHSET[3].names[inf.loot[0].it.s === 'weapon' ? inf.loot[0].it.h : inf.loot[0].it.s][inf.loot[0].it.g] && inf.loot[0].it.c === 3 && inf.loot[0].it.g >= 1);
   for (const id of ['3-1', '3-2', '3-3', '3-4']) { const S = ST.STAGES[id], L = ST.lavaTiles(S); assert.ok(L.size >= 10, id + ' lava');
     for (const p of [S.core, ...S.spawns]) for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) assert.ok(!L.has((p[0] + dc) + ',' + (p[1] + dr)), id + ' lava near portal/core');
     const seen = new Set([S.core.join(',')]), q = [S.core]; while (q.length) { const [c, rr] = q.shift(); for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (c + dc) + ',' + (rr + dr); if (c + dc < 0 || rr + dr < 0 || c + dc >= 24 || rr + dr >= 16 || seen.has(k) || L.has(k)) continue; seen.add(k); q.push([c + dc, rr + dr]); } }
@@ -52,7 +55,7 @@ const m = P.merge({ st: { '1-1': 3, '1-2': 1 }, starRw: 0 }, { st: { '1-2': 2, '
   let v = P.empty(); for (const ch of [0, 1]) for (const st of ST.CHAPTERS[ch].stages) [v] = P.applyStage(v, st.id, 1, 'mage', r);
   for (const st of ST.CHAPTERS[2].stages.slice(0, 3)) [v] = P.applyStage(v, st.id, 1, 'mage', r); assert.ok(!ST.chapterUnlocked(v, 4) && !ST.stageUnlocked(v, '4-1'));
   let inf; [v, inf] = P.applyStage(v, '3-4', 2, 'mage', r); assert.ok(ST.chapterUnlocked(v, 4) && ST.stageUnlocked(v, '4-1') && !ST.stageUnlocked(v, '4-2')); assert.deepEqual(inf.unlocked, ['4-1']);
-  [v, inf] = P.applyStage(v, '4-1', 3, 'mage', r); assert.ok(inf.loot[0].it.n.startsWith('폐허의 ') && inf.loot[0].it.c === 4); assert.ok(ST.stageUnlocked(v, '4-2'));
+  [v, inf] = P.applyStage(v, '4-1', 3, 'mage', r); assert.ok(inf.loot[0].it.n === CHSET[4].names[inf.loot[0].it.s === 'weapon' ? inf.loot[0].it.h : inf.loot[0].it.s][inf.loot[0].it.g] && inf.loot[0].it.c === 4 && inf.loot[0].it.g >= 1); assert.ok(ST.stageUnlocked(v, '4-2'));
   for (const id of ['4-1', '4-2', '4-3', '4-4']) { const S = ST.STAGES[id], W = ST.wallTiles(S); assert.ok(W.size >= 12, id + ' walls'); assert.equal(ST.lavaTiles(S).size, 0);
     for (const p of [S.core, ...S.spawns]) for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) assert.ok(!W.has((p[0] + dc) + ',' + (p[1] + dr)), id + ' wall near portal/core');
     const seen = new Set([S.core.join(',')]), q = [S.core]; while (q.length) { const [c, rr] = q.shift(); for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (c + dc) + ',' + (rr + dr); if (c + dc < 0 || rr + dr < 0 || c + dc >= 24 || rr + dr >= 16 || seen.has(k) || W.has(k)) continue; seen.add(k); q.push([c + dc, rr + dr]); } }

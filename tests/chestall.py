@@ -42,7 +42,10 @@ with sync_playwright() as pw:
         if tag == '1440x860': shot(pg, 'open_all_button.png')
         if tag == '1024x600': shot(pg, 'open_all_button_tablet.png')
         s0 = J(pg, "()=>G.gear.Acc.load()"); exp = sum(c['souls'] for c in s0['chests'][:10]); J(pg, SAVES)
-        if touch: pg.tap('#cbAll'); pg.tap('#cbAll', force=True, no_wait_after=True) if pg.locator('#cbAll').count() else None
+        if touch:
+            pg.tap('#cbAll')
+            try: pg.tap('#cbAll', force=True, no_wait_after=True, timeout=1500)  # 연타 — 첫 탭에 버튼이 사라졌으면(정상) 무시
+            except Exception: pass
         else: pg.dblclick('#cbAll')
         J(pg, "()=>{ const b=document.getElementById('cbAll'); if (b) { b.disabled=false; b.click(); b.click(); } }")  # 비활성화를 우회한 연타도 무시돼야 함
         pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(2600)
@@ -59,7 +62,8 @@ with sync_playwright() as pw:
         ok(f'{tag}_full_notice', '가방이 가득 찼어요' in txt and pg.locator('#cbSmith').count() == 1)
         ok(f'{tag}_legend_sparkle', tiles[0] == 4 and pg.locator('#cbGrid .sumT.g4 .spk').count() >= 3 and J(pg, "()=>getComputedStyle(document.querySelector('#cbGrid .sumT.g4')).animationName.includes('legendGlow')"))
         ok(f'{tag}_epic_flash', J(pg, "()=>{ const e=document.querySelector('#cbGrid .sumT.g3'); return !e || getComputedStyle(e).animationName.includes('epicPop'); }"))
-        ok(f'{tag}_summary_fits', J(pg, "()=>{ const r=document.getElementById('cbSum').getBoundingClientRect(); const k=document.getElementById('cbOk').getBoundingClientRect(); return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth&&k.bottom<=innerHeight&&k.height>=44; }"))
+        pg.wait_for_function("()=>{ const e=document.getElementById('cbSum'); return e && !e.getAnimations().some(a=>a.playState==='running' && a.animationName==='sumIn'); }", timeout=10000)  # 등장 애니메이션(scale) 중엔 크기가 작게 잡힘
+        fi = J(pg, "()=>{ const r=document.getElementById('cbSum').getBoundingClientRect(); const k=document.getElementById('cbOk').getBoundingClientRect(); return [r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth&&k.bottom<=innerHeight&&k.height>=44, [r.left,r.top,r.right,r.bottom,k.bottom,k.height,innerWidth,innerHeight].map(Math.round)]; }"); ok(f'{tag}_summary_fits', fi[0], fi[1])
         (pg.tap if touch else pg.click)('#cbGrid .sumT >> nth=0'); pg.wait_for_timeout(200)
         if tag == '1440x860': ok(f'{tag}_tile_detail', '전설' in pg.inner_text('#cbDetail')); shot(pg, 'open_all_summary.png')
         else: shot(pg, 'open_all_summary_tablet.png')

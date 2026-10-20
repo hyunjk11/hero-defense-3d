@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const R = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const withChests = (n, seed = 5, inv = 0) => { const r = R(seed), s = P.empty(); for (let i = 0; i < inv; i++) s.inv.push(E.makeItem('armor', 'mage', 0, r)); E.addChests(s, Array.from({ length: n }, (_, i) => ({ it: E.makeItem(E.SLOT_KEYS[i % 3], 'mage', i % 5, r), src: i % 4 ? 'chest' : 'boss' }))); return s; };
 // 1) 판 보상 → 미개봉 상자 (가방에는 아직 없음), 개봉 시 영혼석
-let [s, got, loot] = P.applyRun(P.empty(), { wave: 40, kills: 90, drops: [E.makeItem('weapon', 'mage', 4, R(9))], hero: 'mage' }, R(3));
+let [s, got, loot] = P.applyRun({ ...P.empty(), uqLog: { c_acc: 1, c_arm: 1 } }, { wave: 40, kills: 90, drops: [E.makeItem('weapon', 'mage', 4, R(9))], hero: 'mage' }, R(3));
 assert.equal(s.chests.length, 9); assert.equal(s.inv.length, 0); assert.equal(loot.length, 9); assert.ok(loot.every(x => x.chest && !x.auto));
 const souls0 = s.souls, expSouls = s.chests.reduce((a, c) => a + c.souls, 0); assert.ok(expSouls > 0);
 let res; [s, res] = E.openChests(s); assert.equal(res.opened.length, 9); assert.equal(s.inv.length, 9); assert.equal(s.chests.length, 0); assert.equal(res.left, 0); assert.ok(!res.full);

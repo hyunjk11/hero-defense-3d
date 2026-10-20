@@ -44,6 +44,7 @@ function shieldFactor(e, src) {
 function hurt(e, dmg, color, big, src) { const tw = G.xpSrc; if (!tw || e.dead) return hurt0(e, dmg, color, big, src); const h0 = Math.max(0, e.hp); hurt0(e, dmg, color, big, src); towerXp(tw, h0 - Math.max(0, e.hp) + (e.dead ? KILL_XP : 0)); }
 function hurt0(e, dmg, color = '#fff', big = false, src = null) {
   if (e.dead) return; if (e.immT > G.t && dmg < 1e8) { if (!(e.immTxt > G.t)) { e.immTxt = G.t + .6; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, e.phaseT > 0 ? '통과!' : '무적', '#d8d0f0'); } return; } // 석상·실체 소멸 (테스트 즉사 피해는 통과)
+  if (e.vulnT > G.t) dmg *= 1 + (e.vulnAmt || 0); // 뿌리 감옥 ★3: 속박된 적 받는 피해 증가 (설정된 적만)
   const sk = shieldFactor(e, src);
   if (sk < .5) { Snd.play('block', { pos: e.g.position }); const p = enemyAim(e); emit(P, p.x + Math.sin(e.g.rotation.y) * .6, p.y, p.z + Math.cos(e.g.rotation.y) * .6, 6, 0xbfe0ff, 3, .25, 0, .3); e.blockT = .2;
     G.stats.blocked = (G.stats.blocked || 0) + dmg * (1 - sk); if (!(e.blockTxt > G.t)) { e.blockTxt = G.t + .6; p.y += e.E.h * .55 + .3; dmgText(p, '막음!', '#9ad4ff'); } }
@@ -55,11 +56,12 @@ function hurt0(e, dmg, color = '#fff', big = false, src = null) {
 // 방어력 (서리 골렘: 깨지기 전 피해 누적, 서리늑대: 무리 감소 포함). 능력 없는 몬스터는 기존 1 - E.armor 그대로
 function armorDmg(e, dmg) { if (e.crackAcc !== undefined) crackHit(e, dmg); return dmg * (1 - armorOf(e)); }
 function killEnemy(e) {
-  e.dead = true; if (e.E.ab) onKilled(e); e.hb.show(false); const p = enemyAim(e);
+  e.dead = true; if (e.E.ab) onKilled(e); if (G.hero && G.hero.uqs && G.uqKill) G.uqKill(e); /* 고유 '끝없는 순환' 처치 수 */ e.hb.show(false); const p = enemyAim(e);
   emit(P, p.x, p.y, p.z, e.E.boss ? 160 : 22, e.E.fly ? 0xb08aff : 0xe8e0d0, e.E.boss ? 10 : 5, .8, -10, 1.5); emit(P, p.x, p.y, p.z, 10, 0xffe066, 4, .6);
   if (!e.E.fly) debris(p.x, p.y, p.z, e.E.boss ? 30 : 5, [0xf0ead8, 0xd8d0c0], 5);
   if (e.E.boss) { G.shake = 1.1; emit(PB, p.x, p.y, p.z, 60, 0xff8a3a, 12, 1.2, -3, 3); banner(`${e.E.n} 처치!`, '#ffd23a'); Snd.play('boom', { pos: p, force: true }); later(.6, () => Snd.play('victory', { force: true, exact: true })); }
-  if (e.E.boss && G.perm && G.hero && (G.forceDrop || Math.random() < BOSS_DROP)) { const it = randomItem(G.hero.cls, bossOdds(G.wave)); (G.runDrops ||= []).push(it); lootFx(p, it.g); // 보스 장비 드롭 (마을 출정 때만)
+  if (e.E.boss && G.perm) (G.runBossKills ||= []).push(G.wave); // 고유 ③ 숨은 보물 / 도전 모드 정수 판정용 (판 종료 applyRun)
+  if (e.E.boss && G.perm && G.hero && (G.forceDrop || Math.random() < BOSS_DROP)) { const it = randomItem(G.hero.cls, bossOdds(G.wave), Math.random, undefined, G.dropCh); /* 스테이지 = 그 챕터 세트, 도전 모드 = 열린 챕터 무작위 */ (G.runDrops ||= []).push(it); lootFx(p, it.g); // 보스 장비 드롭 (마을 출정 때만)
     later(1.2, () => { banner(`✦ ${GRADES[it.g].n} 장비 획득: ${it.n} ✦`, GRADES[it.g].c, 2600); Snd.play('levelUp', { force: true }); Snd.play('coins', { force: true }); }); }
   G.gold += e.E.gold; G.stats.goldEarned += e.E.gold; G.stats.kills[e.type] = (G.stats.kills[e.type] || 0) + 1; popCoins(p, Math.ceil(e.E.gold / 2)); Snd.play(e.E.fly ? 'poof' : 'bones', { pos: p, rate: e.E.boss ? .6 : 1, force: e.E.boss }); e.dying = e.E.fly ? .7 : 1.6;
   if (!e.E.fly) play(e.m, 'Death_A', { once: true, fade: .1 });
