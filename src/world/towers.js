@@ -17,6 +17,7 @@ import { banner, refreshHud } from '../ui/hud.js';
 import { hpBar } from '../render/hpbars.js';
 import { select } from '../ui/input.js';
 import { BRANCH, resMods, starsFor } from '../data/growth.js';
+import { advTowerMods } from '../data/advance.js';
 import { decorate, recalc, updDeco, updGrowFx } from './growth.js';
 import { towerRateK } from '../monsters/abilities.js';
 
@@ -62,7 +63,7 @@ function placeTower(t, type) {
   const D = TOWERS[type], tw = { kind: 'tower', type, lvl: 1, t, c: t.c, r: t.r, cd: .5, invest: D.cost, pop: 0, recoil: 0 };
   tw.max = tw.hp = D.hp[0]; tw.hitT = 0; tw.fxT = 0; tw.anchor = new THREE.Object3D(); tw.anchor.position.set(tileX(t.c), 0, tileZ(t.r)); scene.add(tw.anchor);
   tw.hb = hpBar(tw.anchor, 3.6, 1.6, 0x55ff77, { auto: true, h: .17 });
-  tw.xp = 0; tw.stars = 1; tw.branch = null; tw.shots = 0; tw.mods = G.research ? resMods(G.research, type) : null; if (G.grow) { tw.xp = tw.mods ? tw.mods.xp0 : 0; tw.stars = starsFor(tw.xp); } recalc(tw);
+  tw.xp = 0; tw.stars = 1; tw.branch = null; tw.shots = 0; tw.mods = G.research ? resMods(G.research, type, G.adv ? advTowerMods(G.adv, type) : undefined) : null; /* 연구 × 전직 타워 보너스 */ if (G.grow) { tw.xp = tw.mods ? tw.mods.xp0 : 0; tw.stars = starsFor(tw.xp); } recalc(tw);
   tw.rebuild = () => { const m = towerModel(tw.type, tw.lvl); m.g.position.set(tileX(tw.c), 0, tileZ(tw.r)); return m; };
   tw.m = towerModel(type, 1); tw.m.g.position.set(tileX(t.c), 0, tileZ(t.r)); decorate(tw); Snd.play('build', { pos: tw.m.g.position }); Snd.play('place', { delay: .12 }); scene.add(tw.m.g); t.tower = tw; G.towers.push(tw); refreshTile(t); return tw;
 }
@@ -102,7 +103,7 @@ function enemyAim(e) { return e.g.position.clone().setY(e.E.fly ? e.m.inner.posi
 function updTowers(dt) {
   if (G.grow) updGrowFx(dt);
   for (const tw of G.towers) {
-    const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position, S = tw.S, B = tw.branch ? BRANCH[tw.type][tw.branch] : null; if (tw.deco) updDeco(tw, dt); tw.cd -= tw.rootT > 0 || tw.frostT > 0 || tw.chillT > G.t ? dt * towerRateK(tw) : dt; /* 챕터 몬스터 디버프: 속박(정지)·빙결·한기 */ tw.pop = Math.min(1, tw.pop + dt * 3);
+    const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position, S = tw.S, B = tw.branch ? tw.B || BRANCH[tw.type][tw.branch] : null; if (tw.deco) updDeco(tw, dt); tw.cd -= tw.rootT > 0 || tw.frostT > 0 || tw.chillT > G.t ? dt * towerRateK(tw) : dt; /* 챕터 몬스터 디버프: 속박(정지)·빙결·한기 */ tw.pop = Math.min(1, tw.pop + dt * 3);
     const s = tw.pop < 1 ? 1 + Math.sin(tw.pop * Math.PI) * .25 : 1; m.g.scale.set(s, tw.pop < 1 ? .4 + tw.pop * .6 : 1, s);
     if (m.anim.crys) { m.head.position.y = m.anim.baseY + Math.sin(G.t * 2.4 + tw.c) * .15; m.anim.crys.rotation.y += dt * 1.6; m.anim.rings.forEach((r, k) => { r.rotation.z += dt * (1.2 + k * .7) * (k % 2 ? -1 : 1); }); }
     if (m.anim.flag) m.anim.flag.rotation.y = Math.sin(G.t * 5 + tw.c) * .4; if (m.anim.gem) m.anim.gem.rotation.y += dt * 2;

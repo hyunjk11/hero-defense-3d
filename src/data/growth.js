@@ -44,16 +44,20 @@ export function resBlock(save, type, k) {
 // save 는 progress.clean 된 객체 (souls, mat, research) — 성공 시 그 객체를 수정하고 true
 export function buyResearch(save, type, k) { if (!TTYPES.includes(type) || !RES[k] || resBlock(save, type, k)) return false; const c = resCost(k, save.research[type][k]); save.souls -= c.souls; save.mat[RES[k].mat] -= c[RES[k].mat]; save.research[type][k]++; return true; }
 // 판 시작 시 연구 효과 (연구 없으면 모두 1/0 → 기존 수치 그대로)
-export function resMods(research, type) { const r = research && research[type]; if (!r) return { dmg: 1, rate: 1, rng: 1, xp0: 0 };
-  return { dmg: 1 + RES.atk.per * r.atk, rate: 1 + RES.spd.per * r.spd, rng: 1 + RES.rng.per * r.rng, xp0: startXp(research, type) }; }
+// am = 전직 타워 보너스(advance.js advTowerMods) — 연구 결과에 곱만 추가. 없으면 기존 결과와 완전히 같음
+export function resMods(research, type, am) { const r = research && research[type], o = !r ? { dmg: 1, rate: 1, rng: 1, xp0: 0 } : { dmg: 1 + RES.atk.per * r.atk, rate: 1 + RES.spd.per * r.spd, rng: 1 + RES.rng.per * r.rng, xp0: startXp(research, type) };
+  if (!am) return o; o.dmg *= am.dmg; o.rate *= am.rate; o.rng *= am.rng; if (am.splash !== 1) o.splash = am.splash; if (am.slowAdd) o.slowAdd = am.slowAdd; if (Object.keys(am.br || {}).length) o.br = am.br; return o; }
+// ★★★ 분기 + 전직 분기 보너스(mods.br: targets/cluster 더하기, dmg 곱, freezeEvery 설정)
+export function branchFor(type, branch, mods) { const B = branch && BRANCH[type][branch]; if (!B) return null; const x = mods && mods.br && mods.br[branch]; if (!x) return B;
+  const o = { ...B }; if (x.targets) o.targets = (B.targets || 1) + x.targets; if (x.cluster) o.cluster = (B.cluster || 0) + x.cluster; if (x.dmg) o.dmg = (B.dmg || 1) * x.dmg; if (x.freezeEvery) o.freezeEvery = x.freezeEvery; return o; }
 // 별/XP 상태 → 별 수
 export const starsFor = xp => xp >= XP_NEED[2] ? 3 : xp >= XP_NEED[1] ? 2 : 1;
 // 시작 XP: Lv4 = ★★ + (★★→★★★ 구간 60%)
 export function startXp(research, type) { const r = research && research[type]; if (!r || !r.start) return 0; return r.start >= 4 ? Math.round(XP_NEED[1] + (XP_NEED[2] - XP_NEED[1]) * .6) : Math.round(XP_NEED[1] * .2 * r.start); }
 // 타워 실전 수치: 기본(단계 L) × 별 × 분기 × 연구. 성장/연구 없으면 TOWERS 값 그대로
 export function towerStats(type, lvl, stars = 1, branch = null, mods = null) {
-  const D = TOWERS[type], L = lvl - 1, S = STAR[(stars || 1) - 1], B = (branch && BRANCH[type][branch]) || {}, M = mods || { dmg: 1, rate: 1, rng: 1 };
+  const D = TOWERS[type], L = lvl - 1, S = STAR[(stars || 1) - 1], B = branchFor(type, branch, mods) || {}, M = mods || { dmg: 1, rate: 1, rng: 1 };
   const o = { dmg: D.dmg[L] * S.dmg * (B.dmg || 1) * M.dmg, rate: D.rate[L] * S.rate * (B.rate || 1) * M.rate, range: D.range[L] * S.rng * (B.rng || 1) * M.rng };
-  if (D.splash) o.splash = D.splash[L] * (B.splash || 1); if (D.chain) { o.chain = B.chainSet || D.chain[L] + (B.chainAdd || 0); o.slow = B.slowSet || D.slow[L]; o.falloff = B.falloff || .85; o.hop = B.hop || 3.8; }
+  if (D.splash) o.splash = D.splash[L] * (B.splash || 1) * (M.splash || 1); if (D.chain) { o.chain = B.chainSet || D.chain[L] + (B.chainAdd || 0); o.slow = (B.slowSet || D.slow[L]) + (M.slowAdd || 0); o.falloff = B.falloff || .85; o.hop = B.hop || 3.8; }
   return o;
 }

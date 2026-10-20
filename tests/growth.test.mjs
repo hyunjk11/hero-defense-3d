@@ -37,3 +37,13 @@ console.log('growth.test ok');
 // 타워 공격속도 전체 ×0.8 (공격 간격 ×1.25) — 기본 수치에만, 연구는 그 위에 곱
 { const T = await import('../src/data/towers.js'); assert.equal(T.TOWER_RATE_K, .8); assert.deepEqual(T.TOWERS.arrow.rate, [1.6, 1.92, 2.32]); assert.deepEqual(T.TOWERS.cannon.rate, [.44, .496, .56]); assert.deepEqual(T.TOWERS.magic.rate, [.72, .8, .92]);
   const r = GR.emptyResearch(); r.arrow.spd = 8; assert.ok(Math.abs(GR.towerStats('arrow', 3, 1, null, GR.resMods(r, 'arrow')).rate - 2.9 * .8 * 1.24) < 1e-9); console.log('tower rate x0.8 ok'); }
+// 전직 타워 보너스: 없으면 resMods 결과 동일, 있으면 연구에 곱 (+ 분기 보너스)
+{ const A = await import('../src/data/advance.js'); const r = GR.emptyResearch(); r.arrow.spd = 5; r.cannon.atk = 3;
+  for (const t of GR.TTYPES) assert.deepEqual(GR.resMods(r, t, undefined), GR.resMods(r, t)); for (const t of GR.TTYPES) assert.deepEqual(GR.resMods(r, t, A.advTowerMods(null, t)), GR.resMods(r, t));
+  const w = GR.resMods(r, 'arrow', A.advTowerMods(A.ADV.archer.wind, 'arrow')); assert.ok(Math.abs(w.rate - 1.15 * 1.06) < 1e-9); assert.ok(Math.abs(GR.towerStats('arrow', 3, 3, 'multi', w).rate - GR.towerStats('arrow', 3, 3, 'multi', GR.resMods(r, 'arrow')).rate * 1.06) < 1e-9);
+  assert.equal(GR.branchFor('arrow', 'multi', w).targets, 4); assert.equal(GR.branchFor('arrow', 'multi', GR.resMods(r, 'arrow')), GR.BRANCH.arrow.multi);
+  const k = GR.resMods(r, 'arrow', A.advTowerMods(A.ADV.archer.hawk, 'arrow')); assert.ok(Math.abs(GR.towerStats('arrow', 3, 3, 'snipe', k).dmg - GR.towerStats('arrow', 3, 3, 'snipe', GR.resMods(r, 'arrow')).dmg * 1.1) < 1e-9);
+  const fl = GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.mage.flame, 'cannon')); assert.ok(Math.abs(GR.towerStats('cannon', 2, 1, null, fl).splash - 2.5 * 1.08) < 1e-9);
+  const fr = GR.resMods(r, 'magic', A.advTowerMods(A.ADV.mage.frost, 'magic')); assert.ok(Math.abs(GR.towerStats('magic', 1, 1, null, fr).slow - .45) < 1e-9); assert.equal(GR.branchFor('magic', 'frost', fr).freezeEvery, 3);
+  assert.equal(GR.branchFor('cannon', 'blast', GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.gunner.thorn, 'cannon'))).cluster, 4);
+  assert.ok(Math.abs(GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.warrior.berserk, 'cannon')).dmg - 1.12 * 1.05) < 1e-9); console.log('adv tower mods ok'); }

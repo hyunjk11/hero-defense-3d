@@ -10,6 +10,7 @@ import { showSelect, choose } from './select.js';
 import * as Acc from '../account/account.js';
 import * as P from '../account/progress.js';
 import * as AD from '../data/advance.js';
+import { initAdv, renderAdv, closeConfirm as closeAdvConfirm, resetPreview as resetAdvPreview } from './advance.js';
 import { labels as TL, buildTown as buildTownScene, updTown, townPass, LAKE, LR, PORTAL, tower } from '../world/town.js';
 let smithNear = false, portalNear = false;
 import { sun } from '../render/scene.js';
@@ -45,7 +46,7 @@ function startStageRun() { // 저장된 영웅이 유료 영웅이면 서버 소
 }
 function startStageRun2(logged) {
   const s = Acc.load(); if (!logged) Acc.autoLogin().catch(() => {}); showSelect(); $('select').classList.add('hidden'); hideAll(); s.hero = Sh.usableHero(s.hero); // 잠긴 유료 영웅이면 기본 영웅
-  G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.adv = AD.advOf(s.hero, s.adv[s.hero]); G.uq = E.uniquesOf(s, s.hero); G.dropCh = STAGE ? STAGE.ch : P.openChapters(s); G.runBossKills = []; G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.stage = STAGE; G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden');
+  G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.adv = AD.advOf(s.hero, s.adv[s.hero]); G.advBar = AD.advBarMul(G.adv); G.uq = E.uniquesOf(s, s.hero); G.dropCh = STAGE ? STAGE.ch : P.openChapters(s); G.runBossKills = []; G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.stage = STAGE; G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden');
   const C = ST.CHAPTERS.find(c => c.id === STAGE.ch); setTimeout(() => banner(`${STAGE.id} ${STAGE.n} · 웨이브 ${STAGE.waves} · ${C.propN}`, C.color, 3200), 500);
   const bt = equipLine(G.equip); if (bt) setTimeout(() => banner(bt, '#ffe08a', 2200), 3900);
 }
@@ -105,9 +106,12 @@ function routeToTower() { const V = (x, z) => new THREE.Vector3(x, 0, z), p = th
   if (dl > LR + .5) { if (p.x > LAKE.x - LR && dl < 11.5) { const s = p.z < LAKE.y ? -1 : 1; if (p.x > LAKE.x - 2) q.push(V(LAKE.x, LAKE.y + s * 8.6)); q.push(V(LAKE.x - 6.2, LAKE.y + s * 6.2)); } q.push(V(LAKE.x - LR - 1.6, LAKE.y)); }
   q.push(V(LAKE.x - 2.45, 0 + LAKE.y)); th.goal = q.shift(); th.goals = q; }
 // ---------- 여신의 축복 (여신탑 영구 강화 창) ----------
-let blessOpen = false, blessNear = false;
+let blessOpen = false, blessNear = false, blessTab = 'perm';
+const heroRingColor = () => { if (!th || !th.ring) return; const s = Acc.load(), A = AD.advOf(th.cls, s.adv[th.cls]); th.ring.material.color.setHex(A ? A.col : CLASSES[th.cls].color); }; // 전직 칭호 색 (마을 단상 영웅 발밑 링)
+function setBlessTab(t) { blessTab = t === 'adv' ? 'adv' : 'perm'; document.querySelectorAll('#blessTabs .ftab').forEach(b => b.classList.toggle('on', b.dataset.bt === blessTab)); $('twPerm').classList.toggle('hidden', blessTab !== 'perm'); $('twAdv').classList.toggle('hidden', blessTab !== 'adv'); $('twBless').classList.toggle('advMode', blessTab === 'adv'); if (blessTab !== 'adv') { resetAdvPreview(); heroRingColor(); } refreshTown(); }
+G.blessTab = setBlessTab;
 function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeShopUI(); closeSmith(true); closeInv(); closeStageSel(true); closeLab(true); $('twBless').classList.remove('hidden'); refreshTown(); }
-function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); }
+function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); closeAdvConfirm(); resetAdvPreview(); heroRingColor(); }
 G.openBlessing = openBless; G.closeBlessing = closeBless;
 G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z, cls: th.cls };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
@@ -119,7 +123,7 @@ G.gear = { E, Acc, P, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal
 function spawnTownHero() {
   const s = Acc.load(), hc = Sh.usableHero(s.hero);
   if (!modelsReady(heroAssets(hc))) { ensureModels(heroAssets(hc)).then(() => { if (town && town.visible && Sh.usableHero(Acc.load().hero) === hc && (!th || th.cls !== hc)) spawnTownHero(); }).catch(e => console.warn(e)); return; } // 지연 로딩: 도착하면 교체 (그 사이엔 이전 영웅 유지)
-  if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null;
+  if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null; heroRingColor();
 }
 export function enterTown() {
   hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);
@@ -141,19 +145,19 @@ function refreshTown() {
   const nc = (s.chests || []).length; $('twChest').classList.toggle('hidden', !nc); $('twChestN').textContent = nc;
   $('twBonus').innerHTML = `<div class="lbl">${heroN(cls)} 장비 보너스</div>` + bonusHtml(E.bonus(s, cls)); $('twBest').textContent = s.bestWave; $('twRuns').textContent = s.stats.runs; $('twKills').textContent = s.stats.kills;
   $('twAcct').innerHTML = A.user ? `${esc(s.nick || A.user.email)} · <span class="sync s_${A.sync}">${Acc.SYNC_TXT[A.sync] || ''}</span>` : `${esc(s.nick || '게스트')} · <span class="sync">게스트 (이 기기 저장)</span>`;
-  const hh = VISIBLE_HEROES.map(h => { const l = s.heroLv[h], lock = !Sh.heroOwned(h); return `<button class="hcard ${h === cls ? 'sel' : ''} ${lock ? 'locked' : ''} ${CLASSES[h].paid ? 'paid' : ''}" data-h="${h}"><b>${lock ? '🔒 ' : ''}${heroN(h)}</b><small>${lock ? '상점에서 구매' : `체력 Lv.${l.hp} · 공격 Lv.${l.atk}`}</small>${lock ? '' : `<span class="dots">${heroDots(s, h)}</span>`}</button>`; }).join(''); if ($('twHeroes')._h !== hh) { $('twHeroes')._h = hh; $('twHeroes').innerHTML = hh; }
+  const hh = VISIBLE_HEROES.map(h => { const l = s.heroLv[h], lock = !Sh.heroOwned(h); return `<button class="hcard ${h === cls ? 'sel' : ''} ${lock ? 'locked' : ''} ${CLASSES[h].paid ? 'paid' : ''}" data-h="${h}"><b>${lock ? '🔒 ' : ''}${heroN(h)}</b><small>${lock ? '상점에서 구매' : `체력 Lv.${l.hp} · 공격 Lv.${l.atk}`}</small>${!lock && AD.advOf(h, s.adv[h]) ? `<em class="advT" style="--ac:${AD.advOf(h, s.adv[h]).c}">${AD.advOf(h, s.adv[h]).icon} ${AD.advOf(h, s.adv[h]).n}</em>` : ''}${lock ? '' : `<span class="dots">${heroDots(s, h)}</span>`}</button>`; }).join(''); if ($('twHeroes')._h !== hh) { $('twHeroes')._h = hh; $('twHeroes').innerHTML = hh; }
   refreshGear();
   document.querySelectorAll('#twHeroes .hcard').forEach(b => b.onclick = () => { if (!Sh.heroOwned(b.dataset.h)) { Snd.play('select'); openShop('hero_' + b.dataset.h); return; } if (b.dataset.h === cls) return; Snd.play('select'); Acc.update(d => ({ ...d, hero: b.dataset.h })); spawnTownHero(); play(th, 'Cheer', { once: true }); th.cheerT = 1.6; });
-  $('blessHero').textContent = heroN(cls);
+  $('blessHero').textContent = AD.advTitle(cls, s.adv[cls]) || heroN(cls); if (blessOpen && blessTab === 'adv') renderAdv();
   // 축복 버튼은 한 번만 만들고 내용/disabled만 갱신 (동기화 상태 변경 등으로 refreshTown이 자주 불려도 버튼이 교체되지 않아 클릭이 한 번에 들어감)
   const wrap = $('twPerm'); if (!wrap._built) { wrap._built = true; wrap.innerHTML = Object.keys(P.PERM).map(k => `<button class="perm" data-k="${k}"></button>`).join('');
     wrap.querySelectorAll('.perm').forEach(b => b.onclick = () => { const hero = Acc.load().hero; let ok = false; Acc.update(d => { const [n, o] = P.buyPerm(d, hero, b.dataset.k); ok = o; return n; }); if (ok) { Snd.play('upgrade'); Snd.play('levelUp', { vol: .5 }); if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } else Snd.play('error'); refreshTown(); }); }
-  wrap.querySelectorAll('.perm').forEach(b => { const k = b.dataset.k, D = P.PERM[k], lv = L[k], max = lv >= D.max, c = P.permCost(k, lv), h = `<span class="row"><span>${D.n} Lv.${lv}/${D.max}</span><small>${max ? 'MAX' : c + ' 영혼석'}</small></span><span class="desc">${D.d} (영구)</span>`;
+  wrap.querySelectorAll('.perm').forEach(b => { const k = b.dataset.k, D = P.PERM[k], lv = L[k], pm = P.permMax(s, cls), max = lv >= pm, c = P.permCost(k, lv), h = `<span class="row"><span>${D.n} Lv.${lv}/${pm}${pm > D.max ? ' ⚜' : ''}</span><small>${max ? 'MAX' : c + ' 영혼석'}</small></span><span class="desc">${D.d} (영구)</span>`;
     if (b._h !== h) { b._h = h; b.innerHTML = h; } const dis = max || s.souls < c; if (b.disabled !== dis) b.disabled = dis; });
 }
 export function depart() {
   if (departing || G.phase !== 'town') return; departing = true; const s = Acc.load(); s.hero = Sh.usableHero(s.hero); Snd.play('meteorCast', { force: true }); Snd.play('confirm');
-  $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.adv = AD.advOf(s.hero, s.adv[s.hero]); G.uq = E.uniquesOf(s, s.hero); G.dropCh = STAGE ? STAGE.ch : P.openChapters(s); G.runBossKills = []; G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
+  $('fade').classList.add('on'); setTimeout(() => { hideAll(); closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); town.visible = false; G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.adv = AD.advOf(s.hero, s.adv[s.hero]); G.advBar = AD.advBarMul(G.adv); G.uq = E.uniquesOf(s, s.hero); G.dropCh = STAGE ? STAGE.ch : P.openChapters(s); G.runBossKills = []; G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('fade').classList.remove('on');
     const bt = equipLine(G.equip); if (bt) setTimeout(() => banner(bt, '#ffe08a', 2200), 900); }, 650);
 }
 const sumKills = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + b, 0);
@@ -195,6 +199,8 @@ function bindUI() {
   $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeShopUI(); closeStageSel(true); closeLab(true); openInv(); }; $('twChest').onclick = () => { if (revealing()) return; closeShopUI(); closeStageSel(true); closeLab(true); closeBless(); openChestUI(); };
   initShop({ onChange: () => refreshTown(), closeOthers: k => { closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (k !== 'shop') closeShop(true); if (k !== 'mail') closeMail(true); }, cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   Sh.onShop(() => { if (th && G.screen === 'town' && th.cls !== Sh.usableHero(Acc.load().hero)) spawnTownHero(); refreshTown(); refreshMenu(); }); // 서버 소유권 갱신 → 마을 영웅 모델도 맞춤
+  document.querySelectorAll('#blessTabs .ftab').forEach(b => b.onclick = () => { if (b.dataset.bt === blessTab) return; Snd.play('ui'); setBlessTab(b.dataset.bt); });
+  initAdv({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } }, preview: A => { if (th && th.ring) th.ring.material.color.setHex(A.col); } });
   initLab({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   addEventListener('keydown', e => { if (e.key === 'Escape' && blessOpen) closeBless(); });

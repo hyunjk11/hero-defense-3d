@@ -3,7 +3,7 @@ import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { G } from '../core/state.js';
 import { TOWERS } from '../data/towers.js';
-import { BRANCH, XP_NEED, starsFor, towerStats } from '../data/growth.js';
+import { BRANCH, XP_NEED, starsFor, towerStats, branchFor } from '../data/growth.js';
 import { camera, scene } from '../render/scene.js';
 import { glow, mk, toon } from '../render/toon.js';
 import { P, PB, emit, ringFx } from '../render/vfx.js';
@@ -16,7 +16,7 @@ const goldM = toon(0xffcc44, { emissive: 0x3a2200 });
 const add = (geo, color, op = .8) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
 const fx = []; // 빛기둥 등 자체 이펙트
 
-export const recalc = tw => { tw.S = towerStats(tw.type, tw.lvl, tw.stars, tw.branch, tw.mods); };
+export const recalc = tw => { tw.S = towerStats(tw.type, tw.lvl, tw.stars, tw.branch, tw.mods); tw.B = branchFor(tw.type, tw.branch, tw.mods); }; // tw.B = 분기 + 전직 보너스
 // 모델 위 꾸밈: 별(빌보드) + XP 막대 + 별 단계별 외형 (모델을 다시 만들면 다시 호출)
 export function decorate(tw) {
   if (!G.grow || !tw.m) return; const g = tw.m.g, box = new THREE.Box3().setFromObject(g), top = box.max.y + .55, D = { orb: [], top };
