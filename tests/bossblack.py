@@ -15,6 +15,8 @@ def ok(name, cond, info=''): res[name] = bool(cond); print(('OK  ' if cond else 
 J = lambda pg, js, a=None: pg.evaluate(js, a) if a is not None else pg.evaluate(js)
 LEG = {'archer': ['multishot', 'pierce'], 'mage': ['frostorb', 'meteorstorm'], 'warrior': ['boomerang', 'quake']}
 MIN_LUM = 45  # 정상 장면 ~90-140, 검은 화면 ~0-25
+MIN_LUM_VOLCANO = 28  # 화산(3장)은 원래 어두운 판(낮 ~43, 밤 ~34) — 검은 화면(0-25)과 구분 + 처치 전 밝기의 45% 이상 (밤 웨이브는 낮의 ~59%)
+CHB = {'1-6': 'boss_forest', '2-4': 'boss_snow', '3-4': 'boss_fire'}  # 챕터 보스 스테이지 최종 웨이브 = 챕터 보스 1마리만
 HIDE = "(on)=>{ for (const id of ['stageClear','hud','fx','banner']) { const e=document.getElementById(id); if (e) e.style.visibility = on ? 'hidden' : ''; } }"
 def lum(pg):  # 캔버스(3D 장면)만의 평균 밝기: 결과 화면 등 DOM은 잠시 숨기고 2프레임 렌더 후 촬영
     J(pg, HIDE, True); pg.wait_for_timeout(120); png = pg.screenshot(); J(pg, HIDE, False)
@@ -29,7 +31,7 @@ KILL = r"""(lsk)=>{ G.manual=true; G.perm=G.perm||1; G.forceDrop=true; G.legendF
   const h=G.hero.g.position, bs=G.enemies.filter(e=>e.E.boss); bs.forEach((b,i)=>{ b.g.position.set(h.x+3+i,0,h.z+1); b.state='walk'; b.spawnT=0; });
   for (const e of G.enemies) if (!e.E.boss) G.hurt(e,1e9,'#fff',false);
   if (lsk) G.castLegend(); G.sim(.6); bs.forEach(b=>{ b.hp=Math.min(b.hp, b.max*.05); }); G.sim(1); for (const b of bs) if (!b.dead) G.hurt(b,1e9,'#fff',false); if (lsk) G.castLegend();
-  return { bosses: bs.length, dead: bs.every(b=>b.dead), drops: (G.runDrops||[]).length }; }"""
+  return { bosses: bs.length, types: bs.map(b=>b.type), dead: bs.every(b=>b.dead), drops: (G.runDrops||[]).length }; }"""
 def case(b, name, q, hero, lsk, stage):
     c = b.new_context(viewport={'width': 960, 'height': 600}); c.add_init_script(MOCK); pg = c.new_page()
     pg.on('dialog', lambda d: d.accept()); pg.on('console', lambda m: m.type == 'error' and errs.append(name + ': ' + m.text[:200])); pg.on('pageerror', lambda x: errs.append(name + ' PE ' + str(x)[:300]))
@@ -37,12 +39,12 @@ def case(b, name, q, hero, lsk, stage):
     if J(pg, "()=>G.phase") == 'select': J(pg, f"()=>G.choose('{hero}')")
     J(pg, "()=>{ G.manual=true; G.sim(.5); }"); l0 = lum(pg)
     r = J(pg, KILL, lsk or '')
-    ok(f'{name}_boss_killed', r['dead'] and r['bosses'] >= (2 if stage else 1) and r['drops'] >= 1, r)
+    ok(f'{name}_boss_killed', r['dead'] and (r['types'] == [CHB[stage]] if stage else r['bosses'] >= 1) and r['drops'] >= 1, r)
     worst, overs, nans = 999, set(), set()
     for t in (1, 2, 3):  # 보스 사망 후 약 1.6 / 3.6 / 6.6초 (전리품 빛기둥 수명 5.5초 포함)
         J(pg, f"()=>G.sim({t})"); worst = min(worst, lum(pg)); overs |= set(J(pg, OVER)); nans |= set(J(pg, NAN))
     allowed = {'app', 'fx', 'hud'} | ({'stageClear'} if stage else set())
-    ok(f'{name}_not_black', worst > MIN_LUM, (l0, worst)); ok(f'{name}_no_stuck_overlay', overs <= allowed and J(pg, "()=>+getComputedStyle(document.getElementById('fade')).opacity") < .05, sorted(overs))
+    ml = MIN_LUM_VOLCANO if stage and stage.startswith('3-') else MIN_LUM; ok(f'{name}_not_black', worst > ml and worst > l0 * .45, (l0, worst)); ok(f'{name}_no_stuck_overlay', overs <= allowed and J(pg, "()=>+getComputedStyle(document.getElementById('fade')).opacity") < .05, sorted(overs))
     ok(f'{name}_no_nan', not nans, sorted(nans))
     if stage and 'stage=3-' in q:  # 화산: 용암 셰이더가 시간이 오래 흘러도 유한(NaN 없음)하고 밝기 0..2 범위
         lv = J(pg, r"""()=>{ const T=G.THREE; let mat=null; G.scene.traverse(o=>{ if(o.name==='lava') mat=o.material; }); if(!mat) return null; const out=[];
@@ -77,9 +79,9 @@ with sync_playwright() as pw:
     for hero in (['mage'] if QUICK else ['archer', 'mage', 'warrior']):
         for lsk in ([LEG[hero][1]] if QUICK else ([None] if hero != 'archer' else []) + LEG[hero]):
             pg, c = case(b, f'endless_{hero}_{lsk or "none"}', '?seed=12345&rng=777&test=1', hero, lsk, False); c.close()
-    # 3) 챕터 보스 스테이지 최종 웨이브 (보스 2마리) → 결과 화면
+    # 3) 챕터 보스 스테이지 최종 웨이브 (챕터 보스 1마리) → 결과 화면
     for st, hero, lsk in ([('1-6', 'warrior', 'quake'), ('3-4', 'mage', 'meteorstorm')] if QUICK else [('1-6', 'warrior', 'quake'), ('1-6', 'archer', None), ('2-4', 'mage', 'meteorstorm'), ('3-4', 'gunner', 'rosebarrage'), ('3-4', 'warrior', None)]):
-        pg, c = case(b, f'stage{st}_{hero}', f'?seed=12345&rng=777&test=1&flow=1&stage={st}&run=1', hero, lsk, True); c.close()
+        pg, c = case(b, f'stage{st}_{hero}', f'?seed=12345&rng=777&test=1&flow=1&stage={st}&run=1', hero, lsk, st); c.close()
     b.close()
 ok('console_errors_0', not errs, errs[:5])
 n = sum(res.values()); print(f'{n}/{len(res)} passed'); sys.exit(0 if n == len(res) else 1)
