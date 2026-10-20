@@ -76,7 +76,8 @@ with sync_playwright() as pw:
     if SHOTS: J(pg, "()=>G.pauseRender=true")
     pg.click('#enhGo')
     if SHOTS: pg.wait_for_timeout(560); pg.screenshot(path='blacksmith.png'); J(pg, "()=>G.pauseRender=false")
-    pg.wait_for_timeout(1400); s1 = J(pg, "()=>G.gear.Acc.load()"); w1 = [x for x in s1['inv'] if x['id'] == 'wpn1'][0]
+    # 강화는 1초 연출 뒤 저장 → 고정 대기 대신 결과(lastEnh)가 나올 때까지 기다림 (느린 swiftshader에서 1.4초로는 부족했음)
+    pg.wait_for_function("()=>G.gear.lastEnh()!==null", timeout=15000); pg.wait_for_timeout(100); s1 = J(pg, "()=>G.gear.Acc.load()"); w1 = [x for x in s1['inv'] if x['id'] == 'wpn1'][0]
     w0 = [x for x in s0['inv'] if x['id'] == 'wpn1'][0]
     ok('enhance_paid_and_leveled', w1['e'] == w0['e'] + 1 and s1['souls'] == s0['souls'] - 20 * (w0['e'] + 1) * 3 and s1['mat']['steel'] == s0['mat']['steel'] - 2 - 2 * w0['e'], (w0['e'], w1['e'], s0['souls'], s1['souls']))
     ok('enhance_result_msg', '성공' in pg.inner_text('#enhRes'))
@@ -99,7 +100,7 @@ with sync_playwright() as pw:
     ok('boss_drop', J(pg, "()=>G.runDrops.length") == 1)
     if SHOTS: pg.wait_for_timeout(500)
     print('phase', J(pg, "()=>[G.phase, getComputedStyle(document.getElementById('retreat')).display, document.getElementById('retreat').parentElement.id]")); J(pg, "()=>{ G.wave=10; G.phase='build'; document.getElementById('retreat').click(); }"); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=60000)
-    pg.wait_for_function("()=>!document.getElementById('chestOv').classList.contains('hidden')", timeout=10000)
+    pg.wait_for_function("()=>!document.getElementById('chestOv').classList.contains('hidden')", timeout=40000) # 마을 로딩 + 0.6초 뒤 열림 (느린 swiftshader 에서 10초는 빠듯)
     s4 = J(pg, "()=>G.gear.Acc.load()"); ok('chests_and_drop_saved', len(s4['inv']) + len(s4['chests']) == len(s3['inv']) + 3 and len(s4['chests']) >= 1, (len(s4['inv']), len(s4['chests'])))
     if SHOTS: J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(2400); pg.screenshot(path='chest.png'); J(pg, "()=>G.pauseRender=false")
     for _ in range(12):
@@ -107,7 +108,9 @@ with sync_playwright() as pw:
         if hidden(pg, 'chestOv'): break
         pg.click('.cvStage')
     ok('chests_opened_one_by_one', len(J(pg, "()=>G.gear.Acc.load().inv")) == len(s3['inv']) + 3 and J(pg, "()=>G.gear.Acc.load().chests.length") == 0)
-    ok('results_popup_after_reveal', hidden(pg, 'chestOv') and not hidden(pg, 'townPop') and '장비' in pg.inner_text('#townPop'))
+    # 상자 보관함 변경 후: 결과 팝업은 '획득 장비' 대신 '획득 보상 상자 N개'를 보여 주고, 상자 화면을 닫은 뒤에 뜸
+    pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=10000)
+    ok('results_popup_after_reveal', hidden(pg, 'chestOv') and not hidden(pg, 'townPop') and '무사히 귀환' in pg.inner_text('#townPop') and '보상 상자 3개' in pg.inner_text('#townPop'), pg.inner_text('#townPop')[:120])
     # 저장 왕복 (새로고침 후 동일)
     before = J(pg, "()=>JSON.stringify(G.gear.P.clean(G.gear.Acc.load()))"); pg.reload(); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=60000)
     ok('save_roundtrip', J(pg, "()=>JSON.stringify(G.gear.P.clean(G.gear.Acc.load()))") == before)
