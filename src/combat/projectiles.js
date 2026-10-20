@@ -13,12 +13,13 @@ const arrowGeo = new THREE.CylinderGeometry(.035, .035, 1, 5).rotateX(Math.PI / 
 function makeArrow(color) { const m = new THREE.Mesh(arrowGeo, glow(color, 1.4)); const h = new THREE.Mesh(arrowHead, glow(color, 2.2)); h.position.z = .55; m.add(h); return m; }
 const orbGeo = new THREE.IcosahedronGeometry(.3, 2), orbMat = glow(0xc07aff, 4);
 const bulletGeo = new THREE.CylinderGeometry(.045, .045, .9, 6).rotateX(Math.PI / 2), bulletMat = glow(0xffe0b0, 3.2);
+const cmats = {}, cmat = (c, i) => cmats[c + ':' + i] || (cmats[c + ':' + i] = glow(c, i)); // 전직 투사체 색 (opts.col 있을 때만)
 function shoot(kind, from, target, dmg, opts = {}) {
-  const m = kind === 'arrow' ? makeArrow(opts.color || 0xd0ffd0) : kind === 'bullet' ? new THREE.Mesh(bulletGeo, bulletMat) : new THREE.Mesh(orbGeo, orbMat); m.position.copy(from); scene.add(m);
+  const m = kind === 'arrow' ? makeArrow(opts.color || 0xd0ffd0) : kind === 'bullet' ? new THREE.Mesh(bulletGeo, opts.col ? cmat(opts.col, 3.2) : bulletMat) : new THREE.Mesh(orbGeo, opts.col ? cmat(opts.col, 4) : orbMat); m.position.copy(from); scene.add(m);
   G.projs.push({ kind, m, target, dmg, spd: kind === 'arrow' ? 32 : kind === 'bullet' ? 62 : 16, ...opts });
 }
 function aoe(pos, r, dmg, color, opts = {}) {
-  for (const e of [...G.enemies]) { if (e.dead) continue; const dx = e.g.position.x - pos.x, dz = e.g.position.z - pos.z; if (dx * dx + dz * dz <= r * r && (!opts.groundOnly || !e.E.fly)) { if (opts.slow) { e.slowT = 1.5; e.slowAmt = .45; } hurt(e, dmg, color, opts.big); } }
+  for (const e of [...G.enemies]) { if (e.dead) continue; const dx = e.g.position.x - pos.x, dz = e.g.position.z - pos.z; if (dx * dx + dz * dz <= r * r && (!opts.groundOnly || !e.E.fly)) { if (opts.slowT) { e.slowT = Math.max(e.slowT, opts.slowT); e.slowAmt = Math.max(e.slowAmt || 0, opts.slowAmt); } else if (opts.slow) { e.slowT = 1.5; e.slowAmt = .45; } hurt(e, dmg, color, opts.big); } }
 }
 // 광역 폭발 분기: 착탄 후 집속탄 (고정 각도, 게임 난수 미사용)
 function clusterBombs(p) { const B = p.cluster, tw = p.tw, d = p.dest.clone();
@@ -37,25 +38,25 @@ function updProjs(dt) {
       const d = p.dest.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
       if (p.kind === 'meteor') { emit(P, m.position.x, m.position.y, m.position.z, 8, 0xff8a2a, 2, .5, 2, 2); m.rotation.x += dt * 5; }
       if (len <= mv) { killProj(i);
-        if (p.kind === 'rain') { aoe(p.dest, 1.3, p.dmg, '#9affb0'); emit(P, p.dest.x, .3, p.dest.z, 5, 0x9affb0, 3, .35); }
-        else { aoe(p.dest, 4.8, p.dmg, '#ffb05a', { big: true, slow: true }); G.shake = .9; ringFx(p.dest, 6, 0xff8a2a, .6); emit(PB, p.dest.x, .5, p.dest.z, 50, 0xff7a2a, 10, 1, -4, 3); emit(P, p.dest.x, .5, p.dest.z, 160, 0xffcc5a, 14, 1.1, -14, 3); debris(p.dest.x, .5, p.dest.z, 30, [0x3a2a2a, 0xff6a2a, 0x6a4a3a], 10); Snd.play('meteor', { pos: p.dest, force: true }); Snd.play('boom', { pos: p.dest }); }
+        if (p.kind === 'rain') { aoe(p.dest, 1.3, p.dmg, '#9affb0', p.slowT ? { slowT: p.slowT, slowAmt: p.slowAmt } : {}); emit(P, p.dest.x, .3, p.dest.z, 5, 0x9affb0, 3, .35); }
+        else { aoe(p.dest, p.r || 4.8, p.dmg, '#ffb05a', { big: true, slow: true }); G.shake = .9; ringFx(p.dest, (p.r || 4.8) * 1.25, 0xff8a2a, .6); emit(PB, p.dest.x, .5, p.dest.z, 50, 0xff7a2a, 10, 1, -4, 3); emit(P, p.dest.x, .5, p.dest.z, 160, 0xffcc5a, 14, 1.1, -14, 3); debris(p.dest.x, .5, p.dest.z, 30, [0x3a2a2a, 0xff6a2a, 0x6a4a3a], 10); Snd.play('meteor', { pos: p.dest, force: true }); Snd.play('boom', { pos: p.dest }); }
         continue; }
       m.position.addScaledVector(d.normalize(), mv); continue;
     }
     if (p.kind === 'pierce') { const mv = Math.min(p.left, p.spd * dt); p.left -= mv; m.position.addScaledVector(p.dir, mv); m.position.y += (1.1 - m.position.y) * Math.min(1, dt * 8);
-      emit(P, m.position.x, m.position.y, m.position.z, 3, 0x9ad8ff, .6, .35, 0, .2); G.xpSrc = G.grow ? p.tw : null;
-      for (const e of [...G.enemies]) { if (e.dead || e.E.fly || p.hit.has(e)) continue; const dx = e.g.position.x - m.position.x, dz = e.g.position.z - m.position.z; if (dx * dx + dz * dz > 1.1 * 1.1) continue;
-        p.hit.add(e); hurt(e, p.dmg / Math.max(.05, 1 - armorOf(e)), '#bfe8ff', true); const q = enemyAim(e); emit(P, q.x, q.y, q.z, 14, 0x9ad8ff, 5, .4, -3, .6); debris(q.x, q.y, q.z, 2, [0xf0ead8], 3); }
+      emit(P, m.position.x, m.position.y, m.position.z, 3, p.col || 0x9ad8ff, .6, .35, 0, .2); G.xpSrc = G.grow && p.tw ? p.tw : null;
+      for (const e of [...G.enemies]) { if (e.dead || (e.E.fly && !p.air) || p.hit.has(e)) continue; const dx = e.g.position.x - m.position.x, dz = e.g.position.z - m.position.z; if (dx * dx + dz * dz > 1.1 * 1.1) continue;
+        p.hit.add(e); hurt(e, p.dmg / Math.max(.05, 1 - armorOf(e)), p.txt || '#bfe8ff', true); if (p.onHit) p.onHit(e); const q = enemyAim(e); emit(P, q.x, q.y, q.z, 14, 0x9ad8ff, 5, .4, -3, .6); debris(q.x, q.y, q.z, 2, [0xf0ead8], 3); }
       G.xpSrc = null; if (p.left <= 0) { killProj(i); ringFx(m.position, 1.4, 0x9ad8ff, .3); emit(P, m.position.x, m.position.y, m.position.z, 18, 0xbfe8ff, 4, .4, -2, .6); } continue; }
     if (p.target.dead) { killProj(i); continue; }
     const tp = enemyAim(p.target), d = tp.clone().sub(m.position), len = d.length(), mv = p.spd * dt;
     if (len <= mv) { killProj(i);
-      if (p.kind === 'bullet') { hurt(p.target, p.dmg, '#ffd0e4', false, { x: m.position.x, z: m.position.z, kind: 'ranged' }); emit(P, tp.x, tp.y, tp.z, 4, 0xffe0a0, 3.5, .2); }
-      else if (p.kind === 'arrow') { G.xpSrc = p.tw && G.grow ? p.tw : null; hurt(p.target, p.ap ? p.dmg / Math.max(.05, 1 - armorOf(p.target)) : p.dmg, p.ap ? '#ff9ab0' : '#ffffff', !!p.big, { x: m.position.x, z: m.position.z, kind: 'ranged' }); G.xpSrc = null; if (p.big) { ringFx(tp, 1.2, 0xff7a9a, .25); emit(P, tp.x, tp.y, tp.z, 12, 0xff9ab0, 4, .35); } emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); }
-      else { aoe(tp, p.aoe, p.dmg, '#d0a0ff', { slow: true }); emit(P, tp.x, tp.y, tp.z, 18, 0xb07aff, 5, .5, -4, 1.5); ringFx(tp, p.aoe, 0xb07aff, .3); }
+      if (p.kind === 'bullet') { hurt(p.target, p.dmg, '#ffd0e4', false, { x: m.position.x, z: m.position.z, kind: 'ranged' }); emit(P, tp.x, tp.y, tp.z, 4, 0xffe0a0, 3.5, .2); if (p.onHit) p.onHit(tp, p.target); }
+      else if (p.kind === 'arrow') { G.xpSrc = p.tw && G.grow ? p.tw : null; hurt(p.target, p.ap ? p.dmg / Math.max(.05, 1 - armorOf(p.target)) : p.dmg, p.ap ? '#ff9ab0' : '#ffffff', !!p.big, { x: m.position.x, z: m.position.z, kind: 'ranged' }); G.xpSrc = null; if (p.big) { ringFx(tp, 1.2, 0xff7a9a, .25); emit(P, tp.x, tp.y, tp.z, 12, 0xff9ab0, 4, .35); } emit(P, tp.x, tp.y, tp.z, 5, p.color || 0xd0ffd0, 3, .3); if (p.onHit) p.onHit(tp, p.target); }
+      else { aoe(tp, p.aoe, p.dmg, '#d0a0ff', { slow: true }); emit(P, tp.x, tp.y, tp.z, 18, p.col || 0xb07aff, 5, .5, -4, 1.5); ringFx(tp, p.aoe, p.col || 0xb07aff, .3); if (p.onHit) p.onHit(tp, p.target); }
       continue; }
     m.position.addScaledVector(d.normalize(), mv); m.lookAt(tp);
-    if (p.kind !== 'bullet') emit(P, m.position.x, m.position.y, m.position.z, 1, p.kind === 'arrow' ? (p.color || 0x9affb0) : 0xb07aff, .3, .25, 0, 0);
+    if (p.kind !== 'bullet') emit(P, m.position.x, m.position.y, m.position.z, 1, p.kind === 'arrow' ? (p.color || 0x9affb0) : (p.col || 0xb07aff), .3, .25, 0, 0);
   }
 }
 

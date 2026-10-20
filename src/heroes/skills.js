@@ -13,6 +13,7 @@ import { mouseGround } from '../ui/input.js';
 import { gunSkill } from './gunner.js';
 import { mechTransform } from './mechanic.js';
 import { uqOnSkill } from './unique.js';
+import { advSkill } from './advfx.js';
 
 // ================= 스킬 =================
 function castSkill() {
@@ -22,6 +23,7 @@ function castSkill() {
   hero.skillCd = stat.skillCd();
   const tgt = mouseGround.clone(); const hp = hero.g.position; if (hp.distanceTo(tgt) > 16) tgt.sub(hp).setLength(16).add(hp);
   if (hero.cls !== 'warrior') hero.face = Math.atan2(tgt.x - hp.x, tgt.z - hp.z);
+  if (hero.adv && advSkill(tgt, mul, base)) { if (hero.uqs) uqOnSkill(tgt); return; } // 전직 Q 변형 (advfx.js)
   if (hero.cls === 'archer') {
     ringFx(tgt, 4.2, 0x6aff8a, 1.4); banner('화살비!', '#8aff9a', 900); play(hero.ch, hero.ch.acts.Ranged_Skill ? 'Ranged_Skill' : '2H_Ranged_Shoot', { once: true, force: true, speed: 1.2 }); hero.atkT = .6;
     for (let i = 0; i < 36; i++) later(i * .038, () => { const a = rand() * 6.28, rr = Math.sqrt(rand()) * 4, p = new THREE.Vector3(tgt.x + Math.cos(a) * rr, 18, tgt.z + Math.sin(a) * rr);

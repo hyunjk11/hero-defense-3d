@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { $, rand } from '../core/util.js';
 import { CORE, DIRS, GH, T, inGrid, tileX, tileZ, toTile } from '../core/grid.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
+import { applyAdv } from '../data/advance.js';
 import { G, later } from '../core/state.js';
 import { cam, scene } from '../render/scene.js';
 import { P, emit, ringFx } from '../render/vfx.js';
@@ -18,27 +19,30 @@ import { keys } from '../ui/input.js';
 import { legendProc, updLeap } from './legend.js';
 import { gunAttack, updRose } from './gunner.js';
 import { mechAbsorb, mechInit, mechRevert, mechSwing, updMech } from './mechanic.js';
+import { advInit, advUpd, advPick, advArrow, advOrb, advLeech, advAtkMul, advOnHurt } from './advfx.js';
 import { uqInit, uqPreHit, uqPostHit, uqOnDeath, uqRate } from './unique.js';
 
 // ================= 영웅 =================
 let hero = null;
 const stat = {
-  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk) * (hero.uqAtk || 1), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
+  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk) * (hero.uqAtk || 1) * (hero.adv ? advAtkMul() : 1), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
   rate: () => hero.C.rate * (1 + .1 * G.ups.spd) * uqRate(), range: () => hero.C.range * (1 + .08 * G.ups.rng) * (hero.robo ? 1.45 : 1), // 메카닉 로봇: 사거리 +45%
   skillMul: () => (1 + .25 * G.ups.skill) * (1 + ((hero.eq && hero.eq.skill) || 0) / 100), skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100),
 };
 function spawnHero(cls) {
   let C = CLASSES[cls]; if (G.perm) C = { ...C, hp: Math.round(C.hp * (1 + .06 * (G.perm.hp || 0))), dmg: C.dmg * (1 + .05 * (G.perm.atk || 0)) }; // 마을 영구 강화
+  if (G.perm && G.adv && G.adv.h === cls) C = applyAdv(C, G.adv); // 전직 (마을 출정 때만): 기본 → 여신탑 → 전직 → 장비
   const q = G.perm && G.equip ? G.equip : null; if (q) C = { ...C, hp: Math.round(C.hp * (1 + (q.hp || 0) / 100)), dmg: C.dmg * (1 + (q.atk || 0) / 100), rate: C.rate * (1 + (q.spd || 0) / 100), range: C.range * (1 + (q.rng || 0) / 100) }; // 장비
   const ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
-  hero = G.hero = { warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
+  hero = G.hero = { adv: C.adv || null, advHits: 0, advStunCd: 0, warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
+  advInit(hero); // 전직: 오라 링 · 무기 스케일 (전직 없으면 카운터만 초기화)
   uqInit(hero); // 고유 방어구·장신구 자동 궁극기 + 고유 무기 각성 (마을 출정 때만, 없으면 hero.uqs 없음)
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle'); if (cls === 'mechanic') mechInit(hero);
-  $('heroName').textContent = `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('skillName').textContent = C.skill; $('skillName').classList.toggle('long', C.skill.length > 5);
+  $('heroName').textContent = C.title ? `${CLASSES[cls].nm} · ${C.title} · 스킬 [Q] ${C.skill}` : `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('heroName').classList.toggle('adv', !!C.title); if (C.adv) $('heroName').style.setProperty('--adv', C.adv.c); else $('heroName').style.removeProperty('--adv'); $('skillName').textContent = C.skill; $('skillName').classList.toggle('long', C.skill.length > 5);
 }
 function heroDamage(d) {
-  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.uqs) uqPostHit(hp0); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
+  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.uqs) uqPostHit(hp0); if (hero.adv && hero.hp > 0) advOnHurt(); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
   if (hero.hp <= 0 && hero.uqs && uqOnDeath()) return; // 불사조 부활
   if (hero.hp <= 0) { if (hero.mech) mechRevert(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
 }
@@ -95,7 +99,7 @@ function heroGoTo(p) {
 
 // ================= 영웅 업데이트 =================
 function updHero(dt) {
-  const h = hero; h.ch.mixer.update(dt);
+  const h = hero; h.ch.mixer.update(dt); if (h.adv) advUpd(dt); // 전직: 오라·무기 스케일·불꽃 바닥·성역
   if (h.dead > 0) { h.dead -= dt; if (h.dead <= 0) { h.hp = h.max; h.hb.show(true); h.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); play(h.ch, 'Cheer', { once: true }); h.atkT = 1.2; emit(P, h.g.position.x, 1, h.g.position.z, 40, 0x8aff9a, 5, .8); ringFx(h.g.position, 2.5, 0x8aff9a, .6); } return; }
   const fwd = new THREE.Vector3(-Math.sin(cam.theta), 0, -Math.cos(cam.theta)), right = new THREE.Vector3(-fwd.z, 0, fwd.x), mv = new THREE.Vector3();
   let fromPath = false; if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right);
@@ -107,7 +111,7 @@ function updHero(dt) {
   if (mv.lengthSq() > 0) h.path = [];
   else if (h.path.length) { fromPath = true; mv.subVectors(h.path[0], h.g.position).setY(0); if (mv.length() < .15) { h.path.shift(); if (!h.path.length) mv.set(0, 0, 0); } }
   let moving = false;
-  if (mv.lengthSq() > 0) { const want = mv.length(), stp = h.C.speed * dt * (h.spinT > 0 || h.roseT > 0 ? .7 : 1) * (h.robo ? .9 : 1); mv.normalize().multiplyScalar(fromPath ? Math.min(stp, want) : stp); const p = h.g.position; // 경로 지점을 지나치며 왕복하던 떨림 방지 const p = h.g.position;
+  if (mv.lengthSq() > 0) { const want = mv.length(), stp = h.C.speed * dt * (h.spinT > 0 ? h.spinSpd || .7 : h.roseT > 0 ? .7 : 1) * (h.robo ? .9 : 1); mv.normalize().multiplyScalar(fromPath ? Math.min(stp, want) : stp); const p = h.g.position; // 경로 지점을 지나치며 왕복하던 떨림 방지 const p = h.g.position;
     // 근본 원인 수정: 현재 위치가 이미 막힌 칸과 겹쳐 있으면(타워/바리케이드가 옆에 생기거나 밀려서) 4모서리 검사가 모든 이동을 거부해 영구히 갇혔음.
     // 겹친 상태에서는 '덜 겹치는' 방향(중심 칸이 통과 가능)으로의 이동을 허용해 빠져나오게 함
     const ok = (x, z) => passAt(x, z) || (!passAt(p.x, p.z) && heroPassXZ(x, z) && overlap(x, z) <= overlap(p.x, p.z));
@@ -120,6 +124,7 @@ function updHero(dt) {
   h.g.position.y += (groundY(h.g.position.x, h.g.position.z) - h.g.position.y) * Math.min(1, dt * 10);
   const rng = stat.range(); let tgt = null, bd = rng * rng;
   for (const e of G.enemies) { if (e.dead || e.immT > G.t) continue; const dx = e.g.position.x - h.g.position.x, dz = e.g.position.z - h.g.position.z, d = dx * dx + dz * dz; if (d < bd && (h.cls !== 'warrior' || !e.E.fly)) { bd = d; tgt = e; } }
+  if (tgt && h.adv && h.adv.atk.prio === 'hp') tgt = advPick(rng) || tgt; // 전직 저격수: 체력 높은 적(보스) 우선
   h.cd -= dt; h.atkT -= dt; if (h.gunT > 0) h.gunT -= dt;
   if (h.roseT > 0) updRose(dt); // 로즈 피니시 중: 일반 사격 대신 난사
   else if (h.cls === 'gunner' && tgt) { h.face = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); // 총사: 이동 중에도 목표를 겨누며 연사
@@ -133,7 +138,7 @@ function updHero(dt) {
         if (h.ch.hitAt) hitD = h.ch.hitAt / spd; } // Meshy 전사: 칼 휘두름 정점에 타격
       const t0 = tgt; later(hitD, () => { if (!t0.dead && hero.dead <= 0) { attack(t0); if (hero.lsk) legendProc(t0); } }); } }
   if (h.spinT > 0) { h.spinT -= dt; h.spinTick -= dt; h.g.rotation.y += dt * 9;
-    if (h.spinTick <= 0) { h.spinTick = .25; aoe(h.g.position, 3.6, stat.dmg() * 1.3 * stat.skillMul(), '#ffb07a', { groundOnly: true }); emit(P, h.g.position.x, 1.2, h.g.position.z, 20, 0xffa04a, 7, .4, 0, 4); }
+    if (h.spinTick <= 0) { h.spinTick = .25; aoe(h.g.position, h.spinR || 3.6, stat.dmg() * 1.3 * stat.skillMul(), h.spinCol ? h.spinCol[0] : '#ffb07a', { groundOnly: true }); emit(P, h.g.position.x, 1.2, h.g.position.z, 20, h.spinCol ? h.spinCol[1] : 0xffa04a, 7, .4, 0, 4); }
     h.swirl.rotation.z += dt * 15; if (h.spinT <= 0) { h.swirl.visible = false; play(h.ch, 'Idle'); } }
   else { let d = h.face - h.g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); h.g.rotation.y += d * Math.min(1, dt * 14); }
   if (h.roseT > 0) { /* ShootCharged 재생 중 */ } else if (h.gunT > 0) play(h.ch, moving ? 'ShootWalk' : 'ShootStand', { speed: moving ? 1.3 : 1, fade: .12 });
@@ -146,11 +151,12 @@ function updHero(dt) {
 function heroTip() { if (hero.ch.tip) { hero.g.updateMatrixWorld(true); const v = hero.ch.tip.getWorldPosition(new THREE.Vector3()); if (v.y > .8) return v; } const p = hero.g.position, f = hero.g.rotation.y; return new THREE.Vector3(p.x + Math.sin(f) * .6, p.y + (hero.cls === 'mage' ? 2.2 : 1.5), p.z + Math.cos(f) * .6); }
 function attack(t) {
   const h = hero, from = heroTip(); if (h.cls === 'archer') Snd.play('bolt', { pos: from }); else if (h.cls === 'mage') Snd.play('magic', { pos: from, rate: .8 }); else { Snd.play('sword', { pos: from }); Snd.whoosh(from, .22, 700, 2200, .25); }
-  if (h.cls === 'archer') shoot('arrow', from, t, stat.dmg(), { color: 0xb0ffb8 });
-  else if (h.cls === 'mage') { shoot('orb', from, t, stat.dmg(), { aoe: h.C.aoe }); emit(P, from.x, from.y, from.z, 10, 0xc07aff, 3, .3); }
-  else { const fx2 = Math.sin(h.face), fz2 = Math.cos(h.face);
-    for (const e of [...G.enemies]) { if (e.dead || e.E.fly) continue; const dx = e.g.position.x - h.g.position.x, dz = e.g.position.z - h.g.position.z, d = Math.hypot(dx, dz); if (d < stat.range() + .4 && (dx * fx2 + dz * fz2) / (d || 1) > .45) hurt(e, stat.dmg(), '#ffcf9a', false, { x: h.g.position.x, z: h.g.position.z, kind: 'melee' }); }
-    const arc = new THREE.Mesh(new THREE.RingGeometry(1.2, 2.8, 24, 1, -Math.PI / 3, Math.PI * 2 / 3), new THREE.MeshBasicMaterial({ color: 0xffd0a0, transparent: true, opacity: .8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  if (h.cls === 'archer') { if (h.adv) advArrow(t, from, stat.dmg()); else shoot('arrow', from, t, stat.dmg(), { color: 0xb0ffb8 }); }
+  else if (h.cls === 'mage') { if (h.adv) advOrb(t, from, stat.dmg()); else { shoot('orb', from, t, stat.dmg(), { aoe: h.C.aoe }); emit(P, from.x, from.y, from.z, 10, 0xc07aff, 3, .3); } }
+  else { const fx2 = Math.sin(h.face), fz2 = Math.cos(h.face); let dealt = 0;
+    for (const e of [...G.enemies]) { if (e.dead || e.E.fly) continue; const dx = e.g.position.x - h.g.position.x, dz = e.g.position.z - h.g.position.z, d = Math.hypot(dx, dz); if (d < stat.range() + .4 && (dx * fx2 + dz * fz2) / (d || 1) > .45) { const v = stat.dmg(); dealt += v; hurt(e, v, '#ffcf9a', false, { x: h.g.position.x, z: h.g.position.z, kind: 'melee' }); } }
+    if (h.adv) advLeech(dealt); // 전직 광전사 흡혈
+    const arc = new THREE.Mesh(new THREE.RingGeometry(1.2, 2.8, 24, 1, -Math.PI / 3, Math.PI * 2 / 3), new THREE.MeshBasicMaterial({ color: h.adv ? h.adv.col : 0xffd0a0, transparent: true, opacity: .8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
     arc.rotation.x = -Math.PI / 2; arc.rotation.z = h.face - Math.PI / 2; arc.position.set(h.g.position.x, 1, h.g.position.z); scene.add(arc); G.fxs.push({ m: arc, t: 0, dur: .2, kind: 'fade' }); }
 }
 

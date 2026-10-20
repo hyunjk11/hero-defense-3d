@@ -10,6 +10,7 @@ import { shoot } from '../combat/projectiles.js';
 import { hurt as hurt0 } from '../monsters/enemy.js';
 import { banner } from '../ui/hud.js';
 import { hero, stat } from './hero.js';
+import { advBullet } from './advfx.js';
 
 const FX = []; let side = 0; const _v = new THREE.Vector3();
 const alive = () => G.enemies.filter(e => !e.dead && e.dying === undefined);
@@ -26,7 +27,7 @@ function shell(p) { emit(P, p.x, p.y, p.z, 3, 0xffd27a, 2.6, .22, -10, .15); emi
 // 기본 공격: 번갈아 사격
 export function gunAttack(t) {
   const k = side = side ^ 1, from = muzzle(k); flash(k); shell(from); G.gunN.shots++;
-  Snd.gun(from, { rate: k ? 1.04 : .97 }); shoot('bullet', from, t, stat.dmg(), { color: 0xffc8e0 });
+  Snd.gun(from, { rate: k ? 1.04 : .97 }); shoot('bullet', from, t, stat.dmg(), hero.adv ? advBullet(t) : { color: 0xffc8e0 }); // 전직: 탄 색 · 도탄/소폭발 (advfx.js)
 }
 // 직선 탄환 (스킬/전설): 첫 적 또는 관통 횟수만큼 맞히고 사라짐
 function lineShot(from, dir, o) {
@@ -44,15 +45,15 @@ function tracer(a, b, color, dur = .14) { const L = a.distanceTo(b); if (L < .05
 
 // ---------- Q: 로즈 피니시 — ShootCharged(회전 사격) 동안 사방으로 탄환 난사 + 왼손(1.4초)·오른손(2.4초) 피니시 폭발 ----------
 const SK_SPD = 1.6, SK_DUR = 4.3 / SK_SPD;
-export function gunSkill(mul, base) {
-  hero.roseT = SK_DUR; hero.roseA = hero.face; hero.roseN = 0; hero.roseTick = 0; hero.roseB = [1.4 / SK_SPD, 2.4 / SK_SPD]; G.gunN.skill++; hero.path = [];
-  play(hero.ch, 'ShootCharged', { once: true, force: true, speed: SK_SPD }); banner('로즈 피니시!', '#ff8ac0', 1000);
+export function gunSkill(mul, base, k = 1, tk = 1) { // 전직 로즈 피니시+: k 지속 배수, tk 발사 간격 배수
+  hero.roseDur = SK_DUR * k; hero.roseTk = tk; hero.roseT = SK_DUR * k; hero.roseA = hero.face; hero.roseN = 0; hero.roseTick = 0; hero.roseB = [1.4 / SK_SPD * k, 2.4 / SK_SPD * k]; G.gunN.skill++; hero.path = [];
+  play(hero.ch, 'ShootCharged', { once: true, force: true, speed: SK_SPD / k }); banner('로즈 피니시!', '#ff8ac0', 1000);
   ringFx(hero.g.position, 3.2, 0xff6aa8, .5); emit(PB, hero.g.position.x, 1.2, hero.g.position.z, 10, 0xff6aa8, 3, .5, 0, 1); Snd.whoosh(hero.g.position, .5, 400, 3200, .45); Snd.play('draw', { pos: hero.g.position, rate: 1.3 });
   hero.roseD = { mul, base };
 }
 export function updRose(dt) {
-  const h = hero, p = h.g.position, el = SK_DUR - h.roseT; h.roseT -= dt; h.roseTick -= dt; h.roseA += dt * 7.5;
-  if (h.roseTick <= 0 && h.roseT > .25) { h.roseTick = .055; const k = (h.roseN++) & 1, a = h.roseA + k * Math.PI + (Math.random() - .5) * .5, dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), from = muzzle(k);
+  const h = hero, p = h.g.position, el = (h.roseDur || SK_DUR) - h.roseT; h.roseT -= dt; h.roseTick -= dt; h.roseA += dt * 7.5;
+  if (h.roseTick <= 0 && h.roseT > .25) { h.roseTick = .055 * (h.roseTk || 1); const k = (h.roseN++) & 1, a = h.roseA + k * Math.PI + (Math.random() - .5) * .5, dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), from = muzzle(k);
     from.y = Math.max(.9, Math.min(1.8, from.y)); flash(k); shell(from); G.gunN.spray++; if (h.roseN % 2) Snd.gun(from, { rate: 1.1, vol: .7 });
     lineShot(from, dir, { dmg: h.roseD.base * 1.0 * h.roseD.mul, range: 9.5, color: 0xff9ac8, trail: 0xff6aa8 }); }
   for (let i = 0; i < 2; i++) if (h.roseB[i] && el >= h.roseB[i]) { h.roseB[i] = 0; finisher(i ? 1 : 0); }
@@ -72,11 +73,11 @@ function petals(c, n, spd) { for (let i = 0; i < n; i++) { const m = new THREE.M
 
 // ---------- 전설 쌍권총 ----------
 // 도탄 난사 (proc): 탄환이 주변 적 최대 4명에게 차례로 튕김 (각 70% 피해)
-export function ricochet(t, s) {
-  const dmg = stat.dmg() * s.mul, hit = new Set([t]); let cur = t; G.gunN.ricochet++;
-  const jump = n => { if (n >= 4 || cur.dead && n > 0 && !cur.g) return; const a = cur.g.position; let best = null, bd = 5.5 * 5.5;
+export function ricochet(t, s, N = 4, leg = true) { // 전직 장미 결투가: N=3, leg=false (전설 피해 집계 제외)
+  const dmg = stat.dmg() * s.mul, hit = new Set([t]); let cur = t; if (leg) G.gunN.ricochet++;
+  const jump = n => { if (n >= N || cur.dead && n > 0 && !cur.g) return; const a = cur.g.position; let best = null, bd = 5.5 * 5.5;
     for (const e of alive()) { if (hit.has(e)) continue; const d = d2(e, a.x, a.z); if (d < bd) { bd = d; best = e; } } if (!best) return;
-    const pa = a.clone().setY(1.2), pb = best.g.position.clone().setY(1.2); tracer(pa, pb, 0xffd0e8); tracer(pa, pb, 0xff6aa8, .22); hit.add(best); lsk = true; hurt(best, dmg, '#ffd86a', false, { x: pa.x, z: pa.z, kind: 'ranged' }); lsk = false;
+    const pa = a.clone().setY(1.2), pb = best.g.position.clone().setY(1.2); tracer(pa, pb, 0xffd0e8); tracer(pa, pb, 0xff6aa8, .22); hit.add(best); lsk = leg; hurt(best, dmg, '#ffd86a', false, { x: pa.x, z: pa.z, kind: 'ranged' }); lsk = false; if (!leg) G.advN.ricoHit = (G.advN.ricoHit || 0) + 1;
     emit(P, pb.x, pb.y, pb.z, 10, 0xffe0a0, 4, .3); emit(P, pa.x, pa.y, pa.z, 4, 0xfff0c0, 3, .2); Snd.gun(pb, { rate: 1.6 + n * .12, vol: .45, ping: true }); cur = best; later(.06, () => jump(n + 1)); };
   later(.05, () => jump(0));
 }
@@ -91,7 +92,7 @@ export function rosebarrage(s, tg) {
         onEnd: v === 2 && i === 5 ? p => bloom(p, s) : null, lsk: true }); }
     Snd.gun(muzzle(0), { rate: .85, vol: 1.2, big: true }); Snd.gun(muzzle(1), { rate: .95, vol: 1 }); });
 }
-function bloom(p, s) { const c = p.clone().setY(0), R = 3.4, dmg = stat.dmg() * s.mul * 2 * stat.skillMul(); lsk = true; for (const e of alive()) if (d2(e, c.x, c.z) <= R * R) hurt(e, dmg, '#ff6aa8', true); lsk = false;
+export function bloom(p, s, leg = true) { const c = p.clone().setY(0), R = 3.4, dmg = stat.dmg() * s.mul * 2 * stat.skillMul(); lsk = leg; for (const e of alive()) if (d2(e, c.x, c.z) <= R * R) hurt(e, dmg, '#ff6aa8', true); lsk = false;
   ringFx(c, R + 1, 0xff3a8a, .5); ringFx(c, R * .5, 0xffe0f0, .3); petals(c, 34, 6); emit(P, c.x, 1, c.z, 60, 0xff6aa8, 8, .6, -6, 1.5); Snd.play('boom', { pos: c, vol: .6, rate: 1.3 }); }
 
 // 매 프레임 (legend.js updLegend에서 호출): 총구 섬광 감쇠 + 탄환/이펙트
