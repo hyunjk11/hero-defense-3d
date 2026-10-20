@@ -8,7 +8,8 @@ for (let g = 0; g < 5; g++) for (const s of E.SLOT_KEYS) { const it = E.makeItem
 // 보상 상자: 웨이브 4 → 0개, 12 → 2개
 assert.equal(E.chestsFor(4, 'mage', r).length, 0); assert.equal(E.chestsFor(12, 'mage', r).length, 2);
 let [s, got, loot] = P.applyRun(P.empty(), { wave: 10, kills: 30, drops: [E.makeItem('weapon', 'mage', 3, r)], hero: 'mage' }, r);
-assert.equal(got, 90); assert.equal(loot.length, 3); assert.equal(s.inv.length, 3); assert.equal(loot.filter(x => x.src === 'boss').length, 1);
+assert.equal(got, 90); assert.equal(loot.length, 3); assert.equal(s.inv.length, 0); assert.equal(s.chests.length, 3); // 보상은 미개봉 상자로 보관
+[s] = E.openChests(s); assert.equal(s.inv.length, 3); assert.equal(s.chests.length, 0); assert.equal(loot.filter(x => x.src === 'boss').length, 1);
 // 등급 확률: 오래 버틸수록 좋은 등급
 const avg = t => { let a = 0; for (let i = 0; i < 4000; i++) a += E.rollGrade(E.chestOdds(t), r); return a / 4000; }; assert.ok(avg(6) > avg(1) + .8, 'odds scale');
 assert.ok(E.bossOdds(5)[0] === 0);

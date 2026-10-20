@@ -1,6 +1,7 @@
 // 챕터/스테이지 로직 테스트: node tests/stages.test.mjs
 import * as P from '../src/account/progress.js';
 import * as ST from '../src/data/stages.js';
+import * as E from '../src/account/equip.js';
 import assert from 'node:assert/strict';
 let seed = 3; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 // 데이터 무결성: 코어/포털이 격자 안, 서로 겹치지 않음, 10~15 웨이브, 챕터 마지막 = 보스
@@ -20,6 +21,8 @@ const souls0 = s.souls; [s, info] = P.applyStage(s, '1-1', 1, 'mage', r); assert
 // 챕터 1 전부 클리어 → 2장 해금, 별 보상 상자 (5개마다)
 for (const st of ST.CHAPTERS[0].stages.slice(1)) [s, info] = P.applyStage(s, st.id, 3, 'mage', r);
 assert.ok(ST.chapterUnlocked(s, 2)); assert.ok(ST.stageUnlocked(s, '2-1')); assert.equal(ST.totalStars(s), 18); assert.equal(s.starRw, 3);
+assert.equal(s.inv.length, 0); assert.equal(s.chests.filter(c => c.it.c === 1).length, 6); // 미개봉 상자로 보관
+const rc = P.clean(JSON.parse(JSON.stringify(s))); assert.equal(rc.chests.length, s.chests.length); s = P.clean(s); E.openChests(s); assert.equal(s.chests.length, 0);
 assert.equal(s.inv.filter(x => x.c === 1).length, 6);
 // 저장 왕복 / 구버전 / 잘못된 값 / 병합
 const rt = P.clean(JSON.parse(JSON.stringify(s))); assert.deepEqual(rt.st, s.st); assert.equal(rt.starRw, 3); assert.equal(rt.inv.find(x => x.c === 1).c, 1);

@@ -42,7 +42,7 @@ with sync_playwright() as pw:
         done = J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead) G.hurt(e, 1e9, '#fff', false); G.sim(1); return G.phase; }")
         if done != 'wave': break
     ok('stage_clear_overlay', not hidden(pg, 'stageClear') and '스테이지 클리어' in pg.inner_text('#stageClear'), done)
-    s = J(pg, "()=>G.gear.Acc.load()"); ok('stars_saved', s['st'].get('1-1') == 3 and any(x.get('c') == 1 for x in s['inv']) and s['bestWave'] == 0, (s['st'], s['bestWave']))
+    s = J(pg, "()=>G.gear.Acc.load()"); ok('stars_saved', s['st'].get('1-1') == 3 and any(x.get('c') == 1 for x in s['inv'] + [c['it'] for c in s['chests']]) and s['bestWave'] == 0, (s['st'], s['bestWave']))
     pg.click('#scTown'); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=90000)
     ok('url_clean', 'stage=' not in pg.url)
     for _ in range(8):

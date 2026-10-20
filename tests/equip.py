@@ -95,12 +95,13 @@ with sync_playwright() as pw:
     if SHOTS: pg.wait_for_timeout(500)
     print('phase', J(pg, "()=>[G.phase, getComputedStyle(document.getElementById('retreat')).display, document.getElementById('retreat').parentElement.id]")); J(pg, "()=>{ G.wave=10; G.phase='build'; document.getElementById('retreat').click(); }"); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=60000)
     pg.wait_for_function("()=>!document.getElementById('chestOv').classList.contains('hidden')", timeout=10000)
-    s4 = J(pg, "()=>G.gear.Acc.load()"); ok('chests_and_drop_saved', len(s4['inv']) == len(s3['inv']) + 3, len(s4['inv']))
+    s4 = J(pg, "()=>G.gear.Acc.load()"); ok('chests_and_drop_saved', len(s4['inv']) + len(s4['chests']) == len(s3['inv']) + 3 and len(s4['chests']) >= 1, (len(s4['inv']), len(s4['chests'])))
     if SHOTS: J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(2400); pg.screenshot(path='chest.png'); J(pg, "()=>G.pauseRender=false")
-    for _ in range(4):
-        pg.wait_for_timeout(1400)
+    for _ in range(12):
+        pg.wait_for_timeout(1000)
         if hidden(pg, 'chestOv'): break
         pg.click('.cvStage')
+    ok('chests_opened_one_by_one', len(J(pg, "()=>G.gear.Acc.load().inv")) == len(s3['inv']) + 3 and J(pg, "()=>G.gear.Acc.load().chests.length") == 0)
     ok('results_popup_after_reveal', hidden(pg, 'chestOv') and not hidden(pg, 'townPop') and '장비' in pg.inner_text('#townPop'))
     # 저장 왕복 (새로고침 후 동일)
     before = J(pg, "()=>JSON.stringify(G.gear.P.clean(G.gear.Acc.load()))"); pg.reload(); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=60000)

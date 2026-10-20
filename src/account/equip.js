@@ -70,6 +70,35 @@ export function bossOdds(wave) { const o = chestOdds(Math.floor(wave / 5) + 1); 
 export function randomItem(hero, odds, r = Math.random, slot) { return makeItem(slot || pick(SLOT_KEYS, r), hero, rollGrade(odds, r), r); }
 export function chestsFor(wave, hero, r = Math.random) { const out = []; for (let w = 5; w <= wave; w += 5) out.push(randomItem(hero, chestOdds(w / 5), r)); return out; }
 // 가방에 넣기 (가득 차면 자동 분해 → 재료). 반환: [save, 결과목록{it, auto}]
+// ---------- 보관 중인 보상 상자 (미개봉) ----------
+// save.chests = [{ id, src, it: 획득 시 미리 굴려 둔 장비, souls: 개봉 시 영혼석 }] — 개봉해야 가방에 들어감. 가방이 가득 차면 상자는 그대로 보관.
+export const CHEST_CAP = 200, CHEST_SRC = ['chest', 'boss', 'stage', 'star'], CHEST_SOULS = [4, 6, 10, 16, 30], BATCH = 10;
+export const chestOf = (it, src) => ({ id: 'c' + it.id, src: CHEST_SRC.includes(src) ? src : 'chest', it, souls: CHEST_SOULS[it.g] || 0 });
+// 상자로 보관 (보관함도 가득 차면 예전처럼 자동 분해). 반환: 결과목록{it, src, auto, chest?}
+export function addChests(save, list) {
+  if (!Array.isArray(save.chests)) save.chests = []; const ids = new Set(save.chests.map(c => c.id)); const res = [];
+  for (const { it, src } of list) { const c = chestOf(it, src); if (save.chests.length < CHEST_CAP && !ids.has(c.id)) { save.chests.push(c); ids.add(c.id); res.push({ it, src, auto: false, chest: c.id }); }
+    else { const y = dismantleYield(it); for (const k in y) save.mat[k] += y[k]; res.push({ it, src, auto: true, y }); } }
+  return res;
+}
+// 상자 개봉 (한 개 / 여러 개 / 전부를 같은 함수로): n개까지 (ids가 있으면 그 상자만), 가방 빈칸만큼만 연다.
+// 열린 상자는 save.chests에서 즉시 제거 → 같은 상자를 두 번 열 수 없음(중복 보상 없음). 저장은 호출하는 쪽에서 한 번만.
+// 반환 [save, { opened:[{it, src, souls}], souls, left, full(가방이 부족해 못 연 상자가 있음), blocked(못 연 개수) }]
+export function openChests(save, n = Infinity, ids = null) {
+  if (!Array.isArray(save.chests)) save.chests = []; const L = save.chests, have = new Set(save.inv.map(x => x.id));
+  const want = (ids ? L.filter(c => ids.includes(c.id)) : L.slice()).slice(0, Math.max(0, Math.floor(n === Infinity ? L.length : +n || 0)));
+  let free = Math.max(0, CAP - save.inv.length); const opened = []; let souls = 0, blocked = 0;
+  for (const c of want) {
+    if (have.has(c.it.id)) { L.splice(L.indexOf(c), 1); continue; } // 이미 가방에 있는 장비(다른 기기에서 열림) → 상자만 정리
+    if (free <= 0) { blocked++; continue; }
+    L.splice(L.indexOf(c), 1); save.inv.push(c.it); have.add(c.it.id); free--; souls += c.souls; opened.push({ it: c.it, src: c.src, souls: c.souls });
+  }
+  save.souls = (save.souls || 0) + souls; if (save.stats) save.stats.souls = (save.stats.souls || 0) + souls;
+  return [save, { opened, souls, left: L.length, full: blocked > 0, blocked }];
+}
+// 요약 화면 정렬: 등급 높은 순 → 전설 무기 → 장비 위력
+export const byRarity = (a, b) => b.it.g - a.it.g || (!!legendKey(b.it) - !!legendKey(a.it)) || power(b.it) - power(a.it);
+export function gradeCount(opened) { const c = [0, 0, 0, 0, 0]; for (const x of opened) c[x.it.g]++; return c; }
 export function addItems(save, items) { const res = []; for (const it of items) { if (save.inv.length < CAP) { save.inv.push(it); res.push({ it, auto: false }); } else { const y = dismantleYield(it); for (const k in y) save.mat[k] += y[k]; res.push({ it, auto: true, y }); } } return res; }
 
 // ---------- 대장간 ----------
@@ -105,11 +134,15 @@ export function cleanEquip(d, e, heroes) {
   const m = d.mat && typeof d.mat === 'object' ? d.mat : {}; e.mat = { steel: fin(m.steel, 0, 1e7, 0), crystal: fin(m.crystal, 0, 1e7, 0) };
   e.eq = {}; const eq = d.eq && typeof d.eq === 'object' ? d.eq : {};
   for (const h of heroes) { e.eq[h] = {}; for (const sl of SLOT_KEYS) { const id = (eq[h] || {})[sl], it = e.inv.find(x => x.id === id); if (it && it.s === sl && canEquip(it, h) && !isEquipped(e, id)) e.eq[h][sl] = id; } }
+  const seenC = new Set(), have = new Set(e.inv.map(x => x.id)); e.chests = [];
+  for (const c of Array.isArray(d.chests) ? d.chests : []) { if (!c || typeof c !== 'object') continue; const it = cleanItem(c.it, heroes); if (!it || have.has(it.id)) continue; const id = 'c' + it.id; if (seenC.has(id)) continue; seenC.add(id);
+    e.chests.push({ id, src: CHEST_SRC.includes(c.src) ? c.src : 'chest', it, souls: fin(c.souls, 0, 100, 0) }); if (e.chests.length >= CHEST_CAP) break; }
   return e;
 }
 // 병합: 아이템은 id 기준 합집합(중복 없음), 장착은 기기(local) 우선 후 계정 값으로 빈 칸 채움, 재료는 큰 값
 export function mergeEquip(a, b, m, heroes) {
   const inv = [...b.inv]; for (const it of a.inv) if (!inv.some(x => x.id === it.id)) inv.push(it);
   const eq = {}; for (const h of heroes) eq[h] = { ...(b.eq[h] || {}), ...(a.eq[h] || {}) };
-  return cleanEquip({ inv, eq, mat: { steel: Math.max(a.mat.steel, b.mat.steel), crystal: Math.max(a.mat.crystal, b.mat.crystal) } }, m, heroes);
+  const chests = [...(b.chests || [])]; for (const c of a.chests || []) if (!chests.some(x => x.id === c.id)) chests.push(c);
+  return cleanEquip({ inv, eq, chests, mat: { steel: Math.max(a.mat.steel, b.mat.steel), crystal: Math.max(a.mat.crystal, b.mat.crystal) } }, m, heroes);
 }

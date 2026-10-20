@@ -48,7 +48,7 @@ with sync_playwright() as pw:
     for _ in range(8):
         if J(pg, "()=>document.getElementById('chestOv').classList.contains('hidden')"): break
         pg.wait_for_timeout(1500); pg.click('.cvStage', force=True)
-    pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=20000); ok('returned_to_town_autologin', pg.inner_text('#twSouls') == str(s['souls']), (pg.inner_text('#twSouls'), s['souls']))
+    pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=20000); s5 = J(pg, "()=>G.gear.Acc.load()"); ok('returned_to_town_autologin', pg.inner_text('#twSouls') == str(s5['souls']) and s5['souls'] >= s['souls'] and not s5['chests'], (pg.inner_text('#twSouls'), s['souls'], s5['souls']))  # 상자 개봉 영혼석 포함
     pg.click('#popOk'); pg.click('#twMenu'); pg.wait_for_timeout(300); pg.click('#mnAuth'); pg.wait_for_timeout(500)
     s = save(pg); ok('logout_restores_guest', s['souls'] == 120 and J(pg, '()=>G.screen') == 'login', s['souls'])
     pg.fill('#lgEmail', 'a@test.kr'); pg.fill('#lgPw', 'wrongpw1'); pg.click('#lgIn'); pg.wait_for_timeout(500); ok('wrong_pw_msg', '맞지 않' in pg.inner_text('#lgMsg'))
