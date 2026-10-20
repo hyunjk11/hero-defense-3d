@@ -114,9 +114,11 @@ function pierce(s) {
     const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang)), dmg = stat.dmg() * s.mul * AW(s) * stat.skillMul(), m = makeArrow(CC), hit = new Set(), L = 30; let dist = 0;
     m.scale.set(3.2, 3.2, 2.4); m.position.copy(from).setY(1.3); m.rotation.y = ang; scene.add(m); const start = m.position.clone();
     Snd.play('bolt', { pos: from, rate: .55, force: true }); Snd.play('boom', { pos: from, vol: .4, rate: 1.6 }); Snd.whoosh(from, .6, 600, 4000, .5); G.shake = Math.max(G.shake || 0, .3); emit(PB, from.x, 1.3, from.z, 8, 0xffd86a, 4, .4, 0, .5);
-    FX.push(dt => { const st = 60 * dt; m.position.addScaledVector(dir, st); dist += st; const p = m.position;
+    FX.push(dt => { const st = 60 * dt, px = m.position.x, pz = m.position.z; m.position.addScaledVector(dir, st); dist += st; const p = m.position;
       emit(PB, p.x, p.y, p.z, 2, 0xffc84a, .5, .35, 0, .3); emit(P, p.x, p.y, p.z, 6, 0xfff0b0, 1.5, .45, 0, .4);
-      for (const e of alive()) if (!hit.has(e) && d2(e, p.x, p.z) < 1.3 * 1.3) { hit.add(e); hurt(e, dmg, root ? '#b8ff9a' : '#ffd86a', true); emit(P, e.g.position.x, 1.4, e.g.position.z, 20, root ? 0x9aff7a : 0xffe08a, 6, .4);
+      // 이번 프레임 이동 구간(선분) 기준 판정 → 느린 프레임(dt 0.05 = 3칸)에서도 적을 건너뛰지 않음
+      const segD2 = e => { const ex = e.g.position.x - px, ez = e.g.position.z - pz, t = Math.max(0, Math.min(st, ex * dir.x + ez * dir.z)), qx = ex - dir.x * t, qz = ez - dir.z * t; return qx * qx + qz * qz; };
+      for (const e of alive()) if (!hit.has(e) && segD2(e) < 1.3 * 1.3) { hit.add(e); hurt(e, dmg, root ? '#b8ff9a' : '#ffd86a', true); emit(P, e.g.position.x, 1.4, e.g.position.z, 20, root ? 0x9aff7a : 0xffe08a, 6, .4);
         if (root && !e.dead && !e.E.fly) { const t = e.E.boss ? s.rootBoss : s.root; e.stunT = Math.max(e.stunT || 0, t); e.frozen = false; if (A3()) { e.vulnT = G.t + t; e.vulnAmt = .15; } ringFx(e.g.position, 1.1, 0x6aff4a, t); G.legendRoot = (G.legendRoot || 0) + 1; } }
       if (dist < L) return true; scene.remove(m);
       const len = start.distanceTo(p), beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .5, len, 10, 1, true), ADD(0xffd86a)); beam.rotation.set(Math.PI / 2, 0, 0); beam.position.set(0, 0, 0);
