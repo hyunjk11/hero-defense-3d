@@ -43,7 +43,7 @@ function renderInv() {
   $('invBonus').innerHTML = bonusHtml(E.bonus(s, h));
   $('invFilt').innerHTML = [['all', '전체'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${ui.invF === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('');
   $('invGrid').innerHTML = list.length ? list.map(it => tile(it, s, it.id === ui.invSel ? 'sel' : '')).join('') : '<div class="emptyMsg">장비가 없어요. 출정해서 5웨이브마다 보상 상자를, 보스에게서 장비를 얻거나 대장간에서 제작하세요!</div>';
-  const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 새 장비는 자동으로 분해됩니다 — 대장간에서 분해해 공간을 만드세요.' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : '';
+  const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 보상 상자를 열 수 없어요 — 대장간에서 분해해 공간을 만드세요.' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : '';
   let act = '';
   if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${clsN(sel.h)} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${clsN(who)}에게서 가져오기)` : ''}</button>`; }
   $('invDetail').innerHTML = sel ? card(sel, cur && cur.id !== sel.id ? cur : null) + `<div class="acts">${act}</div>` : '<div class="hintS">장비를 눌러 자세히 보기 · 마우스를 올리면 비교</div>';
