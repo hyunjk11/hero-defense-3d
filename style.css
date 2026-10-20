@@ -467,7 +467,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .icard.uq{position:relative;border:2px solid transparent;background:linear-gradient(#123a3c,#0c1220) padding-box,linear-gradient(135deg,#3ae8d0,#ffd84a 50%,#3ae8d0) border-box;box-shadow:0 0 16px #3ae8d066;animation:none;overflow:hidden}
 .icard.uq:before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent 0 70%,#ffffff18 80%,transparent 90%);animation:uqSpin 6s linear infinite;pointer-events:none}
 @keyframes uqSpin{to{transform:rotate(360deg)}}
-.icard .uqRib{position:absolute;right:-30px;top:10px;transform:rotate(35deg);background:linear-gradient(90deg,#3ae8d0,#ffd84a);color:#0a1a1a;font-size:9px;font-weight:900;padding:2px 30px;letter-spacing:.5px}
+.icard .uqRib{position:absolute;right:-38px;top:18px;width:130px;text-align:center;white-space:nowrap;transform:rotate(40deg);background:linear-gradient(90deg,#3ae8d0,#ffd84a);color:#0a1a1a;font-size:9px;font-weight:900;padding:2px 0;letter-spacing:.3px;pointer-events:none;z-index:1}
 .icard .uqn{background:linear-gradient(90deg,#7affe8,#ffe08a);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:34px}
 .icard .uqw{position:absolute;right:-6px;top:-6px;font-size:12px;font-style:normal;color:#ffd84a;text-shadow:0 0 6px #ffb02a}
 .icard .uqLock{font-size:10.5px;color:#9af0e0;margin:2px 0}

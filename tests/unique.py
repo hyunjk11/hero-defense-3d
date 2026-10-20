@@ -32,7 +32,7 @@ def run(b, hero, gear, tag):
 def legend_cast(pg, sk, mid, name):
     J(pg, PACK, [9, 5]); pg.mouse.move(5, 5); J(pg, AIM); J(pg, "()=>{ G.hero.lcd=0; G.sim(.2); }")
     pg.keyboard.press('e'); J(pg, "()=>G.sim(.05)"); ok(f'{sk}_cast', J(pg, f"()=>G.legendN['{sk}']") == 1 and J(pg, "()=>G.hero.lcd") > 1, J(pg, "()=>[G.legendN, G.hero.lsk, G.hero.lcd]"))
-    J(pg, f"()=>G.sim({mid})"); shot(pg, name)
+    J(pg, f"()=>G.sim({mid})"); name and shot(pg, name)
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     # ---- 1) 실바: 실바누스 [E] + 포자 망토(every) + 이슬방울(onSkill), 각성 ★3 무기
@@ -49,7 +49,7 @@ with sync_playwright() as pw:
     ok('f_arm_spores', J(pg, "()=>G.uqN.f_arm") == 1 and J(pg, "()=>G.uqDmg") > d0 and J(pg, "()=>G.enemies.some(e=>!e.dead&&e.slowT>0)"), J(pg, "()=>[G.uqN, G.uqDmg]"))
     J(pg, "()=>{ G.uqForce=false }")
     # 왕가의 처형 (로즈 무기 스킬을 실바에게 붙여 로직만 검사)
-    J(pg, "()=>{ G.hero.lsk='execution'; G.legendN={}; G.legendExec=0; }"); legend_cast(pg, 'execution', .4, 'skill_execution')
+    J(pg, "()=>{ G.hero.lsk='execution'; G.legendN={}; G.legendExec=0; }"); legend_cast(pg, 'execution', .4, None)  # 실바 몸으로 쏘는 장면이라 스크린샷은 남기지 않음
     J(pg, "()=>G.sim(1.2)"); ok('execution_shots', J(pg, "()=>G.legendExec") == 8, J(pg, "()=>G.legendExec"))  # ★3 → 8연사
     J(pg, "()=>{ for (const e of G.enemies) if(!e.dead) { e.hp=1; } G.hero.lcd=0; G.legendN={}; }"); pg.keyboard.press('e'); J(pg, "()=>G.sim(.4)")
     ok('execution_refund', J(pg, "()=>G.hero.lcd") < 12 * .96 ** 3 * .6, J(pg, "()=>G.hero.lcd"))

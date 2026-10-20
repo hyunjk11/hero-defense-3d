@@ -55,4 +55,11 @@ assert.deepEqual(chOdds([5, 4, 3, 2, 1], 3), [0, 4, 3, 2, 1]); assert.deepEqual(
   assert.deepEqual(p6.uq.map(u => u.k), ['f_bow', 'f_acc', 'f_arm']); assert.ok(p6.uq[0].here && !p1.uq[0].here); assert.ok(p6.uq.every(u => !u.have)); assert.equal(p1.starsMax, 18); assert.equal(P.dropPreview('2-1', 'x', s).starsMax, 12);
   assert.equal(P.dropPreview('1-1', 'mechanic', s).hero, 'archer', '숨긴 영웅 → 기본 영웅 무기');
   s.uqPity = { f_arm: 23 }; assert.equal(P.dropPreview('1-2', 'mage', P.clean(s)).uq[2].pity, 23); assert.equal(P.dropPreview('9-9', 'mage', s), null); }
+// ---------- 숨긴 영웅(버들 등 CLASSES.*.hidden): 고유·챕터 장비·도감에 보이지 않아야 함 ----------
+{ const { isHidden } = await import('../src/data/heroes.js');
+  for (const k of UQ_KEYS) assert.ok(!(UQ[k].h && isHidden(UQ[k].h)), `고유 ${k} 가 숨긴 영웅 전용`);
+  assert.ok(P.codexRows().every(r => !isHidden(r)), '도감 행에 숨긴 영웅 없음'); assert.equal(P.codexRows().length * 5, 30, '도감 챕터당 30칸');
+  for (const h of HERO_KEYS.filter(isHidden)) { const r = R(7); for (let i = 0; i < 300; i++) { const it = E.randomItem(h, [20, 20, 20, 20, 20], r, 'weapon', 1 + (i % 4)); assert.ok(!isHidden(it.h), '숨긴 영웅 챕터 무기 생성 금지'); } }
+  const s = P.empty(); s.bestWave = 99; for (const C of ST.CHAPTERS) for (const x of C.stages) s.st[x.id] = 3; const s2 = P.clean(s);
+  assert.ok(P.backfillList(s2).every(k => !(UQ[k].h && isHidden(UQ[k].h))), 'backfill 숨긴 영웅 고유 없음'); }
 console.log('items tests OK');
