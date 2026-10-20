@@ -91,7 +91,7 @@ function renderSmith() {
     const list = sorted(s.inv, s); if (!list.some(x => x.id === ui.smSel)) ui.smSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.smSel);
     let right = '<div class="hintS">강화할 장비가 없어요</div>';
     if (it) { const c = E.enhCost(it), max = it.e >= E.MAXE, nx = { ...it, e: it.e + 1 };
-      right = `<div class="anvil" id="anvil"><div class="bigTile g${it.g}" style="--gc:${GC(it.g)}"><span class="ic">${icon(it)}</span><span class="en">+${it.e}</span></div><div class="hammer" id="hammer">🔨</div><div class="sparks" id="sparks"></div><div class="enhRes ${ui.res && ui.res.id === it.id ? ui.res.c : ''}" id="enhRes">${ui.res && ui.res.id === it.id ? ui.res.t : ''}</div></div>
+      right = `<div class="anvil" id="anvil"><div class="bigTile g${it.g}${it.uq ? ' uq' : ''}" style="--gc:${GCi(it)}"><span class="ic">${icon(it)}</span><span class="en">+${it.e}</span></div><div class="hammer" id="hammer">🔨</div><div class="sparks" id="sparks"></div><div class="enhRes ${ui.res && ui.res.id === it.id ? ui.res.c : ''}" id="enhRes">${ui.res && ui.res.id === it.id ? ui.res.t : ''}</div></div>
         <div class="enhInfo"><div class="in" style="color:${GC(it.g)}">${esc(it.n)}</div>${lskHtml(it)}${max ? '<div class="maxT">✦ 최대 강화 +10 ✦</div>' : `<div class="lv">+${it.e} <b>→</b> <span>+${it.e + 1}</span></div>
         <div class="sl">${E.STAT[it.m[0]]} ${E.mainVal(it)}% <b>→</b> <span class="gup">${E.mainVal(nx)}%</span></div><div class="rate">성공 확률 <b style="color:${E.ENH_RATE[it.e] >= 70 ? '#8aff9a' : E.ENH_RATE[it.e] >= 40 ? '#ffe066' : '#ff9a7a'}">${E.ENH_RATE[it.e]}%</b> <small>(실패해도 장비는 사라지지 않아요)</small></div>
         <div class="costs">${costHtml(c, s)}</div><button class="gbtn main" id="enhGo" ${ui.busy ? 'disabled' : ''}>🔨 강화하기</button>`}</div>`; }
@@ -224,15 +224,15 @@ function openBatch(n) {
   const r = doOpen(n); lastBatch = r; setTimeout(() => showSummary(r), 450);
 }
 function showSummary(r) {
-  const ov = $('chestOv'), list = [...r.opened].sort(E.byRarity), cnt = E.gradeCount(r.opened), best = list.length ? list[0].it.g : 0;
+  const ov = $('chestOv'), list = [...r.opened].sort(E.byRarity), cnt = E.gradeCount(r.opened.filter(x => !x.it.uq)), nUq = r.opened.filter(x => x.it.uq).length, best = list.length ? list[0].it.g : 0;
   const tiles = list.map((x, i) => `<button class="itile sumT g${x.it.g}${x.it.uq ? ' uq' : ''}" data-i="${i}" style="--gc:${GCi(x.it)};--d:${Math.min(i, 30) * 45}ms"><span class="ic">${icon(x.it)}</span>${x.it.uq ? '<span class="uqb">◆</span>' : E.legendKey(x.it) ? '<span class="lst">✦</span>' : ''}${setOf(x.it) ? `<span class="chb">${setOf(x.it).badge}</span>` : ''}${x.it.g === 4 ? '<i class="spk"></i><i class="spk s2"></i><i class="spk s3"></i>' : ''}</button>`).join('');
-  const gc = cnt.map((c, g) => c ? `<span class="gcn" style="--gc:${GC(g)}">${E.GRADES[g].n} <b>${c}</b></span>` : '').join('');
+  const gc = cnt.map((c, g) => c ? `<span class="gcn" style="--gc:${GC(g)}">${E.GRADES[g].n} <b>${c}</b></span>` : '').join('') + (nUq ? `<span class="gcn uqc" style="--gc:${UQ_COLOR}">고유 <b>${nUq}</b></span>` : ''); // 고유는 전설과 따로 셈
   ov.innerHTML = `<div class="cbSum g${best}" id="cbSum" style="--gc:${GC(best)}"><div class="cbFlash"></div><div class="gtitle">🎁 상자 ${r.opened.length}개 개봉!</div>
     <div class="cbTot"><span class="cbSoul"><span class="soulico"></span>영혼석 <b>+${r.souls}</b></span><span>장비 <b>${r.opened.length}</b>개</span>${gc}</div>
     <div class="cbGrid" id="cbGrid">${tiles || '<div class="emptyMsg">열린 상자가 없어요</div>'}</div><div class="cbDetail" id="cbDetail"><div class="hintS">장비를 눌러 자세히 보기</div></div>
     ${r.full ? `<div class="cbNote">${fullMsg(r.left)}</div>` : r.left ? `<div class="hintS">남은 상자 ${r.left}개</div>` : ''}
     <div class="cbActs">${r.left && !r.full ? `<button class="gbtn" id="cbMore">🎁 남은 상자 열기 (${r.left})</button>` : ''}${r.full ? '<button class="gbtn" id="cbSmith">⚒ 대장간에서 분해</button>' : ''}<button class="gbtn main" id="cbOk">확인</button></div></div>`;
-  if (cnt[4]) { Snd.play('victory', { force: true }); Snd.play('glass', { rate: 1.4, delay: .3 }); } else if (cnt[3]) Snd.play('levelUp', { force: true }); Snd.play('coins', { delay: .2 });
+  if (cnt[4] || nUq) { Snd.play('victory', { force: true }); Snd.play('glass', { rate: 1.4, delay: .3 }); } else if (cnt[3]) Snd.play('levelUp', { force: true }); Snd.play('coins', { delay: .2 });
   ov.querySelectorAll('.sumT').forEach(b => { const x = list[+b.dataset.i]; b.onclick = () => { ov.querySelectorAll('.sumT.sel').forEach(e => e.classList.remove('sel')); b.classList.add('sel'); $('cbDetail').innerHTML = card(x.it); Snd.play('select'); };
     b.onpointerenter = e => { if (e.pointerType === 'mouse') showTip(b, card(x.it)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); }; });
   $('cbOk').onclick = () => { Snd.play('ui'); closeChestUI(); };

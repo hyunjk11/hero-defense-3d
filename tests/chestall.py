@@ -88,6 +88,20 @@ with sync_playwright() as pw:
         ok(f'{tag}_open_ten', pg.locator('#cbGrid .sumT').count() == 10 and J(pg, "()=>G.gear.Acc.load().chests.length") == 13 and pg.locator('#cbMore').count() == 1)
         pg.click('#cbMore'); pg.wait_for_timeout(400); ok(f'{tag}_more_back_to_chests', pg.locator('#cbAll').count() == 1 and '13' in pg.inner_text('#cbBar'))
         pg.click('#cbAll'); pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(300); ok(f'{tag}_open_all_13', pg.locator('#cbGrid .sumT').count() == 13); pg.click('#cbOk')
+        # 6) 고유 아이템이 섞인 모두 열기: 고유 타일이 보이고(opacity 1·청록 테두리·아이콘) '고유 N' 칩이 따로 나와야 함 (.itile.uq 의 animation 이 tileIn 을 덮어써 투명하던 회귀)
+        J(pg, """()=>{ const {Acc,E}=G.gear; let q=7; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; };
+          Acc.update(d=>{ d.inv=[]; d.chests=[]; d.eq={}; if (d.uqLog) delete d.uqLog.f_bow; E.addChests(d, [1,1,1,2,3,3,4].map(g=>({ it:E.makeItem('weapon','archer',g,r), src:'chest' }))); E.grantUnique(d, 'f_bow'); return d; }); }""")
+        pg.click('#twChest'); pg.wait_for_timeout(600); (pg.tap if touch else pg.click)('#cbAll'); pg.wait_for_selector('#cbSum', timeout=5000)
+        pg.wait_for_function("()=>{ const g=document.getElementById('cbGrid'); return g && g.querySelector('.sumT') && !g.getAnimations({subtree:true}).some(a=>a.animationName==='tileIn' && a.playState!=='finished'); }", timeout=20000); pg.wait_for_timeout(200)  # 등장(tileIn) 끝까지
+        uq = J(pg, """()=>{ const e=document.querySelector('#cbGrid .sumT.uq'); if (!e) return null; const cs=getComputedStyle(e), ic=e.querySelector('.ic'), r=e.getBoundingClientRect();
+          return { op:+cs.opacity, anim:cs.animationName, ic:(ic&&ic.textContent||'').trim(), icOp:ic?+getComputedStyle(ic).opacity:0, w:r.width, h:r.height, bg:cs.backgroundImage.includes('linear-gradient'), n:document.querySelectorAll('#cbGrid .sumT').length,
+            vis:[...document.querySelectorAll('#cbGrid .sumT')].filter(t=>+getComputedStyle(t).opacity>.9).length, chips:[...document.querySelectorAll('#cbSum .gcn')].map(c=>c.textContent.trim()) }; }""")
+        ok(f'{tag}_unique_tile_visible', uq and uq['op'] > .9 and uq['icOp'] > .9 and uq['ic'] and uq['ic'] != '?' and uq['w'] >= 30 and uq['h'] >= 30 and uq['bg'] and 'tileIn' in uq['anim'] and 'uqGlow' in uq['anim'], uq)
+        ok(f'{tag}_unique_all_tiles_visible', uq and uq['n'] == 8 and uq['vis'] == 8, uq and (uq['n'], uq['vis']))
+        ok(f'{tag}_unique_chip', uq and '고유 1' in uq['chips'] and '전설 1' in uq['chips'] and sum(int(c.split()[-1]) for c in uq['chips']) == 8, uq and uq['chips'])
+        if tag == '1024x600' and (SHOTS or '--uq-shot' in sys.argv):
+            d = OUT.parent / 'items'; d.mkdir(parents=True, exist_ok=True); J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(300); pg.screenshot(path=str(d / 'chest_unique_fix.png')); J(pg, "()=>G.pauseRender=false")
+        pg.click('#cbOk'); pg.wait_for_timeout(300)
         # 5) 새로고침 후 저장 유지
         before = J(pg, "()=>JSON.stringify(G.gear.P.clean(G.gear.Acc.load()))"); pg.reload(); pg.wait_for_function("()=>window.G&&G.ready&&G.screen", timeout=60000)
         ok(f'{tag}_save_roundtrip', J(pg, "()=>JSON.stringify(G.gear.P.clean(G.gear.Acc.load()))") == before)

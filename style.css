@@ -462,6 +462,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .icard .iset{font-size:10.5px;color:var(--cc);margin-top:1px;font-weight:bold}
 .itile.uq{border:2px solid transparent;background:radial-gradient(circle at 50% 40%,#1e5a5a,#0e1420) padding-box,linear-gradient(135deg,#3ae8d0,#ffd84a,#3ae8d0) border-box;animation:uqGlow 2.4s ease-in-out infinite}
 @keyframes uqGlow{50%{box-shadow:0 0 16px #3ae8d0aa,0 0 26px #ffd84a55}}
+.sumT.uq{animation:tileIn .38s cubic-bezier(.3,1.7,.5,1) var(--d) forwards,uqGlow 2.4s calc(var(--d) + .38s) ease-in-out infinite;overflow:visible} /* 개봉 요약: .itile.uq 의 animation 이 tileIn 을 덮어써 opacity:0 으로 남던 문제 */
 .itile .uqb{position:absolute;left:3px;top:1px;color:#3ae8d0;font-size:11px;text-shadow:0 0 5px #3ae8d0;pointer-events:none}
 .itile .awb{position:absolute;left:2px;bottom:1px;color:#ffd84a;font-size:10px;font-weight:900;text-shadow:0 0 4px #000;pointer-events:none}
 .icard.uq{position:relative;border:2px solid transparent;background:linear-gradient(#123a3c,#0c1220) padding-box,linear-gradient(135deg,#3ae8d0,#ffd84a 50%,#3ae8d0) border-box;box-shadow:0 0 16px #3ae8d066;animation:none;overflow:hidden}
