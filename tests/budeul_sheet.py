@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """버들 모델 검증: 클립별 정면/측면 콘택트 시트 + '늘어남' 측정.
-python3 tests/budeul_sheet.py [--key mechanic_meshy|mech_robot_meshy] [--clips Idle,Walk,...] [--frames 8] [--out shots/budeul/sheet] [--json m.json] [--max 0.12]
+python3 tests/budeul_sheet.py [--key budeul_meshy|mech_robot_meshy] [--clips Idle,Walk,...] [--frames 8] [--out shots/budeul/sheet] [--json m.json] [--max 0.12]
 측정 (클립마다 프레임 48개):
   strain  = 스킨 메시의 모든 삼각형 변 길이 / 바인드 포즈 길이. 늘어남이 없으면 1 근처 → p99|strain-1|, max, 25% 이상 늘어난 변 비율
   bone    = 부모-자식 뼈 거리 변화 최대(%)  (위치/스케일 트랙이 없으면 0)

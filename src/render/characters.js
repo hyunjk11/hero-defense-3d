@@ -86,7 +86,7 @@ function play(ch, name, o = {}) {
   if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; if (ch.aim) ch.yawT = ch.aim[a.getClip().name] || 0; if (ch.gear) gearOn(ch, name, a, speed); return a;
 }
 function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
-const heroClips = () => (GL.warrior || GL.warrior_meshy).animations, skClips = () => GL.sk_minion.animations;
+const heroClips = () => GL.warrior_meshy.animations, skClips = () => GL.sk_minion.animations;
 function makeHeroModel(cls, key0) {
   const key = key0 || CLASSES[cls].model, M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
   if (M) { for (const [a, b] of Object.entries(M.alias)) if (ch.acts[b]) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
