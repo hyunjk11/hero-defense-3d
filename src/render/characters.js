@@ -10,10 +10,27 @@ import { makeWolf, makeSlime, makeWisp, extraProp } from './monsters3d.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
 const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
-async function loadAssets() {
-  const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); let n = 0;
-  await Promise.all(ASSETS.map(k => loader.loadAsync(`models/${k}.glb`).then(g => { GL[k] = g; prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); $('loadTxt').textContent = `모델 불러오는 중… ${++n}/${ASSETS.length}`; })));
+// 지연 로딩 (P-2): 모델은 키마다 한 번만 불러옴(LOADING 에 promise 캐시). 필요한 것만 먼저(loadAssets(keys)) → 나머지는 loadBackground 로 하나씩 (판 중 버벅임 방지)
+// 몬스터: 모든 챕터가 같은 해골 모델 4개 + 무기 4개(약 1.9MB)를 공유 → '현재 챕터 몬스터' = MON_ASSETS 전체
+const MON_ASSETS = [...new Set(Object.values(ETYPES).flatMap(E => [E.model, E.w, E.sh]).filter(k => k && ASSETS.includes(k)))];
+// 영웅에 필요한 모델: 몸 + (버들) 장비. robot=true 면 변신 로봇까지 (판에서 영웅 생성 시 mechInit 이 바로 만듦)
+const heroAssets = (cls, robot = false) => { const k = CLASSES[cls] && CLASSES[cls].model; if (!k) return []; return cls === 'mechanic' ? [k, 'budeul_gear', ...(robot ? ['mech_robot_meshy'] : [])] : [k]; };
+const LOADING = {}; let loader = null;
+function loadModel(k) {
+  if (LOADING[k]) return LOADING[k]; if (!loader) { loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); }
+  return (LOADING[k] = loader.loadAsync(`models/${k}.glb`).then(g => { prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); GL[k] = g; for (let i = WAIT.length - 1; i >= 0; i--) if (modelsReady(WAIT[i][0])) { WAIT[i][1](); WAIT.splice(i, 1); } return g; })
+    .catch(e => { delete LOADING[k]; throw e; }));
 }
+const modelsReady = keys => keys.every(k => GL[k]);
+// 불러오기를 새로 시작하지 않고, (백그라운드 등으로) 다 도착하면 resolve — 영웅 단상처럼 '있으면 보여 주기'용
+const WAIT = []; const whenModels = keys => modelsReady(keys) ? Promise.resolve() : new Promise(r => WAIT.push([keys, r]));
+const ensureModels = keys => Promise.all([...new Set(keys)].map(loadModel));
+async function loadAssets(keys = ASSETS) {
+  keys = [...new Set(keys)]; let n = 0; const tx = $('loadTxt');
+  await Promise.all(keys.map(k => loadModel(k).then(() => { if (tx) tx.textContent = `모델 불러오는 중… ${++n}/${keys.length}`; })));
+}
+// 백그라운드: 순서대로 하나씩 (실패해도 계속, 필요할 때 ensureModels 가 다시 시도)
+async function loadBackground(keys) { for (const k of keys) { if (GL[k]) continue; try { await loadModel(k); } catch (e) { console.warn('bg model', k, e); } } return true; }
 function prep(g) {
   g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; } });
   g.scene.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(g.scene); g.userData.h = box.max.y - box.min.y || 1;
@@ -268,4 +285,4 @@ function addProp(ch, kind, E) {
     attachProp(ch, 'chest', g, [0, -.15 * s, .55 * s]); g.scale.multiplyScalar(s * .75); ch.ram = g; }
 }
 
-export { GL, MESHY, loadAssets, play, flashMats, flashCh, makeHeroModel, makeEnemyModel };
+export { GL, MESHY, ASSETS, MON_ASSETS, heroAssets, loadAssets, loadModel, loadBackground, ensureModels, modelsReady, whenModels, play, flashMats, flashCh, makeHeroModel, makeEnemyModel };

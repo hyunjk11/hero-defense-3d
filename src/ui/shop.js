@@ -5,7 +5,7 @@ import { Snd } from '../audio/audio.js';
 import { $ } from '../core/util.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
-import { makeHeroModel, play } from '../render/characters.js';
+import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import { SHOP, PAY_INFO } from '../config/shop.js';
@@ -41,13 +41,15 @@ function preview() {
   return pv;
 }
 // 미리보기 모델 교체 (상품마다 한 번만 생성)
-function pvSet(k) { if (!pv) return; const I = SHOP.items[k], D = PROD[k] || PROD.hero_gunner; if (!I) return; if (pv.ch) pv.ch.g.visible = false;
+function pvSet(k) { if (!pv) return; const I = SHOP.items[k], D = PROD[k] || PROD.hero_gunner; if (!I) return; pv.want = k;
+  if (!pv.chs[k] && !modelsReady(heroAssets(I.hero))) { if (pv.ch) pv.ch.g.visible = false; ensureModels(heroAssets(I.hero)).then(() => { if (pv && pv.want === k) pvSet(k); }).catch(e => console.warn(e)); return; } // 지연 로딩: 모델이 오면 표시
+  if (pv.ch) pv.ch.g.visible = false;
   let ch = pv.chs[k]; if (!ch) { ch = pv.chs[k] = makeHeroModel(I.hero); ch.ring.visible = false; pv.sc.add(ch.g); play(ch, D.anim) || play(ch, 'Idle'); ch.g.rotation.y = .35; }
   ch.g.visible = true; pv.ch = ch; pv.key = k; pv.disc.material.color.setHex(D.col); pv.rim.color.setHex(D.col); pv.pts.material.color.setHex(D.col).lerp(new THREE.Color(0xffffff), .45); pv.spin = 6.28; }
 export function updShop(dt) {
   if (!ui.shop || !pv) return; const cv = $('shopPv'), w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
   if (pv.w !== w || pv.h !== h) { pv.w = w; pv.h = h; pv.r.setSize(w, h, false); pv.cam.aspect = w / h; pv.cam.updateProjectionMatrix(); }
-  pv.t += dt; pv.ch.mixer.update(dt); pv.ch.g.rotation.y = .35 + Math.sin(pv.t * .45) * .7 + pv.spin; if (pv.spin > 0) pv.spin = Math.max(0, pv.spin - dt * 4);
+  pv.t += dt; if (!pv.ch) return; pv.ch.mixer.update(dt); pv.ch.g.rotation.y = .35 + Math.sin(pv.t * .45) * .7 + pv.spin; if (pv.spin > 0) pv.spin = Math.max(0, pv.spin - dt * 4);
   const a = pv.pts.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * (.25 + (i % 5) * .08); if (y > 3.2) y = 0; a.setY(i, y); } a.needsUpdate = true; pv.ring.scale.setScalar(1 + Math.sin(pv.t * 3) * .04);
   pv.r.render(pv.sc, pv.cam);
 }
@@ -148,4 +150,4 @@ export function initShop(h) {
   addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (ui.admin) closeAdmin(); else if (ui.mail) closeMail(); else if (ui.shop) closeShop(); });
   badge();
 }
-G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui };
+G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };

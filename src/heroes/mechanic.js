@@ -7,7 +7,7 @@ import { inGrid, isBlock, T, toTile } from '../core/grid.js';
 import { G, later } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
-import { gearAct, makeHeroModel, play } from '../render/characters.js';
+import { GL, ensureModels, gearAct, makeHeroModel, play } from '../render/characters.js';
 import { hurt as hurt0 } from '../monsters/enemy.js';
 import { groundY } from '../monsters/ai.js';
 import { tileAt } from '../world/terrain.js';
@@ -50,7 +50,10 @@ function cracks(c, n, len0) { for (let i = 0; i < n; i++) { const a = i / n * 6.
 // ---------- 초기화 (spawnHero에서 호출) ----------
 export function mechInit(h) {
   h.mech = { n: 0, busy: 0, rT: 0, shield: 0, shieldMax: 0, inv: false, seq: null };
-  h.human = h.ch; const r = makeHeroModel('mechanic', 'mech_robot_meshy'); r.ring = h.ch.ring; r.root.visible = false; h.g.add(r.root); h.robot = r;
+  h.human = h.ch; h.robot = null;
+  // 변신 로봇 모델 (지연 로딩 P-2): 판 시작 전에 받아 두지만(select.js choose · main.js bootPlan), 혹시 없으면 받는 즉시 붙이고 그 전에는 변신을 막음 (mechTransform)
+  h.mechAttach = () => { if (h.robot || !GL.mech_robot_meshy || hero !== h) return; const r = makeHeroModel('mechanic', 'mech_robot_meshy'); r.ring = h.ch.ring; r.root.visible = false; h.g.add(r.root); h.robot = r; };
+  if (GL.mech_robot_meshy) h.mechAttach(); else ensureModels(['mech_robot_meshy']).then(h.mechAttach).catch(e => console.warn('robot model', e));
   h.sb = hpBar(h.g, 5.25, 2.0, 0x6ae8ff, { h: .12 }); h.sb.show(false);
 }
 export const robo = () => !!(hero && hero.mech && hero.mech.rT > 0);
@@ -106,6 +109,7 @@ function robotSlam(proc) { if (!robo()) return; const h = hero, c = h.g.position
 // 0초: 로봇 부품이 사방에서 날아와 모임(슬로 모션) → 0.55초: 섬광 + 모델 교체, 로봇이 공중에서 낙하 → 0.8초: 착지 충격파(밀쳐내기·화면 흔들림) → 1.25초: 조작 가능 (10초)
 export function mechTransform(mul, base) {
   const h = hero, M = h.mech; if (!M || M.busy > 0 || M.rT > 0) return false;
+  if (!h.robot) h.mechAttach(); if (!h.robot) { banner('변신 로봇 준비 중…', '#c8ff9a', 900); return false; } // 모델이 아직이면 쿨다운 소모 없이 무시
   M.busy = TF_DUR; M.inv = true; M.seq = { kind: 'tf', t: 0, mul, base, swap: 0, land: 0 }; h.path = []; G.mechN.tf++; G.slowT = .55; G.slowF = .35; G.slowN = (G.slowN || 0) + 1;
   play(h.ch, 'FistPump', { once: true, force: true, speed: 1.4 }); banner('변신!', '#9aff6a', 1100); const p = h.g.position;
   ringFx(p, 3, GREEN, .6); ringFx(p, 1.8, 0xffffff, .4); emit(PB, p.x, 1.4, p.z, 14, GREEN, 3, .6, 2, 1); Snd.whoosh(p, 1, 200, 3200, .55); Snd.play('magic', { pos: p, rate: .5, force: true }); Snd.play('levelUp', { vol: .5, force: true });
@@ -145,7 +149,7 @@ function boom(c) { const R = 3.6, dmg = stat.dmg() * 3 * stat.skillMul(); for (c
   flashBall(c.clone().setY(1), 0xffe0a0, 4, .35); shock(c, R + 1, 0xffa04a, .5); shock(c, R, GREEN, .4); emit(PB, c.x, 1, c.z, 30, 0xff7a2a, 8, .8, -4, 2); emit(P, c.x, 1, c.z, 110, 0xffcc5a, 12, .7, -12, 2);
   debris(c.x, .5, c.z, 16, [0x2a2a30, 0xff9a3a, 0x6a5a4a], 8); G.shake = Math.max(G.shake, .9); Snd.play('boom', { pos: c, force: true }); Snd.play('meteor', { pos: c, vol: .5, rate: 1.3 }); }
 // 사망 등으로 즉시 원래 모습 (피니시 없음)
-export function mechRevert() { const h = hero, M = h && h.mech; if (!M) return; const was = M.rT > 0 || M.busy > 0; M.rT = 0; M.busy = 0; M.inv = false; M.seq = null; M.shield = 0; h.robo = false; if (h.ch !== h.human) swapTo(false); if (was && h.robot.root.visible) h.robot.root.visible = false; h.robot.root.position.y = 0; }
+export function mechRevert() { const h = hero, M = h && h.mech; if (!M) return; const was = M.rT > 0 || M.busy > 0; M.rT = 0; M.busy = 0; M.inv = false; M.seq = null; M.shield = 0; h.robo = false; if (h.ch !== h.human) swapTo(false); if (!h.robot) return; if (was && h.robot.root.visible) h.robot.root.visible = false; h.robot.root.position.y = 0; }
 
 // ---------- 매 프레임 (updHero에서): true = 연출 중 (이동·공격 막음) ----------
 export function updMech(dt) {

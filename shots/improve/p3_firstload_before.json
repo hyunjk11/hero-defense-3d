@@ -1,0 +1,90 @@
+{
+ "intro_first_visit": {
+  "first_MB": 13.97,
+  "models_MB": 10.61,
+  "models": [
+   "archer_meshy",
+   "budeul_gear",
+   "budeul_meshy",
+   "gunner_meshy",
+   "mage_meshy",
+   "mech_robot_meshy",
+   "sk_mage",
+   "sk_minion",
+   "sk_rogue",
+   "sk_warrior",
+   "w_axe",
+   "w_blade",
+   "w_shield_large_a",
+   "w_shield_large_b",
+   "warrior_meshy"
+  ],
+  "requests": 160
+ },
+ "stage_run_mage": {
+  "first_MB": 13.97,
+  "models_MB": 10.61,
+  "models": [
+   "archer_meshy",
+   "budeul_gear",
+   "budeul_meshy",
+   "gunner_meshy",
+   "mage_meshy",
+   "mech_robot_meshy",
+   "sk_mage",
+   "sk_minion",
+   "sk_rogue",
+   "sk_warrior",
+   "w_axe",
+   "w_blade",
+   "w_shield_large_a",
+   "w_shield_large_b",
+   "warrior_meshy"
+  ],
+  "requests": 160
+ },
+ "stage_run_mechanic": {
+  "first_MB": 13.97,
+  "models_MB": 10.61,
+  "models": [
+   "archer_meshy",
+   "budeul_gear",
+   "budeul_meshy",
+   "gunner_meshy",
+   "mage_meshy",
+   "mech_robot_meshy",
+   "sk_mage",
+   "sk_minion",
+   "sk_rogue",
+   "sk_warrior",
+   "w_axe",
+   "w_blade",
+   "w_shield_large_a",
+   "w_shield_large_b",
+   "warrior_meshy"
+  ],
+  "requests": 160
+ },
+ "town_gunner_saved": {
+  "first_MB": 13.97,
+  "models_MB": 10.61,
+  "models": [
+   "archer_meshy",
+   "budeul_gear",
+   "budeul_meshy",
+   "gunner_meshy",
+   "mage_meshy",
+   "mech_robot_meshy",
+   "sk_mage",
+   "sk_minion",
+   "sk_rogue",
+   "sk_warrior",
+   "w_axe",
+   "w_blade",
+   "w_shield_large_a",
+   "w_shield_large_b",
+   "warrior_meshy"
+  ],
+  "requests": 160
+ }
+}

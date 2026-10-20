@@ -5,7 +5,7 @@ import { $, QS } from '../core/util.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
 import { cam, camera, scene, renderer } from '../render/scene.js';
-import { makeHeroModel, play } from '../render/characters.js';
+import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
 import { showSelect, choose } from './select.js';
 import * as Acc from '../account/account.js';
 import * as P from '../account/progress.js';
@@ -108,7 +108,7 @@ let blessOpen = false, blessNear = false;
 function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeShopUI(); closeSmith(true); closeInv(); closeStageSel(true); closeLab(true); $('twBless').classList.remove('hidden'); refreshTown(); }
 function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); }
 G.openBlessing = openBless; G.closeBlessing = closeBless;
-G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z };
+G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z, cls: th.cls };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
 G.townGoal = (x, z) => { if (th) th.goal = new THREE.Vector3(x, 0, z); };
 G.townLab = () => { const f = labFront(); return [LAB.x, LAB.y, f.x, f.z]; }; G.closeLab = closeLab;
@@ -116,7 +116,9 @@ G.townTower = () => [LAKE.x, LAKE.y]; G.townSmith = () => [SMITH.x, SMITH.y]; G.
 G.stageSel = { openStageSel, departStage, ST };
 G.gear = { E, Acc, P, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal, openChestUI, chestCount, lastChestBatch };
 function spawnTownHero() {
-  const s = Acc.load(), hc = Sh.usableHero(s.hero); if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null;
+  const s = Acc.load(), hc = Sh.usableHero(s.hero);
+  if (!modelsReady(heroAssets(hc))) { ensureModels(heroAssets(hc)).then(() => { if (town && town.visible && Sh.usableHero(Acc.load().hero) === hc && (!th || th.cls !== hc)) spawnTownHero(); }).catch(e => console.warn(e)); return; } // 지연 로딩: 도착하면 교체 (그 사이엔 이전 영웅 유지)
+  if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null;
 }
 export function enterTown() {
   hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);

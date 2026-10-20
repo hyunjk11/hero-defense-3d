@@ -13,14 +13,15 @@ import * as GROW from './data/growth.js';
 import { QS } from './core/util.js';
 import { onMove as _onMove, buildReason as _buildReason, setTool as _setTool } from './ui/input.js';
 import { camera as _camera } from './render/scene.js';
-import { CLASSES } from './data/heroes.js';
+import { CLASSES, HERO_KEYS } from './data/heroes.js';
 import { ETYPES } from './data/monsters.js';
 import { TOWERS } from './data/towers.js';
 import { G } from './core/state.js';
 import { renderer, DAY, NIGHT, LIGHT, bloom, cam, composer, hemi, moon, scene, skyU, sun, updateCam } from './render/scene.js';
 import { P, PB, emit, stars, updCoins, updDebris, updFx, updParticles } from './render/vfx.js';
 import { BARS, updBars } from './render/hpbars.js';
-import { GL, loadAssets, makeEnemyModel, play } from './render/characters.js';
+import { GL, ASSETS, MON_ASSETS, heroAssets, loadAssets, loadBackground, makeEnemyModel, play } from './render/characters.js';
+import { load as accLoad } from './account/account.js';
 import { carve, damageTile, buildCore, buildPortal, coreLight, coreRings, crystal, genMap, initTerrainColors, portal, portalDisk, portalLight, refreshAll, refreshTile, tileAt } from './world/terrain.js';
 import { computeDist, enterCost, field, fieldInfo, nextStep, pathStats } from './world/pathfinding.js';
 import { updRoute } from './render/route.js';
@@ -87,5 +88,17 @@ function step(dt) {
   G.shake = Math.max(0, G.shake - dt * 1.8); updateCam(); hudT += dt; if (hudT > .15) { hudT = 0; if (G.phase !== 'select' && G.phase !== 'loading' && G.phase !== 'town' && G.phase !== 'menu') refreshHud(); }
 }
 genMap(); initTerrainColors(); refreshAll(); buildPortal(); buildCore(); computeDist(); updateCam(); loop();
-loadAssets().then(() => { G.ready = true; $('loading').classList.add('hidden'); if (QS.has('flow') || !(QS.has('test') || QS.has('skipintro'))) startFlow(); else showSelect(); })
+// 첫 로딩 계획 (P-2 지연 로딩). ?test/?skipintro(테스트·영웅 선택 화면) = 전부 먼저 (?lazy 로 끌 수 있음)
+//  스테이지 출정: 몬스터 + 저장된 영웅(유료면 대체 영웅 마법사도, 버들이면 장비·변신 로봇까지)만 — 판 중에는 영웅이 바뀌지 않으므로 백그라운드 로딩 없음
+//  인트로/마을: 저장된 영웅만 먼저 → 백그라운드로 몬스터(마을 '도전' 출정용) → 무료 영웅 → 유료 영웅 → 변신 로봇 (버들 저장이면 로봇을 앞쪽으로)
+function bootPlan() {
+  if ((QS.has('test') || QS.has('skipintro')) && !QS.has('lazy')) return { first: ASSETS, bg: [] };
+  let h = 'mage'; try { const s = accLoad(); if (CLASSES[s.hero]) h = s.hero; } catch (e) {}
+  const heroes = CLASSES[h].paid ? [h, 'mage'] : [h], uniq = a => [...new Set(a)];
+  if (STAGE && QS.has('run')) return { first: uniq([...MON_ASSETS, ...heroes.flatMap(c => heroAssets(c, true))]), bg: [] };
+  const first = uniq(heroes.flatMap(c => heroAssets(c))), order = [...MON_ASSETS, ...(h === 'mechanic' ? ['mech_robot_meshy'] : []), ...HERO_KEYS.filter(c => !CLASSES[c].paid).flatMap(c => heroAssets(c)), ...HERO_KEYS.filter(c => CLASSES[c].paid).flatMap(c => heroAssets(c, true))];
+  return { first, bg: uniq(order).filter(k => !first.includes(k)) };
+}
+const PLAN = bootPlan(); G.loadPlan = PLAN;
+loadAssets(PLAN.first).then(() => { G.ready = true; $('loading').classList.add('hidden'); G.bgModels = loadBackground(PLAN.bg).then(() => (G.allModels = true)); if (QS.has('flow') || !(QS.has('test') || QS.has('skipintro'))) startFlow(); else showSelect(); })
   .catch(err => { console.warn(err); $('loadTxt').textContent = '모델을 불러오지 못했습니다. 새로고침 해주세요.'; });

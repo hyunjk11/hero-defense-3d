@@ -1,0 +1,31 @@
+{
+ "orig": "/tmp/hdw/gear_orig.glb",
+ "new": "/tmp/hdw/gear_vpfvtf.glb",
+ "sizes": [
+  1266472,
+  539116
+ ],
+ "poses": {
+  "idle": {
+   "mean_abs_diff": 0.01,
+   "pixels_gt24_pct": 0.002,
+   "max": 204
+  },
+  "idle_back": {
+   "mean_abs_diff": 0.022,
+   "pixels_gt24_pct": 0.005,
+   "max": 174
+  },
+  "attack": {
+   "mean_abs_diff": 0.016,
+   "pixels_gt24_pct": 0.003,
+   "max": 198
+  },
+  "run": {
+   "mean_abs_diff": 0.014,
+   "pixels_gt24_pct": 0.002,
+   "max": 158
+  }
+ },
+ "errors": []
+}
