@@ -190,12 +190,13 @@ def boss_ruins(pw, url, errs):
     out['summon'] = pg.evaluate(r"""()=>{ const [x, z] = G.tileXZ(10, 8); const bs = R_.at('boss_ruins', x, z); bs.hp = bs.max = 1e9; bs.abT.curse = 1e9; bs.abT.summon = .05; const o = {}; const marks = () => G.scene.children.filter(m => m.userData && m.userData.dread).length;
       G.sim(.3); o.marks = marks(); o.guards_before = G.enemies.filter(e => e.type === 'ruin_guard').length; G.sim(1.4); o.guards = G.enemies.filter(e => e.type === 'ruin_guard' && !e.dead).length; o.marks_after = marks(); R_.clear();
       o.ok = o.marks === 3 && o.guards_before === 0 && o.guards === 3 && o.marks_after === 0; return o; }""")
+    # (보호막 검사는 .11~.12: 옆 화살탑이 생성 직후 한 발 맞힐 수 있음 — 타워 공속 ×0.8 로 사격 타이밍 이동)
     # 어둠의 파동 (체력 50%): 2.2초 예고(넓어지는 보라 원, 제자리) → 반경 8 타워 90 피해 + 2초 봉인, 어둠 보호막 12%, 2페이즈(소환 +2, 주기 ×0.7), 1회만
     out['dread'] = pg.evaluate(r"""()=>{ const s = R_.grass(); const tw = R_.tower('arrow', s); const [x, z] = R_.xz(tw, 4, 0); const bs = R_.at('boss_ruins', x, z, false); bs.abT.curse = bs.abT.summon = 1e9; G.sim(.2); const o = {}; const hp0 = tw.hp;
       bs.hp = bs.max * .45; G.sim(.1); o.casting = bs.cast && bs.cast.k; o.banner = document.getElementById('banner').textContent; o.hit_before = R_.r(hp0 - tw.hp); o.mark = G.scene.children.some(m => m.userData && m.userData.dread);
       G.sim(2.3); o.p2 = !!bs.phase2; o.tower_dmg = R_.r(hp0 - tw.hp); o.cursed = tw.curseT > 0; o.shield = R_.r(bs.shield / bs.max); o.dark = !!bs.shDark; o.dreads = G.stats.dreads; bs.hp = bs.max * .3; G.sim(.5); o.dreads2 = G.stats.dreads;
       bs.abT.summon = .05; G.sim(.3); o.marks = G.scene.children.filter(m => m.userData && m.userData.dread).length; R_.clear();
-      o.ok = o.casting === 'dread' && o.banner.includes('어둠의 파동') && o.hit_before === 0 && o.mark && o.p2 && o.tower_dmg === 90 && o.cursed && o.shield === .12 && o.dark && o.dreads === 1 && o.dreads2 === 1 && o.marks === 5; return o; }""")
+      o.ok = o.casting === 'dread' && o.banner.includes('어둠의 파동') && o.hit_before === 0 && o.mark && o.p2 && o.tower_dmg === 90 && o.cursed && o.shield >= .11 && o.shield <= .12 && o.dark && o.dreads === 1 && o.dreads2 === 1 && o.marks === 5; return o; }""")
     out['nan'] = pg.evaluate('()=>R_.nan()'); b.close()
     out['ok'] = all(v.get('ok') for k, v in out.items() if isinstance(v, dict)) and out['nan'] == 0; return out
 

@@ -34,3 +34,6 @@ const mg = P.merge({ research: { arrow: { atk: 3, rng: 1 }, magic: { start: 2 } 
 assert.deepEqual(mg.research.arrow, { atk: 5, rng: 1, spd: 0, start: 0 }); assert.equal(mg.research.cannon.spd, 4); assert.equal(mg.research.magic.start, 2);
 assert.deepEqual(P.merge({ souls: 1 }, null).research, GR.emptyResearch());
 console.log('growth.test ok');
+// 타워 공격속도 전체 ×0.8 (공격 간격 ×1.25) — 기본 수치에만, 연구는 그 위에 곱
+{ const T = await import('../src/data/towers.js'); assert.equal(T.TOWER_RATE_K, .8); assert.deepEqual(T.TOWERS.arrow.rate, [1.6, 1.92, 2.32]); assert.deepEqual(T.TOWERS.cannon.rate, [.44, .496, .56]); assert.deepEqual(T.TOWERS.magic.rate, [.72, .8, .92]);
+  const r = GR.emptyResearch(); r.arrow.spd = 8; assert.ok(Math.abs(GR.towerStats('arrow', 3, 1, null, GR.resMods(r, 'arrow')).rate - 2.9 * .8 * 1.24) < 1e-9); console.log('tower rate x0.8 ok'); }

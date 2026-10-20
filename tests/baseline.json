@@ -1,8 +1,9 @@
 {
  "boot": {
   "models": [
-   "archer",
-   "mage",
+   "archer_meshy",
+   "gunner_meshy",
+   "mage_meshy",
    "sk_mage",
    "sk_minion",
    "sk_rogue",
@@ -11,7 +12,7 @@
    "w_blade",
    "w_shield_large_a",
    "w_shield_large_b",
-   "warrior"
+   "warrior_meshy"
   ],
   "route_len": 26,
   "gold0": 220,
@@ -20,14 +21,14 @@
   "bgm_playing": [
    "build"
   ],
-  "audio_bad": [],
-  "http_bad": [],
   "audio_sfx_requests": 52,
-  "bgm_requested": true
+  "bgm_requested": true,
+  "audio_bad": [],
+  "http_bad": []
  },
  "hero_archer": {
   "hp": 380,
-  "dist_to_target": 2.941,
+  "dist_to_target": 2.918,
   "atk_dmg_3s": 108,
   "skill_cd": 12,
   "skill_dmg": 192,
@@ -44,7 +45,7 @@
  },
  "hero_mage": {
   "hp": 330,
-  "dist_to_target": 2.777,
+  "dist_to_target": 2.828,
   "atk_dmg_3s": 76.5,
   "skill_cd": 14,
   "skill_dmg": 223.5,
@@ -62,7 +63,7 @@
  },
  "hero_warrior": {
   "hp": 1000,
-  "dist_to_target": 2.777,
+  "dist_to_target": 2.828,
   "atk_dmg_3s": 150,
   "skill_cd": 10,
   "skill_dmg": 150,
@@ -82,7 +83,7 @@
    "up1": 55,
    "up2": 95,
    "lvl": 3,
-   "dmg_2_5s": 189,
+   "dmg_2_5s": 157.5,
    "refund": 147,
    "tile_free": true
   },
@@ -102,7 +103,7 @@
    "up1": 90,
    "up2": 150,
    "lvl": 3,
-   "dmg_2_5s": 112.5,
+   "dmg_2_5s": 75,
    "refund": 237,
    "tile_free": true
   },
@@ -124,16 +125,16 @@
    "place": 3,
    "upgrade": 6,
    "levelUp": 6,
-   "digSoft": 74,
-   "arrow": 6,
-   "hitArmor": 13,
+   "digSoft": 75,
+   "arrow": 5,
+   "hitArmor": 11,
    "bones": 3,
    "coin": 24,
    "sell": 3,
    "breakWood": 4,
    "cannon": 2,
    "boom": 2,
-   "crackle": 3,
+   "crackle": 2,
    "breakDirt": 7,
    "digWood": 27
   }
@@ -210,74 +211,74 @@
   "waves": [
    {
     "w": 1,
-    "secs": 21,
+    "secs": 22,
     "phase": "build",
     "kills": 11,
     "leaked": 0,
     "core": 30,
     "gold": 117,
-    "carved": 4,
-    "boss": false,
-    "hero_alive": true
-   },
-   {
-    "w": 2,
-    "secs": 21,
-    "phase": "build",
-    "kills": 14,
-    "leaked": 0,
-    "core": 30,
-    "gold": 136,
     "carved": 5,
     "boss": false,
     "hero_alive": true
    },
    {
+    "w": 2,
+    "secs": 73,
+    "phase": "build",
+    "kills": 14,
+    "leaked": 0,
+    "core": 30,
+    "gold": 139,
+    "carved": 10,
+    "boss": false,
+    "hero_alive": true
+   },
+   {
     "w": 3,
-    "secs": 66,
+    "secs": 39,
     "phase": "build",
     "kills": 17,
     "leaked": 0,
     "core": 30,
-    "gold": 145,
-    "carved": 10,
+    "gold": 160,
+    "carved": 11,
     "boss": false,
     "hero_alive": true
    },
    {
     "w": 4,
-    "secs": 26,
+    "secs": 42,
     "phase": "build",
     "kills": 20,
     "leaked": 0,
     "core": 30,
-    "gold": 158,
-    "carved": 10,
+    "gold": 188,
+    "carved": 12,
     "boss": false,
     "hero_alive": true
    },
    {
     "w": 5,
-    "secs": 73,
+    "secs": 74,
     "phase": "build",
     "kills": 23,
     "leaked": 1,
     "core": 20,
-    "gold": 218,
+    "gold": 231,
     "carved": 14,
     "boss": true,
-    "hero_alive": false
+    "hero_alive": true
    }
   ],
   "kills_by_type": {
-   "grunt": 44,
-   "imp": 30,
-   "bat": 4,
-   "golem": 7
+   "grunt": 48,
+   "imp": 25,
+   "golem": 9,
+   "bat": 3
   },
-  "gold_earned": 483,
+  "gold_earned": 496,
   "bars": {
-   "visible": 1,
+   "visible": 2,
    "bad": 0
   },
   "sounds": {
@@ -285,26 +286,26 @@
    "build": 4,
    "place": 4,
    "horn": 5,
-   "arrow": 317,
-   "hit": 255,
-   "digSoft": 90,
-   "bones": 81,
-   "coin": 158,
+   "arrow": 313,
+   "hit": 252,
+   "digSoft": 99,
+   "bones": 82,
+   "coin": 166,
    "breakDirt": 9,
    "digWood": 85,
    "breakWood": 5,
-   "cannon": 43,
-   "boom": 43,
+   "cannon": 46,
+   "boom": 46,
    "waveClear": 5,
    "coins": 5,
    "upgrade": 5,
    "levelUp": 5,
-   "crackle": 38,
-   "hitArmor": 248,
-   "poof": 4,
+   "crackle": 57,
+   "hitArmor": 268,
+   "magic": 35,
+   "poof": 3,
    "roar": 1,
-   "stomp": 82,
-   "magic": 32,
+   "stomp": 85,
    "heroHurt": 3,
    "coreHit": 1,
    "glass": 1
