@@ -1,14 +1,14 @@
 {
  "intro_first_visit": {
-  "first_MB": 4.56,
+  "first_MB": 4.58,
   "models_MB": 1.2,
   "models": [
    "mage_meshy"
   ],
-  "requests": 132
+  "requests": 134
  },
  "stage_run_mage": {
-  "first_MB": 6.5,
+  "first_MB": 6.52,
   "models_MB": 3.14,
   "models": [
    "mage_meshy",
@@ -21,16 +21,13 @@
    "w_shield_large_a",
    "w_shield_large_b"
   ],
-  "requests": 148
+  "requests": 150
  },
  "stage_run_mechanic": {
-  "first_MB": 9.47,
-  "models_MB": 6.1,
+  "first_MB": 6.54,
+  "models_MB": 3.16,
   "models": [
-   "budeul_gear",
-   "budeul_meshy",
-   "mage_meshy",
-   "mech_robot_meshy",
+   "archer_meshy",
    "sk_mage",
    "sk_minion",
    "sk_rogue",
@@ -40,15 +37,15 @@
    "w_shield_large_a",
    "w_shield_large_b"
   ],
-  "requests": 154
+  "requests": 150
  },
  "town_gunner_saved": {
-  "first_MB": 5.95,
+  "first_MB": 5.96,
   "models_MB": 2.58,
   "models": [
    "gunner_meshy",
    "mage_meshy"
   ],
-  "requests": 134
+  "requests": 136
  }
 }
