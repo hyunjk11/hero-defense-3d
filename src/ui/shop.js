@@ -20,7 +20,7 @@ const PROD = {
   hero_mechanic: { anim: 'Idle', col: 0x7aff5a, icon: '🦾', stats: ['❤ 체력 <b>{hp} (최고)</b>', '🛡 방어 <b>높음</b>', '🦾 근접 · 드릴/해머 교대', '💥 해머 넉백'],
     sk: '부품이 날아와 합체! 10초간 거대 로봇(보호막 · 넓은 범위 강펀치 · 드릴 돌진) → 로켓 펀치 피니시', lg: '<b>✦ 전설 건틀릿</b> 과부하 드릴(다단 갈기 · 둔화) · 기가 해머 낙하([E] 거대 해머 · 기절)' },
 };
-const PKEYS = Object.keys(SHOP.items);
+const PKEYS = Object.keys(SHOP.items).filter(Sh.onSale); // 숨긴 영웅 상품 제외 (data/heroes.js hidden)
 let ui = { prod: 'hero_gunner', shop: false, mail: false, admin: false, msg: '', msgOk: true, mailMsg: '', adm: 'orders', admMsg: '', busy: false };
 let hooks = { onChange: () => {}, closeOthers: () => {}, cheer: () => {} };
 
@@ -55,7 +55,7 @@ export function updShop(dt) {
 }
 
 // ---------- 상점 ----------
-export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (SHOP.items[k]) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
+export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (PKEYS.includes(k)) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
 export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; $('shopPanel').classList.add('hidden'); }
 function itemState(k) {
   const A = Acc.A, st = Sh.S.status;

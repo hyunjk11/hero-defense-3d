@@ -3,21 +3,24 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { $ } from '../core/util.js';
-import { CLASSES } from '../data/heroes.js';
+import { CLASSES, HERO_KEYS, HIDDEN_HEROES, isHidden } from '../data/heroes.js';
 import { ETYPES } from '../data/monsters.js';
 import { addOutline, glow, grad, mk, toon } from './toon.js';
 import { makeWolf, makeSlime, makeWisp, extraProp } from './monsters3d.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ALL_ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
 // 지연 로딩 (P-2): 모델은 키마다 한 번만 불러옴(LOADING 에 promise 캐시). 필요한 것만 먼저(loadAssets(keys)) → 나머지는 loadBackground 로 하나씩 (판 중 버벅임 방지)
 // 몬스터: 모든 챕터가 같은 해골 모델 4개 + 무기 4개(약 1.9MB)를 공유 → '현재 챕터 몬스터' = MON_ASSETS 전체
-const MON_ASSETS = [...new Set(Object.values(ETYPES).flatMap(E => [E.model, E.w, E.sh]).filter(k => k && ASSETS.includes(k)))];
+const MON_ASSETS = [...new Set(Object.values(ETYPES).flatMap(E => [E.model, E.w, E.sh]).filter(k => k && ALL_ASSETS.includes(k)))];
 // 영웅에 필요한 모델: 몸 + (버들) 장비. robot=true 면 변신 로봇까지 (판에서 영웅 생성 시 mechInit 이 바로 만듦)
 const heroAssets = (cls, robot = false) => { const k = CLASSES[cls] && CLASSES[cls].model; if (!k) return []; return cls === 'mechanic' ? [k, 'budeul_gear', ...(robot ? ['mech_robot_meshy'] : [])] : [k]; };
+// 숨긴 영웅(data/heroes.js hidden)의 모델은 불러오지 않음 — ASSETS = 실제로 불러올 수 있는 전체 목록
+const HIDDEN_ASSETS = [...HIDDEN_HEROES].flatMap(c => heroAssets(c, true)).filter(k => !HERO_KEYS.some(h => !isHidden(h) && heroAssets(h, true).includes(k)));
+const ASSETS = ALL_ASSETS.filter(k => !HIDDEN_ASSETS.includes(k));
 const LOADING = {}; let loader = null;
 function loadModel(k) {
-  if (LOADING[k]) return LOADING[k]; if (!loader) { loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); }
+  if (LOADING[k]) return LOADING[k]; if (HIDDEN_ASSETS.includes(k)) return Promise.reject(new Error('숨긴 영웅 모델: ' + k)); if (!loader) { loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); }
   return (LOADING[k] = loader.loadAsync(`models/${k}.glb`).then(g => { prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); GL[k] = g; for (let i = WAIT.length - 1; i >= 0; i--) if (modelsReady(WAIT[i][0])) { WAIT[i][1](); WAIT.splice(i, 1); } return g; })
     .catch(e => { delete LOADING[k]; throw e; }));
 }

@@ -7,6 +7,10 @@ import sys, os, pathlib, io
 sys.path.insert(0, os.path.dirname(__file__))
 from regress import serve, ARGS
 from playwright.sync_api import sync_playwright
+import subprocess
+# 버들이 숨김(data/heroes.js CLASSES.mechanic.hidden)이면 건너뜀 — 테스트는 지우지 않음. hidden 을 false 로 되돌리면 다시 실행됨
+if subprocess.run(['node', '-e', "import('./src/data/heroes.js').then(m => process.exit(m.isHidden('mechanic') ? 0 : 1))"], cwd=os.path.join(os.path.dirname(__file__), '..')).returncode == 0:
+    print('SKIP budeul: 버들(메카닉) 숨김 중 (src/data/heroes.js hidden: true)'); sys.exit(0)
 MOCK = (pathlib.Path(__file__).parent / 'sbmock.js').read_text(encoding='utf-8')
 SHOTS = '--shots' in sys.argv; OUT = 'shots/budeul'; os.makedirs(OUT, exist_ok=True)
 srv, url = serve(); errs, res = [], {}

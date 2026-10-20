@@ -3,7 +3,7 @@
 // (예전 '총사 아이콘 undefined' 버그는 ICON 표에 gunner 가 빠져서 생김 → 이제 icon 은 CLASSES 안에 두고 여기서 검사)
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CLASSES, HERO_KEYS, heroLabel } from '../src/data/heroes.js';
+import { CLASSES, HERO_KEYS, HIDDEN_HEROES, VISIBLE_HEROES, DEFAULT_HERO, isHidden, heroLabel } from '../src/data/heroes.js';
 import * as P from '../src/account/progress.js';
 import * as E from '../src/account/equip.js';
 import { SHOP } from '../src/config/shop.js';
@@ -11,7 +11,7 @@ const R = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 assert.deepEqual([...HERO_KEYS], ['archer', 'mage', 'warrior', 'gunner', 'mechanic']);
 assert.equal(P.HEROES, HERO_KEYS, 'progress.HEROES = data/heroes.js 단일 기준');
-const chars = R('src/render/characters.js'), ASSETS = JSON.parse(chars.match(/const ASSETS = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+const chars = R('src/render/characters.js'), ASSETS = JSON.parse(chars.match(/const ALL_ASSETS = (\[[^\]]*\])/)[1].replace(/'/g, '"')); // 숨긴 영웅 모델도 목록에는 남김 (실제 로딩에서만 제외)
 let seed = 3; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 for (const h of HERO_KEYS) {
   const C = CLASSES[h];
@@ -37,4 +37,29 @@ for (const h of paid) { assert.equal(SHOP.items['hero_' + h].hero, h); assert.ok
   assert.ok((sql.match(new RegExp(`'hero_${h}'`, 'g')) || []).length >= 6, `schema item checks hero_${h}`); assert.ok(new RegExp(`r ->> 'hero' in \\([^)]*'${h}'`).test(sql), `schema valid_reward ${h}`); }
 // UI 아이콘 표는 CLASSES.icon 에서 생성 (gear.js 에 영웅 이모지 하드코딩 금지)
 const gear = R('src/ui/gear.js'); assert.ok(/HERO_KEYS\.map\(k => \[k, CLASSES\[k\]\.icon\]\)/.test(gear), 'gear ICON from CLASSES');
-console.log('heroes.test OK', HERO_KEYS.length, 'heroes');
+// ---------- 숨긴 영웅 (CLASSES[k].hidden) ----------  플래그 하나로: 선택 줄·마을 카드·상점·모델 로딩·새 드롭·저장 영웅 이전
+assert.deepEqual([...HIDDEN_HEROES], HERO_KEYS.filter(k => CLASSES[k].hidden)); assert.deepEqual(VISIBLE_HEROES, HERO_KEYS.filter(k => !CLASSES[k].hidden));
+assert.ok(VISIBLE_HEROES.length >= 1 && !isHidden(DEFAULT_HERO) && !CLASSES[DEFAULT_HERO].paid, 'DEFAULT_HERO = 보이는 무료 영웅');
+const sel = R('src/ui/select.js'), flow = R('src/ui/flow.js'), shopUi = R('src/ui/shop.js'), mainJs = R('src/main.js');
+assert.ok(/const L = VISIBLE_HEROES/.test(sel), '영웅 단상 = VISIBLE_HEROES'); assert.ok(/classList\.toggle\('hidden', isHidden\(c\.dataset\.cls\)\)/.test(sel), '선택 카드 숨김');
+assert.ok(/if \(isHidden\(cls\) \|\| !CLASSES\[cls\]\) cls = DEFAULT_HERO/.test(sel), 'choose(숨긴 영웅) → 기본 영웅');
+assert.ok(/VISIBLE_HEROES\.map\(h =>/.test(flow) && !/P\.HEROES\.map\(h =>/.test(flow), '마을 영웅 카드 = VISIBLE_HEROES');
+assert.ok(/PKEYS = Object\.keys\(SHOP\.items\)\.filter\(Sh\.onSale\)/.test(shopUi), '상점 목록 = 판매 중');
+assert.ok(!/HERO_KEYS/.test(mainJs.split('function bootPlan')[1].split('\n}')[0]), 'bootPlan 은 VISIBLE_HEROES 만');
+assert.ok(/const ASSETS = ALL_ASSETS\.filter\(k => !HIDDEN_ASSETS\.includes\(k\)\)/.test(chars) && /HIDDEN_ASSETS\.includes\(k\)\) return Promise\.reject/.test(chars), '숨긴 영웅 모델 로딩 안 함');
+{ // 브라우저 전역 최소 스텁 → account.js / account/shop.js 를 node 에서 실행
+  const mem = {}; globalThis.localStorage = { getItem: k => mem[k] ?? null, setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
+  globalThis.addEventListener = () => {}; globalThis.document = { addEventListener() {}, visibilityState: 'visible' }; globalThis.location = { search: '', hostname: 'localhost', href: 'http://localhost/' };
+  for (const h of HIDDEN_HEROES) {
+    mem.hd3d_save = JSON.stringify({ hero: h, heroLv: { [h]: { hp: 3, atk: 2 } }, inv: [{ id: 'hx1', s: 'weapon', h, g: 2, n: 'x', m: ['atk', 9], sub: [], e: 0 }], eq: { [h]: { weapon: 'hx1' } } });
+    const Acc = await import('../src/account/account.js'), Sh = await import('../src/account/shop.js');
+    const s = Acc.load(); assert.equal(s.hero, DEFAULT_HERO, `저장 영웅 ${h} → ${DEFAULT_HERO}`); assert.equal(JSON.parse(mem.hd3d_save).hero, DEFAULT_HERO, '이전 결과 저장됨');
+    assert.deepEqual(s.heroLv[h], { hp: 3, atk: 2 }, '숨긴 영웅 강화 유지'); assert.ok(s.inv.some(x => x.id === 'hx1') && s.eq[h].weapon === 'hx1', '숨긴 영웅 아이템·장착 유지');
+    assert.equal(Sh.heroOwned(h), false, '선택 불가'); assert.equal(Sh.usableHero(h), DEFAULT_HERO);
+    const item = Object.keys(SHOP.items).find(k => SHOP.items[k].hero === h); if (item) { assert.equal(Sh.onSale(item), false, '상점에 없음'); assert.equal((await Sh.order(item)).ok, false, '구매 신청 불가');
+      assert.ok(sql.includes(`'${item}'`), 'schema 상품은 유지'); }
+    for (let i = 0; i < 40; i++) { const it = E.randomItem(h, E.chestOdds(3), r, 'weapon'); assert.notEqual(it.h, h, '숨긴 영웅 무기 새 드롭 없음'); }
+  }
+  for (const h of VISIBLE_HEROES) if (CLASSES[h].paid) assert.equal((await import('../src/account/shop.js')).onSale('hero_' + h), true, `${h} 판매 중`);
+}
+console.log('heroes.test OK', HERO_KEYS.length, 'heroes,', HIDDEN_HEROES.size, 'hidden');

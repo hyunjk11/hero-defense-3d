@@ -1,4 +1,5 @@
 // 장비 시스템 (순수 로직, DOM·네트워크 없음 → node 테스트 가능)
+import { DEFAULT_HERO, isHidden } from '../data/heroes.js';
 // item = { id, s: 'weapon'|'armor'|'acc', h?: 영웅(무기만), g: 등급 0..4, n: 이름, m: [스탯, 값], sub: [[스탯, 값]...], e: 강화 0..10 }
 export const GRADES = [
   { k: 'common', n: '일반', c: '#b8b8c4' }, { k: 'uncommon', n: '고급', c: '#5ad85a' }, { k: 'rare', n: '희귀', c: '#4aa8ff' },
@@ -66,7 +67,8 @@ export function isEquipped(save, id) { return Object.values(save.eq || {}).some(
 export function chestOdds(tier) { const t = Math.max(0, tier - 1); return [Math.max(8, 60 - 10 * t), 28 + 2 * t, 9 + 3 * t, 2.6 + 1.8 * t, .4 + .7 * t]; }
 export const BOSS_DROP = .5; // 보스 처치 시 장비 드롭 확률
 export function bossOdds(wave) { const o = chestOdds(Math.floor(wave / 5) + 1); o[0] = 0; return o; } // 보스 드롭은 최소 고급
-export function randomItem(hero, odds, r = Math.random, slot) { return makeItem(slot || pick(SLOT_KEYS, r), hero, rollGrade(odds, r), r); }
+// 드롭·상자·별 보상·제작은 모두 여기로 → 숨긴 영웅(data/heroes.js hidden) 전용 무기는 새로 만들지 않고 기본 영웅 무기로 (이미 가진 아이템은 유지)
+export function randomItem(hero, odds, r = Math.random, slot) { if (isHidden(hero)) hero = DEFAULT_HERO; return makeItem(slot || pick(SLOT_KEYS, r), hero, rollGrade(odds, r), r); }
 export function chestsFor(wave, hero, r = Math.random) { const out = []; for (let w = 5; w <= wave; w += 5) out.push(randomItem(hero, chestOdds(w / 5), r)); return out; }
 // 가방에 넣기 (가득 차면 자동 분해 → 재료). 반환: [save, 결과목록{it, auto}]
 // ---------- 보관 중인 보상 상자 (미개봉) ----------

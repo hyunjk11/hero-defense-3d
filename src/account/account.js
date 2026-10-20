@@ -5,6 +5,7 @@
 // 탭 숨김/페이지 닫힘(S-4): visibilitychange(hidden)·pagehide 에서 즉시 저장, 이때 요청은 fetch keepalive 로 보냄
 import { SUPABASE } from '../config/supabase.js';
 import * as P from './progress.js';
+import { isHidden } from '../data/heroes.js';
 
 const T = SUPABASE.tables, AUTH_KEY = 'hd3dSbAuth', K_SAVE = 'hd3d_save', K_GUEST = 'hd3d_guest', K_UID = 'hd3d_uid', K_DIRTY = 'hd3d_dirty', K_MODE = 'hd3d_mode';
 const mergedKey = uid => 'hd3d_merged_' + uid, tsKey = uid => 'hd3d_cloud_ts_' + uid;
@@ -17,7 +18,7 @@ const emit = () => A.listeners.forEach(f => { try { f(A); } catch (e) { console.
 export const onChange = f => A.listeners.push(f);
 
 // ---------- 로컬 저장 ----------
-export function load() { const s = P.clean(parse(ls.get(K_SAVE)) || {}); if (!ls.get(K_SAVE)) migrateOld(s); return s; }
+export function load() { const raw = parse(ls.get(K_SAVE)) || {}, s = P.clean(raw); if (!ls.get(K_SAVE)) migrateOld(s); else if (raw.hero !== s.hero && isHidden(raw.hero)) store(s); return s; } // 숨긴 영웅 → 기본 영웅 이전은 바로 저장
 function migrateOld(s) { const b = +ls.get('hd3d_best') || 0; s.bestWave = Math.max(s.bestWave, b); const a = parse(ls.get('hd3d_audio')); if (a) s.settings.audio = P.clean({ settings: { audio: a } }).settings.audio; }
 export function store(s, { cloud = true } = {}) { s = P.clean(s); ls.set(K_SAVE, JSON.stringify(s)); if (cloud && A.user) { ls.set(K_DIRTY, '1'); schedule(); } emit(); return s; }
 export function update(fn) { return store(fn(load())); }
@@ -104,7 +105,7 @@ async function loadCloud() {
     const pr = await A.sb.from(T.profiles).select('nickname').eq('id', uid).maybeSingle();
     if (!pr.error && pr.data?.nickname) store({ ...load(), nick: pr.data.nickname }, { cloud: false });
     else if (!pr.error) await saveNick(load().nick || (A.user.email || '용사').split('@')[0].slice(0, 12));
-    if (!cloud || JSON.stringify(P.clean(cloud)) !== JSON.stringify(load())) await save(); else { A.sync = 'saved'; ls.del(K_DIRTY); }
+    if (!cloud || cloud.hero !== load().hero || JSON.stringify(P.clean(cloud)) !== JSON.stringify(load())) await save(); else { A.sync = 'saved'; ls.del(K_DIRTY); }
   } catch (e) { A.sync = 'offline'; A.msg = koErr(e); schedule(true); }
   emit();
 }

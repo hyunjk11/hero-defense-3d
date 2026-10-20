@@ -13,7 +13,7 @@ import * as GROW from './data/growth.js';
 import { QS } from './core/util.js';
 import { onMove as _onMove, buildReason as _buildReason, setTool as _setTool } from './ui/input.js';
 import { camera as _camera } from './render/scene.js';
-import { CLASSES, HERO_KEYS } from './data/heroes.js';
+import { CLASSES, VISIBLE_HEROES, isHidden } from './data/heroes.js';
 import { ETYPES } from './data/monsters.js';
 import { TOWERS } from './data/towers.js';
 import { G } from './core/state.js';
@@ -93,10 +93,10 @@ genMap(); initTerrainColors(); refreshAll(); buildPortal(); buildCore(); compute
 //  인트로/마을: 저장된 영웅만 먼저 → 백그라운드로 몬스터(마을 '도전' 출정용) → 무료 영웅 → 유료 영웅 → 변신 로봇 (버들 저장이면 로봇을 앞쪽으로)
 function bootPlan() {
   if ((QS.has('test') || QS.has('skipintro')) && !QS.has('lazy')) return { first: ASSETS, bg: [] };
-  let h = 'mage'; try { const s = accLoad(); if (CLASSES[s.hero]) h = s.hero; } catch (e) {}
+  let h = 'mage'; try { const s = accLoad(); if (CLASSES[s.hero] && !isHidden(s.hero)) h = s.hero; } catch (e) {}
   const heroes = CLASSES[h].paid ? [h, 'mage'] : [h], uniq = a => [...new Set(a)];
   if (STAGE && QS.has('run')) return { first: uniq([...MON_ASSETS, ...heroes.flatMap(c => heroAssets(c, true))]), bg: [] };
-  const first = uniq(heroes.flatMap(c => heroAssets(c))), order = [...MON_ASSETS, ...(h === 'mechanic' ? ['mech_robot_meshy'] : []), ...HERO_KEYS.filter(c => !CLASSES[c].paid).flatMap(c => heroAssets(c)), ...HERO_KEYS.filter(c => CLASSES[c].paid).flatMap(c => heroAssets(c, true))];
+  const first = uniq(heroes.flatMap(c => heroAssets(c))), order = [...MON_ASSETS, ...(h === 'mechanic' ? ['mech_robot_meshy'] : []), ...VISIBLE_HEROES.filter(c => !CLASSES[c].paid).flatMap(c => heroAssets(c)), ...VISIBLE_HEROES.filter(c => CLASSES[c].paid).flatMap(c => heroAssets(c, true))];
   return { first, bg: uniq(order).filter(k => !first.includes(k)) };
 }
 const PLAN = bootPlan(); G.loadPlan = PLAN;

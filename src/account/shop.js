@@ -3,7 +3,7 @@
 import { A, ensureClient, load as accLoad, store as accStore, onChange as accOnChange } from './account.js';
 import { applyMail } from './progress.js';
 import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
-import { CLASSES } from '../data/heroes.js';
+import { CLASSES, DEFAULT_HERO, isHidden } from '../data/heroes.js';
 
 const T = SHOP.tables;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -16,8 +16,10 @@ const uid = () => (A.user && A.user.id) || '';
 // ---------- 소유권 (서버 hd3d_owned 를 마지막으로 읽은 값, 현재 로그인 계정 것만) ----------
 export function ownedList() { const u = uid(); return u && S.ownedUid === u ? S.owned.slice() : []; }
 export const owns = item => ownedList().includes(item);
-export const heroOwned = cls => !!CLASSES[cls] && (!CLASSES[cls].paid || owns('hero_' + cls));
-export const usableHero = cls => heroOwned(cls) ? cls : 'mage'; // 저장된 영웅이 잠겨 있으면 기본 영웅
+export const heroOwned = cls => !!CLASSES[cls] && !isHidden(cls) && (!CLASSES[cls].paid || owns('hero_' + cls)); // 숨긴 영웅은 소유해도 사용 불가 (소유 기록은 서버에 그대로)
+export const usableHero = cls => heroOwned(cls) ? cls : isHidden(cls) ? DEFAULT_HERO : 'mage';
+// 판매 중인 상품 (숨긴 영웅 상품은 목록·구매에서 제외, schema 상품은 그대로)
+export const onSale = item => !!SHOP.items[item] && !(SHOP.items[item].kind === 'hero' && isHidden(SHOP.items[item].hero)); // 저장된 영웅이 잠겨 있으면 기본 영웅
 export const isAdminUI = () => !!(A.user && String(A.user.email || '').toLowerCase() === ADMIN_EMAIL); // 버튼 표시용 (서버가 다시 검사)
 export const unread = () => S.mail.filter(m => !m.claimed && (m.reward || !m.read)).length;
 
@@ -44,6 +46,7 @@ export const pendingOf = item => S.orders.find(o => o.item === item && o.status 
 // ---------- 구매 신청 ----------  반환 { ok, msg }
 export async function order(item) {
   if (!SHOP.items[item]) return { ok: false, msg: '알 수 없는 상품입니다.' };
+  if (!onSale(item)) return { ok: false, msg: '지금은 판매하지 않는 상품입니다.' };
   if (!A.user) return { ok: false, msg: '로그인한 계정만 구매할 수 있어요. (게스트 불가)' };
   if (S.status !== 'ok') await refresh();
   if (S.status === 'missing') return { ok: false, msg: '서버 준비 중이에요. 잠시 후 다시 시도해 주세요.' };

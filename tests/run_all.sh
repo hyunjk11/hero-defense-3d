@@ -19,7 +19,7 @@ fi
 for s in "${SUITES[@]}"; do case "$s" in regress|schema_pg) continue;; esac; [ -f "tests/$s.py" ] || { note "SKIP  $s (없음)"; continue; }
   t=$SECONDS; timeout 1500 python3 "tests/$s.py" > "tests/logs/$s.log" 2>&1; rc=$?
   nok=$(grep -c '^OK ' "tests/logs/$s.log"); nf=$(grep -c '^FAIL' "tests/logs/$s.log")
-  if [ $rc -eq 0 ]; then note "OK    $s ($nok ok, $((SECONDS-t))s)"; else note "FAIL  $s (rc=$rc, $nok ok / $nf fail, $((SECONDS-t))s): $(grep '^FAIL' "tests/logs/$s.log" | head -3 | cut -c1-80 | tr '\n' ';')"; fail=1; fi
+  if [ $rc -eq 0 ] && grep -q '^SKIP' "tests/logs/$s.log"; then note "SKIP  $s ($(grep -m1 '^SKIP' "tests/logs/$s.log" | cut -c1-70))"; elif [ $rc -eq 0 ]; then note "OK    $s ($nok ok, $((SECONDS-t))s)"; else note "FAIL  $s (rc=$rc, $nok ok / $nf fail, $((SECONDS-t))s): $(grep '^FAIL' "tests/logs/$s.log" | head -3 | cut -c1-80 | tr '\n' ';')"; fail=1; fi
 done
 if [ $# -eq 0 ] || [[ " $* " == *" schema_pg "* ]]; then
   python3 tests/schema_pg.py > tests/logs/schema_pg.log 2>&1 && note "OK    schema_pg ($(grep -c '^OK ' tests/logs/schema_pg.log) ok$(grep -q SKIP tests/logs/schema_pg.log && echo ', SKIP: postgres 없음'))" || { note "FAIL  schema_pg"; fail=1; }
