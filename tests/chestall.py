@@ -59,6 +59,7 @@ with sync_playwright() as pw:
         ok(f'{tag}_full_notice', '가방이 가득 찼어요' in txt and pg.locator('#cbSmith').count() == 1)
         ok(f'{tag}_legend_sparkle', tiles[0] == 4 and pg.locator('#cbGrid .sumT.g4 .spk').count() >= 3 and J(pg, "()=>getComputedStyle(document.querySelector('#cbGrid .sumT.g4')).animationName.includes('legendGlow')"))
         ok(f'{tag}_epic_flash', J(pg, "()=>{ const e=document.querySelector('#cbGrid .sumT.g3'); return !e || getComputedStyle(e).animationName.includes('epicPop'); }"))
+        pg.wait_for_function("()=>{ const e=document.getElementById('cbSum'); return e && !e.getAnimations().some(a=>a.playState==='running' && a.animationName==='sumIn'); }", timeout=10000)  # 등장 애니메이션(scale) 중엔 크기가 작게 잡힘
         fi = J(pg, "()=>{ const r=document.getElementById('cbSum').getBoundingClientRect(); const k=document.getElementById('cbOk').getBoundingClientRect(); return [r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth&&k.bottom<=innerHeight&&k.height>=44, [r.left,r.top,r.right,r.bottom,k.bottom,k.height,innerWidth,innerHeight].map(Math.round)]; }"); ok(f'{tag}_summary_fits', fi[0], fi[1])
         (pg.tap if touch else pg.click)('#cbGrid .sumT >> nth=0'); pg.wait_for_timeout(200)
         if tag == '1440x860': ok(f'{tag}_tile_detail', '전설' in pg.inner_text('#cbDetail')); shot(pg, 'open_all_summary.png')
