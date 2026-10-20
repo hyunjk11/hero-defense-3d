@@ -123,7 +123,7 @@ with sync_playwright() as pw:
             mid, cond = SKL[br]; cast(pg, mid, br != 'hawk')
             ok(f'{br}_skill', J(pg, f"()=>{cond}"), J(pg, "()=>[G.advN, G.hero.skillCd, G.projs.map(p=>p.kind), G.mouseGround.toArray(), G.hero.g.position.toArray()]"))
             if br in ('wind', 'frost', 'paladin', 'thorn', 'hawk', 'flame', 'berserk', 'duel'):  # 오라 + Q 근접 화면 (카메라를 영웅 쪽으로)
-                J(pg, "()=>{ const p=G.hero.g.position, m=G.mouseGround; G.cam.target.set((p.x+m.x)/2, 0, (p.z+m.z)/2); G.cam.r=17; G.cam.phi=.8; G.cam.theta=.3; }"); shot(pg, f'ingame_{h}_{br}', force=br in ('frost', 'paladin', 'wind', 'thorn'))
+                J(pg, "()=>{ const p=G.hero.g.position, m=G.mouseGround; G.cam.target.set((p.x+m.x)/2, 0, (p.z+m.z)/2); G.cam.r=17; G.cam.phi=.8; G.cam.theta=.3; G.sim(.05); }"); shot(pg, f'ingame_{h}_{br}', force=br in ('frost', 'paladin', 'wind', 'thorn'))
             c.close()
     print('console errors:', len(errs), errs[:5])
     b.close()
