@@ -447,3 +447,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .wpT{color:#b8aed4;font-size:10.5px;flex:none;max-width:60px;overflow:hidden;text-overflow:ellipsis}.wpP{color:#ffe066;font-size:10.5px;width:26px;text-align:right;flex:none}
 .wpRow.boss .wpNm{color:#ff8a9a;font-weight:bold}.wpMore{font-size:11px;color:#a9a0c0;text-align:right}
 #wavePrev.compact .wpList{flex-direction:row;flex-wrap:nowrap;gap:4px;overflow:hidden}#wavePrev.compact .wpI{font-style:normal;font-size:17px;width:22px;text-align:center}#wavePrev.compact .wpI.boss{filter:drop-shadow(0 0 3px #ff4a5a)}
+
+/* ×2 배속 · 일시정지 — src/ui/speed.js */
+#cam #speedBtn{font-size:15px;font-weight:bold}#cam button.on{background:linear-gradient(#e8c86a,#b8902a);color:#1a1020;border-color:#ffe08a}
+#cam #pauseBtn{font-size:13px;letter-spacing:-2px}
+#pauseOv{position:fixed;inset:0;z-index:44;pointer-events:auto;background:#05040acc;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+#pauseOv .pBox{display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 34px;border:1px solid #c9a24a;border-radius:16px;background:linear-gradient(#17142aee,#0a0912ee)}
+#pauseOv .pT{font-size:28px;font-weight:bold;color:#ffe066;letter-spacing:4px}#pauseOv #pauseGo{min-width:200px;min-height:52px;font-size:18px}#pauseOv .pH{font-size:12px;color:#a9a0c0}

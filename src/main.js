@@ -32,6 +32,7 @@ import { hurt, spawnEnemy } from './monsters/enemy.js';
 import { separate, updEnemies, updLod } from './monsters/ai.js';
 import { Q } from './render/quality.js';
 import './ui/gfx.js';
+import './ui/speed.js';
 import { hero, heroDamage, heroGoTo, updHero } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
 import { castLegend, updLegend } from './heroes/legend.js';
@@ -64,7 +65,7 @@ function updLighting(dt) {
   sun.color.setHSL(LIGHT.sunH, .6 - n * .3, .88 - n * .2); bloom.strength = (.32 + n * .22) * LIGHT.bloomK; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
 }
 let lastT = performance.now(), hudT = 0;
-function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05));
+function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual && !G.paused) { const dt = Math.min(raw, .05); for (let i = 0; i < (G.speed || 1); i++) step(dt); } // ×2 배속 = G.sim 처럼 같은 길이 스텝을 여러 번(더 큰 dt 아님), 일시정지 = 정지 (src/ui/speed.js)
   Q.tick(raw, !G.manual && (G.phase === 'build' || G.phase === 'wave')); if (!G.pauseRender) { updLod(); composer.render(); } }
 G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
 function step(dt) {
