@@ -1,6 +1,7 @@
 // 상점 · 우편함 · 관리자 클라이언트 (Supabase). 유료 영웅 소유권은 서버 테이블 hd3d_owned(사용자 쓰기 불가)에서 읽은 값만 메모리에 둠 (localStorage/세이브에 저장하지 않음).
 // 테이블/함수가 아직 없으면(schema.sql 미실행) status = 'missing' → UI는 '서버 준비 중'. 게스트는 구매/우편 불가.
-import { A, ensureClient, update as accUpdate, onChange as accOnChange } from './account.js';
+import { A, ensureClient, load as accLoad, store as accStore, onChange as accOnChange } from './account.js';
+import { applyMail } from './progress.js';
 import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
 import { CLASSES } from '../data/heroes.js';
 
@@ -32,7 +33,8 @@ export async function refresh() {
   if (bad) { S.status = isMissing(bad.error) ? 'missing' : 'error'; S.msg = bad.error.message || ''; emit(); return S; }
   if (!A.user || A.user.id !== u) return S;
   S.owned = [...new Set((o.data || []).map(x => x.item))]; S.ownedUid = u;
-  const rd = readSet(); S.orders = r.data || []; S.mail = (m.data || []).map(x => ({ ...x, read: rd.has(String(x.id)) })); S.status = 'ok'; emit(); return S;
+  const rd = readSet(); S.orders = r.data || []; S.mail = (m.data || []).map(x => ({ ...x, read: rd.has(String(x.id)) })); S.status = 'ok'; emit();
+  if (!recovering && pendList().length) setTimeout(() => recoverClaims().catch(() => {}), 0); return S;
 }
 const readKey = () => 'hd3d_mailread_' + uid();
 function readSet() { try { return new Set(JSON.parse(ls.get(readKey()) || '[]')); } catch (e) { return new Set(); } }
@@ -54,19 +56,35 @@ export async function order(item) {
 }
 
 // ---------- 우편 받기 (서버 RPC: 한 번만 지급) ----------  반환 { ok, already, reward, msg }
+// 보상 장부(S-3): RPC 를 부르기 전에 id 를 이 기기의 '받는 중' 목록(hd3d_mailpend_<uid>)에 적어 둠. 서버는 성공했는데 응답이 끊기면
+// 목록에 남아 있다가 다음 refresh 때 다시 부름 → 서버는 already + reward 를 돌려주고(schema.sql), 세이브 장부(save.mailLog)에 없으면 그때 더함.
+// '받는 중'이 아니었던 already(다른 기기에서 받음 등)는 더하지 않음 → 장부 도입 전에 받은 우편이 다시 지급되지 않음.
 let claiming = new Set();
-export async function claim(id) {
+const pendKey = () => 'hd3d_mailpend_' + uid();
+const pendList = () => { try { const a = JSON.parse(ls.get(pendKey()) || '[]'); return Array.isArray(a) ? a.filter(Number.isSafeInteger) : []; } catch (e) { return []; } };
+const pendSet = (id, on) => { const a = new Set(pendList()); if (on) a.add(id); else a.delete(id); ls.set(pendKey(), JSON.stringify([...a].slice(-50))); };
+export const pendingClaims = () => pendList();
+export async function claim(id, { quiet = false } = {}) {
   if (!A.user) return { ok: false, msg: '로그인이 필요합니다.' }; if (claiming.has(id)) return { ok: false, busy: true, msg: '처리 중…' }; claiming.add(id);
+  const u = uid(), wasPending = pendList().includes(id);
   try {
+    pendSet(id, true);
     const c = await sb(), { data, error } = await q(c.rpc('hd3d_claim_mail', { p_mail_id: id }));
-    if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') };
-    const r = data || {}; if (!r.already && r.reward) applyReward(r.reward); markRead(id); await refresh();
-    return { ok: true, already: !!r.already, reward: r.reward || null, msg: r.already ? '이미 받은 우편이에요.' : '보상을 받았습니다!' };
+    if (error) { if (error.code === 'P0002' || /not found/i.test(error.message || '')) pendSet(id, false); return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') }; }
+    if (uid() !== u) return { ok: false, msg: '계정이 바뀌었습니다.' };
+    const r = data || {}; let applied = false;
+    if (r.reward && (!r.already || wasPending)) applied = applyReward(id, r.reward);
+    pendSet(id, false); if (!quiet) markRead(id); await refresh();
+    const recovered = !!(r.already && applied);
+    return { ok: true, already: !!r.already && !recovered, recovered, reward: r.reward || null, msg: recovered ? '지난번에 받지 못한 보상을 받았습니다!' : r.already ? '이미 받은 우편이에요.' : '보상을 받았습니다!' };
   } finally { claiming.delete(id); }
 }
-// 영혼석·재료는 저장 데이터에 더함 (영웅은 서버 hd3d_owned 로 해금 → refresh)
-function applyReward(rw) { const n = k => Math.max(0, Math.min(1e6, Math.floor(+rw[k] || 0))); if (!n('souls') && !n('steel') && !n('crystal')) return;
-  accUpdate(d => ({ ...d, souls: d.souls + n('souls'), mat: { steel: d.mat.steel + n('steel'), crystal: d.mat.crystal + n('crystal') } })); }
+// 응답이 끊겨 '받는 중'으로 남은 우편을 다시 처리 (로그인 후 refresh 때 자동)
+let recovering = false;
+export async function recoverClaims() { if (recovering || !A.user) return 0; recovering = true; let n = 0;
+  try { for (const id of pendList()) { const r = await claim(id, { quiet: true }); if (r.recovered || (r.ok && !r.already)) n++; } } finally { recovering = false; } return n; }
+// 영혼석·재료는 저장 데이터에 더하고 장부에 id 기록 (한 번만). 영웅은 서버 hd3d_owned 로 해금 → refresh
+function applyReward(id, rw) { const [s, ok] = applyMail(accLoad(), id, rw); if (ok) accStore(s); return ok; }
 export function rewardText(rw) { if (!rw) return ''; const o = []; if (rw.hero && CLASSES[rw.hero]) o.push(`영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n}`); if (+rw.souls) o.push(`영혼석 ${+rw.souls}`); if (+rw.steel) o.push(`강철 ${+rw.steel}`); if (+rw.crystal) o.push(`마력석 ${+rw.crystal}`); return o.join(' · '); }
 
 // ---------- 관리자 (서버가 hd3d_is_admin()으로 다시 검사) ----------

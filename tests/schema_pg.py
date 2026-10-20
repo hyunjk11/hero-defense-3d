@@ -66,6 +66,7 @@ try:
     ok('u2_cannot_claim_u1_mail', not A(f'select public.hd3d_claim_mail({mid})', U2)[0])
     r = A(f'select public.hd3d_claim_mail({mid})', U1); ok('claim', r[0] and '"already": false' in r[1] and 'gunner' in r[1], r)
     r = A(f'select public.hd3d_claim_mail({mid})', U1); ok('claim_idempotent', r[0] and '"already": true' in r[1], r)
+    ok('claim_already_returns_reward', '"reward": {"hero": "gunner"}' in r[1], r)  # 보상 장부 복구용 (S-3)
     ok('owned_after_claim', A('select item from public.hd3d_owned', U1)[1] == 'hero_gunner' and psql('select count(*) from public.hd3d_owned')[1] == '1')
     ok('owned_blocks_new_order', not A("insert into public.hd3d_orders (item) values ('hero_gunner')", U1)[0])
     # 거절
@@ -91,6 +92,13 @@ try:
     ok('admin_send_bad_reward', '"bad_reward"' in A("""select public.hd3d_admin_send_mail('u2@test.kr', 'x', '', '{"gold": 5}')""", ADM)[1])
     ok('admin_send_no_user', '"no_user"' in A("""select public.hd3d_admin_send_mail('nobody@test.kr', 'x', '', null)""", ADM)[1])
     ok('user_cannot_send_mail', not A("""select public.hd3d_admin_send_mail('u1@test.kr', 'x', '', '{"hero":"gunner"}')""", U2)[0])
+    # 저장 낙관적 동시성 (S-2): updated_at 이 기억한 값일 때만 update → 다른 기기가 먼저 쓰면 0행
+    r = A(f"""insert into public.hd3d_progress (user_id, data, merged) values ('{U1['sub']}', '{{"souls": 1}}', true) returning updated_at""", U1); ok('progress_insert', r[0] and r[1], r); t0 = r[1]
+    ok('progress_insert_dup_23505', 'duplicate key' in A(f"""insert into public.hd3d_progress (user_id, data) values ('{U1['sub']}', '{{}}')""", U1)[2])
+    r = A(f"""update public.hd3d_progress set data = '{{"souls": 2}}' where user_id = '{U1['sub']}' and updated_at = '{t0}' returning updated_at""", U1); ok('progress_cas_ok', r[0] and r[1] and r[1] != t0, r); t1 = r[1]
+    r = A(f"""update public.hd3d_progress set data = '{{"souls": 3}}' where user_id = '{U1['sub']}' and updated_at = '{t0}' returning updated_at""", U1); ok('progress_cas_stale_0rows', r[0] and r[1] == '', r)
+    r = A(f"""update public.hd3d_progress set data = '{{"souls": 9}}' where user_id = '{U1['sub']}' and updated_at = '{t1}' returning 1""", U2); ok('progress_other_user_0rows', r[0] and r[1] == '', r)
+    ok('progress_value', A("select data ->> 'souls' from public.hd3d_progress", U1)[1] == '2')
     ok('anon_no_access', not psql('select count(*) from public.hd3d_mail', 'anon', {})[0] and not psql('select count(*) from public.hd3d_orders', 'anon', {})[0])
 finally:
     subprocess.run([f'{B}/pg_ctl', '-D', data, '-m', 'immediate', 'stop'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); shutil.rmtree(tmp, ignore_errors=True)

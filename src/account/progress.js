@@ -10,14 +10,14 @@ export const STATS = ['runs', 'kills', 'waves', 'souls'];
 const num = (v, d = 0) => (Number.isFinite(+v) && v !== null && v !== '' ? +v : d);
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const int = (v, lo = 0, hi = 1e9) => Math.max(lo, Math.min(hi, Math.floor(num(v))));
-export function empty() { return { v: 1, hero: 'mage', souls: 0, bestWave: 0, heroLv: Object.fromEntries(HEROES.map(h => [h, { hp: 0, atk: 0 }])), stats: Object.fromEntries(STATS.map(k => [k, 0])), settings: {}, nick: '', inv: [], eq: Object.fromEntries(HEROES.map(h => [h, {}])), mat: { steel: 0, crystal: 0 }, chests: [], st: {}, starRw: 0, research: GR.emptyResearch() }; }
+export function empty() { return { v: 1, hero: 'mage', souls: 0, bestWave: 0, heroLv: Object.fromEntries(HEROES.map(h => [h, { hp: 0, atk: 0 }])), stats: Object.fromEntries(STATS.map(k => [k, 0])), settings: {}, nick: '', inv: [], eq: Object.fromEntries(HEROES.map(h => [h, {}])), mat: { steel: 0, crystal: 0 }, chests: [], st: {}, starRw: 0, research: GR.emptyResearch(), mailLog: [] }; }
 export function clean(d) {
   d = obj(d); const e = empty();
   e.hero = HEROES.includes(d.hero) ? d.hero : e.hero; e.souls = int(d.souls); e.bestWave = int(d.bestWave, 0, 9999);
   for (const h of HEROES) { const l = obj(obj(d.heroLv)[h]); e.heroLv[h] = { hp: int(l.hp, 0, PERM.hp.max), atk: int(l.atk, 0, PERM.atk.max) }; }
   for (const k of STATS) e.stats[k] = int(obj(d.stats)[k]);
   const a = obj(obj(d.settings).audio); if (Object.keys(a).length) e.settings.audio = { bgm: Math.max(0, Math.min(1, num(a.bgm, .6))), sfx: Math.max(0, Math.min(1, num(a.sfx, .8))), bgmOn: a.bgmOn !== false, sfxOn: a.sfxOn !== false };
-  e.nick = typeof d.nick === 'string' ? d.nick.trim().slice(0, 12) : ''; E.cleanEquip(d, e, HEROES); cleanStages(d, e); e.research = GR.cleanResearch(d.research); return e;
+  e.nick = typeof d.nick === 'string' ? d.nick.trim().slice(0, 12) : ''; E.cleanEquip(d, e, HEROES); cleanStages(d, e); e.research = GR.cleanResearch(d.research); e.mailLog = cleanMailLog(d.mailLog); return e;
 }
 // 게스트 저장 → 계정 첫 로그인 병합: 수치는 큰 값, 영웅/설정은 기기(local) 우선, 닉네임은 계정(cloud) 우선
 export function merge(local, cloud) {
@@ -26,8 +26,15 @@ export function merge(local, cloud) {
   for (const h of HEROES) for (const k of ['hp', 'atk']) m.heroLv[h][k] = Math.max(a.heroLv[h][k], b.heroLv[h][k]);
   for (const k of STATS) m.stats[k] = Math.max(a.stats[k], b.stats[k]);
   if (cloud == null || a.stats.runs >= b.stats.runs) m.hero = a.hero;
-  if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); return m;
+  if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); m.mailLog = cleanMailLog([...a.mailLog, ...b.mailLog]); return m;
 }
+// 우편 보상 장부(S-3): 영혼석·재료를 세이브에 더한 우편 id (양의 정수, 중복 없음, 최근 MAIL_LOG_MAX개). 응답 유실 후 재시도 때 두 번 더하지 않게
+export const MAIL_LOG_MAX = 300;
+export function cleanMailLog(v) { const ids = [...new Set((Array.isArray(v) ? v : []).map(Number).filter(n => Number.isSafeInteger(n) && n > 0))]; ids.sort((x, y) => x - y); return ids.slice(-MAIL_LOG_MAX); }
+// 우편 보상을 세이브에 반영 + 장부 기록 (이미 장부에 있으면 그대로). 반환 [save, 적용 여부]
+export function applyMail(save, id, rw) { const s = clean(save); id = Number(id); if (!Number.isSafeInteger(id) || id <= 0 || s.mailLog.includes(id)) return [s, false];
+  const n = k => Math.max(0, Math.min(1e6, Math.floor(+(rw && rw[k]) || 0)));
+  s.souls += n('souls'); s.mat.steel += n('steel'); s.mat.crystal += n('crystal'); s.mailLog = cleanMailLog([...s.mailLog, id]); return [s, true]; }
 export const permCost = (k, lv) => Math.round(PERM[k].base * Math.pow(1.5, lv));
 // 판 종료 보상: 도달 웨이브 × 8 + 처치 수 / 3 (반올림 내림)
 export function reward(wave, kills) { return Math.max(0, Math.floor(wave * 8 + kills / 3)); }

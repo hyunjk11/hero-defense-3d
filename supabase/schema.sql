@@ -177,6 +177,8 @@ do $$ begin
 end $$;
 
 -- ---------- RPC: 우편 받기 (원자적 · 한 번만) ----------
+-- 이미 받은 우편이면 already = true 와 함께 reward 도 돌려줌 (보상 장부: 서버는 받음 처리됐는데 응답이 끊긴 경우,
+-- 클라이언트가 '받는 중'으로 적어 둔 우편만 다시 불러 세이브에 반영. 세이브의 mailLog 로 두 번 더하지 않음 — src/account/shop.js)
 create or replace function public.hd3d_claim_mail(p_mail_id bigint) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare m public.hd3d_mail%rowtype;
@@ -184,8 +186,9 @@ begin
   if auth.uid() is null then raise exception 'not authenticated' using errcode = '42501'; end if;
   update public.hd3d_mail set claimed = true, claimed_at = now() where id = p_mail_id and user_id = auth.uid() and not claimed returning * into m;
   if not found then
-    if exists (select 1 from public.hd3d_mail where id = p_mail_id and user_id = auth.uid()) then
-      return jsonb_build_object('ok', true, 'already', true, 'id', p_mail_id);
+    select * into m from public.hd3d_mail where id = p_mail_id and user_id = auth.uid();
+    if found then
+      return jsonb_build_object('ok', true, 'already', true, 'id', m.id, 'reward', m.reward);
     end if;
     raise exception 'mail not found' using errcode = 'P0002';
   end if;

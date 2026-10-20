@@ -1,14 +1,17 @@
 // 계정 + 저장: 로컬 저장(localStorage 'hd3d_save')이 항상 기준이고, 로그인 시 Supabase hd3d_progress에 디바운스 업로드.
 // 실패/오프라인 → dirty 플래그 유지 + 백오프 재시도. 기기에서 첫 로그인 시 게스트 저장을 한 번 병합. 테이블이 없으면(schema.sql 미실행) '서버 준비 중' + 로컬 저장.
+// 기기 간 충돌(S-2): 마지막으로 본 서버 행의 updated_at(hd3d_cloud_ts_<uid>)을 기억해 두고 "그 시각 그대로일 때만" update (낙관적 동시성).
+//   0행 갱신(다른 기기가 먼저 저장) → 서버 행을 다시 읽어 P.merge(로컬, 서버) 후 새 updated_at 기준으로 다시 저장. 행이 없을 때는 insert (동시 insert 는 23505 → 같은 병합 경로)
+// 탭 숨김/페이지 닫힘(S-4): visibilitychange(hidden)·pagehide 에서 즉시 저장, 이때 요청은 fetch keepalive 로 보냄
 import { SUPABASE } from '../config/supabase.js';
 import * as P from './progress.js';
 
 const T = SUPABASE.tables, AUTH_KEY = 'hd3dSbAuth', K_SAVE = 'hd3d_save', K_GUEST = 'hd3d_guest', K_UID = 'hd3d_uid', K_DIRTY = 'hd3d_dirty', K_MODE = 'hd3d_mode';
-const mergedKey = uid => 'hd3d_merged_' + uid;
+const mergedKey = uid => 'hd3d_merged_' + uid, tsKey = uid => 'hd3d_cloud_ts_' + uid;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
 const parse = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 
-export const A = { sb: null, user: null, tables: 'unknown', sync: 'local', msg: '', listeners: [], mode: ls.get(K_MODE) || '' }; // mode: '' | 'guest' | 'account'
+export const A = { sb: null, user: null, tables: 'unknown', sync: 'local', msg: '', listeners: [], mode: ls.get(K_MODE) || '', conflicts: 0, leaving: false }; // mode: '' | 'guest' | 'account'
 let timer = 0, retry = 0, sbP = null;
 const emit = () => A.listeners.forEach(f => { try { f(A); } catch (e) { console.warn(e); } });
 export const onChange = f => A.listeners.push(f);
@@ -35,7 +38,9 @@ export function koErr(e) {
 // ---------- Supabase 클라이언트 ----------
 async function loadClient() {
   const create = window.__hd3dSupabaseMock || (await import('supabase')).createClient;
-  A.sb = create(SUPABASE.url, SUPABASE.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_KEY } });
+  // 페이지를 떠나는 중(A.leaving)에 보내는 쓰기 요청은 keepalive (탭이 닫혀도 브라우저가 끝까지 보냄, 본문 64KB 제한 = 저장 jsonb 상한과 같음)
+  const kf = (u, o = {}) => fetch(u, A.leaving && o.method && o.method !== 'GET' ? { ...o, keepalive: true } : o);
+  A.sb = create(SUPABASE.url, SUPABASE.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_KEY }, global: { fetch: kf } });
   A.sb.auth.onAuthStateChange((ev, session) => setTimeout(() => { if (ev === 'SIGNED_OUT' && A.user) restoreGuest(); }, 0));
   return A.sb;
 }
@@ -89,10 +94,12 @@ async function onLogin(u) {
 async function loadCloud() {
   if (!A.user) return; const uid = A.user.id;
   try {
-    const { data: row, error } = await A.sb.from(T.progress).select('data, merged').eq('user_id', uid).maybeSingle(); if (error) throw error;
-    const local = load(), cloud = row?.data || null; let d;
+    const { data: row, error } = await A.sb.from(T.progress).select('data, merged, updated_at').eq('user_id', uid).maybeSingle(); if (error) throw error;
+    const local = load(), cloud = row?.data || null, seen = ls.get(tsKey(uid)); let d;
     if (ls.get(mergedKey(uid)) !== '1') { d = P.merge(local, cloud); ls.set(mergedKey(uid), '1'); }
+    else if (ls.get(K_DIRTY) === '1' && cloud && row.updated_at !== seen) { d = P.merge(local, cloud); A.conflicts++; } // 이 기기에 안 올린 진행 + 그 사이 다른 기기 저장 → 병합
     else if (ls.get(K_DIRTY) === '1' || !cloud) d = local; else d = P.clean(cloud);
+    if (row) ls.set(tsKey(uid), row.updated_at); else ls.del(tsKey(uid));
     store(d, { cloud: false });
     const pr = await A.sb.from(T.profiles).select('nickname').eq('id', uid).maybeSingle();
     if (!pr.error && pr.data?.nickname) store({ ...load(), nick: pr.data.nickname }, { cloud: false });
@@ -111,14 +118,39 @@ function schedule(isRetry) {
   const ms = isRetry ? SUPABASE.retryMs[Math.min(retry++, SUPABASE.retryMs.length - 1)] : SUPABASE.saveDebounceMs; A.sync = isRetry ? 'offline' : 'pending';
   timer = setTimeout(() => save(), ms);
 }
-export async function save() {
-  if (!A.user || A.tables !== 'ok') return false; clearTimeout(timer); A.sync = 'saving'; emit();
-  const { error } = await A.sb.from(T.progress).upsert({ user_id: A.user.id, data: load(), merged: true });
-  if (error) { A.msg = koErr(error); schedule(true); emit(); return false; }
-  retry = 0; ls.del(K_DIRTY); A.sync = 'saved'; emit(); return true;
+let inflight = null, again = false;
+export function save() {
+  if (!A.user || A.tables !== 'ok') return Promise.resolve(false);
+  if (inflight) { again = true; return inflight; } // 저장 중에 또 저장 → 끝난 뒤 한 번 더 (같은 기준 시각으로 두 번 쓰지 않게 직렬화)
+  inflight = (async () => { let r; do { again = false; r = await saveOnce(); } while (again && r && A.user); return r; })().finally(() => { inflight = null; });
+  return inflight;
+}
+async function saveOnce() {
+  if (!A.user || A.tables !== 'ok') return false; clearTimeout(timer); A.sync = 'saving'; emit(); const uid = A.user.id;
+  try {
+    for (let i = 0; i < 4; i++) {
+      const base = ls.get(tsKey(uid)), data = load(), row = { data, merged: true };
+      const r = base ? await A.sb.from(T.progress).update(row).eq('user_id', uid).eq('updated_at', base).select('updated_at')
+        : await A.sb.from(T.progress).insert({ user_id: uid, ...row }).select('updated_at');
+      if (r.error && !(!base && r.error.code === '23505')) throw r.error;
+      const ok = !r.error && Array.isArray(r.data) && r.data[0];
+      if (!A.user || A.user.id !== uid) return false;
+      if (ok) { ls.set(tsKey(uid), ok.updated_at); if (JSON.stringify(load()) === JSON.stringify(data)) ls.del(K_DIRTY); retry = 0; A.sync = ls.get(K_DIRTY) === '1' ? 'pending' : 'saved'; emit(); return true; }
+      // 충돌: 다른 기기가 먼저 저장함 → 서버 행을 읽어 병합한 뒤 그 시각 기준으로 다시
+      const c = await A.sb.from(T.progress).select('data, updated_at').eq('user_id', uid).maybeSingle(); if (c.error) throw c.error;
+      if (!A.user || A.user.id !== uid) return false;
+      A.conflicts++; if (!c.data) { ls.del(tsKey(uid)); continue; }
+      store(P.merge(load(), c.data.data), { cloud: false }); ls.set(K_DIRTY, '1'); ls.set(tsKey(uid), c.data.updated_at);
+    }
+    throw new Error('save conflict');
+  } catch (e) { A.msg = koErr(e); schedule(true); emit(); return false; }
 }
 // 즉시 저장 (판 종료 시 등) — 디바운스 무시
 export const flush = () => save();
 addEventListener('online', () => { if (A.user && ls.get(K_DIRTY) === '1') save(); });
-addEventListener('beforeunload', () => { if (A.user && ls.get(K_DIRTY) === '1') save(); });
+// 탭 숨김(앱 전환·화면 끔)·페이지 닫힘: 디바운스 기다리지 않고 바로 저장 (beforeunload 의 async 저장은 자주 누락됨)
+function leaveFlush() { if (A.user && ls.get(K_DIRTY) === '1') { A.leaving = true; save().finally(() => { A.leaving = false; }); } }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaveFlush(); });
+addEventListener('pagehide', leaveFlush);
+addEventListener('beforeunload', leaveFlush);
 export const SYNC_TXT = { local: '이 기기에 저장', loading: '불러오는 중…', missing: '서버 준비 중 · 이 기기에 저장', error: '서버 오류 · 이 기기에 저장', pending: '저장 대기', saving: '저장 중…', saved: '클라우드 저장됨 ✓', offline: '오프라인 · 재시도 예정' };

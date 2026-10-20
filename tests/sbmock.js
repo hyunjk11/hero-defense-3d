@@ -1,5 +1,5 @@
 // Fake supabase-js createClient for tests/account.py (hero-defense-3d) (no network, no emails). Server state lives in localStorage '__mockdb'
-// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, confirm}). Installed as window.__hd3dSupabaseMock.
+// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실}). Installed as window.__hd3dSupabaseMock.
 (() => {
   const db = () => JSON.parse(localStorage.getItem('__mockdb') || '{"users":{},"hd3d_profiles":{},"hd3d_progress":{},"hd3d_records":{},"calls":[]}');
   const put = d => localStorage.setItem('__mockdb', JSON.stringify(d));
@@ -49,6 +49,11 @@
         if (flags().offline) return { data: null, error: { message: 'TypeError: Failed to fetch' }, status: 0 };
         if (missing(t)) return { data: null, error: { code: 'PGRST205', message: `Could not find the table 'public.${t}' in the schema cache` }, status: 404 };
         const d = db(); for (const k of SHOPT) d[k] = d[k] || {};
+        if (q.op === 'insert' && t === 'hd3d_progress') { // 저장 행 첫 생성 (이미 있으면 23505 → 클라이언트가 병합 경로로)
+          if (!uid() || q.row.user_id !== uid()) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' }, status: 403 };
+          if (d[t][uid()]) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "hd3d_progress_pkey"' }, status: 409 };
+          d[t][uid()] = { merged: false, ...q.row, updated_at: ts(d) }; put(d); if (flags().loseSave) return netErr(); return { data: q.ret ? [{ ...d[t][uid()] }] : null, error: null, status: 201 };
+        }
         if (q.op === 'insert') {
           if (t !== 'hd3d_orders' || !uid()) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' }, status: 403 };
           const item = q.row.item; if (item !== 'hero_gunner' && item !== 'hero_mechanic') return { data: null, error: { code: '23514', message: 'check constraint' }, status: 400 };

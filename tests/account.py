@@ -53,7 +53,7 @@ with sync_playwright() as pw:
     s = save(pg); ok('logout_restores_guest', s['souls'] == 120 and J(pg, '()=>G.screen') == 'login', s['souls'])
     pg.fill('#lgEmail', 'a@test.kr'); pg.fill('#lgPw', 'wrongpw1'); pg.click('#lgIn'); pg.wait_for_timeout(500); ok('wrong_pw_msg', '맞지 않' in pg.inner_text('#lgMsg'))
     pg.fill('#lgPw', 'secret12'); pg.click('#lgIn'); pg.wait_for_function("()=>G.screen==='menu'", timeout=10000); pg.wait_for_timeout(500)
-    ok('relogin_cloud_wins', save(pg)['souls'] == 148, save(pg)['souls'])
+    ok('relogin_cloud_wins', save(pg)['souls'] == s5['souls'], (save(pg)['souls'], s5['souls']))  # 상자 개봉 결과(중복 → 영혼석)가 무작위라 고정값 148 대신 귀환 후 저장값과 비교
     pg.close(); pg = boot(c); pg.mouse.click(600, 400); pg.wait_for_function("()=>G.screen==='menu'", timeout=10000); ok('auto_login', 'a@test.kr' in pg.inner_text('#mnAcct'))
     # 오프라인 → dirty 유지 → 복구 시 재시도
     J(pg, "()=>localStorage.setItem('__mockflags', JSON.stringify({offline:true}))"); pg.click('#mnCont'); pg.wait_for_timeout(300); pg.click('.hcard[data-h="archer"]'); pg.wait_for_timeout(3600)
