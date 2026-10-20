@@ -3,6 +3,7 @@ import * as E from './equip.js';
 import * as ST from '../data/stages.js';
 import * as GR from '../data/growth.js';
 import { HERO_KEYS, DEFAULT_HERO, VISIBLE_HEROES, isHidden } from '../data/heroes.js';
+import * as AD from '../data/advance.js';
 import { CHSET, CH_KEYS, chOdds, UQ, uqOfChapter, CHAL_UQ, UQ_DROP, UQ_PITY, CHAL_ESS, CODEX_RW } from '../data/items.js';
 // save = { inv[], chests[], eq{cls:{weapon,armor,acc}}, mat{steel,crystal}, v, hero, souls, bestWave, heroLv{cls:{hp,atk}}, stats{runs,kills,waves,souls}, settings{audio{}}, nick }
 export const HEROES = HERO_KEYS; // gunner·mechanic = 유료 영웅 (소유 여부는 서버 hd3d_owned, account/shop.js)
@@ -11,11 +12,12 @@ export const STATS = ['runs', 'kills', 'waves', 'souls'];
 const num = (v, d = 0) => (Number.isFinite(+v) && v !== null && v !== '' ? +v : d);
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const int = (v, lo = 0, hi = 1e9) => Math.max(lo, Math.min(hi, Math.floor(num(v))));
-export function empty() { return { v: 1, hero: 'mage', souls: 0, bestWave: 0, heroLv: Object.fromEntries(HEROES.map(h => [h, { hp: 0, atk: 0 }])), stats: Object.fromEntries(STATS.map(k => [k, 0])), settings: {}, nick: '', inv: [], eq: Object.fromEntries(HEROES.map(h => [h, {}])), mat: { steel: 0, crystal: 0 }, chests: [], st: {}, starRw: 0, research: GR.emptyResearch(), mailLog: [], uqLog: {}, uqPity: {}, codex: {}, codexRw: [] }; }
+export function empty() { return { v: 1, hero: 'mage', souls: 0, bestWave: 0, heroLv: Object.fromEntries(HEROES.map(h => [h, { hp: 0, atk: 0 }])), stats: Object.fromEntries(STATS.map(k => [k, 0])), settings: {}, nick: '', inv: [], eq: Object.fromEntries(HEROES.map(h => [h, {}])), mat: { steel: 0, crystal: 0 }, chests: [], st: {}, starRw: 0, research: GR.emptyResearch(), mailLog: [], uqLog: {}, uqPity: {}, codex: {}, codexRw: [], adv: {}, hq: {} }; }
 export function clean(d) {
   d = obj(d); const e = empty();
   e.hero = HEROES.includes(d.hero) ? (isHidden(d.hero) ? DEFAULT_HERO : d.hero) : e.hero; /* 숨긴 영웅이 선택돼 있으면 기본 영웅으로 (heroLv·장비·소유권은 유지) */ e.souls = int(d.souls); e.bestWave = int(d.bestWave, 0, 9999);
-  for (const h of HEROES) { const l = obj(obj(d.heroLv)[h]); e.heroLv[h] = { hp: int(l.hp, 0, PERM.hp.max), atk: int(l.atk, 0, PERM.atk.max) }; }
+  e.adv = cleanAdv(d.adv); e.hq = cleanHq(d.hq); // 전직 (상한 계산에 먼저 필요)
+  for (const h of HEROES) { const l = obj(obj(d.heroLv)[h]), mx = AD.permMax(e, h); e.heroLv[h] = { hp: int(l.hp, 0, mx), atk: int(l.atk, 0, mx) }; }
   for (const k of STATS) e.stats[k] = int(obj(d.stats)[k]);
   const a = obj(obj(d.settings).audio); if (Object.keys(a).length) e.settings.audio = { bgm: Math.max(0, Math.min(1, num(a.bgm, .6))), sfx: Math.max(0, Math.min(1, num(a.sfx, .8))), bgmOn: a.bgmOn !== false, sfxOn: a.sfxOn !== false };
   e.nick = typeof d.nick === 'string' ? d.nick.trim().slice(0, 12) : ''; E.cleanEquip(d, e, HEROES); cleanStages(d, e); e.research = GR.cleanResearch(d.research); e.mailLog = cleanMailLog(d.mailLog); return e;
@@ -24,7 +26,8 @@ export function clean(d) {
 export function merge(local, cloud) {
   const a = clean(local), b = clean(cloud || {}), m = clean(b);
   m.souls = Math.max(a.souls, b.souls); m.bestWave = Math.max(a.bestWave, b.bestWave);
-  for (const h of HEROES) for (const k of ['hp', 'atk']) m.heroLv[h][k] = Math.max(a.heroLv[h][k], b.heroLv[h][k]);
+  m.adv = mergeAdv(a.adv, b.adv); m.hq = mergeHq(a.hq, b.hq);
+  for (const h of HEROES) for (const k of ['hp', 'atk']) m.heroLv[h][k] = Math.min(AD.permMax(m, h), Math.max(a.heroLv[h][k], b.heroLv[h][k]));
   for (const k of STATS) m.stats[k] = Math.max(a.stats[k], b.stats[k]);
   if (cloud == null || a.stats.runs >= b.stats.runs) m.hero = a.hero;
   if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); m.mailLog = cleanMailLog([...a.mailLog, ...b.mailLog]); return m;
@@ -57,8 +60,9 @@ export function applyRun(save, { wave, kills, drops = [], hero, stage, ch, bossK
 }
 // 타워 연구소: 연구 1레벨 구매. 반환 [save, 성공]
 export function buyResearch(save, type, k) { const s = clean(save); return [s, GR.buyResearch(s, type, k)]; }
+export const permMax = (s, hero) => AD.permMax(s, hero); // 전직하면 10 → 15 (그 영웅만)
 export function buyPerm(save, hero, k) {
-  const s = clean(save), lv = s.heroLv[hero][k]; if (lv >= PERM[k].max) return [s, false]; const c = permCost(k, lv); if (s.souls < c) return [s, false];
+  const s = clean(save); if (!PERM[k] || !s.heroLv[hero]) return [s, false]; const lv = s.heroLv[hero][k]; if (lv >= AD.permMax(s, hero)) return [s, false]; const c = permCost(k, lv); if (s.souls < c) return [s, false];
   s.souls -= c; s.heroLv[hero][k]++; return [s, true];
 }
 
@@ -72,6 +76,7 @@ export function chapterItem(ch, hero, tier, r = Math.random) { return E.randomIt
 export function applyStage(save, id, stars, hero, r = Math.random) {
   const s = clean(save), S = ST.STAGES[id]; if (!S) return [s, null]; const prev = s.st[id] || 0, first = prev === 0; stars = Math.max(1, Math.min(3, stars | 0));
   s.st[id] = Math.max(prev, stars); const souls = ST.stageReward(id, first); s.souls += souls; s.stats.souls += souls; hero = hero || s.hero;
+  if (HEROES.includes(hero)) { const q = s.hq[hero] || (s.hq[hero] = { boss: 0, clr: 0 }); q.clr++; if (S.boss) q.boss++; } // 전직 시련: 그 영웅으로 클리어한 횟수 (보스 스테이지 따로)
   const items = []; if (first) items.push({ it: chapterItem(S.ch, hero, stageTier(S), r), src: 'stage' });
   const tot = ST.totalStars(s); while (s.starRw < Math.floor(tot / ST.STAR_STEP)) { s.starRw++; items.push({ it: E.randomItem(hero, E.chestOdds(2 + s.starRw), r, undefined, S.ch), src: 'star' }); }
   const res = E.addChests(s, items);
@@ -110,3 +115,15 @@ export function claimCodex(save, key) { const s = clean(save), [ch, row] = Strin
   const it = row === 'all' ? C.all : C.rows.find(x => x.row === row); if (!it || !it.done) return [s, null]; const rw = row === 'all' ? CODEX_RW.all : CODEX_RW.row;
   s.mat.crystal += rw.crystal || 0; if (rw.essence) s.mat.essence = (s.mat.essence || 0) + rw.essence; s.souls += rw.souls || 0; s.codexRw.push(key); return [s, rw]; }
 export function awaken(save, id) { const s = clean(save); const [, r] = E.awaken(s, id); return [s, r]; }
+
+// ---------- 전직 (design 7절) ----------  adv = { 영웅: { b: 분기 키, n: 전직·재전직 횟수(1~) } }, hq = { 영웅: { boss: 보스 스테이지 클리어, clr: 스테이지 클리어 } }
+export function cleanAdv(v) { v = obj(v); const o = {}; for (const h of HEROES) { const r = obj(v[h]); if (AD.ADV[h] && AD.ADV[h][r.b]) o[h] = { b: r.b, n: int(r.n || 1, 1, 1e6) }; } return o; }
+export function cleanHq(v) { v = obj(v); const o = {}; for (const h of HEROES) { const r = obj(v[h]), q = { boss: int(r.boss, 0, 1e6), clr: int(r.clr, 0, 1e6) }; if (q.boss || q.clr) o[h] = q; } return o; }
+// 병합: 전직 기록은 n(전직·재전직 횟수)이 큰 쪽 (같으면 계정 쪽), 시련 카운터는 최댓값
+export function mergeAdv(a, b) { a = cleanAdv(a); b = cleanAdv(b); const o = {}; for (const h of HEROES) { const x = a[h], y = b[h]; if (x || y) o[h] = !x ? y : !y ? x : x.n > y.n ? x : y; } return o; }
+export function mergeHq(a, b) { a = cleanHq(a); b = cleanHq(b); const o = {}; for (const h of HEROES) { const x = a[h] || {}, y = b[h] || {}; if (a[h] || b[h]) o[h] = { boss: Math.max(x.boss || 0, y.boss || 0), clr: Math.max(x.clr || 0, y.clr || 0) }; } return o; }
+// 전직 / 재전직: owned = 서버 소유권 확인(Sh.heroOwned) — 세이브 값은 믿지 않음. 반환 [save, 성공]
+export function buyAdv(save, hero, b, owned = true) { const s = clean(save); if (AD.advBlock(s, hero, b, owned)) return [s, false];
+  const cur = s.adv[hero]; if (cur) { s.souls -= AD.ADV_SWITCH.souls; s.adv[hero] = { b, n: cur.n + 1 }; return [s, true]; }
+  s.souls -= AD.ADV_COST.souls; s.mat.crystal -= AD.ADV_COST.crystal; s.mat.essence -= AD.ADV_COST.essence; if (!s.mat.essence) delete s.mat.essence; s.adv[hero] = { b, n: 1 }; return [s, true]; }
+export const changeAdv = buyAdv; // 재전직도 같은 함수 (이미 전직했으면 영혼석 500)
