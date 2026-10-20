@@ -29,7 +29,18 @@ export const CHAPTERS = [
       { id: '3-4', n: '화염의 군주', waves: 15, core: [22, 8], spawns: [[0, 2], [0, 14], [12, 15]], q: [.16, .46, .62], bed: .03, hp: 1.65, seed: 3404, boss: true,
         lava: [[[17, 1], [17, 5]], [[17, 11], [17, 14]], [[7, 6], [9, 7]], [[6, 10], [8, 10]], [[12, 0], [12, 3]]] },
     ] },
-  { id: 4, n: '4장 · 잊혀진 폐허', short: '폐허', theme: 'ruins', prop: 'collapse', propN: '무너지는 벽', propD: '벽이 무너지며 길이 바뀌어요.', color: '#c0a0ff', bg: 'linear-gradient(160deg,#3a2a50,#140c20)', soon: true, stages: [] },
+  { id: 4, n: '4장 · 잊혀진 폐허', short: '폐허', theme: 'ruins', prop: 'walls', propN: '무너진 성벽', propD: '이끼 낀 고대 성벽이 길을 막아요(바위보다 1.6배 단단함). 성벽이 무너지면 길이 바뀌어요. 하늘을 나는 망령·석상 가고일이 많아요.', color: '#c0a0ff', bg: 'linear-gradient(160deg,#3a2a50,#140c20)',
+    // walls: 고대 성벽 (꺾은선 [c,r] 목록, 칸 단위 = 단단한 바위 칸, 무너뜨릴 수 있음). 포털·코어 주변 1칸은 항상 비움. 끊긴 곳 = 무너진 성문(틈)
+    stages: [
+      { id: '4-1', n: '무너진 성문', waves: 13, core: [22, 8], spawns: [[0, 4], [0, 12]], q: [.2, .5, .66], bed: .04, hp: 1.75, seed: 4101,
+        walls: [[[9, 0], [9, 6]], [[9, 9], [9, 15]], [[15, 2], [15, 13]]] },
+      { id: '4-2', n: '이끼 낀 회랑', waves: 14, core: [22, 13], spawns: [[0, 2], [8, 0], [0, 10]], q: [.18, .48, .64], bed: .04, hp: 1.85, seed: 4202,
+        walls: [[[4, 5], [16, 5]], [[19, 5], [21, 5]], [[6, 10], [18, 10]], [[12, 10], [12, 14]]] },
+      { id: '4-3', n: '망령의 신전', waves: 15, core: [12, 8], spawns: [[0, 2], [23, 2], [0, 14], [23, 14]], q: [.18, .46, .62], bed: .04, hp: 1.95, seed: 4303,
+        walls: [[[7, 4], [10, 4]], [[14, 4], [17, 4]], [[7, 12], [10, 12]], [[14, 12], [17, 12]], [[7, 5], [7, 6]], [[17, 10], [17, 11]], [[7, 10], [7, 11]], [[17, 5], [17, 6]]] },
+      { id: '4-4', n: '망국의 왕좌', waves: 15, core: [22, 8], spawns: [[0, 1], [0, 8], [0, 15], [11, 15]], q: [.16, .45, .6], bed: .04, hp: 2.05, seed: 4404, boss: true,
+        walls: [[[6, 3], [6, 6]], [[6, 10], [6, 13]], [[13, 0], [13, 5]], [[13, 9], [13, 12]], [[18, 4], [18, 12]]] },
+    ] },
 ];
 export const STAGES = Object.fromEntries(CHAPTERS.flatMap(ch => ch.stages.map((s, i) => [s.id, { ...s, ch: ch.id, idx: i, last: i === ch.stages.length - 1 }])));
 export const chapterOf = id => CHAPTERS.find(c => c.id === STAGES[id]?.ch);
@@ -43,10 +54,12 @@ export function stageUnlocked(save, id) { const S = STAGES[id]; if (!S || !chapt
 export const STAR_STEP = 5; // 별 5개마다 별 보상 상자
 export const stageReward = (id, first) => { const S = STAGES[id]; const base = 40 + S.idx * 15 + (S.ch - 1) * 60 + (S.boss ? 60 : 0); return first ? base : Math.round(base / 2); };
 export const PREFIX = { 1: '숲의 ', 2: '서리 ', 3: '화염 ', 4: '폐허의 ' };
+// 폐허: 고대 성벽 칸 목록 (용암과 같은 꺾은선 규칙)
+export const wallTiles = (S, GW = 24, GH = 16) => lavaTiles(S, GW, GH, 'walls');
 // 용암 강 칸 목록 (꺾은선 → 칸, 포털·코어 주변 1칸 제외). 순수 함수: 렌더/경로/테스트 공용
-export function lavaTiles(S, GW = 24, GH = 16) {
-  const out = new Set(); if (!S || !S.lava) return out; const near = (c, r) => [S.core, ...S.spawns].some(p => Math.abs(c - p[0]) <= 1 && Math.abs(r - p[1]) <= 1);
-  for (const line of S.lava) for (let i = 0; i < line.length; i++) { const a = line[i], b = line[Math.min(i + 1, line.length - 1)], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 1);
+export function lavaTiles(S, GW = 24, GH = 16, key = 'lava') {
+  const out = new Set(); if (!S || !S[key]) return out; const near = (c, r) => [S.core, ...S.spawns].some(p => Math.abs(c - p[0]) <= 1 && Math.abs(r - p[1]) <= 1);
+  for (const line of S[key]) for (let i = 0; i < line.length; i++) { const a = line[i], b = line[Math.min(i + 1, line.length - 1)], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 1);
     let pc = null, pr = null; const add = (c, r) => { if (c >= 0 && r >= 0 && c < GW && r < GH && !near(c, r)) out.add(c + ',' + r); };
     for (let k = 0; k <= n; k++) { const c = Math.round(a[0] + (b[0] - a[0]) * k / n), r = Math.round(a[1] + (b[1] - a[1]) * k / n); if (pc !== null && c !== pc && r !== pr) add(c, pr); add(c, r); pc = c; pr = r; } } // 대각선 이음새도 채움(4방향으로 새지 않게)
   return out;

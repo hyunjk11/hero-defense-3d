@@ -17,10 +17,12 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 const THEMES = {
   default: { sun: 1, hemi: 1, bloomTh: .95, exposure: 1.12, sunH: .1, fog: [80, 170], day: [0x3d9cff, 0xd6efff, 0xcfeaff], night: [0x05071c, 0x2c1d55, 0x1a1438] },
   snow: { sun: .8, hemi: .78, bloomTh: 1.35, exposure: .9, sunH: .1, fog: [95, 200], day: [0x5a8ac8, 0xb4c6da, 0xa8bcd2], night: [0x05071c, 0x2c1d55, 0x1a1438] },
-  volcano: { sun: .78, hemi: .82, bloomTh: 1.05, exposure: 1.05, sunH: .055, fog: [85, 190], day: [0x2a1410, 0x8a4228, 0x4a2a20], night: [0x0c0606, 0x3a160c, 0x24100a], hemiC: [0xffd8c0, 0x5a2a1a], bloomK: .85, nightK: .55 }, // 밤(웨이브)에도 용암 빛으로 판이 보이게: 조명은 55%만 어두워짐
+  volcano: { sun: .78, hemi: .82, bloomTh: 1.05, exposure: 1.05, sunH: .055, fog: [85, 190], day: [0x2a1410, 0x8a4228, 0x4a2a20], night: [0x0c0606, 0x3a160c, 0x24100a], hemiC: [0xffd8c0, 0x5a2a1a], bloomK: .85, nightK: .55 },
+  // 폐허(4장): 해 질 녘 보랏빛 하늘 + 회색 석판. 유령불(보라/청록) 횃불이 블룸 문턱을 살짝 넘음. 밤에도 70%만 어두워짐(판이 너무 어둡지 않게), 안개는 판 바깥에만
+  ruins: { sun: .9, hemi: .95, bloomTh: 1.0, exposure: 1.06, sunH: .08, fog: [82, 185], day: [0x3a3060, 0x9a88b8, 0x6c6088], night: [0x07061a, 0x281c48, 0x1a1430], hemiC: [0xe8e0ff, 0x3a4a3a], bloomK: .9, nightK: .7 }, // 밤(웨이브)에도 용암 빛으로 판이 보이게: 조명은 55%만 어두워짐
 };
-const THEME_KEY = STAGE ? ({ 2: 'snow', 3: 'volcano' })[STAGE.ch] || 'default' : 'default', TH = THEMES[THEME_KEY];
-const SNOW = THEME_KEY === 'snow', VOLCANO = THEME_KEY === 'volcano', LIGHT = { sun: TH.sun, hemi: TH.hemi, bloomTh: TH.bloomTh, sunH: TH.sunH, bloomK: TH.bloomK || 1, nightK: TH.nightK ?? 1 };
+const THEME_KEY = STAGE ? ({ 2: 'snow', 3: 'volcano', 4: 'ruins' })[STAGE.ch] || 'default' : 'default', TH = THEMES[THEME_KEY];
+const SNOW = THEME_KEY === 'snow', VOLCANO = THEME_KEY === 'volcano', RUINS = THEME_KEY === 'ruins', LIGHT = { sun: TH.sun, hemi: TH.hemi, bloomTh: TH.bloomTh, sunH: TH.sunH, bloomK: TH.bloomK || 1, nightK: TH.nightK ?? 1 };
 renderer.toneMappingExposure = TH.exposure;
 $('app').appendChild(renderer.domElement);
 const scene = new THREE.Scene(); scene.fog = new THREE.Fog(TH.day[2], TH.fog[0], TH.fog[1]); // 설원·화산 안개는 판 바깥 가장자리에만
@@ -55,4 +57,4 @@ bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragm
 composer.addPass(bloom); composer.addPass(new OutputPass());
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
 
-export { renderer, scene, camera, cam, updateCam, DAY, NIGHT, skyU, hemi, sun, moon, composer, bloom, LIGHT, SNOW, VOLCANO, THEME_KEY };
+export { renderer, scene, camera, cam, updateCam, DAY, NIGHT, skyU, hemi, sun, moon, composer, bloom, LIGHT, SNOW, VOLCANO, RUINS, THEME_KEY };

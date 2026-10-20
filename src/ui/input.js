@@ -32,7 +32,7 @@ function showRange(x, z, r, color = 0x9ae8ff) { rangeRing.visible = true; rangeR
 function tileInfo(t) {
   if (t.tower) return `<b>${TOWERS[t.tower.type].n} Lv.${t.tower.lvl}${G.grow ? ' ' + '★'.repeat(t.tower.stars) : ''}</b> · 클릭하여 강화/판매`;
   if (t.bar) return `<b>바리케이드</b> ${Math.ceil(t.bar.hp)}/${Math.ceil(t.bar.max)}`;
-  if (isBlock(t.t)) return `<b>${BLK[t.t].n}</b> 내구도 ${Math.ceil(t.hp)}/${t.max} · 개간 ${BLK[t.t].clear}G`;
+  if (isBlock(t.t)) return `<b>${blkName(t)}</b> 내구도 ${Math.ceil(t.hp)}/${t.max} · 개간 ${clearCost(t)}G`;
   if (t.lava) return '<b>용암 강</b> · 지나갈 수 없음 · 건설 불가';
   return `<b>${TNAME[t.t]}</b>${t.t === T.GRASS ? ' · 타워 건설 가능' : t.t === T.CARVED ? ' · 바리케이드 설치 가능' : t.t === T.BEDROCK ? ' · 파괴 불가' : ''}`;
 }
@@ -71,7 +71,10 @@ function occupied(c, r) {
   if (G.enemies.some(e => !e.dead && !e.E.fly && ((e.tile[0] === c && e.tile[1] === r) || (e.next && e.next[0] === c && e.next[1] === r)))) return true;
   if (hero && hero.dead <= 0) { const [hc, hr] = toTile(hero.g.position.x, hero.g.position.z); if (hc === c && hr === r) return true; } return false;
 }
-function toolCost(t) { const tool = G.tool; return TOWERS[tool] ? TOWERS[tool].cost : tool === 'barricade' ? 30 : tool === 'clear' && isBlock(t.t) ? BLK[t.t].clear : 0; }
+function toolCost(t) { const tool = G.tool; return TOWERS[tool] ? TOWERS[tool].cost : tool === 'barricade' ? 30 : tool === 'clear' && isBlock(t.t) ? clearCost(t) : 0; }
+// 폐허 고대 성벽: 바위보다 단단하고 개간 비용도 큼
+function clearCost(t) { return t.wall ? 60 : BLK[t.t].clear; }
+function blkName(t) { return t.wall ? '고대 성벽' : BLK[t.t].n; }
 const TOOLN = { barricade: '바리케이드', clear: '개간' };
 // 불가 사유 (가능하면 null)
 function buildReason(c, r) {
@@ -87,14 +90,14 @@ function buildReason(c, r) {
 }
 function previewTip(t, why) { const tool = G.tool, cost = toolCost(t), name = TOWERS[tool] ? TOWERS[tool].n : TOOLN[tool];
   let s = `<b>${name}</b> <span class="cost">${cost ? cost + 'G' : ''}</span>`;
-  if (tool === 'clear' && isBlock(t.t)) s += `<br>${BLK[t.t].n} · 내구도 ${Math.ceil(t.hp)}/${t.max}`;
+  if (tool === 'clear' && isBlock(t.t)) s += `<br>${blkName(t)} · 내구도 ${Math.ceil(t.hp)}/${t.max}`;
   if (TOWERS[tool]) s += `<br>사거리 ${TOWERS[tool].range[0]} · 피해 ${TOWERS[tool].dmg[0]}`;
   return s + `<br>${why ? `<span class="bad">✖ ${why}</span>` : `<span class="good">✔ 클릭하여 ${tool === 'clear' ? '개간' : '건설'}</span>`}`; }
 function canBuild(c, r) {
   if (!inGrid(c, r)) return false; const t = tileAt(c, r), tool = G.tool;
   if (TOWERS[tool]) { if (t.t !== T.GRASS || t.tower || t.bar || G.gold < TOWERS[tool].cost || occupied(c, r)) return false; const D = dijkstra(t); return SPAWNS.every(s => isFinite(D[s[0] * GH + s[1]])); }
   if (tool === 'barricade') return (t.t === T.CARVED || t.t === T.GRASS) && !t.tower && !t.bar && G.gold >= 30 && !occupied(c, r);
-  if (tool === 'clear') return isBlock(t.t) && G.gold >= BLK[t.t].clear;
+  if (tool === 'clear') return isBlock(t.t) && G.gold >= clearCost(t);
   return false;
 }
 function build(c, r) {
@@ -102,7 +105,7 @@ function build(c, r) {
   const t = tileAt(c, r), p = new THREE.Vector3(tileX(c), .5, tileZ(r));
   if (TOWERS[G.tool]) { G.gold -= TOWERS[G.tool].cost; placeTower(t, G.tool); emit(P, p.x, .5, p.z, 30, 0xffe066, 5, .6, -6, 2); debris(p.x, .3, p.z, 8, [0xe0dacb, 0x9e98ae], 4); ringFx(p, 2, 0xffe066, .4); }
   else if (G.tool === 'barricade') { G.gold -= 30; addBarricade(t); emit(P, p.x, .6, p.z, 16, 0xffb03a, 4, .5); }
-  else if (G.tool === 'clear') { const B = BLK[t.t]; G.gold -= B.clear; debris(p.x, .8, p.z, 16, B.deb, 6); emit(P, p.x, .8, p.z, 24, 0x8ad05a, 4, .7); t.t = T.GRASS; t.hp = t.max = 0; refreshTile(t); }
+  else if (G.tool === 'clear') { const B = BLK[t.t]; G.gold -= clearCost(t); t.wall = false; debris(p.x, .8, p.z, 16, B.deb, 6); emit(P, p.x, .8, p.z, 24, 0x8ad05a, 4, .7); t.t = T.GRASS; t.hp = t.max = 0; refreshTile(t); }
   if (!TOWERS[G.tool]) Snd.play(G.tool === 'barricade' ? 'build' : 'breakDirt', { pos: { x: tileX(c), z: tileZ(r) }, force: true }); computeDist(); refreshHud(); return true;
 }
 function setTool(t) { if (G.tool !== t) Snd.play('ui'); G.tool = t; const mi = $('modeInd');
