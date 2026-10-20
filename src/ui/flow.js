@@ -180,7 +180,7 @@ function bindUI() {
   $('mnNew').onclick = () => { const s = Acc.load(); if ((s.stats.runs > 0 || s.souls > 0) && !confirm('새로 시작하면 영혼석·영웅 강화·기록이 모두 초기화됩니다. 계속할까요?')) return;
     Snd.play('confirm'); Acc.store({ ...P.empty(), nick: s.nick, settings: s.settings }); enterTown(); };
   $('mnSet').onclick = () => { Snd.play('ui'); $('mnSettings').classList.toggle('hidden'); syncSet(); };
-  for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; Snd.apply(); Snd.save(); });
+  for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn', 'stBgMute']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; C.bgMute = $('stBgMute').checked; Snd.apply(); Snd.bgSync(); Snd.save(); });
   $('mnNickSave').onclick = async () => { Snd.play('ui'); await Acc.saveNick($('mnNick').value); refreshMenu(); };
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
   $('twGo').onclick = () => { closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); };
@@ -205,7 +205,7 @@ function bindUI() {
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   addEventListener('keydown', e => { if (e.key === 'Escape' && blessOpen) closeBless(); });
 }
-function syncSet() { const C = Snd.cfg; $('stBgm').value = Math.round(C.bgm * 100); $('stSfx').value = Math.round(C.sfx * 100); $('stBgmOn').checked = C.bgmOn; $('stSfxOn').checked = C.sfxOn; }
+function syncSet() { const C = Snd.cfg; $('stBgm').value = Math.round(C.bgm * 100); $('stSfx').value = Math.round(C.sfx * 100); $('stBgmOn').checked = C.bgmOn; $('stSfxOn').checked = C.sfxOn; $('stBgMute').checked = C.bgMute !== false; }
 
 // ---------- 매 프레임 ----------
 const _v = new THREE.Vector3(), _zero = new THREE.Vector3(); let sunInTown = false;

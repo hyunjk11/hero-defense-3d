@@ -17,21 +17,33 @@ const VOL = { arrow: .35, bolt: .4, cannon: .7, boom: .8, magic: .35, zap: .45, 
 const GAP = { arrow: .05, hit: .04, hitArmor: .05, dig: .07, digSoft: .07, digWood: .07, coin: .06, bones: .06, magic: .06, zap: .08, cannon: .06, sword: .05, towerHit: .08, block: .06, ram: .1 };
 const BGM = { build: 'audio/bgm/town.mp3', wave: 'audio/bgm/battle.mp3', boss: 'audio/bgm/boss.mp3' }, BGMV = { build: .55, wave: .5, boss: .55 };
 
-const store = (() => { try { return Object.assign({ bgm: .6, sfx: .8, bgmOn: true, sfxOn: true }, JSON.parse(localStorage.getItem('hd3d_audio') || '{}')); } catch (e) { return { bgm: .6, sfx: .8, bgmOn: true, sfxOn: true }; } })();
+const store = (() => { try { return Object.assign({ bgm: .6, sfx: .8, bgmOn: true, sfxOn: true, bgMute: true }, JSON.parse(localStorage.getItem('hd3d_audio') || '{}')); } catch (e) { return { bgm: .6, sfx: .8, bgmOn: true, sfxOn: true, bgMute: true }; } })();
 const raw = {}; // 미리 받아둔 ArrayBuffer (AudioContext는 첫 입력 때 생성)
 for (const k in SFX_FILES) for (const f of SFX_FILES[k]) if (!raw[f]) raw[f] = fetch(`audio/sfx/${f}.mp3`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);
 
 export const Snd = {
   ctx: null, buf: {}, last: {}, voices: 0, music: null, want: 'build', tracks: {}, listener: { x: 0, z: 0 }, project: null, cfg: store,
   unlock() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    if (this.ctx) { if (this.ctx.state === 'suspended' && !this.bg.muted) this.ctx.resume(); return; }
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-    const c = this.ctx; this.master = c.createDynamicsCompressor(); this.master.threshold.value = -10; this.master.ratio.value = 4; this.master.connect(c.destination);
+    const c = this.ctx; this.master = c.createDynamicsCompressor(); this.master.threshold.value = -10; this.master.ratio.value = 4; this.focusG = c.createGain(); this.focusG.gain.value = this.bg.muted ? 0 : 1; this.master.connect(this.focusG); this.focusG.connect(c.destination);
     this.sfxG = c.createGain(); this.bgmG = c.createGain(); this.sfxG.connect(this.master); this.bgmG.connect(this.master); this.apply();
     const len = c.sampleRate; this.noise = c.createBuffer(1, len, c.sampleRate); const d = this.noise.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     for (const f in raw) raw[f].then(ab => ab && c.decodeAudioData(ab.slice(0)).then(b => this.buf[f] = b).catch(() => {}));
     for (const k in BGM) { const a = new Audio(BGM[k]); a.loop = true; a.preload = 'auto'; const src = c.createMediaElementSource(a), g = c.createGain(); g.gain.value = 0; src.connect(g); g.connect(this.bgmG); this.tracks[k] = { a, g, on: false }; }
     this.setMusic(this.want, true);
+  },
+  sfxOff() { return !this.cfg.sfxOn || this.bg.muted; }, // 백그라운드 음소거 중에는 효과음 노드를 만들지 않음 (돌아왔을 때 몰아서 울리지 않게)
+  // ---- 창 전환·탭 이동 시 음소거 ----
+  // focusG(마스터 뒤 별도 게인)만 0↔1 로 페이드 → 사용자 음소거/볼륨(bgmG·sfxG)은 건드리지 않음. 페이드 끝나면 이 코드가 직접 ctx 를 suspend,
+  // 복귀 시 우리가 멈춘 경우에만 resume (첫 입력 전이라 ctx 가 없거나 브라우저가 멈춰둔 상태면 아무것도 시작하지 않음)
+  bg: { muted: false, hidden: false, blurred: false, byUs: false, gen: 0 },
+  bgSync() {
+    const B = this.bg, want = this.cfg.bgMute !== false && (B.hidden || B.blurred); if (want === B.muted) return; B.muted = want; const gen = ++B.gen;
+    if (!this.ctx) return; const c = this.ctx, g = this.focusG.gain, t = c.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+    if (want) { g.linearRampToValueAtTime(0, t + .2); if (c.state === 'running') setTimeout(() => { if (B.gen === gen && B.muted && c.state === 'running') { B.byUs = true; c.suspend().catch(() => {}); } }, 260); }
+    else { const up = () => { if (B.gen !== gen) return; const t1 = c.currentTime; g.cancelScheduledValues(t1); g.setValueAtTime(g.value, t1); g.linearRampToValueAtTime(1, t1 + .2); };
+      if (B.byUs) { B.byUs = false; c.resume().then(up, () => {}); } else up(); }
   },
   save() { try { localStorage.setItem('hd3d_audio', JSON.stringify(this.cfg)); } catch (e) {} },
   apply() { if (!this.ctx) return; const t = this.ctx.currentTime; this.sfxG.gain.setTargetAtTime(this.cfg.sfxOn ? this.cfg.sfx : 0, t, .05); this.bgmG.gain.setTargetAtTime(this.cfg.bgmOn ? this.cfg.bgm * .8 : 0, t, .1); },
@@ -50,7 +62,7 @@ export const Snd = {
     g.gain.value = v; node.connect(this.sfxG); return g;
   },
   play(name, o = {}) {
-    if (!this.ctx || !this.cfg.sfxOn || this.voices > 30) return; const now = this.ctx.currentTime;
+    if (!this.ctx || this.sfxOff() || this.voices > 30) return; const now = this.ctx.currentTime;
     if (!o.force && this.last[name] && now - this.last[name] < (GAP[name] || .03)) return; this.last[name] = now;
     const list = SFX_FILES[name]; if (!list) return; const b = this.buf[list[Math.floor(Math.random() * list.length)]]; if (!b) return;
     const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = (o.rate || 1) * (o.exact ? 1 : .93 + Math.random() * .14);
@@ -62,7 +74,7 @@ export const Snd = {
   noiseHit(t0, dur, v, dest, freq, q = 1, type = 'bandpass') { const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = this.noise; s.loop = true;
     f.type = type; f.frequency.setValueAtTime(freq, t0); f.Q.value = q; g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + dur); s.connect(f); f.connect(g); g.connect(dest); s.start(t0, Math.random() * .5); s.stop(t0 + dur + .05); return f; },
   horn() { // 웨이브 시작 뿔나팔 (금관 느낌: 디튠된 톱니파 + 저역통과 필터 스윕)
-    if (!this.ctx || !this.cfg.sfxOn) return; const c = this.ctx, t = c.currentTime + .02, out = this.out(null, .5), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 2; lp.connect(out);
+    if (!this.ctx || this.sfxOff()) return; const c = this.ctx, t = c.currentTime + .02, out = this.out(null, .5), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 2; lp.connect(out);
     lp.frequency.setValueAtTime(300, t); lp.frequency.linearRampToValueAtTime(1700, t + .35); lp.frequency.setValueAtTime(1700, t + 1.3); lp.frequency.linearRampToValueAtTime(500, t + 2);
     const notes = [[146.8, 0, .55], [146.8, .6, .25], [220, .9, 1.25]];
     for (const [f, d, l] of notes) for (const det of [-6, 0, 7]) { const o = c.createOscillator(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det;
@@ -71,28 +83,37 @@ export const Snd = {
     this.osc('sine', 73.4, t + .9, 1.3, .18, out);
   },
   roar(pos) { // 보스 포효: 낮게 떨어지는 톱니파 + 웨이브셰이퍼 왜곡 + 거친 노이즈
-    if (!this.ctx || !this.cfg.sfxOn) return; const c = this.ctx, t = c.currentTime + .02, out = this.out(pos ? { x: this.listener.x, z: this.listener.z } : null, .75), ws = c.createWaveShaper(), lp = c.createBiquadFilter();
+    if (!this.ctx || this.sfxOff()) return; const c = this.ctx, t = c.currentTime + .02, out = this.out(pos ? { x: this.listener.x, z: this.listener.z } : null, .75), ws = c.createWaveShaper(), lp = c.createBiquadFilter();
     const cv = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; cv[i] = Math.tanh(x * 4); } ws.curve = cv; lp.type = 'lowpass'; lp.frequency.setValueAtTime(900, t); lp.frequency.linearRampToValueAtTime(300, t + 1.8); ws.connect(lp); lp.connect(out);
     for (const [f, det] of [[95, 0], [97, 12], [47, 0]]) { const o = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f * .6, t + 1.9); o.detune.value = det;
       lfo.frequency.value = 23; lg.gain.value = f * .08; lfo.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.35, t + .18); g.gain.setTargetAtTime(0, t + 1.3, .3); o.connect(g); g.connect(ws); o.start(t); lfo.start(t); o.stop(t + 2.4); lfo.stop(t + 2.4); }
     this.noiseHit(t, 1.8, .5, out, 600, .7); this.duck(.3, 1.8);
   },
   crackle(pos) { // 번개 지직
-    if (!this.ctx || !this.cfg.sfxOn) return; const now = this.ctx.currentTime; if (this.last.crk && now - this.last.crk < .07) return; this.last.crk = now;
+    if (!this.ctx || this.sfxOff()) return; const now = this.ctx.currentTime; if (this.last.crk && now - this.last.crk < .07) return; this.last.crk = now;
     const out = this.out(pos, .55), t = now + .01; for (let k = 0; k < 5; k++) this.noiseHit(t + k * .028 + Math.random() * .015, .05 + Math.random() * .05, .6, out, 2500 + Math.random() * 3000, 1.5, 'highpass');
     this.osc('square', 1800, t, .12, .06, out, 300); this.play('zap', { pos, vol: .7 });
   },
   fuse(pos) { // 자폭병 심지 타는 소리 (치익 + 짧은 경고음)
-    if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime, out = this.out(pos, .5); this.noiseHit(t, .7, .5, out, 5500, 1.2, 'highpass'); for (let k = 0; k < 3; k++) this.osc('square', 1400, t + k * .22, .06, .05, out, 0);
+    if (!this.ctx || this.sfxOff()) return; const t = this.ctx.currentTime, out = this.out(pos, .5); this.noiseHit(t, .7, .5, out, 5500, 1.2, 'highpass'); for (let k = 0; k < 3; k++) this.osc('square', 1400, t + k * .22, .06, .05, out, 0);
   },
   // 총성 (합성): 고역 노이즈 '탕' + 중역 몸통 + 낮은 쿵 + 금속성 클릭. ping = 도탄 '팅', big = 피니시
-  gun(pos, o = {}) { if (!this.ctx || !this.cfg.sfxOn || this.voices > 30) return; const now = this.ctx.currentTime; if (!o.big && !o.ping && this.last.gun && now - this.last.gun < .035) return; if (!o.ping) this.last.gun = now;
+  gun(pos, o = {}) { if (!this.ctx || this.sfxOff() || this.voices > 30) return; const now = this.ctx.currentTime; if (!o.big && !o.ping && this.last.gun && now - this.last.gun < .035) return; if (!o.ping) this.last.gun = now;
     const r = (o.rate || 1) * (.95 + Math.random() * .1), v = o.vol ?? 1, out = this.out(pos, .55 * v), t = now + .005; this.voices++; setTimeout(() => this.voices--, 300);
     if (o.ping) { this.osc('sine', 2600 * r, t, .18, .12, out, 1700 * r); this.osc('triangle', 3900 * r, t, .08, .05, out); this.noiseHit(t, .03, .4, out, 6000, 1, 'highpass'); return; }
     this.noiseHit(t, .07, 1, out, 3200 * r, .7, 'highpass'); this.noiseHit(t, o.big ? .35 : .14, .8, out, 1100 * r, .9); this.osc('triangle', (o.big ? 110 : 190) * r, t, o.big ? .25 : .08, o.big ? .9 : .55, out, 45);
     this.osc('square', 2400 * r, t, .018, .12, out, 700); },
-  whoosh(pos, dur = .35, f0 = 500, f1 = 2500, v = .45) { if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime, out = this.out(pos, v), f = this.noiseHit(t, dur, .9, out, f0, 2.5); f.frequency.exponentialRampToValueAtTime(f1, t + dur * .6); },
-  beep(f, d = .08, type = 'square', v = .03, slide = 0) { if (!this.ctx || !this.cfg.sfxOn) return; const t = this.ctx.currentTime; this.osc(type, f, t, d, v * 4, this.out(null, 1), slide ? Math.max(30, f + slide) : 0); },
+  whoosh(pos, dur = .35, f0 = 500, f1 = 2500, v = .45) { if (!this.ctx || this.sfxOff()) return; const t = this.ctx.currentTime, out = this.out(pos, v), f = this.noiseHit(t, dur, .9, out, f0, 2.5); f.frequency.exponentialRampToValueAtTime(f1, t + dur * .6); },
+  beep(f, d = .08, type = 'square', v = .03, slide = 0) { if (!this.ctx || this.sfxOff()) return; const t = this.ctx.currentTime; this.osc(type, f, t, d, v * 4, this.out(null, 1), slide ? Math.max(30, f + slide) : 0); },
 };
+// 탭 숨김(visibilitychange) · 창 포커스 잃음(blur) → 음소거, 보이고 + 포커스 있으면 복원. 한 번만 등록
+if (!window.__hd3dBgAudio) { window.__hd3dBgAudio = true;
+  Snd.bg.hidden = document.visibilityState === 'hidden';
+  document.addEventListener('visibilitychange', () => { Snd.bg.hidden = document.visibilityState === 'hidden'; if (!Snd.bg.hidden && document.hasFocus()) Snd.bg.blurred = false; Snd.bgSync(); });
+  addEventListener('blur', () => { Snd.bg.blurred = true; Snd.bgSync(); });
+  addEventListener('focus', () => { Snd.bg.blurred = false; Snd.bgSync(); });
+  // 안전장치: focus 이벤트가 빠져도 페이지 안 입력이 있으면 포커스가 돌아온 것 → 음소거 풀림 (빠른 전환 후 계속 꺼진 채로 남지 않게)
+  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (Snd.bg.blurred && document.visibilityState === 'visible') { Snd.bg.blurred = false; Snd.bgSync(); } }, { capture: true });
+  addEventListener('pageshow', () => { Snd.bg.hidden = document.visibilityState === 'hidden'; Snd.bgSync(); }); }
 // 첫 사용자 입력 때 오디오 시작 (브라우저 자동재생 정책)
 const first = () => { Snd.unlock(); }; for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, first, { capture: true });

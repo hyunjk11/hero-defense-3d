@@ -112,9 +112,9 @@ function setTool(t) { if (G.tool !== t) Snd.play('ui'); G.tool = t; const mi = $
   if (mi) { mi.classList.toggle('hidden', t === 'move'); mi.classList.toggle('clear', t === 'clear'); if (t !== 'move') mi.innerHTML = `${t === 'clear' ? '⛏ 개간 모드' : t === 'barricade' ? '🧱 바리케이드 설치' : '🏰 건설 모드: ' + TOWERS[t].n} <small>Esc / 우클릭: 취소</small>`; }
   if (t === 'move') { hidePreview(); rangeRing.visible = false; } document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
 document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.dataset.tool));
-(function sndUI() { const C = Snd.cfg; $('bgmOn').checked = C.bgmOn; $('sfxOn').checked = C.sfxOn; $('bgmVol').value = Math.round(C.bgm * 100); $('sfxVol').value = Math.round(C.sfx * 100);
-  const upd = () => { C.bgmOn = $('bgmOn').checked; C.sfxOn = $('sfxOn').checked; C.bgm = $('bgmVol').value / 100; C.sfx = $('sfxVol').value / 100; Snd.apply(); Snd.save(); $('sndBtn').classList.toggle('muted', !C.bgmOn && !C.sfxOn); };
-  ['bgmOn', 'sfxOn', 'bgmVol', 'sfxVol'].forEach(id => $(id).addEventListener('input', upd)); $('sfxVol').addEventListener('change', () => Snd.play('coin', { force: true }));
+(function sndUI() { const C = Snd.cfg; $('bgmOn').checked = C.bgmOn; $('sfxOn').checked = C.sfxOn; $('bgmVol').value = Math.round(C.bgm * 100); $('sfxVol').value = Math.round(C.sfx * 100); $('bgMute').checked = C.bgMute !== false;
+  const upd = () => { C.bgmOn = $('bgmOn').checked; C.sfxOn = $('sfxOn').checked; C.bgm = $('bgmVol').value / 100; C.sfx = $('sfxVol').value / 100; C.bgMute = $('bgMute').checked; Snd.apply(); Snd.bgSync(); Snd.save(); $('sndBtn').classList.toggle('muted', !C.bgmOn && !C.sfxOn); };
+  ['bgmOn', 'sfxOn', 'bgmVol', 'sfxVol', 'bgMute'].forEach(id => $(id).addEventListener('input', upd)); $('sfxVol').addEventListener('change', () => Snd.play('coin', { force: true }));
   $('sndBtn').onclick = () => { Snd.unlock(); $('sndPanel').classList.toggle('hidden'); Snd.play('ui'); }; upd();
   addEventListener('keydown', e => { if (e.key.toLowerCase() === 'm' && !e.repeat) { const on = !(C.bgmOn || C.sfxOn); $('bgmOn').checked = $('sfxOn').checked = on; upd(); } });
 })();
