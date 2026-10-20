@@ -43,7 +43,8 @@ function shieldFactor(e, src) {
 // 타워 XP: 타워 공격 중(G.xpSrc)이면 실제로 깎은 체력 + 처치 보너스를 그 타워에 (성장 꺼짐이면 G.xpSrc는 항상 null)
 function hurt(e, dmg, color, big, src) { const tw = G.xpSrc; if (!tw || e.dead) return hurt0(e, dmg, color, big, src); const h0 = Math.max(0, e.hp); hurt0(e, dmg, color, big, src); towerXp(tw, h0 - Math.max(0, e.hp) + (e.dead ? KILL_XP : 0)); }
 function hurt0(e, dmg, color = '#fff', big = false, src = null) {
-  if (e.dead) return; const sk = shieldFactor(e, src);
+  if (e.dead) return; if (e.immT > G.t && dmg < 1e8) { if (!(e.immTxt > G.t)) { e.immTxt = G.t + .6; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, e.phaseT > 0 ? '통과!' : '무적', '#d8d0f0'); } return; } // 석상·실체 소멸 (테스트 즉사 피해는 통과)
+  const sk = shieldFactor(e, src);
   if (sk < .5) { Snd.play('block', { pos: e.g.position }); const p = enemyAim(e); emit(P, p.x + Math.sin(e.g.rotation.y) * .6, p.y, p.z + Math.cos(e.g.rotation.y) * .6, 6, 0xbfe0ff, 3, .25, 0, .3); e.blockT = .2;
     G.stats.blocked = (G.stats.blocked || 0) + dmg * (1 - sk); if (!(e.blockTxt > G.t)) { e.blockTxt = G.t + .6; p.y += e.E.h * .55 + .3; dmgText(p, '막음!', '#9ad4ff'); } }
   else Snd.play(armorOf(e) ? 'hitArmor' : 'hit', { pos: e.g.position });

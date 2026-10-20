@@ -113,7 +113,7 @@ function updTowers(dt) {
       tw.fxT -= dt; const k = tw.hp / tw.max; if (k < .5 && tw.fxT <= 0) { tw.fxT = k < .25 ? .08 : .2; emit(P, p.x + rnd(-.5, .5), 2.2, p.z + rnd(-.5, .5), 1, 0x5a5a62, .6, 1.4, 2.5, .3); if (k < .25) emit(P, p.x + rnd(-.4, .4), 1.6, p.z + rnd(-.4, .4), 2, 0xff8a2a, 1.2, .5, 3, .3); } }
     if (tw.rootT > 0) continue; // 뿌리 속박: 조준·공격 정지
     const rng = S.range; let best = null, bd = Infinity; const many = B && B.targets ? [] : null, byHp = B && B.prio === 'hp';
-    for (const e of G.enemies) { if (e.dead || (e.E.fly && !D.air)) continue; const dx = e.g.position.x - p.x, dz = e.g.position.z - p.z; if (dx * dx + dz * dz > rng * rng) continue;
+    for (const e of G.enemies) { if (e.dead || (e.E.fly && !D.air) || e.immT > G.t) continue; const dx = e.g.position.x - p.x, dz = e.g.position.z - p.z; if (dx * dx + dz * dz > rng * rng) continue;
       const prog = byHp ? -e.hp : e.E.fly ? Math.hypot(core.position.x - e.g.position.x, core.position.z - e.g.position.z) : dAt(e.tile[0], e.tile[1]); if (many) many.push([prog, e]); if (prog < bd) { bd = prog; best = e; } }
     if (!best) continue;
     const want = Math.atan2(best.g.position.x - p.x, best.g.position.z - p.z); let d = want - m.head.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.head.rotation.y += d * Math.min(1, dt * 10);

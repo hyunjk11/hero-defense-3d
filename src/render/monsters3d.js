@@ -71,13 +71,14 @@ export function makeSlime(E) {
 // ---- 서리 정령 (비행, 박쥐와 같은 인터페이스: inner.y = 비행 높이, wings[2]) ----
 export function makeWisp(E) {
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner); inner.position.y = 3; const { mats, tm } = matSet();
-  const coreM = glow(0xbff4ff, 1.4); coreM.userData.e = coreM.emissive.clone(); mats.push(coreM);
-  const bodyM = tm(0xe8f8ff, { emissive: new THREE.Color(0x3a8ac8), emissiveIntensity: .6 }); bodyM.userData.e = bodyM.emissive.clone();
+  const W = E.wisp || [0xe8f8ff, 0x3a8ac8, 0xbff4ff, 0x8ae0ff]; // [몸, 몸 발광, 심장, 결정] (폐허의 망령: 보라)
+  const coreM = glow(W[2], 1.4); coreM.userData.e = coreM.emissive.clone(); mats.push(coreM);
+  const bodyM = tm(W[0], { emissive: new THREE.Color(W[1]), emissiveIntensity: .6 }); bodyM.userData.e = bodyM.emissive.clone();
   mk(SPH(.42, 22, 16), bodyM, 0, 0, 0, inner, .035).scale.set(1, 1.05, 1);
   mk(OCT(.2), coreM, 0, 0, 0, inner, 0).scale.set(1, 1.3, 1);
   const tail = mk(CONE(.3, .7, 12), bodyM, 0, -.5, -.05, inner, .03); tail.rotation.x = Math.PI + .25;
   const eyeM = tm(0x1a2a4a); for (const sx of [-1, 1]) mk(SPH(.07, 10, 8), eyeM, sx * .15, .08, .38, inner, 0).scale.set(1, 1.4, .6);
-  const crys = glow(0x8ae0ff, 1.1); crys.userData.e = crys.emissive.clone(); mats.push(crys);
+  const crys = glow(W[3], 1.1); crys.userData.e = crys.emissive.clone(); mats.push(crys);
   const wings = [-1, 1].map(sx => { const p = new THREE.Group(); p.position.set(sx * .45, .05, -.05); inner.add(p); const c = mk(OCT(.18), crys, sx * .25, .1, 0, p, .02); c.scale.set(1.6, .5, .9); c.rotation.z = sx * .4; return p; });
   const orbit = new THREE.Group(); inner.add(orbit); for (let k = 0; k < 3; k++) { const a = k / 3 * 6.28, c = mk(OCT(.1), crys, Math.cos(a) * .72, 0, Math.sin(a) * .72, orbit, .015); c.scale.y = 1.8; }
   const m = { g, inner, mats, wings, orbit, mixer: null, acts: null, proc: 'wisp', coreM };

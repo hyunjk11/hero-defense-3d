@@ -23,8 +23,8 @@ export function endlessMix(q, n, rand) {
   for (const t of q) { if (t === 'boss' || ETYPES[t].fly && rand() < .5) { out.push(t); continue; } if (rand() < share) push(out, pickFrom(pool, rand), out.length + 1); else out.push(t); }
   return out;
 }
-// 도전 모드 보스: 5웨이브마다, 10의 배수는 챕터 보스 순환 (숲 → 설원 → 화산)
-const CH_BOSSES = ['boss_forest', 'boss_snow', 'boss_fire'];
+// 도전 모드 보스: 5웨이브마다, 10의 배수는 챕터 보스 순환 (숲 → 설원 → 화산 → 폐허)
+const CH_BOSSES = ['boss_forest', 'boss_snow', 'boss_fire', 'boss_ruins'];
 export const endlessBoss = n => n % 10 !== 0 ? 'boss' : CH_BOSSES[(n / 10 - 1) % CH_BOSSES.length];
 // 대기열에서 처음 보는 종류 (seen: Set) — 신규 몬스터 알림용
 export const newTypes = (q, seen) => [...new Set(q)].filter(t => !seen.has(t) && !ETYPES[t].child);

@@ -116,7 +116,7 @@ function updHero(dt) {
   if (!moving && !passAt(h.g.position.x, h.g.position.z)) { h.stuckT += dt; if (h.stuckT > 2) unstuck(); }
   h.g.position.y += (groundY(h.g.position.x, h.g.position.z) - h.g.position.y) * Math.min(1, dt * 10);
   const rng = stat.range(); let tgt = null, bd = rng * rng;
-  for (const e of G.enemies) { if (e.dead) continue; const dx = e.g.position.x - h.g.position.x, dz = e.g.position.z - h.g.position.z, d = dx * dx + dz * dz; if (d < bd && (h.cls !== 'warrior' || !e.E.fly)) { bd = d; tgt = e; } }
+  for (const e of G.enemies) { if (e.dead || e.immT > G.t) continue; const dx = e.g.position.x - h.g.position.x, dz = e.g.position.z - h.g.position.z, d = dx * dx + dz * dz; if (d < bd && (h.cls !== 'warrior' || !e.E.fly)) { bd = d; tgt = e; } }
   h.cd -= dt; h.atkT -= dt; if (h.gunT > 0) h.gunT -= dt;
   if (h.roseT > 0) updRose(dt); // 로즈 피니시 중: 일반 사격 대신 난사
   else if (h.cls === 'gunner' && tgt) { h.face = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); // 총사: 이동 중에도 목표를 겨누며 연사

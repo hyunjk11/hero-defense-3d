@@ -8,8 +8,8 @@ let seed = 7; const rand = () => { seed = (seed * 16807) % 2147483647; return se
 for (const [ch, R] of Object.entries(ROSTERS)) { assert.ok(ETYPES[R.boss] && ETYPES[R.boss].boss, `boss ${ch}`); for (const [t, w, from] of R.pool) { assert.ok(ETYPES[t], `${ch}:${t}`); assert.ok(w > 0 && from >= 1); } }
 for (const [k, E] of Object.entries(ETYPES)) { for (const f of ['hp', 'spd', 'gold', 'core', 'h']) assert.ok(Number.isFinite(E[f]) && E[f] >= 0, `${k}.${f}`); if (E.ab && E.ab.split) assert.ok(ETYPES[E.ab.split.type] && ETYPES[E.ab.split.type].child, k);
   if (E.ab) for (const v of Object.values(E.ab)) for (const x of Object.values(v)) if (typeof x === 'number') assert.ok(Number.isFinite(x), k); if (!E.child && E.ab) assert.ok(E.desc && E.icon, `${k} desc/icon`); }
-assert.ok(ROSTERS[3] && ROSTERS[4] && ROSTERS[3].ready && !ROSTERS[4].ready && ROSTERS[3].boss === 'boss_fire');
-// 준비된 챕터 = 스테이지가 있는 챕터 (폐허는 아직 준비 중)
+assert.ok(ROSTERS[3] && ROSTERS[4] && ROSTERS[3].ready && ROSTERS[4].ready && ROSTERS[3].boss === 'boss_fire' && ROSTERS[4].boss === 'boss_ruins');
+// 준비된 챕터 = 스테이지가 있는 챕터
 for (const ch of CHAPTERS) assert.equal(!!(ROSTERS[ch.id] && ROSTERS[ch.id].ready), ch.stages.length > 0, `ch${ch.id} ready`);
 // 스테이지별: 해당 챕터 구성만, 웨이브 마릿수 >= count, 무리는 3마리 단위
 for (const ch of CHAPTERS.filter(c => c.stages.length)) { const allowed = new Set(rosterTypes(ch.id)); const seen = new Set();
@@ -24,10 +24,18 @@ assert.ok(stageWave(STAGES['1-1'], 1, 11, rand).every(t => ['goblin', 'grunt', '
 const snow = new Set(['icewolf', 'yeti', 'wisp', 'frostgolem']);
 for (let n = 1; n <= 5; n++) assert.ok(!endlessMix(Array(30).fill('grunt'), n, rand).some(t => snow.has(t)), `endless w${n}`);
 let snowSeen = 0; for (let n = 6; n <= 15; n++) snowSeen += endlessMix(Array(30).fill('grunt'), n, rand).filter(t => snow.has(t)).length; assert.ok(snowSeen > 10);
-assert.equal(endlessBoss(30), 'boss_fire'); assert.equal(endlessBoss(40), 'boss_forest');
+assert.equal(endlessBoss(30), 'boss_fire'); assert.equal(endlessBoss(40), 'boss_ruins'); assert.equal(endlessBoss(50), 'boss_forest');
 const volc = new Set(['ember_slime', 'firebomber', 'lavahound', 'magmagolem']);
 for (let n = 1; n <= 11; n++) assert.ok(!endlessMix(Array(30).fill('grunt'), n, rand).some(t => volc.has(t)), `endless volcano w${n}`);
 let volcSeen = 0; for (let n = 12; n <= 20; n++) volcSeen += endlessMix(Array(30).fill('grunt'), n, rand).filter(t => volc.has(t)).length; assert.ok(volcSeen > 10, 'volcano in endless');
 assert.equal(endlessBoss(5), 'boss'); assert.equal(endlessBoss(10), 'boss_forest'); assert.equal(endlessBoss(20), 'boss_snow'); assert.equal(endlessBoss(15), 'boss');
+// 폐허: 19웨이브까지 안 나오고, 20웨이브부터 섞임 (석상 가고일·망령·덩굴)
+const ruin = new Set(['gargoyle', 'wraith', 'ruinroot']);
+for (let n = 1; n <= 19; n++) assert.ok(!endlessMix(Array(30).fill('grunt'), n, rand).some(t => ruin.has(t)), `endless ruins w${n}`);
+let ruinSeen = 0; for (let n = 20; n <= 30; n++) ruinSeen += endlessMix(Array(30).fill('grunt'), n, rand).filter(t => ruin.has(t)).length; assert.ok(ruinSeen > 8, 'ruins in endless ' + ruinSeen);
+// 폐허 능력 데이터: 석상화는 껍질이 있을 때만(능력 수치), 망령 실체 소멸·어둠 보호막, 보스 소환 대상 존재
+assert.ok(ETYPES.gargoyle.ab.perch && ETYPES.gargoyle.ab.crack && ETYPES.wraith.fly && ETYPES.wraith.ab.phase && ETYPES.wraith.ab.shield.dark && ETYPES.ruinroot.ab.root.n === 2);
+assert.ok(ETYPES[ETYPES.boss_ruins.ab.summon.type] && ETYPES.boss_ruins.ab.curse && ETYPES.boss_ruins.ab.dread.at === .5 && ETYPES.boss_ruins.n === '망국의 왕');
+assert.ok(ETYPES.boss_ruins.hp > ETYPES.boss_fire.hp);
 assert.deepEqual(newTypes(['goblin', 'slime', 'slime_s', 'goblin'], new Set(['goblin'])), ['slime']);
 console.log('roster.test.mjs OK');
