@@ -2,8 +2,9 @@
 import * as E from './equip.js';
 import * as ST from '../data/stages.js';
 import * as GR from '../data/growth.js';
+import { HERO_KEYS } from '../data/heroes.js';
 // save = { inv[], chests[], eq{cls:{weapon,armor,acc}}, mat{steel,crystal}, v, hero, souls, bestWave, heroLv{cls:{hp,atk}}, stats{runs,kills,waves,souls}, settings{audio{}}, nick }
-export const HEROES = ['archer', 'mage', 'warrior', 'gunner', 'mechanic']; // gunner·mechanic = 유료 영웅 (소유 여부는 서버 hd3d_owned, account/shop.js)
+export const HEROES = HERO_KEYS; // gunner·mechanic = 유료 영웅 (소유 여부는 서버 hd3d_owned, account/shop.js)
 export const PERM = { hp: { n: '체력 단련', d: '최대 체력 +6%', max: 10, base: 30 }, atk: { n: '무기 숙련', d: '공격력 +5%', max: 10, base: 40 } };
 export const STATS = ['runs', 'kills', 'waves', 'souls'];
 const num = (v, d = 0) => (Number.isFinite(+v) && v !== null && v !== '' ? +v : d);

@@ -1,13 +1,13 @@
 // ================= 장비 UI: 가방(장착/비교) · 대장간(강화/분해/제작) · 보상 상자 개봉 =================
 import { Snd } from '../audio/audio.js';
 import { $ } from '../core/util.js';
-import { CLASSES, heroLabel } from '../data/heroes.js';
+import { CLASSES, HERO_KEYS, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
 import * as E from '../account/equip.js';
 import { closeLab } from './lab.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ICON = { archer: '🏹', mage: '🪄', warrior: '🗡️', gunner: '🔫', mechanic: '🦾', armor: '🛡️', acc: '💍' };
+const ICON = { ...Object.fromEntries(HERO_KEYS.map(k => [k, CLASSES[k].icon])), armor: '🛡️', acc: '💍' }; // 영웅 무기 아이콘은 data/heroes.js 의 icon (빠진 영웅이 없도록 한 곳에서)
 const FALLBACK = { weapon: '⚔️', any: '📦' }; // 모르는 영웅/슬롯 키 → 'undefined' 대신 일반 아이콘
 export const iconKey = k => ICON[k] || FALLBACK.any;
 export const weaponIcon = h => ICON[h] || FALLBACK.weapon;
