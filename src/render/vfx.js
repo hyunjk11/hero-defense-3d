@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { $, rand, rnd } from '../core/util.js';
 import { G, later } from '../core/state.js';
 import { camera, scene } from './scene.js';
+import { Q } from './quality.js';
 import { IM, glow, hideI, mk, setI, tmpC, toon } from './toon.js';
 
 // ================= 파티클 =================
@@ -64,7 +65,7 @@ function flyCoinDom(p) {
   setTimeout(() => c.remove(), 800);
 }
 const coinGeo = new THREE.CylinderGeometry(.24, .24, .07, 16).rotateX(Math.PI / 2), coinMat = glow(0xffc828, .6);
-function popCoins(p, n) { for (let k = 0; k < Math.min(n, 6); k++) { const m = mk(coinGeo, coinMat, p.x, p.y, p.z, scene, .02); G.coins.push({ m, v: new THREE.Vector3(rnd(-2.5, 2.5), rnd(6, 9), rnd(-2.5, 2.5)), t: .55 + k * .05 }); } }
+function popCoins(p, n) { for (let k = 0; k < Math.min(n, 6); k++) { const m = mk(coinGeo, coinMat, p.x, p.y, p.z, scene, .02); if (Q.perf) m.castShadow = false; G.coins.push({ m, v: new THREE.Vector3(rnd(-2.5, 2.5), rnd(6, 9), rnd(-2.5, 2.5)), t: .55 + k * .05 }); } }
 function updCoins(dt) { for (let i = G.coins.length - 1; i >= 0; i--) { const c = G.coins[i]; c.t -= dt; c.v.y -= 22 * dt; c.m.position.addScaledVector(c.v, dt); c.m.rotation.y += dt * 12; if (c.m.position.y < .3) { c.m.position.y = .3; c.v.y *= -.4; }
   if (c.t <= 0) { flyCoinDom(c.m.position); later(.45, () => Snd.play('coin', { rate: 1 + Math.random() * .2 })); scene.remove(c.m); G.coins.splice(i, 1); } } }
 function ringFx(pos, r, color, dur = .4) {

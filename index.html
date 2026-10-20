@@ -53,6 +53,7 @@
     <div class="ptitle">소리 설정</div>
     <label class="snd"><input type="checkbox" id="bgmOn"> 배경음악 <input type="range" id="bgmVol" min="0" max="100"></label>
     <label class="snd"><input type="checkbox" id="sfxOn"> 효과음 <input type="range" id="sfxVol" min="0" max="100"></label>
+    <div class="gfxRow"><span>그래픽</span><div class="gfxSeg"><button data-gfx="auto">자동</button><button data-gfx="high">고품질</button><button data-gfx="perf">성능</button></div></div><div class="gfxNow"></div>
     <div class="sndHint">M 키: 전체 음소거</div>
   </div>
   <div id="cam"><button id="sndBtn" title="소리 설정">&#9835;</button><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button></div>
@@ -100,6 +101,7 @@
     <div id="mnSettings" class="hidden settings">
       <label><input type="checkbox" id="stBgmOn"> 배경음악 <input type="range" id="stBgm" min="0" max="100"></label>
       <label><input type="checkbox" id="stSfxOn"> 효과음 <input type="range" id="stSfx" min="0" max="100"></label>
+      <div class="gfxRow"><span>그래픽</span><div class="gfxSeg"><button data-gfx="auto">자동</button><button data-gfx="high">고품질</button><button data-gfx="perf">성능</button></div></div><div class="gfxNow"></div>
     </div>
     <div class="nick"><input id="mnNick" maxlength="12" placeholder="닉네임"><button id="mnNickSave" class="gbtn sm">저장</button></div>
     <button id="mnAdmin" class="gbtn sm admBtn hidden">🛡 관리자</button>

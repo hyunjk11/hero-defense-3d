@@ -1,0 +1,78 @@
+{
+ "note": "tests/stress.py 60,100 (1280x760, dpr1, headless swiftshader; FPS는 CPU 렌더 + 다른 작업과 CPU 공유라 참고용)",
+ "before_c3b54ff": {
+  "60": {
+   "draw_calls": [
+    2768,
+    3944055
+   ],
+   "shadow_casters": 895,
+   "outline_meshes_visible": 676,
+   "enemy_materials": 571,
+   "step_ms_avg": 1.97,
+   "fps_swiftshader": 0.7
+  },
+  "100": {
+   "draw_calls": [
+    4083,
+    4545561
+   ],
+   "shadow_casters": 1353,
+   "outline_meshes_visible": 1112,
+   "enemy_materials": 923,
+   "step_ms_avg": 2.6,
+   "fps_swiftshader": 0.4
+  },
+  "fps_empty": 2.3
+ },
+ "after_high": {
+  "60": {
+   "draw_calls": [
+    2768,
+    3944055
+   ],
+   "shadow_casters": 895,
+   "outline_meshes_visible": 676,
+   "enemy_materials": 198,
+   "step_ms_avg": 1.66,
+   "fps_swiftshader": 1.6
+  },
+  "100": {
+   "draw_calls": [
+    4083,
+    4545561
+   ],
+   "shadow_casters": 1353,
+   "outline_meshes_visible": 1112,
+   "enemy_materials": 264,
+   "step_ms_avg": 2.35,
+   "fps_swiftshader": 1.5
+  },
+  "fps_empty": 3
+ },
+ "after_perf": {
+  "60": {
+   "draw_calls": [
+    1349,
+    3318827
+   ],
+   "shadow_casters": 152,
+   "outline_meshes_visible": 0,
+   "enemy_materials": 198,
+   "step_ms_avg": 1.83,
+   "fps_swiftshader": 0.8
+  },
+  "100": {
+   "draw_calls": [
+    1768,
+    3524723
+   ],
+   "shadow_casters": 138,
+   "outline_meshes_visible": 12,
+   "enemy_materials": 264,
+   "step_ms_avg": 2.53,
+   "fps_swiftshader": 1.1
+  },
+  "fps_empty": 1.6
+ }
+}

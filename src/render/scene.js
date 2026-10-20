@@ -6,11 +6,12 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { $, rnd } from '../core/util.js';
 import { G } from '../core/state.js';
 import { STAGE } from '../core/grid.js';
+import { Q } from './quality.js';
 
 // ================= 렌더러/씬 =================
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-const COARSE = matchMedia('(pointer: coarse)').matches; // 태블릿: 고해상도 화면에서 GPU 부담 줄이기
-renderer.setPixelRatio(Math.min(devicePixelRatio, COARSE ? 1.5 : 1.75)); renderer.setSize(innerWidth, innerHeight);
+// 픽셀 비율 상한: 고품질 1.75 (태블릿 1.5), 성능 모드 1.25 (src/render/quality.js)
+renderer.setPixelRatio(Q.pixelRatio()); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12;
 // 챕터별 조명·하늘·블룸 (THEMES[테마]). 설원(2장): 거의 흰 눈이 강한 햇빛·노출·블룸에서 하얗게 날아가 판이 안 보였음 → 노출·조명 낮추고 블룸은 진짜 발광체만 (LIGHT 는 main.js updLighting 에서 곱함)
 // 화산(3장): 어두운 현무암 + 용암 발광 → 블룸 문턱을 조금 올려 용암 가장 뜨거운 곳만 은은하게 번지게 (하얗게 날아가지 않게), 햇빛은 붉고 약하게
@@ -43,7 +44,7 @@ scene.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.Shader
 })));
 const hemi = new THREE.HemisphereLight(TH.hemiC ? TH.hemiC[0] : 0xe6f4ff, TH.hemiC ? TH.hemiC[1] : 0x5a4a3a, 1.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.6); sun.position.set(-22, 42, 26); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 30, bottom: -30, near: 5, far: 120 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .03; scene.add(sun);
+sun.shadow.mapSize.set(Q.shadowSize(), Q.shadowSize()); Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 30, bottom: -30, near: 5, far: 120 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .03; scene.add(sun);
 const moon = new THREE.DirectionalLight(0x7a8aff, 0); moon.position.set(20, 30, -20); scene.add(moon);
 // 후처리(블룸) 경로는 기본 렌더 타깃에 MSAA가 없어 antialias:true가 무시됨 → 잔 돌길 모서리가 카메라 이동 시 지글지글 끓어 보임. 멀티샘플 타깃으로 해결
 // (소프트웨어 렌더러(SwiftShader 등)에서는 너무 느려 끔, ?msaa=1/0 으로 강제)
@@ -55,6 +56,9 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .3
 bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );',
   'vec4 texel = texture2D( tDiffuse, vUv ); if ( !all( lessThan( abs( texel ), vec4( 6.0e4 ) ) ) ) texel = vec4( 0.0 );'); bloom.materialHighPassFilter.needsUpdate = true;
 composer.addPass(bloom); composer.addPass(new OutputPass());
+// 품질 전환(설정 또는 FPS 자동): 픽셀 비율·그림자 맵 크기를 즉시 반영 (몬스터 외곽선/그림자는 monsters/lod.js)
+Q.onChange(() => { renderer.setPixelRatio(Q.pixelRatio()); composer.setPixelRatio(renderer.getPixelRatio()); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  const n = Q.shadowSize(); if (sun.shadow.mapSize.x !== n) { sun.shadow.mapSize.set(n, n); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } });
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
 
 export { renderer, scene, camera, cam, updateCam, DAY, NIGHT, skyU, hemi, sun, moon, composer, bloom, LIGHT, SNOW, VOLCANO, RUINS, THEME_KEY };

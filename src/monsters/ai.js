@@ -1,10 +1,13 @@
+import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { STAGE, CORE, DIRS, GH, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 const ICE = !!(STAGE && STAGE.ch === 2);
 import { BLK } from '../data/terrain.js';
 import { G } from '../core/state.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
-import { flashMats, play } from '../render/characters.js';
+import { flashCh, play } from '../render/characters.js';
+import { camera, cam } from '../render/scene.js';
+import { Q } from '../render/quality.js';
 import { core, damageTile, tileAt } from '../world/terrain.js';
 import { enterCost, nextStep } from '../world/pathfinding.js';
 import { reachCore, removeEnemy } from './enemy.js';
@@ -41,7 +44,7 @@ function updEnemies(dt) {
     if (e.m.mixer) { if (lod) { e.mixAcc = (e.mixAcc || 0) + dt; if (((i + G.frameN) & 1) === 0) { e.m.mixer.update(e.mixAcc); e.mixAcc = 0; } } else e.m.mixer.update(dt); }
     if (e.m.anim) e.m.anim(e, dt); // 절차적 모델(늑대/슬라임/정령) 동작
     if (e.dying !== undefined) { e.dying -= dt; if (E.fly) { e.m.inner.position.y = Math.max(.3, e.m.inner.position.y - dt * 7); e.m.inner.rotation.z += dt * 8; } else if (e.dying < .5) g.position.y -= dt * 2.5; if (e.dying <= 0) removeEnemy(e); continue; }
-    if (e.flash > 0) { e.flash -= dt; flashMats(e.m.mats, true, e.blockT > 0 ? 0x5a8aff : 0xffffff); if (e.blockT > 0) e.blockT -= dt; } else if (e.slowT > 0) flashMats(e.m.mats, true, 0x2a3aaa); else flashMats(e.m.mats, false);
+    if (e.flash > 0) { e.flash -= dt; flashCh(e.m, true, e.blockT > 0 ? 0x5a8aff : 0xffffff); if (e.blockT > 0) e.blockT -= dt; } else if (e.slowT > 0) flashCh(e.m, true, 0x2a3aaa); else flashCh(e.m, false);
     e.hb.set(Math.max(0, e.hp / e.max)); if (e.state === 'spawn') { e.spawnT -= dt; if (e.spawnT <= 0) e.state = 'walk'; continue; }
     if (e.stunT > 0) { stunned(e, dt); continue; } // 전설 스킬: 빙결/띄우기 (설정될 때만)
     if (E.ab && abilityTick(e, dt)) { e.slowT -= dt; e.digging = false; g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8); continue; } // 능력 예고(시전) 중: 제자리
@@ -92,8 +95,20 @@ function jammedInNext(e) { if (!e.next || e.digging) return false; const [c, r] 
 function nudge(e) { const g = e.g, [c, r] = toTile(g.position.x, g.position.z); G.nudgeN = (G.nudgeN || 0) + 1;
   if (inGrid(c, r) && enemyWalk(g.position.x, g.position.z)) e.tile = [c, r]; g.position.x = tileX(e.tile[0]); g.position.z = tileZ(e.tile[1]); e.next = null; }
 
-function setEnemyShadows(on) { G.lowQ = !on; for (const e of G.enemies) shadowOf(e, on); }
-function shadowOf(e, on) { e.g.traverse(o => { if (!o.isMesh) return; if (o.userData.ol) o.visible = on; else o.castShadow = on; }); } // 저품질: 그림자·외곽선 끔
+function setEnemyShadows(on) { G.lowQ = !on; updLod(); }
+// 몬스터 외곽선·그림자 LOD (렌더 직전 매 프레임, 로직과 무관 → 결정성 영향 없음)
+//  G.lowQ(적 140마리 초과): 전부 끔 · 성능 모드(Q.perf): 그림자는 보스만, 외곽선은 보스 + 크고(h ≥ OUTLINE_MIN_H) 가까운 몬스터만
+const _cp = new THREE.Vector3();
+function lodParts(e) { if (e.m.lod) return e.m.lod; const ol = [], cs = []; e.g.traverse(o => { if (!o.isMesh) return; if (o.userData.ol) ol.push(o); else if (o.castShadow) cs.push(o); }); return (e.m.lod = { ol, cs, olOn: null, csOn: null }); }
+function lodApply(e, camD = camera.position.distanceTo(cam.target)) {
+  const L = lodParts(e), boss = !!e.E.boss, cs = !G.lowQ && (!Q.perf || boss);
+  let ol = !G.lowQ; if (ol && Q.perf && !boss) ol = e.E.h >= Q.OUTLINE_MIN_H && e.g.position.distanceTo(camera.getWorldPosition(_cp)) < camD * Q.OUTLINE_FAR;
+  if (e.phaseT > 0) L.olOn = null; // 망령 실체 소멸 중: abilities.phased 가 외곽선을 직접 끄고 켬 → 끝나면 다시 적용
+  else if (L.olOn !== ol) { L.olOn = ol; for (const o of L.ol) o.visible = ol; }
+  if (L.csOn !== cs) { L.csOn = cs; for (const o of L.cs) o.castShadow = cs; }
+}
+function updLod() { const d = camera.position.distanceTo(cam.target); for (const e of G.enemies) lodApply(e, d); }
+const shadowOf = e => lodApply(e);
 // ================= 신규 몬스터 행동 (상태머신) =================
 // basic: walk ↔ dig ↔ fight(hero)   digger: 같은 흐름 + 굴착 프로필/고속 굴착   charger: walk ↔ sprint(파인 길)
 // shield: walk (방패 판정은 hurt)   bomber: walk → seek(타워/바리케이드) → fuse → explode   siege: walk → ram(타워 공격)
@@ -150,7 +165,7 @@ function special(e, dt, slowK) {
   }
   if (e.ai === 'bomber') {
     if (e.m.sparks) { const f = e.state === 'fuse' ? (Math.sin(G.t * 40) > 0 ? 1.8 : .6) : .8 + Math.sin(G.t * 18 + e.bob) * .3; e.m.sparks.forEach(s => s.scale.setScalar(f)); }
-    if (e.state === 'fuse') { e.fuseT -= dt; flashMats(e.m.mats, Math.sin(G.t * 30) > 0, 0xff3a1a); if (e.fuseT <= 0) explode(e); return true; }
+    if (e.state === 'fuse') { e.fuseT -= dt; flashCh(e.m, Math.sin(G.t * 30) > 0, 0xff3a1a); if (e.fuseT <= 0) explode(e); return true; }
     e.scanT = (e.scanT || 0) - dt; if (e.scanT <= 0) { e.scanT = .25; e.bt = bombTarget(e); }
     const bt = e.bt; if (!bt || (bt.tw && bt.tw.dead) || (bt.bar && !tileAt(bt.c, bt.r).bar)) { e.bt = null; return false; }
     const d = Math.hypot(tileX(bt.c) - g.position.x, tileZ(bt.r) - g.position.z), adj = Math.abs(bt.c - e.tile[0]) + Math.abs(bt.r - e.tile[1]) === 1;
@@ -164,8 +179,8 @@ function special(e, dt, slowK) {
 // 기절(빙결/띄우기): 이동·공격 정지. 띄우기는 포물선으로 떴다 떨어짐, 빙결은 얼음빛
 function stunned(e, dt) {
   e.stunT -= dt; const g = e.g;
-  if (e.frozen) { if (!(e.flash > 0)) flashMats(e.m.mats, true, 0x8ae0ff); if (Math.random() < .15) emit(P, g.position.x, (e.E.fly ? 3 : e.E.h * .6), g.position.z, 1, 0xdaf6ff, .6, .5, 1, .6); }
+  if (e.frozen) { if (!(e.flash > 0)) flashCh(e.m, true, 0x8ae0ff); if (Math.random() < .15) emit(P, g.position.x, (e.E.fly ? 3 : e.E.h * .6), g.position.z, 1, 0xdaf6ff, .6, .5, 1, .6); }
   if (e.kup && !e.E.fly) { const k = e.kup; k.t += dt; const f = Math.min(1, k.t / k.dur); g.position.y = groundY(g.position.x, g.position.z) + Math.sin(f * Math.PI) * k.h; g.rotation.z = Math.sin(f * Math.PI) * .5; }
   if (e.stunT <= 0) { e.stunT = 0; if (e.kup) { g.rotation.z = 0; e.kup = null; } e.frozen = false; }
 }
-export { groundY, separate, updEnemies, shadowOf };
+export { groundY, separate, updEnemies, shadowOf, updLod };

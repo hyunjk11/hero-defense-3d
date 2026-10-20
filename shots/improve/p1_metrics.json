@@ -1,0 +1,30 @@
+{
+ "high": {
+  "perf": false,
+  "mode": "auto",
+  "why": "url",
+  "pr": 1.75,
+  "shadow": 2048,
+  "casters": 370,
+  "ol": 223,
+  "olAll": 223,
+  "calls_tris": [
+   1154,
+   3293119
+  ]
+ },
+ "perf": {
+  "perf": true,
+  "mode": "auto",
+  "why": "url",
+  "pr": 1.25,
+  "shadow": 1024,
+  "casters": 181,
+  "ol": 74,
+  "olAll": 223,
+  "calls_tris": [
+   816,
+   3135291
+  ]
+ }
+}

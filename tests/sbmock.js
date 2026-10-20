@@ -37,6 +37,7 @@
     // 상점 테이블 (supabase/schema.sql 흉내): 관리자 = hyunjk11@daum.net (hd3d_admins + JWT 이메일), RLS 본인 행만(관리자는 전체)
     const SHOPT = ['hd3d_orders', 'hd3d_mail', 'hd3d_owned'], isAdm = () => (sess()?.user?.email || '').toLowerCase() === 'hyunjk11@daum.net';
     const nid = d => (d.seq = (d.seq || 0) + 1), now = () => new Date(Date.now() + (db().seq || 0)).toISOString();
+    const ts = d => { d.lastTs = Math.max(Date.now(), (d.lastTs || 0) + 1); return new Date(d.lastTs).toISOString(); }; // 저장 행 updated_at: 쓸 때마다 증가 (낙관적 동시성 검사용)
     const missing = t => flags().noTables || (flags().noShop && SHOPT.includes(t));
     const VALID = r => r == null || (typeof r === 'object' && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic'));
     const REW = { hero_gunner: { hero: 'gunner' }, hero_mechanic: { hero: 'mechanic' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈', hero_mechanic: '유료 영웅 · 메카닉 버들' };
@@ -58,7 +59,12 @@
         if (q.op === 'upsert') {
           const row = q.row, id = row[pk[t]];
           if (!uid() || id !== uid()) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' }, status: 403 };
-          d[t][id] = { ...(d[t][id] || {}), ...row, updated_at: Date.now() }; put(d); return { data: null, error: null, status: 201 };
+          d[t][id] = { ...(d[t][id] || {}), ...row, updated_at: ts(d) }; put(d); if (flags().loseSave) return netErr(); return { data: q.ret ? [d[t][id]] : null, error: null, status: 201 };
+        }
+        if (q.op === 'update') { // PATCH ... where 필터 (RLS: 본인 행만). updated_at 은 서버 트리거처럼 갱신
+          let rows = Object.values(d[t]).filter(r => r[pk[t]] === uid()); for (const [c, v] of q.f) rows = rows.filter(r => r[c] === v);
+          for (const r of rows) Object.assign(r, q.row, t === 'hd3d_progress' ? { updated_at: ts(d) } : {}); put(d); if (flags().loseSave) return netErr();
+          return { data: q.ret ? rows.map(r => ({ ...r })) : null, error: null, status: 200 };
         }
         let rows = Object.values(d[t]);
         if (t !== 'hd3d_records' && !(SHOPT.includes(t) && isAdm())) rows = rows.filter(r => r[pk[t]] === uid()); // RLS: own rows only (관리자는 상점 테이블 전체)
@@ -70,9 +76,9 @@
         return { data: q.single ? rows[0] || null : rows, error: null, status: 200 };
       };
       const b = {
-        select(c, o) { q.head = !!o?.head; return b; }, eq(c, v) { q.f.push([c, v]); return b; }, order(c, o) { q.ord = c; q.desc = o && o.ascending === false; return b; },
+        select(c, o) { q.head = !!o?.head; if (q.op !== 'select') q.ret = true; return b; }, eq(c, v) { q.f.push([c, v]); return b; }, order(c, o) { q.ord = c; q.desc = o && o.ascending === false; return b; },
         limit(n) { q.lim = n; return b; }, maybeSingle() { q.single = true; return run(); },
-        upsert(row) { q.op = 'upsert'; q.row = row; return run(); }, insert(row) { q.op = 'insert'; q.row = row; return b; }, then(res, rej) { return run().then(res, rej); },
+        upsert(row) { q.op = 'upsert'; q.row = row; return b; }, update(row) { q.op = 'update'; q.row = row; return b; }, insert(row) { q.op = 'insert'; q.row = row; return b; }, then(res, rej) { return run().then(res, rej); },
       };
       return b;
     }
@@ -85,8 +91,9 @@
         const R = data => { put(d); return { data, error: null }; };
         if (fn === 'hd3d_is_admin') return { data: isAdm(), error: null };
         if (fn === 'hd3d_claim_mail') { const m = d.hd3d_mail[a.p_mail_id]; if (!m || m.user_id !== me) return { data: null, error: { code: 'P0002', message: 'mail not found' } };
-          if (m.claimed) return { data: { ok: true, already: true, id: m.id }, error: null };
+          if (m.claimed) return { data: { ok: true, already: true, id: m.id, reward: m.reward }, error: null }; // schema.sql: already 일 때도 reward 반환 (장부 복구용)
           m.claimed = true; m.claimed_at = now(); if (m.reward && m.reward.hero) { const k = me + ':hero_' + m.reward.hero; d.hd3d_owned[k] = d.hd3d_owned[k] || { user_id: me, item: 'hero_' + m.reward.hero, source_mail: m.id, created_at: now() }; }
+          if (flags().loseClaim) { put(d); return netErr(); } // 서버에선 성공했지만 응답 유실
           return R({ ok: true, already: false, id: m.id, reward: m.reward }); }
         if (!isAdm()) return { data: null, error: { code: '42501', message: 'forbidden' } };
         if (fn === 'hd3d_admin_send_mail') { const u = Object.values(d.users).find(u => u.email.toLowerCase() === String(a.p_email).trim().toLowerCase()); if (!u) return { data: { ok: false, reason: 'no_user' }, error: null };

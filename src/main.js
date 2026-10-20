@@ -28,7 +28,9 @@ import { updLoot } from './render/loot.js';
 import { damageTower, repairAll, repairTower, sellTower, updTowers, upgradeTower } from './world/towers.js';
 import { updProjs } from './combat/projectiles.js';
 import { hurt, spawnEnemy } from './monsters/enemy.js';
-import { separate, updEnemies } from './monsters/ai.js';
+import { separate, updEnemies, updLod } from './monsters/ai.js';
+import { Q } from './render/quality.js';
+import './ui/gfx.js';
 import { hero, heroDamage, heroGoTo, updHero } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
 import { castLegend, updLegend } from './heroes/legend.js';
@@ -45,7 +47,7 @@ import * as ROSTER from './core/roster.js';
 import { updVolcano } from './render/volcano.js';
 import { updRuins } from './render/ruins.js';
 
-Object.assign(G, { STAGE_CFG: STAGE, ROSTERS, ROSTER, towerRateK, pendingSpawns, towerXp, chooseBranch, GROW, castLegend, SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
+Object.assign(G, { Q, STAGE_CFG: STAGE, ROSTERS, ROSTER, towerRateK, pendingSpawns, towerXp, chooseBranch, GROW, castLegend, SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
 G.setTool = _setTool; G.buildReason = (c, r, tool) => { const o = G.tool; G.tool = tool; const w = _buildReason(c, r); G.tool = o; return w; };
 G.hoverTile = (c, r) => { const v = new THREE.Vector3(tileX(c), 0, tileZ(r)).project(_camera); const x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight; _onMove(x, y); return [Math.round(x), Math.round(y), document.getElementById('tip').innerText]; };
@@ -61,7 +63,8 @@ function updLighting(dt) {
   sun.color.setHSL(LIGHT.sunH, .6 - n * .3, .88 - n * .2); bloom.strength = (.32 + n * .22) * LIGHT.bloomK; portalLight.intensity = 20 + n * 60 + Math.sin(G.t * 6) * 8; coreLight.intensity = 3 + n * 5;
 }
 let lastT = performance.now(), hudT = 0;
-function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05)); if (!G.pauseRender) composer.render(); }
+function loop() { requestAnimationFrame(loop); const now = performance.now(), raw = (now - lastT) / 1000; lastT = now; if (!G.manual) step(Math.min(raw, .05));
+  Q.tick(raw, !G.manual && (G.phase === 'build' || G.phase === 'wave')); if (!G.pauseRender) { updLod(); composer.render(); } }
 G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h); };
 function step(dt) {
   if (G.slowT > 0) { dt *= G.slowF || .4; G.slowT -= dt; } // 메카닉 변신 연출: 잠깐 슬로 모션 (변신할 때만)

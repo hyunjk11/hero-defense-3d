@@ -26,11 +26,11 @@ function spawnEnemy(type, hpMul, at) {
   if (at) m.g.position.set(at.x, 0, at.z); else { m.g.position.set(tileX(sp[0]) + (side ? (sp[0] <= 0 ? .4 : -.4) : rnd(-.5, .5)), 0, tileZ(sp[1]) + (side ? rnd(-.5, .5) : sp[1] <= 0 ? .4 : -.4)); m.g.rotation.y = side ? (sp[0] <= 0 ? Math.PI / 2 : -Math.PI / 2) : (sp[1] <= 0 ? 0 : Math.PI); }
   const e = { type, E, m, g: m.g, hp, max: hp, ai: E.ai || 'basic', profile: E.profile || 'default', tile: sp.slice(), next: null, off: [rnd(-.45, .45), rnd(-.45, .45)], slowT: 0, slowAmt: 0, flash: 0, atkCd: rnd(0, .5), hitT: rnd(0, .3), state: 'walk', spawnT: 0, dead: false, bob: rand() * 6 };
   if (E.ab) initAbilities(e);
-  if (at) { e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, Math.max(1.1, E.h * .55), 0x55ff77, { auto: true, h: .15 }); if (G.lowQ) shadowOf(e, false); G.enemies.push(e); return e; }
+  if (at) { e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, Math.max(1.1, E.h * .55), 0x55ff77, { auto: true, h: .15 }); shadowOf(e); G.enemies.push(e); return e; }
   if (!E.fly) { const a = play(m, 'Spawn_Ground_Skeletons', { once: true, speed: 2, fade: 0 }); e.state = 'spawn'; e.spawnT = a ? Math.min(1.4, a.getClip().duration / 2) : 0; emit(P, m.g.position.x, .3, m.g.position.z, 12, 0x9a7a5a, 3, .6, -6, 1.5); }
   e.hb = hpBar(m.g, E.fly ? 4 : E.h + .35, E.boss ? 3 : Math.max(1.1, E.h * .55), E.boss ? 0xff3a4a : 0x55ff77, { auto: !E.boss, h: E.boss ? .22 : .15 });
   if (E.boss) { G.shake = .7; Snd.roar(m.g.position); banner(`⚠ 보스 출현: ${E.n} ⚠`, '#ff4a5a', 2200); emit(PB, m.g.position.x, 2, m.g.position.z, 40, 0xff3a3a, 8, 1, -2, 2); }
-  emit(P, m.g.position.x, 1.5, m.g.position.z, 14, 0xc07aff, 4, .5); if (G.lowQ) shadowOf(e, false); G.enemies.push(e); return e;
+  emit(P, m.g.position.x, 1.5, m.g.position.z, 14, 0xc07aff, 4, .5); shadowOf(e); G.enemies.push(e); return e;
 }
 // 방패병: 공격 방향(src)과 바라보는 방향의 각도로 피해 감소. 정면 원거리 대폭 감소, 근접은 일부, 옆은 소폭, 뒤는 추가 피해. src 없는 범위/번개 공격은 무시
 function shieldFactor(e, src) {

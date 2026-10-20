@@ -67,13 +67,14 @@ const MESHY = {
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
-function makeChar(key, height, clips, olW = .03) {
+// shared: 같은 종류 몬스터끼리 공유하는 몸 머티리얼 배열(메시 순서대로). 주면 복제하지 않고 그대로 씀 (피격 플래시는 flashCh 가 메시별로 플래시 머티리얼로 교체)
+function makeChar(key, height, clips, olW = .03, shared = null) {
   const tpl = GL[key], root = SkeletonUtils.clone(tpl.scene), k = height / tpl.userData.h; root.scale.setScalar(k);
   const g = new THREE.Group(); g.add(root); const mats = [], meshes = [];
-  root.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.e = o.material.emissive.clone(); mats.push(o.material); o.castShadow = true; o.frustumCulled = false; meshes.push(o); } });
+  root.traverse(o => { if (o.isMesh) { if (shared) o.material = shared[meshes.length]; else { o.material = o.material.clone(); o.material.userData.e = o.material.emissive.clone(); mats.push(o.material); } o.castShadow = true; o.frustumCulled = false; meshes.push(o); } });
   root.updateMatrixWorld(true); for (const m of meshes) addOutline(m, olW / m.getWorldScale(wsV).x);
   const mixer = new THREE.AnimationMixer(root), acts = {}; for (const c of clips) acts[c.name] = mixer.clipAction(c);
-  return { g, root, mixer, acts, mats, cur: null, k };
+  return { g, root, mixer, acts, mats, meshes, cur: null, k };
 }
 function attach(ch, key, bone) {
   const b = ch.root.getObjectByName(bone); if (!b || !GL[key]) return null; const w = GL[key].scene.clone(true); b.add(w); ch.root.updateMatrixWorld(true);
@@ -86,6 +87,14 @@ function play(ch, name, o = {}) {
   if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; if (ch.aim) ch.yawT = ch.aim[a.getClip().name] || 0; if (ch.gear) gearOn(ch, name, a, speed); return a;
 }
 function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
+// 몬스터 피격 플래시: 개체별 머티리얼(ch.mats)은 emissive 변경, 종류별 공유 몸 머티리얼(ch.shMeshes)은 (공유 머티리얼, 색)별 플래시 복제본으로 메시의 material 을 잠시 교체
+const FLASH_V = new WeakMap();
+function flashVar(base, col) { let t = FLASH_V.get(base); if (!t) FLASH_V.set(base, t = {}); if (!t[col]) { const m = base.clone(); m.emissive.setHex(col); t[col] = m; } return t[col]; }
+function flashCh(ch, on, col = 0xffffff) {
+  if (ch.mats) flashMats(ch.mats, on, col); const M = ch.shMeshes; if (!M) return;
+  const k = on ? col : -1; if (ch.flK === k) return; ch.flK = k;
+  for (let i = 0; i < M.length; i++) M[i].material = on ? flashVar(ch.shBase[i], col) : ch.shBase[i];
+}
 const heroClips = () => GL.warrior_meshy.animations, skClips = () => GL.sk_minion.animations;
 function makeHeroModel(cls, key0) {
   const key = key0 || CLASSES[cls].model, M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
@@ -198,12 +207,16 @@ function makeBat() {
   const wings = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .45, .05, -.05); p.scale.x = s; inner.add(p); mk(wg, dark, 0, 0, 0, p, .03); return p; });
   return { g, inner, mats, wings, acts: null, mixer: null };
 }
+const SHARED_BODY = {};
 function makeEnemyModel(type) {
   const E = ETYPES[type]; if (E.proc === 'wisp') return makeWisp(E); if (E.proc === 'wolf') return makeWolf(E); if (E.proc === 'slime') return makeSlime(E); if (E.fly) return makeBat();
-  const ch = makeChar(E.model, E.h, skClips(), E.boss ? .05 : .03); attach(ch, E.w, 'handslotr'); if (E.sh) attach(ch, E.sh, 'handslotl');
-  if (E.tint) { const tc = new THREE.Color(E.tint); ch.mats.forEach(m => m.color.multiply(tc)); }
+  // 몸 머티리얼은 종류별로 한 벌만 (첫 개체가 색조·눈 발광을 정한 뒤 공유) → 개체마다 clone 하던 머티리얼 수·GPU 유니폼 업로드 감소. 소품 머티리얼(버섯 갓·얼음 등 개체별 변화)은 그대로 개체별
+  const sh = SHARED_BODY[type] || null, ch = makeChar(E.model, E.h, skClips(), E.boss ? .05 : .03, sh); attach(ch, E.w, 'handslotr'); if (E.sh) attach(ch, E.sh, 'handslotl');
+  if (!sh && E.tint) { const tc = new THREE.Color(E.tint); ch.mats.forEach(m => m.color.multiply(tc)); }
+  const body = sh || ch.mats.slice();
   if (E.prop) { addProp(ch, E.prop, E); extraProp(ch, E.prop, E, attachProp); }
-  ch.root.traverse(o => { if (o.isMesh && !o.userData.ol && /Eyes/.test(o.name)) { o.material.emissive.setHex(E.boss ? 0xff2020 : E.eye || 0x40d0ff); o.material.emissiveIntensity = E.boss ? 3 : 1.6; o.material.userData.e = o.material.emissive.clone(); } });
+  if (!sh) ch.root.traverse(o => { if (o.isMesh && !o.userData.ol && /Eyes/.test(o.name)) { o.material.emissive.setHex(E.boss ? 0xff2020 : E.eye || 0x40d0ff); o.material.emissiveIntensity = E.boss ? 3 : 1.6; o.material.userData.e = o.material.emissive.clone(); } });
+  if (!sh) SHARED_BODY[type] = body; ch.mats = ch.mats.filter(m => !body.includes(m)); ch.shMeshes = ch.meshes; ch.shBase = body; // 공유 머티리얼은 개체 제거 때 dispose 하지 않음
   if (E.boss) { const head = ch.root.getObjectByName('head'); if (head) { const cr = new THREE.Group(), gm = glow(0xffc828, .7);
     const band = mk(new THREE.CylinderGeometry(.42, .38, .28, 12, 1, true), gm, 0, 0, 0, cr, .02); band.material.side = THREE.DoubleSide;
     for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28; mk(new THREE.ConeGeometry(.09, .3, 6), gm, Math.cos(a) * .4, .25, Math.sin(a) * .4, cr, .015); mk(new THREE.OctahedronGeometry(.06), glow(0xff3a5a, 2), Math.cos(a) * .41, 0, Math.sin(a) * .41, cr, 0); }
@@ -255,4 +268,4 @@ function addProp(ch, kind, E) {
     attachProp(ch, 'chest', g, [0, -.15 * s, .55 * s]); g.scale.multiplyScalar(s * .75); ch.ram = g; }
 }
 
-export { GL, MESHY, loadAssets, play, flashMats, makeHeroModel, makeEnemyModel };
+export { GL, MESHY, loadAssets, play, flashMats, flashCh, makeHeroModel, makeEnemyModel };

@@ -428,3 +428,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @media (max-height:800px){.cbSum{padding:10px 14px;gap:6px}.cbSum .gtitle{font-size:20px}.cbDetail .icard{font-size:12px}}
 @media (max-height:680px){.cbGrid{gap:6px;padding:4px}.cbDetail{display:none}}
 @media (max-width:1100px){.cbBar{width:170px}}
+
+/* 그래픽 품질 (자동/고품질/성능) — src/ui/gfx.js */
+.gfxRow{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0 2px}.gfxRow>span{white-space:nowrap}
+.gfxSeg{display:flex;flex:1;border:1px solid #c9a24a88;border-radius:8px;overflow:hidden}
+.gfxSeg button{flex:1;min-height:30px;padding:2px 4px;border:0;background:#1a1628;color:#d8d0ee;font:inherit;font-size:12px;cursor:pointer}
+.gfxSeg button+button{border-left:1px solid #c9a24a55}.gfxSeg button.on{background:linear-gradient(#e8c86a,#b8902a);color:#1a1020;font-weight:bold}
+.gfxNow{font-size:11px;color:#a9a0c0;min-height:14px}
+@media (pointer:coarse){.gfxSeg button{min-height:44px}}
