@@ -96,6 +96,8 @@ def play_run(pg, tag, waves=3):
 HIT = """()=>{ const b=document.getElementById('retreat'); b.scrollIntoView({block:'nearest'}); const r=b.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2;
   return document.elementsFromPoint(x,y).slice(0,4).map(n=>n.tagName+'#'+n.id+'.'+String(n.className).slice(0,40)); }"""
 def click_retreat(pg):
+    # 타워 ★★★ 진화 팝업(#branchPop, 전체 화면 모달 · 게임은 계속)이 떠 있으면 사용자처럼 '나중에'로 닫음 — 의도된 동작
+    J(pg, "()=>{ const p=document.getElementById('branchPop'); if (!p.classList.contains('hidden')) document.getElementById('bpLater').click(); }"); pg.wait_for_timeout(300)
     try: pg.click('#retreat', timeout=8000)
     except Exception as e:
         note('BUG?', 'retreat not clickable; at point: ' + json.dumps(J(pg, HIT), ensure_ascii=False) + ' ' + str(e).split('\n')[-1][:200])
@@ -150,6 +152,8 @@ with sync_playwright() as pw:
         for hero, brs in [('archer', ['wind', 'hawk']), ('mage', ['flame', 'frost']), ('warrior', ['paladin', 'berserk']), ('gunner', ['duel', 'thorn'])]:
             for br in brs:
                 vw, vh = (1024, 600) if i % 2 == 0 else (1366, 768); session(b, vw, vh, hero, br, [f'{1 + i % 4}-{1 + (i // 4) % 4}'], chal=(i % 3 == 0)); i += 1
+    elif PLAN == 'one':  # python3 tests/explore.py one <hero> <branch|-> <w>x<h> <stage>
+        hero, br, wh, sid = sys.argv[2:6]; vw, vh = map(int, wh.split('x')); session(b, vw, vh, hero, None if br == '-' else br, [sid], chal=False)
     else:
         session(b, 1024, 600, 'archer', None, ['1-1'], chal=True)
     b.close()
