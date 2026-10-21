@@ -12,7 +12,7 @@ J = lambda pg, js, a=None: pg.evaluate(js, a)
 CHECK = r"""()=>{ const v=G.routeVis(), core=G.CORE.join(','), sp=G.SPAWNS.map(s=>s.join(',')), prev=new Set();
   return v.map((R,i)=>{ const end=R.end?R.end.join(','):'', o={i, tiles:R.tiles, ribbon:R.ribbon>0, dashes:R.dashes, chevs:R.chevs,
     start:R.start&&R.start.join(',')===sp[i], end: i===0 ? end===core : (end===core||prev.has(end)) }; G.routes[i].forEach(t=>prev.add(t.join(','))); return o; }); }"""
-STAGES = ['1-3', '1-4', '1-5', '1-6', '2-2', '2-3', '2-4']
+STAGES = ['1-3', '1-4', '1-5', '1-6', '2-2', '2-3', '2-4', '2-5', '2-6', '3-5', '3-6', '4-5', '4-6']  # 2026-10-21 새 스테이지 포함
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1280, 'height': 760})
     pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))

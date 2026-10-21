@@ -27,8 +27,8 @@ with sync_playwright() as pw:
     # 출정의 문으로 걸어가면 원정 지도
     J(pg, "()=>{ G.townTeleport(0, -12); G.townGoal(0, -16.2); }"); pg.wait_for_function("()=>!document.getElementById('stagePanel').classList.contains('hidden')", timeout=90000); ok('portal_opens_stage_map', True)
     ok('nodes_locked_state', pg.locator('.snode').count() == 6 and pg.locator('.snode.locked').count() == 5 and pg.locator('.snode.cur').count() == 1)
-    pg.click('.chtab[data-c="2"]'); ok('ch2_locked', pg.locator('.lockVeil').count() == 1); pg.click('.chtab[data-c="3"]'); ok('ch3_locked', pg.locator('.lockVeil').count() == 1 and pg.locator('.snode').count() == 4 and pg.locator('.snode.locked').count() == 4 and '설원' in pg.inner_text('.lockVeil'))
-    pg.click('.chtab[data-c="4"]'); ok('ch4_locked', pg.locator('.lockVeil').count() == 1 and pg.locator('.snode').count() == 4 and pg.locator('.snode.locked').count() == 4 and '화산' in pg.inner_text('.lockVeil') and '준비 중' not in pg.inner_text('#stMap'))
+    pg.click('.chtab[data-c="2"]'); ok('ch2_locked', pg.locator('.lockVeil').count() == 1); pg.click('.chtab[data-c="3"]'); ok('ch3_locked', pg.locator('.lockVeil').count() == 1 and pg.locator('.snode').count() == 6 and pg.locator('.snode.locked').count() == 6 and '설원' in pg.inner_text('.lockVeil'))
+    pg.click('.chtab[data-c="4"]'); ok('ch4_locked', pg.locator('.lockVeil').count() == 1 and pg.locator('.snode').count() == 6 and pg.locator('.snode.locked').count() == 6 and '화산' in pg.inner_text('.lockVeil') and '준비 중' not in pg.inner_text('#stMap'))
     pg.click('.chtab[data-c="1"]')
     if SHOTS:
         J(pg, "()=>{ const {Acc}=G.gear; Acc.update(d=>{ d.st={'1-1':3,'1-2':2,'1-3':1}; return d; }); G.stageSel.openStageSel(); }"); pg.click('.snode[data-id="1-4"]'); J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(1200); pg.screenshot(path='stage_select.png'); J(pg, "()=>{ G.pauseRender=false; G.gear.Acc.update(d=>{ d.st={}; return d; }); G.stageSel.openStageSel(); }")
@@ -52,27 +52,27 @@ with sync_playwright() as pw:
     pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=90000)
     ok('clear_popup', '클리어' in pg.inner_text('#townPop')); pg.click('#popOk')
     pg.click('#twGo'); pg.wait_for_timeout(300); ok('next_unlocked', pg.locator('.snode.locked').count() == 4 and pg.locator('.snode.cur[data-id="1-2"]').count() == 1)
-    # 3장 화산: 2장 보스(2-4) 클리어 후 해금 → 지도 4개 노드(3-4 보스), 3-1 출정
-    CH12 = "['1-1','1-2','1-3','1-4','1-5','1-6','2-1','2-2','2-3']"
+    # 3장 화산: 2장 보스(id 2-4, 화면 2-6) 클리어 후 해금 → 지도 6개 노드(id 3-4 보스가 맨 끝), 3-1 출정
+    CH12 = "['1-1','1-2','1-3','1-4','1-5','1-6','2-1','2-2','2-3','2-5','2-6']"
     J(pg, f"()=>{{ G.gear.Acc.update(d=>{{ for (const id of {CH12}) d.st[id]=3; return d; }}); G.stageSel.openStageSel(); }}"); pg.click('.chtab[data-c="3"]')
     ok('ch3_locked_until_2_4', pg.locator('.lockVeil').count() == 1)
     J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st['2-4']=2; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="3"]')
-    ok('ch3_unlocked', pg.locator('.lockVeil').count() == 0 and pg.locator('.snode').count() == 4 and pg.locator('.snode.locked').count() == 3 and pg.locator('.snode.cur[data-id="3-1"]').count() == 1 and pg.locator('.snode.boss[data-id="3-4"]').count() == 1
+    ok('ch3_unlocked', pg.locator('.lockVeil').count() == 0 and pg.locator('.snode').count() == 6 and pg.locator('.snode.locked').count() == 5 and pg.locator('.snode.cur[data-id="3-1"]').count() == 1 and pg.locator('.snode.boss[data-id="3-4"]').count() == 1
        and '화산' in pg.inner_text('.chtab[data-c="3"]') and '준비 중' not in pg.inner_text('.chtab[data-c="3"]'))
     if SHOTS:
         J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st['3-1']=3; d.st['3-2']=2; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="3"]'); pg.click('.snode[data-id="3-3"]')
         J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(1200); os.makedirs('shots/chapter3', exist_ok=True); pg.screenshot(path='shots/chapter3/map.png'); J(pg, "()=>{ G.pauseRender=false; G.gear.Acc.update(d=>{ delete d.st['3-1']; delete d.st['3-2']; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="3"]')
     ok('ch3_info', '용암' in pg.inner_text('#stInfo') and '3-1' in pg.inner_text('#stInfo'))
-    # 4장 폐허: 3장 보스(3-4) 클리어 후 해금 → 지도 4개 노드(4-4 보스)
-    J(pg, "()=>{ G.gear.Acc.update(d=>{ for (const id of ['2-4','3-1','3-2','3-3']) d.st[id]=3; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="4"]')
-    ok('ch4_locked_until_3_4', pg.locator('.lockVeil').count() == 1 and pg.locator('.snode.locked').count() == 4)
+    # 4장 폐허: 3장 보스(id 3-4) 클리어 후 해금 → 지도 6개 노드(id 4-4 보스가 맨 끝)
+    J(pg, "()=>{ G.gear.Acc.update(d=>{ for (const id of ['2-4','3-1','3-2','3-3','3-5','3-6']) d.st[id]=3; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="4"]')
+    ok('ch4_locked_until_3_4', pg.locator('.lockVeil').count() == 1 and pg.locator('.snode.locked').count() == 6)
     J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st['3-4']=1; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="4"]')
-    ok('ch4_unlocked', pg.locator('.lockVeil').count() == 0 and pg.locator('.snode').count() == 4 and pg.locator('.snode.locked').count() == 3 and pg.locator('.snode.cur[data-id="4-1"]').count() == 1 and pg.locator('.snode.boss[data-id="4-4"]').count() == 1
+    ok('ch4_unlocked', pg.locator('.lockVeil').count() == 0 and pg.locator('.snode').count() == 6 and pg.locator('.snode.locked').count() == 5 and pg.locator('.snode.cur[data-id="4-1"]').count() == 1 and pg.locator('.snode.boss[data-id="4-4"]').count() == 1
        and '폐허' in pg.inner_text('.chtab[data-c="4"]') and '준비 중' not in pg.inner_text('.chtab[data-c="4"]'))
     if SHOTS:
         J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st['4-1']=3; d.st['4-2']=2; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="4"]'); pg.click('.snode[data-id="4-3"]')
         J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(1200); os.makedirs('shots/chapter4', exist_ok=True); pg.screenshot(path='shots/chapter4/map.png'); J(pg, "()=>{ G.pauseRender=false; G.gear.Acc.update(d=>{ delete d.st['4-1']; delete d.st['4-2']; return d; }); G.stageSel.openStageSel(); }"); pg.click('.chtab[data-c="4"]')
-    pg.click('.snode[data-id="4-4"]'); ok('ch4_info', '성벽' in pg.inner_text('#stInfo') and '4-4' in pg.inner_text('#stInfo') and '포털 4개' in pg.inner_text('#stInfo') and '챕터 보스' in pg.inner_text('#stInfo'))
+    pg.click('.snode[data-id="4-4"]'); ok('ch4_info', '성벽' in pg.inner_text('#stInfo') and '4-6 · 망국의 왕좌' in pg.inner_text('#stInfo') and '포털 4개' in pg.inner_text('#stInfo') and '챕터 보스' in pg.inner_text('#stInfo'))
     pg.click('.chtab[data-c="3"]')
     pg.click('.snode[data-id="3-1"]'); pg.click('#stGo'); pg.wait_for_function("()=>window.G&&G.ready&&G.stage&&G.phase==='build'", timeout=90000); pg.wait_for_timeout(500)
     ok('ch3_stage_loaded', J(pg, "()=>{ let lava=0; for (let c=0;c<G.GW;c++) for (let r=0;r<G.GH;r++) if (G.tileAt(c,r).lava) lava++; return [G.stage.id, lava>=10, G.ROSTERS[3].ready, !!G.scene.getObjectByName('lava')]; }") == ['3-1', True, True, True])

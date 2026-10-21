@@ -14,7 +14,7 @@ from PIL import Image; import numpy as np
 SHOTS = '--shots' in sys.argv
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'shots', 'chapter4'); os.makedirs(OUT, exist_ok=True)
 srv, url = regress.serve(); errs, res, metrics = [], {}, {}
-STAGE_SP = {'4-1': 2, '4-2': 3, '4-3': 4, '4-4': 4}; STAGE_SP = {k: [0] * v for k, v in STAGE_SP.items()}
+STAGE_SP = {'4-1': 2, '4-2': 3, '4-3': 4, '4-5': 4, '4-6': 4, '4-4': 4}; STAGE_SP = {k: [0] * v for k, v in STAGE_SP.items()}
 def ok(name, cond, info=''): res[name] = bool(cond); print(('OK  ' if cond else 'FAIL'), name, info, flush=True)
 def board(path):
     a = np.asarray(Image.open(path).convert('L'), dtype=float); h, w = a.shape; b = a[int(h * .24):int(h * .88), int(w * .19):int(w * .8)]
@@ -29,7 +29,7 @@ def shot(pg, name):
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1024, 'height': 633})
     pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
-    for st in ['4-1', '4-2', '4-3', '4-4']:
+    for st in ['4-1', '4-2', '4-3', '4-5', '4-6', '4-4']:  # 4-5·4-6 = 2026-10-21 새 스테이지 (보스 4-4 앞)
         pg.goto(url + Q + '&stage=' + st); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
         pg.evaluate("()=>{ G.manual=true; G.sim(.5); }"); pg.wait_for_timeout(3200)
         m = metrics[st + '_build'] = shot(pg, f'_{st}_build'); ok(f'{st}_build_readable', good(m), m)

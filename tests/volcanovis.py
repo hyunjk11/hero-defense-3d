@@ -26,7 +26,7 @@ def shot(pg, name):
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1024, 'height': 633})
     pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
-    for st in ['3-1', '3-2', '3-3', '3-4']:
+    for st in ['3-1', '3-2', '3-3', '3-5', '3-6', '3-4']:  # 3-5·3-6 = 2026-10-21 새 스테이지 (보스 3-4 앞)
         pg.goto(url + Q + '&stage=' + st); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
         pg.evaluate("()=>{ G.manual=true; G.sim(.5); }"); pg.wait_for_timeout(3200)
         m = metrics[st + '_build'] = shot(pg, f'_{st}_build'); ok(f'{st}_build_readable', good(m), m)

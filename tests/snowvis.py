@@ -23,7 +23,7 @@ LONG = '⚔ 장비 보너스: 피해 +18% · 스킬 위력 +12% · 최대 체력
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1024, 'height': 633})
     pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
-    for st in ['1-1', '2-1', '2-2', '2-3', '2-4']:
+    for st in ['1-1', '2-1', '2-2', '2-3', '2-5', '2-6', '2-4']:  # 2-5·2-6 = 2026-10-21 새 스테이지
         pg.goto(url + Q + '&stage=' + st); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
         pg.evaluate("()=>{ G.manual=true; G.sim(.5); }"); pg.wait_for_timeout(3200)  # 출전 배너가 사라진 뒤
         p = os.path.join(OUT, f'{TAG + "_" if TAG else ""}{st}.png'); pg.screenshot(path=p); m = metrics[st] = board(p)
