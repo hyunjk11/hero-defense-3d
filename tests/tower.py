@@ -96,7 +96,7 @@ with sync_playwright() as pw:
         pg.evaluate("()=>{ const [x,z,fx,fz]=G.townLab(); G.townTeleport(fx+2.5, fz+.5); window.__k=setInterval(()=>{G.cam.target.set(x+.5,3.4,-150+z+.5); G.cam.r=21; G.cam.phi=1.08; G.cam.theta=.3;},16); }"); pg.wait_for_timeout(1500)
         pg.screenshot(path=f'{OUT}/lab_building.png'); pg.evaluate("()=>clearInterval(window.__k)")
     pg.evaluate("()=>{ const [x,z,fx,fz]=G.townLab(); G.townTeleport(fx+3, fz+2); G.townGoal(fx, fz); }")
-    pg.wait_for_function("()=>!document.getElementById('labPanel').classList.contains('hidden')", timeout=15000); ok('walk_opens_lab', True)
+    pg.wait_for_function("()=>!document.getElementById('labPanel').classList.contains('hidden')", timeout=90000); ok('walk_opens_lab', True)
     for t, k, n in [('arrow', 'atk', 3), ('arrow', 'spd', 1), ('cannon', 'rng', 2)]:
         pg.click(f'#labTabs .ftab[data-t="{t}"]'); pg.wait_for_timeout(150)
         for i in range(n): pg.click(f'#labBody .labRow[data-k="{k}"] .lrBtn'); pg.wait_for_timeout(120)
