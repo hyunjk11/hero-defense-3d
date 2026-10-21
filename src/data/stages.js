@@ -15,6 +15,9 @@ export const CHAPTERS = [
       { id: '2-1', n: '눈보라 고개', waves: 12, core: [22, 8], spawns: [[0, 8]], q: [.22, .55, .7], bed: .05, hp: 1.1, seed: 2101 },
       { id: '2-2', n: '얼음 호수', waves: 12, core: [22, 2], spawns: [[0, 13], [10, 15]], q: [.2, .52, .7], bed: .06, hp: 1.15, seed: 2202 },
       { id: '2-3', n: '서리 협곡', waves: 14, core: [12, 7], spawns: [[0, 2], [23, 13]], q: [.18, .5, .66], bed: .06, hp: 1.2, seed: 2303 },
+      // 2026-10-21 추가 (id 2-5·2-6 = 새 스테이지, 보스 앞에 배치 · 화면 번호는 순서로 2-4·2-5, 보스는 2-6 으로 표시 — 저장 호환: 기존 id 그대로)
+      { id: '2-5', n: '얼음 동굴', waves: 14, core: [2, 8], spawns: [[23, 2], [23, 14]], q: [.18, .5, .66], bed: .06, hp: 1.24, seed: 2505 },
+      { id: '2-6', n: '눈사태 능선', waves: 15, core: [12, 14], spawns: [[0, 1], [23, 1], [12, 0]], q: [.18, .5, .66], bed: .06, hp: 1.27, seed: 2606 },
       { id: '2-4', n: '빙결의 군주', waves: 15, core: [22, 8], spawns: [[0, 2], [0, 14], [12, 15]], q: [.18, .5, .66], bed: .06, hp: 1.3, seed: 2404, boss: true },
     ] },
   { id: 3, n: '3장 · 불타는 화산', short: '화산', theme: 'volcano', prop: 'lava', propN: '용암 강', propD: '흐르는 용암은 아무도 건널 수 없어요(타워 건설·굴착 불가). 몬스터는 용암 사이 틈으로 몰려요. 자폭병·공성병이 많아요.', color: '#ff7a3a', bg: 'linear-gradient(160deg,#5a1e10,#200806)',
@@ -26,6 +29,10 @@ export const CHAPTERS = [
         lava: [[[3, 0], [8, 5]], [[10, 6], [15, 9]], [[17, 10], [20, 11], [23, 12]], [[13, 0], [14, 3]]] },
       { id: '3-3', n: '불꽃 협곡', waves: 14, core: [12, 8], spawns: [[0, 2], [23, 13]], q: [.18, .48, .64], bed: .03, hp: 1.56, seed: 3303,
         lava: [[[3, 4], [7, 4]], [[10, 4], [20, 4]], [[3, 12], [13, 12]], [[16, 12], [20, 12]], [[20, 5], [20, 7]], [[3, 9], [3, 11]]] },
+      { id: '3-5', n: '흑요석 계곡', waves: 14, core: [2, 3], spawns: [[23, 13], [17, 0]], q: [.17, .47, .63], bed: .03, hp: 1.6, seed: 3505,
+        lava: [[[7, 0], [7, 11]], [[13, 4], [13, 15]], [[19, 6], [19, 15]]] }, // 뱀처럼 굽은 세 줄기: 틈이 아래-위-위로 번갈아
+      { id: '3-6', n: '분화구 가장자리', waves: 15, core: [21, 13], spawns: [[0, 0], [0, 9], [12, 0]], q: [.16, .46, .62], bed: .03, hp: 1.63, seed: 3606,
+        lava: [[[15, 9], [17, 9]], [[20, 9], [23, 9]], [[15, 10], [15, 11]], [[15, 14], [15, 15]], [[3, 4], [8, 9]], [[7, 1], [10, 4]]] }, // 분화구(코어) 둘레 고리 + 비스듬한 두 줄기
       { id: '3-4', n: '화염의 군주', waves: 15, core: [22, 8], spawns: [[0, 2], [0, 14], [12, 15]], q: [.16, .46, .62], bed: .03, hp: 1.65, seed: 3404, boss: true,
         lava: [[[17, 1], [17, 5]], [[17, 11], [17, 14]], [[7, 6], [9, 7]], [[6, 10], [8, 10]], [[12, 0], [12, 3]]] },
     ] },
@@ -38,18 +45,26 @@ export const CHAPTERS = [
         walls: [[[4, 5], [16, 5]], [[19, 5], [21, 5]], [[6, 10], [18, 10]], [[12, 10], [12, 14]]] },
       { id: '4-3', n: '망령의 신전', waves: 15, core: [12, 8], spawns: [[0, 2], [23, 2], [0, 14], [23, 14]], q: [.18, .46, .62], bed: .04, hp: 1.95, seed: 4303,
         walls: [[[7, 4], [10, 4]], [[14, 4], [17, 4]], [[7, 12], [10, 12]], [[14, 12], [17, 12]], [[7, 5], [7, 6]], [[17, 10], [17, 11]], [[7, 10], [7, 11]], [[17, 5], [17, 6]]] },
+      { id: '4-5', n: '무너진 탑', waves: 15, core: [12, 1], spawns: [[0, 8], [23, 8], [0, 15], [23, 15]], q: [.17, .46, .61], bed: .04, hp: 1.99, seed: 4505,
+        walls: [[[3, 5], [9, 5]], [[14, 5], [20, 5]], [[0, 11], [7, 11]], [[10, 11], [14, 11]], [[17, 11], [23, 11]], [[12, 12], [12, 15]]] }, // 탑을 둘러싼 두 겹 성벽, 성문은 가운데·양옆
+      { id: '4-6', n: '봉인된 지하묘지', waves: 15, core: [1, 8], spawns: [[23, 0], [23, 15], [12, 0], [12, 15]], q: [.16, .45, .6], bed: .04, hp: 2.02, seed: 4606,
+        walls: [[[5, 0], [5, 6]], [[5, 10], [5, 15]], [[9, 3], [9, 12]], [[16, 0], [16, 5]], [[16, 8], [16, 15]], [[20, 4], [20, 11]]] }, // 세로 성벽 네 겹, 성문이 번갈아
       { id: '4-4', n: '망국의 왕좌', waves: 15, core: [22, 8], spawns: [[0, 1], [0, 8], [0, 15], [11, 15]], q: [.16, .45, .6], bed: .04, hp: 2.05, seed: 4404, boss: true,
         walls: [[[6, 3], [6, 6]], [[6, 10], [6, 13]], [[13, 0], [13, 5]], [[13, 9], [13, 12]], [[18, 4], [18, 12]]] },
     ] },
 ];
+// 화면에 보이는 번호 = 챕터 안 순서 (id 는 저장 키라 바뀌지 않음: 2026-10-21 에 2~4장 보스 앞에 x-5·x-6 을 끼워 넣어 보스 id x-4 는 'x-6' 으로 표시)
+for (const ch of CHAPTERS) ch.stages.forEach((s, i) => { s.no = `${ch.id}-${i + 1}`; });
 export const STAGES = Object.fromEntries(CHAPTERS.flatMap(ch => ch.stages.map((s, i) => [s.id, { ...s, ch: ch.id, idx: i, last: i === ch.stages.length - 1 }])));
 export const STAR_D = ['스테이지 클리어', '코어 체력 70% 이상 유지', '코어 피해 없이 클리어'];
 export function starsFor(coreHp, coreMax) { const r = coreMax ? coreHp / coreMax : 0; return 1 + (r >= .7 ? 1 : 0) + (r >= 1 ? 1 : 0); }
+export const stageNo = id => (STAGES[id] && STAGES[id].no) || String(id);
 export const stars = (save, id) => (save.st || {})[id] || 0;
 export const totalStars = save => Object.values(save.st || {}).reduce((a, b) => a + b, 0);
 export const chapterStars = (save, ch) => CHAPTERS.find(c => c.id === ch).stages.reduce((a, s) => a + stars(save, s.id), 0);
 export function chapterUnlocked(save, ch) { const C = CHAPTERS.find(c => c.id === ch); if (!C || C.soon || !C.stages.length) return false; if (ch === 1) return true; const P = CHAPTERS.find(c => c.id === ch - 1); return !!P && P.stages.length > 0 && stars(save, P.stages[P.stages.length - 1].id) > 0; }
-export function stageUnlocked(save, id) { const S = STAGES[id]; if (!S || !chapterUnlocked(save, S.ch)) return false; if (S.idx === 0) return true; const C = CHAPTERS.find(c => c.id === S.ch); return stars(save, C.stages[S.idx - 1].id) > 0; }
+// 이미 깬 스테이지는 항상 열림 (보스를 깬 기존 저장: 새로 끼운 앞 스테이지를 안 깼어도 보스·다음 장이 다시 잠기지 않음)
+export function stageUnlocked(save, id) { const S = STAGES[id]; if (!S || !chapterUnlocked(save, S.ch)) return false; if (S.idx === 0 || stars(save, id) > 0) return true; const C = CHAPTERS.find(c => c.id === S.ch); return stars(save, C.stages[S.idx - 1].id) > 0; }
 export const STAR_STEP = 5; // 별 5개마다 별 보상 상자
 export const stageReward = (id, first) => { const S = STAGES[id]; const base = 40 + S.idx * 15 + (S.ch - 1) * 60 + (S.boss ? 60 : 0); return first ? base : Math.round(base / 2); };
 export const PREFIX = { 1: '숲의 ', 2: '서리 ', 3: '화염 ', 4: '폐허의 ' };

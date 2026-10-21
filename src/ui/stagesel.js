@@ -34,11 +34,11 @@ function render() {
   const n = C.stages.length, pos = C.stages.map((st, i) => [8 + i * 84 / (n - 1), 50 + (i % 2 ? -22 : 20) + Math.sin(i * 1.7) * 6]);
   const un = ST.chapterUnlocked(s, C.id);
   map.innerHTML = floaties(ICONS[C.theme]) + `<svg class="stPath" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${pos.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ')}" /></svg>`
-    + C.stages.map((st, i) => { const u = ST.stageUnlocked(s, st.id), k = ST.stars(s, st.id), cur = u && !k; return `<button class="snode ${u ? '' : 'locked'} ${cur ? 'cur' : ''} ${st.boss ? 'boss' : ''} ${ui.sel === st.id ? 'sel' : ''}" data-id="${st.id}" style="left:${pos[i][0]}%;top:${pos[i][1]}%;--cc:${C.color}"><span class="num">${u ? (st.boss ? '👑' : st.id) : '🔒'}</span>${st.boss && !E.ownsUnique(s, P.dropPreview(st.id, s.hero, s).uq[0].k) ? '<i class="uqNode" title="고유 장비 첫 처치 보상">💎</i>' : ''}<span class="stars">${starStr(k)}</span><span class="nm">${st.n}</span></button>`; }).join('')
+    + C.stages.map((st, i) => { const u = ST.stageUnlocked(s, st.id), k = ST.stars(s, st.id), cur = u && !k; return `<button class="snode ${u ? '' : 'locked'} ${cur ? 'cur' : ''} ${st.boss ? 'boss' : ''} ${ui.sel === st.id ? 'sel' : ''}" data-id="${st.id}" style="left:${pos[i][0]}%;top:${pos[i][1]}%;--cc:${C.color}"><span class="num">${u ? (st.boss ? '👑' : st.no) : '🔒'}</span>${st.boss && !E.ownsUnique(s, P.dropPreview(st.id, s.hero, s).uq[0].k) ? '<i class="uqNode" title="고유 장비 첫 처치 보상">💎</i>' : ''}<span class="stars">${starStr(k)}</span><span class="nm">${st.n}</span></button>`; }).join('')
     + (un ? '' : `<div class="lockVeil">🔒 ${ST.CHAPTERS.find(c => c.id === C.id - 1).n}의 보스를 처치하면 열려요</div>`);
   map.querySelectorAll('.snode').forEach(b => b.onclick = () => { ui.sel = b.dataset.id; Snd.play('select'); render(); });
   const S = ST.STAGES[ui.sel] || C.stages[0], u = ST.stageUnlocked(s, S.id), k = ST.stars(s, S.id);
-  info.innerHTML = `<div class="sn">${S.id} · ${S.n}${S.boss ? ' <span class="bossT">챕터 보스</span>' : ''}</div>
+  info.innerHTML = `<div class="sn">${S.no} · ${S.n}${S.boss ? ' <span class="bossT">챕터 보스</span>' : ''}</div>
     <div class="sd">웨이브 ${S.waves} · 몬스터 포털 ${S.spawns.length}개 · 몬스터 체력 ×${S.hp}</div>
     <div class="prop" style="--cc:${C.color}"><b>${C.propN}</b> ${C.propD}</div>
     <div class="conds">${ST.STAR_D.map((d, i) => `<div class="${i < k ? 'got' : ''}">${i < k ? '★' : '☆'} ${d}</div>`).join('')}</div>

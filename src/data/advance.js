@@ -36,7 +36,7 @@ export const ADV = {
 };
 for (const h in ADV) for (const b in ADV[h]) Object.assign(ADV[h][b], { h, k: b });
 export const ADV_COST = { souls: 1500, crystal: 20, essence: 3 }, ADV_SWITCH = { souls: 500 };
-export const ADV_LV = 10, ADV_TRIAL = 1, ADV_CH = 3; // 영구 강화 합 10 · 보스 스테이지 클리어 1회 · 3장 열림(= 2-4 클리어)
+export const ADV_LV = 10, ADV_TRIAL = 1, ADV_CH = 3; // 영구 강화 합 10 · 보스 스테이지 클리어 1회 · 3장 열림(= 2장 보스 id '2-4' 클리어, 화면 번호 2-6)
 export const PERM_MAX = 10, PERM_MAX_ADV = 15;
 export const ADV_HEROES = HERO_KEYS.filter(h => ADV[h] && !isHidden(h) && !Object.values(ADV[h]).some(x => x.reserved));
 export const branchesOf = h => (ADV[h] ? Object.keys(ADV[h]) : []);
@@ -59,7 +59,7 @@ export const advBarMul = A => (A && A.tower && A.tower.bar) || 1;
 const lvSum = (s, h) => { const l = (s.heroLv || {})[h] || {}; return (l.hp || 0) + (l.atk || 0); };
 export function advChecks(s, h) { const q = ((s.hq || {})[h]) || {}, m = s.mat || {}, nm = CLASSES[h] ? CLASSES[h].nm : h;
   return [
-    { k: 'ch', ok: ST.chapterUnlocked(s, ADV_CH), t: '2장 보스(2-4) 클리어' },
+    { k: 'ch', ok: ST.chapterUnlocked(s, ADV_CH), t: `2장 보스(${ST.stageNo('2-4')}) 클리어` },
     { k: 'lv', ok: lvSum(s, h) >= ADV_LV, t: `${nm} 영구 강화 합 ${ADV_LV} (${Math.min(lvSum(s, h), ADV_LV)}/${ADV_LV})` },
     { k: 'trial', ok: (q.boss || 0) >= ADV_TRIAL, t: `전직 시련: ${nm}(으)로 보스 스테이지 클리어 (${Math.min(q.boss || 0, ADV_TRIAL)}/${ADV_TRIAL})` },
     { k: 'mat', ok: (s.souls || 0) >= ADV_COST.souls && (m.crystal || 0) >= ADV_COST.crystal && (m.essence || 0) >= ADV_COST.essence, t: `재료: 영혼석 ${ADV_COST.souls} · 마력석 ${ADV_COST.crystal} · 고유 정수 ${ADV_COST.essence}` },

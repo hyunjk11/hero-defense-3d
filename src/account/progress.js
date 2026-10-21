@@ -88,7 +88,7 @@ export function applyStage(save, id, stars, hero, r = Math.random) {
 }
 
 // ---------- 고유 아이템: 소급 지급 · 드롭 미리보기 · 도감 ----------
-export const chapterMax = ch => ST.CHAPTERS.find(c => c.id === ch).stages.length * 3; // 1장 18 · 2~4장 12
+export const chapterMax = ch => ST.CHAPTERS.find(c => c.id === ch).stages.length * 3; // 장마다 6스테이지 = 18 (2026-10-21 전 2~4장 12)
 // 이미 조건을 채웠는데 아직 기록이 없는 고유 (기존 유저 소급, 여러 번·여러 기기에서 실행해도 id 가 고정이라 1개)
 export function backfillList(s) { const out = [];
   for (const C of ST.CHAPTERS) { const b = C.stages.find(x => x.boss), kb = uqOfChapter(C.id, 'boss'), ks = uqOfChapter(C.id, 'stars');

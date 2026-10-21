@@ -19,7 +19,7 @@ const setOf = it => (it && !it.uq && CHSET[it.c]) || null;
 const GCi = it => (it && it.uq ? UQ_COLOR : GC(it.g));
 const awStars = a => '★'.repeat(a || 0) + '☆'.repeat(AWAKE_MAX - (a || 0));
 const TR_N = { onSkill: '자동 · Q 사용 시', every: '자동 · 주기', lowHp: '자동 · 체력 위기', onHit: '자동 · 피격 시', shield: '자동 · 무피격 대기', onDeath: '자동 · 쓰러질 때', wave: '자동 · 웨이브 누적', onKill: '자동 · 처치 누적' };
-export function uqSrcText(k) { const U = UQ[k], s = U.src; if (s.boss) return `${s.boss} ${ST.STAGES[s.boss].n} 첫 처치`; if (s.stars) { const C = ST.CHAPTERS.find(c => c.id === s.stars); return `${C.short} 별 만점 (★${C.stages.length * 3})`; }
+export function uqSrcText(k) { const U = UQ[k], s = U.src; if (s.boss) return `${ST.stageNo(s.boss)} ${ST.STAGES[s.boss].n} 첫 처치`; if (s.stars) { const C = ST.CHAPTERS.find(c => c.id === s.stars); return `${C.short} 별 만점 (★${C.stages.length * 3})`; }
   if (s.drop) return `${ST.CHAPTERS.find(c => c.id === s.drop).short} 스테이지 보스 처치 1.5% (천장 ${UQ_PITY}회)`; return `도전 모드 최고 ${s.wave}웨이브`; }
 const clsN = h => (CLASSES[h] || {}).n || '알 수 없는 영웅';
 const pct = (k, v) => `${E.STAT[k]} +${v}%`;
