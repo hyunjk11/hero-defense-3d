@@ -557,3 +557,4 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .wpRow.elite .wpNm{color:#ffab7a;font-weight:bold}.wpNm em.el{background:#c0301e;color:#fff;font-style:normal;font-size:9px;border-radius:4px;padding:0 3px;margin-left:3px}
 #wavePrev.compact .wpI.elite{filter:drop-shadow(0 0 3px #ff6a2a)}
 @media (max-height:640px){.modeTog{left:6px;top:6px}.modeTog .mt{font-size:12px;padding:4px 10px;min-height:0}}
+@media (pointer:coarse){.modeTog .mt{min-height:44px;min-width:56px;padding:4px 12px}}

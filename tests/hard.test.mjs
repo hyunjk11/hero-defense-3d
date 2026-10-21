@@ -59,7 +59,7 @@ assert.equal(ST.hardChapterStars(s, 1), 2); assert.equal(ST.hardTotalStars(s), 2
   const p0 = P.dropPreview('1-1', 'mage', t), p1 = P.dropPreview('1-1', 'mage', t, true); assert.ok(p1.odds[4] > p0.odds[4] && p1.odds[0] < p0.odds[0]); assert.ok(p1.hard && p1.uqDrop > p0.uqDrop);
   const [c5] = P.applyRun(t, { wave: 10, kills: 0, stage: true, ch: 1, hard: true }, r); assert.equal(c5.chests.length - t.chests.length, 2);
   // 도전 모드에는 하드 없음
-  const [e1] = P.applyRun(t, { wave: 10, kills: 0, stage: false, ch: 'open', hard: true }, () => .5); const [e0] = P.applyRun(t, { wave: 10, kills: 0, stage: false, ch: 'open' }, () => .5); assert.equal(JSON.stringify(e1), JSON.stringify(e0)); }
+  const [e1] = P.applyRun(t, { wave: 10, kills: 0, stage: false, ch: 'open', hard: true }, () => .5); const [e0] = P.applyRun(t, { wave: 10, kills: 0, stage: false, ch: 'open' }, () => .5); const noId = o => JSON.stringify(o).replace(/"(id)":"[^"]*"/g, '"id":"_"'); assert.equal(noId(e1), noId(e0)); /* id 에 Date.now() 포함 → 비교에서 제외 */ }
 // ---- 정예 ----
 assert.equal(R.eliteCount(1), 0); assert.equal(R.eliteCount(2), 0); assert.equal(R.eliteCount(3), 1); assert.equal(R.eliteCount(7), 2); assert.equal(R.eliteCount(11), 3); assert.equal(R.eliteCount(15), 4); assert.equal(R.eliteCount(40), H.eliteMax);
 for (const id of Object.keys(ST.STAGES)) { const S = ST.STAGES[id]; for (let n = 1; n <= S.waves; n++) {
