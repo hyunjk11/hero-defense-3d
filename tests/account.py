@@ -36,7 +36,7 @@ with sync_playwright() as pw:
     pg.click('.perm[data-k="hp"]'); pg.wait_for_timeout(200); s = save(pg)
     ok('hero_and_perm', s['hero'] == 'warrior' and s['heroLv']['warrior']['hp'] == 1 and s['souls'] == 90, (s['hero'], s['souls']))
     pg.click('#blessClose'); pg.wait_for_timeout(100); ok('bless_close', J(pg, "()=>document.getElementById('twBless').classList.contains('hidden')"))
-    J(pg, "()=>{ G.townTeleport(0, 4); }"); pg.wait_for_timeout(200); J(pg, "()=>G.openBlessing()"); pg.wait_for_timeout(100); ok('bless_reopen_click', not J(pg, "()=>document.getElementById('twBless').classList.contains('hidden')")); J(pg, "()=>G.closeBlessing()")
+    J(pg, "()=>{ G.townTeleport(0, 4); }"); pg.wait_for_timeout(200); J(pg, "()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))"); J(pg, "()=>G.openBlessing()"); pg.wait_for_timeout(100); ok('bless_reopen_click', not J(pg, "()=>document.getElementById('twBless').classList.contains('hidden')")); J(pg, "()=>G.closeBlessing()")
     J(pg, '()=>G.depart ? 0 : 0'); pg.click('#twGo'); pg.click('.chtab[data-c="0"]'); pg.click('#stChalGo'); pg.wait_for_function("()=>G.phase==='build'", timeout=10000)
     ok('defense_started_with_perm', J(pg, '()=>[G.hero.cls, G.hero.max]') == ['warrior', 1060])
     J(pg, "()=>{ G.wave = 6; G.stats.kills = {grunt: 30}; G.coreHp = 0; }"); J(pg, "()=>import('./src/core/waves.js').then(m=>m.gameOver())"); pg.wait_for_timeout(1500)
@@ -56,10 +56,15 @@ with sync_playwright() as pw:
     ok('relogin_cloud_wins', save(pg)['souls'] == s5['souls'], (save(pg)['souls'], s5['souls']))  # 상자 개봉 결과(중복 → 영혼석)가 무작위라 고정값 148 대신 귀환 후 저장값과 비교
     pg.close(); pg = boot(c); pg.mouse.click(600, 400); pg.wait_for_function("()=>G.screen==='menu'", timeout=10000); ok('auto_login', 'a@test.kr' in pg.inner_text('#mnAcct'))
     # 오프라인 → dirty 유지 → 복구 시 재시도
-    J(pg, "()=>localStorage.setItem('__mockflags', JSON.stringify({offline:true}))"); pg.click('#mnCont'); pg.wait_for_timeout(300); pg.click('.hcard[data-h="archer"]'); pg.wait_for_timeout(3600)
+    J(pg, "()=>localStorage.setItem('__mockflags', JSON.stringify({offline:true}))"); pg.click('#mnCont'); pg.wait_for_timeout(300); pg.click('.hcard[data-h="archer"]')
+    # 상태로 대기: 영웅 선택 저장이 오프라인에서 실제로 실패할 때까지 (고정 3.6초 대신 — 소프트웨어 GL 마을은 ~1fps 라 클릭 자체가 수 초 걸림)
+    pg.wait_for_function("()=>G.gear.Acc.A.sync==='offline' && localStorage.getItem('hd3d_save').includes('\"hero\":\"archer\"')", timeout=60000)
     ok('offline_dirty', J(pg, "()=>localStorage.getItem('hd3d_dirty')") == '1' and '오프라인' in pg.inner_text('#twAcct'), pg.inner_text('#twAcct'))
-    J(pg, "()=>localStorage.setItem('__mockflags', '{}')"); pg.wait_for_timeout(3800)
-    ok('retry_synced', J(pg, "()=>localStorage.getItem('hd3d_dirty')") is None and list(db(pg)['hd3d_progress'].values())[0]['data']['hero'] == 'archer')
+    J(pg, "()=>localStorage.setItem('__mockflags', '{}')")
+    # 재시도 백오프 3s→10s→30s→60s(SUPABASE.retryMs): 느린 화면에서 오프라인 동안 실패가 여러 번 쌓이면 다음 재시도가 최대 60초 뒤 → 사용자 조작 없이 자동 재시도로 동기화될 때까지 상태 대기
+    try: pg.wait_for_function("()=>localStorage.getItem('hd3d_dirty')===null && G.gear.Acc.A.sync==='saved'", timeout=75000)
+    except Exception: pass
+    ok('retry_synced', J(pg, "()=>localStorage.getItem('hd3d_dirty')") is None and list(db(pg)['hd3d_progress'].values())[0]['data']['hero'] == 'archer', (J(pg, "()=>localStorage.getItem('hd3d_dirty')"), pg.inner_text('#twAcct')))
     c.close()
     # 2) 테이블 없음 → '서버 준비 중' + 로컬 저장
     c = b.new_context(); c.add_init_script(MOCK); c.add_init_script("localStorage.setItem('__mockflags', JSON.stringify({noTables:true}))"); pg = boot(c)
