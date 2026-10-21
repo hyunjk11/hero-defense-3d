@@ -60,6 +60,23 @@ with sync_playwright() as pw:
         if tag == '1024x600': ok(f'{tag}_unique_touch_44', all(u['w'] >= 44 and u['h'] >= 44 for u in uv), [(u['w'], u['h']) for u in uv])
         if tag == '1024x600' and (SHOTS or '--uq-shot' in sys.argv):
             J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(200); pg.screenshot(path=f'{OUT}/stage_unique_fix.png'); J(pg, "()=>G.pauseRender=false")
+        # 고유 툴팁: 아이콘 = 안전한 이모지(🪄 U+1FA84 Windows 10 두부 회귀), 45° UNIQUE 리본이 이름·부제와 겹치지 않음 (글라시아 + 가장 긴 이름 노블레스)
+        RIB = r"""()=>{ const t=document.querySelector('#itemTip .icard.uq'); if(!t) return null; const rib=t.querySelector('.uqRib'), cs=getComputedStyle(t), cr=t.getBoundingClientRect();
+          const x0=cr.left+parseFloat(cs.borderLeftWidth)+rib.offsetLeft, y0=cr.top+parseFloat(cs.borderTopWidth)+rib.offsetTop, w=rib.offsetWidth, h=rib.offsetHeight, cx=x0+w/2, cy=y0+h/2, m=new DOMMatrix(getComputedStyle(rib).transform);
+          const P=[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>[cx+m.a*x+m.c*y, cy+m.b*x+m.d*y]);
+          const axes=[[1,0],[0,1],[m.a,m.b],[m.c,m.d]], proj=(pts,[ax,ay])=>{ const v=pts.map(([x,y])=>x*ax+y*ay); return [Math.min(...v), Math.max(...v)]; };
+          const hit=r=>{ const R=[[r.left,r.top],[r.right,r.top],[r.right,r.bottom],[r.left,r.bottom]]; return axes.every(a=>{ const [a0,a1]=proj(P,a), [b0,b1]=proj(R,a); return a1>b0+.5 && b1>a0+.5; }); };
+          const rects=el=>{ const rg=document.createRange(); rg.selectNodeContents(el); return [...rg.getClientRects()].filter(r=>r.width>0); };
+          const out=[]; for (const sel of ['.uqn','.ig','.ic']) for (const r of rects(t.querySelector('.ih '+sel))) out.push({ sel, hit:hit(r), inCard:r.right<=cr.right-2&&r.left>=cr.left, r:[Math.round(r.left-cr.left),Math.round(r.top-cr.top),Math.round(r.right-cr.left),Math.round(r.bottom-cr.top)] });
+          return { lines:out, name:t.querySelector('.uqn').textContent, ic:t.querySelector('.ih .ic').firstChild.textContent, w:Math.round(cr.width), fits:cr.right<=innerWidth+1&&cr.bottom<=innerHeight+1&&cr.left>=-1&&cr.top>=-1 }; }"""
+        pg.hover('#stInfo .dru[data-k="s_staff"]'); pg.wait_for_timeout(250)
+        rb = J(pg, RIB); ok(f'{tag}_uq_tip_staff_icon', rb and rb['ic'] == '🧙' and '글라시아' in rb['name'], rb and (rb['ic'], rb['name']))
+        ok(f'{tag}_uq_tip_ribbon_clear', rb and rb['lines'] and not any(l['hit'] for l in rb['lines']) and all(l['inCard'] for l in rb['lines']), rb)
+        shot(pg, f'{OUT}/tip_s_staff_{tag}.png')
+        J(pg, """async()=>{ const g=await import(new URL('src/ui/gear.js', document.baseURI).href); const el=document.querySelector('#stInfo .dru[data-k="s_staff"]'); g.showTip(el, g.card({...G.gear.E.makeUnique('r_guns'), a:2, e:5})); }"""); pg.wait_for_timeout(200)
+        rb = J(pg, RIB); ok(f'{tag}_uq_tip_long_name_clear', rb and '노블레스' in rb['name'] and not any(l['hit'] for l in rb['lines']) and all(l['inCard'] for l in rb['lines']) and rb['fits'], rb)
+        shot(pg, f'{OUT}/tip_long_{tag}.png')
+        pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(100)
         pg.click('.chtab[data-c="0"]'); pg.wait_for_timeout(200); ok(f'{tag}_challenge_milestones', pg.locator('#stMap .chalMs .msC').count() == 3 and pg.locator('#stMap .chalMs .msC.have').count() == 1, pg.inner_text('#stMap .chalMs').replace('\n', ' '))
         if tag == 'desktop': shot(pg, f'{OUT}/stage_challenge.png')
         J(pg, "()=>{ document.getElementById('stagePanel').classList.add('hidden'); }"); pg.wait_for_timeout(100)
