@@ -20,7 +20,7 @@ import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
 import { initStageSel, openStageSel, closeStageSel } from './stagesel.js';
 import * as ST from '../data/stages.js';
-import { STAGE } from '../core/grid.js';
+import { STAGE, HARDQ } from '../core/grid.js';
 import { initLab, openLab, closeLab, renderLab } from './lab.js';
 import { lab, LAB, labFront } from '../world/town.js';
 let labNear = false;
@@ -39,25 +39,25 @@ const heroN = c => heroLabel(c);
 export function equipLine(eq) { const e = Object.entries(eq || {}).sort((a, b) => b[1] - a[1]); if (!e.length) return ''; return '⚔ 장비 · ' + e.slice(0, 3).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · ') + (e.length > 3 ? ` 외 ${e.length - 3}개` : ''); }
 
 // ---------- 스테이지 ----------
-function departStage(id) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
-  const q = new URLSearchParams(location.search); q.delete('town'); q.set('stage', id); q.set('run', '1'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 500); }
+function departStage(id, hard) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
+  const q = new URLSearchParams(location.search); q.delete('town'); q.set('stage', id); q.set('run', '1'); if (hard) q.set('hard', '1'); else q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 500); }
 function startStageRun() { // 저장된 영웅이 유료 영웅이면 서버 소유권(hd3d_owned)을 먼저 확인
   const s0 = Acc.load(); if (CLASSES[s0.hero] && CLASSES[s0.hero].paid) { $('loadTxt').textContent = '영웅 확인 중…'; Sh.verifyOwned().then(() => startStageRun2(true)); } else startStageRun2(false);
 }
 function startStageRun2(logged) {
   const s = Acc.load(); if (!logged) Acc.autoLogin().catch(() => {}); showSelect(); $('select').classList.add('hidden'); hideAll(); s.hero = Sh.usableHero(s.hero); // 잠긴 유료 영웅이면 기본 영웅
-  G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.adv = AD.advOf(s.hero, s.adv[s.hero]); G.advBar = AD.advBarMul(G.adv); G.uq = E.uniquesOf(s, s.hero); G.dropCh = STAGE ? STAGE.ch : P.openChapters(s); G.runBossKills = []; G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.stage = STAGE; G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden');
-  const C = ST.CHAPTERS.find(c => c.id === STAGE.ch); setTimeout(() => banner(`${STAGE.no} ${STAGE.n} · 웨이브 ${STAGE.waves} · ${C.propN}`, C.color, 3200), 500);
+  G.perm = s.heroLv[s.hero]; G.equip = E.bonus(s, s.hero); G.legend = E.legendOf(s, s.hero); G.adv = AD.advOf(s.hero, s.adv[s.hero]); G.advBar = AD.advBarMul(G.adv); G.uq = E.uniquesOf(s, s.hero); G.dropCh = STAGE ? STAGE.ch : P.openChapters(s); G.runBossKills = []; G.grow = true; G.research = s.research; G.runDrops = []; G.runStart = performance.now(); G.stage = STAGE; G.hard = HARDQ && ST.hardUnlocked(s, STAGE.id); G.eliteKills = 0; G.phase = 'select'; choose(s.hero); $('retreat').classList.remove('hidden'); $('hardPill').classList.toggle('hidden', !G.hard); document.body.classList.toggle('hardRun', !!G.hard); // 하드: 해금됐을 때만 (주소만 바꿔 잠긴 하드로 들어오면 노말로)
+  const C = ST.CHAPTERS.find(c => c.id === STAGE.ch); setTimeout(() => banner(`${G.hard ? '🔥 하드 · ' : ''}${STAGE.no} ${STAGE.n} · 웨이브 ${STAGE.waves} · ${C.propN}`, G.hard ? '#ff6a4a' : C.color, 3200), 500);
   const bt = equipLine(G.equip); if (bt) setTimeout(() => banner(bt, '#ffe08a', 2200), 3900);
 }
 G.onStageClear = () => {
   if (G.runSaved) return; G.runSaved = true; G.phase = 'over'; const wave = G.wave, kills = sumKills(), stars = ST.starsFor(G.coreHp, G.coreMax); let got = 0, loot = [], info = null, best = false;
-  Acc.update(d => { const [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: true, ch: STAGE.ch, bossKills: G.runBossKills || [] }); const [n2, inf] = P.applyStage(n, STAGE.id, stars, G.hero ? G.hero.cls : undefined); got = g; loot = [...l, ...inf.loot]; info = inf; return n2; }); Acc.flush();
-  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason: 'clear', wave, kills, got: got + info.souls, best: false, loot, stage: STAGE.id, stars, first: info.first, unlocked: info.unlocked }));
+  Acc.update(d => { const hard = !!G.hard, [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: true, ch: STAGE.ch, bossKills: G.runBossKills || [], hard }); const [n2, inf] = P.applyStage(n, STAGE.id, stars, G.hero ? G.hero.cls : undefined, Math.random, hard, G.eliteKills || 0); got = g; loot = [...l, ...inf.loot]; info = inf; return n2; }); Acc.flush();
+  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason: 'clear', wave, kills, got: got + info.souls, best: false, loot, stage: STAGE.id, stars, first: info.first, unlocked: info.unlocked, hard: !!G.hard, hardOpen: info.hardOpen || 0 }));
   Snd.setMusic('none'); Snd.play('victory', { force: true, exact: true }); Snd.play('levelUp', { force: true, delay: .4 });
-  const el = $('stageClear'); el.innerHTML = `<div class="scBox"><div class="scT">스테이지 클리어!</div><div class="scS">${STAGE.no} · ${STAGE.n}</div><div class="scStars">${[0, 1, 2].map(i => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${.35 + i * .35}s">★</i>`).join('')}</div>
+  const el = $('stageClear'); el.innerHTML = `<div class="scBox"><div class="scT">${G.hard ? '<span class="hardTag">하드</span> ' : ''}스테이지 클리어!</div><div class="scS">${STAGE.no} · ${STAGE.n}</div><div class="scStars">${[0, 1, 2].map(i => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${.35 + i * .35}s">★</i>`).join('')}</div>
     <div class="scConds">${ST.STAR_D.map((d, i) => `<div class="${i < stars ? 'got' : ''}">${i < stars ? '★' : '☆'} ${d}</div>`).join('')}</div>
-    <div class="scRw">영혼석 <b>+${got + info.souls}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}${info.unlocked.length ? `<br>🔓 새 스테이지 해금: ${info.unlocked.map(ST.stageNo).join(', ')}` : ''}</div><button class="gbtn main" id="scTown">🏠 마을로 귀환</button></div>`;
+    <div class="scRw">영혼석 <b>+${got + info.souls}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}${info.eliteSouls ? `<br><span class="hardTxt">정예 처치 보너스 영혼석 +${info.eliteSouls}</span>` : ''}${info.unlocked.length ? `<br>🔓 새 ${info.hard ? '하드 ' : ''}스테이지 해금: ${info.unlocked.map(ST.stageNo).join(', ')}` : ''}${info.hardOpen ? `<br><span class="hardTxt">🔥 ${ST.CHAPTERS.find(c => c.id === info.hardOpen).short} 하드 모드가 열렸어요!</span>` : ''}</div><button class="gbtn main" id="scTown">🏠 마을로 귀환</button></div>`;
   el.classList.remove('hidden'); [0, 1, 2].forEach(i => i < stars && setTimeout(() => Snd.play('coin', { force: true, rate: 1 + i * .2 }), 400 + i * 350)); $('scTown').onclick = () => { Snd.play('confirm'); goTown(); };
 };
 // ---------- 시작 ----------
@@ -128,7 +128,7 @@ function spawnTownHero() {
 export function enterTown() {
   hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);
   cam.target.set(0, 1, TOWN_Z - 2); cam.r = 34; cam.phi = .78; cam.theta = 0; G.nightTarget = 0; refreshTown(); if (Acc.A.user) Sh.refresh().catch(() => {}); // 마을 입장 시 우편·소유권 갱신
-  const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'clear' ? `스테이지 ${ST.stageNo(r.stage)} 클리어! <span class="popStars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</span>` : r.reason === 'retreat' ? '무사히 귀환했습니다' : r.stage ? `스테이지 ${ST.stageNo(r.stage)} 실패 · 코어가 파괴되었습니다` : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${lootLines(r.loot || [])}`); if (chestCount()) setTimeout(() => openChestUI(show2), 600); else show2(); }
+  const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'clear' ? `${r.hard ? '<span class="hardTag">하드</span> ' : ''}스테이지 ${ST.stageNo(r.stage)} 클리어! <span class="popStars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</span>` : r.reason === 'retreat' ? '무사히 귀환했습니다' : r.stage ? `${r.hard ? '하드 ' : ''}스테이지 ${ST.stageNo(r.stage)} 실패 · 코어가 파괴되었습니다` : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${lootLines(r.loot || [])}`); if (chestCount()) setTimeout(() => openChestUI(show2), 600); else show2(); }
 }
 // 판 결과 팝업: 보상 상자 수 + 고유 획득 / 중복 → 정수 변환 / 도전 모드 정수
 function lootLines(L) { const ch = L.filter(x => x.chest), uq = L.filter(x => x.it && x.it.uq && !x.dup), dup = L.filter(x => x.dup), ess = L.reduce((a, x) => a + (x.src === 'essence' ? x.essence : 0), 0);
@@ -164,12 +164,12 @@ const sumKills = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + b
 // 판 종료(패배/귀환) → 보상 저장 후 마을로
 function onRunEnd(reason) {
   if (G.runSaved) return; G.runSaved = true; const wave = G.wave, kills = sumKills(); let got = 0, best = false, loot = [];
-  Acc.update(d => { best = !STAGE && wave > d.bestWave; const [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: !!STAGE, ch: STAGE ? STAGE.ch : 'open', bossKills: G.runBossKills || [] }); got = g; loot = l; return n; }); Acc.flush();
-  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason, wave, kills, got, best, loot, stage: STAGE ? STAGE.id : undefined }));
+  Acc.update(d => { best = !STAGE && wave > d.bestWave; const [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: !!STAGE, ch: STAGE ? STAGE.ch : 'open', bossKills: G.runBossKills || [], hard: !!(STAGE && G.hard) }); got = g; loot = l; return n; }); Acc.flush();
+  sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason, wave, kills, got, best, loot, stage: STAGE ? STAGE.id : undefined, hard: !!(STAGE && G.hard) }));
   const btn = $('overTown'); if (btn) { btn.classList.remove('hidden'); $('overReward').innerHTML = `획득 영혼석 <b>+${got}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}`; }
   if (reason === 'retreat') goTown();
 }
-export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('stage'); q.delete('run'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
+export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('stage'); q.delete('run'); q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
 
 // ---------- UI 바인딩 ----------
 function bindUI() {
@@ -184,7 +184,7 @@ function bindUI() {
   $('mnNickSave').onclick = async () => { Snd.play('ui'); await Acc.saveNick($('mnNick').value); refreshMenu(); };
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
   $('twGo').onclick = () => { closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); };
-  initStageSel({ challenge: () => depart(), start: id => departStage(id) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
+  initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!confirm('지금까지의 보상을 가지고 마을로 귀환할까요?')) return; onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
   addEventListener('keydown', e => { if (G.screen === 'town') tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);

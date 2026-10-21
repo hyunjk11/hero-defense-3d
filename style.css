@@ -537,3 +537,23 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #heroName.adv{color:var(--adv,#ffe08a)}
 .labAdv{text-align:center;font-size:12px;color:#ffe9a0;background:#2a1e0aaa;border:1px solid #ffd27a66;border-radius:8px;padding:4px 8px}.labAdv.hidden{display:none}
 @media (max-height:640px){#twBless.advMode{width:min(380px,calc(100vw - 32px))}.advCard{padding:6px 9px;font-size:11.5px}.advCard h4{font-size:14px}.advChk{line-height:1.5}}
+/* ---------- 하드 모드 (2026-10-21) ---------- */
+.modeTog{position:absolute;left:8px;top:8px;z-index:4;display:flex;border:2px solid #c9a24a99;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px #0009;background:#0c0a16cc}
+.modeTog .mt{font:inherit;font-size:13px;font-weight:bold;color:#d8c8a0;background:transparent;border:0;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.modeTog .mt.on{background:linear-gradient(#5a4a2a,#2a2214);color:#ffe9b0}.modeTog .hardB.on{background:linear-gradient(#a8261a,#4a0c08);color:#fff0e0;text-shadow:0 0 6px #ff6a3a}
+.modeTog .hardB.locked{color:#8a7a70;opacity:.75}
+.stMap.hard{border-color:#ff4a3a99;box-shadow:inset 0 0 80px #400a,0 0 14px #ff3a2a55}
+.hardVeil{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 60%,#ff2a1a22,#2a0204aa 75%),linear-gradient(#0006,#1a020288);mix-blend-mode:multiply}
+.stMap.hard .stPath path{stroke:#ff6a4a}
+.snode.hard{background:radial-gradient(circle at 40% 35%,#ff8a6a,#6a0c08);border-color:#ff4a3a;box-shadow:0 4px 0 #0006,0 0 16px #ff3a2a}
+.snode.hard .nm{background:#3a0806cc;color:#ffd8c8}
+.hardTag{display:inline-block;background:linear-gradient(#e0402a,#8a140c);color:#fff;border-radius:6px;padding:0 6px;font-size:.78em;font-weight:900;box-shadow:0 0 8px #ff4a2a88;vertical-align:middle}
+.hardTxt{color:#ff8a6a;font-weight:bold}.hardRw b{color:#ffb08a}.hardLock{max-width:240px;font-size:13px;color:#ffd8c8;padding:4px 2px}
+.bigGo.hardGo{background:linear-gradient(#e0402a,#7a120a);border-color:#ff8a6a;color:#fff}
+.chtab .hardBadge{font-style:normal;font-size:12px;margin-right:2px;filter:drop-shadow(0 0 3px #ff4a2a)}
+.chtab.hardT small{color:#ff9a7a}
+.pill.hardPill{border-color:#ff4a3a;color:#ffd0c0;font-weight:900;background:linear-gradient(#5a120cee,#2a0604ee);box-shadow:0 0 12px #ff3a2a88}
+#wavePrev.hard{border-color:#ff4a3a99}#wavePrev.hard .ptitle:after{content:" 🔥 하드";color:#ff8a6a;font-size:11px}
+.wpRow.elite .wpNm{color:#ffab7a;font-weight:bold}.wpNm em.el{background:#c0301e;color:#fff;font-style:normal;font-size:9px;border-radius:4px;padding:0 3px;margin-left:3px}
+#wavePrev.compact .wpI.elite{filter:drop-shadow(0 0 3px #ff6a2a)}
+@media (max-height:640px){.modeTog{left:6px;top:6px}.modeTog .mt{font-size:12px;padding:4px 10px;min-height:0}}

@@ -12,7 +12,7 @@ export const STATS = ['runs', 'kills', 'waves', 'souls'];
 const num = (v, d = 0) => (Number.isFinite(+v) && v !== null && v !== '' ? +v : d);
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const int = (v, lo = 0, hi = 1e9) => Math.max(lo, Math.min(hi, Math.floor(num(v))));
-export function empty() { return { v: 1, hero: 'mage', souls: 0, bestWave: 0, heroLv: Object.fromEntries(HEROES.map(h => [h, { hp: 0, atk: 0 }])), stats: Object.fromEntries(STATS.map(k => [k, 0])), settings: {}, nick: '', inv: [], eq: Object.fromEntries(HEROES.map(h => [h, {}])), mat: { steel: 0, crystal: 0 }, chests: [], st: {}, starRw: 0, research: GR.emptyResearch(), mailLog: [], uqLog: {}, uqPity: {}, codex: {}, codexRw: [], adv: {}, hq: {} }; }
+export function empty() { return { v: 1, hero: 'mage', souls: 0, bestWave: 0, heroLv: Object.fromEntries(HEROES.map(h => [h, { hp: 0, atk: 0 }])), stats: Object.fromEntries(STATS.map(k => [k, 0])), settings: {}, nick: '', inv: [], eq: Object.fromEntries(HEROES.map(h => [h, {}])), mat: { steel: 0, crystal: 0 }, chests: [], st: {}, hst: {}, starRw: 0, research: GR.emptyResearch(), mailLog: [], uqLog: {}, uqPity: {}, codex: {}, codexRw: [], adv: {}, hq: {} }; }
 export function clean(d) {
   d = obj(d); const e = empty();
   e.hero = HEROES.includes(d.hero) ? (isHidden(d.hero) ? DEFAULT_HERO : d.hero) : e.hero; /* 숨긴 영웅이 선택돼 있으면 기본 영웅으로 (heroLv·장비·소유권은 유지) */ e.souls = int(d.souls); e.bestWave = int(d.bestWave, 0, 9999);
@@ -30,7 +30,7 @@ export function merge(local, cloud) {
   for (const h of HEROES) for (const k of ['hp', 'atk']) m.heroLv[h][k] = Math.min(AD.permMax(m, h), Math.max(a.heroLv[h][k], b.heroLv[h][k]));
   for (const k of STATS) m.stats[k] = Math.max(a.stats[k], b.stats[k]);
   if (cloud == null || a.stats.runs >= b.stats.runs) m.hero = a.hero;
-  if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); m.mailLog = cleanMailLog([...a.mailLog, ...b.mailLog]); return m;
+  if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); for (const id in { ...a.hst, ...b.hst }) m.hst[id] = Math.max(a.hst[id] || 0, b.hst[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); m.mailLog = cleanMailLog([...a.mailLog, ...b.mailLog]); return m;
 }
 // 우편 보상 장부(S-3): 영혼석·재료를 세이브에 더한 우편 id (양의 정수, 중복 없음, 최근 MAIL_LOG_MAX개). 응답 유실 후 재시도 때 두 번 더하지 않게
 export const MAIL_LOG_MAX = 300;
@@ -46,18 +46,20 @@ export function reward(wave, kills) { return Math.max(0, Math.floor(wave * 8 + k
 // ch: 상자 장비의 챕터 세트 (스테이지 = 그 챕터 번호, 도전 모드 = 'open' → 상자마다 열린 챕터 중 무작위). 없으면 예전 그대로(무챕터, 같은 난수 소비)
 // bossKills: 판 중 보스를 처치한 웨이브 목록 → 스테이지: ③ 숨은 보물 고유(보스마다 1.5%, 천장 60회) · 도전 모드: 20웨이브 이후 보스마다 15% 고유 정수 1. 도전 모드 25/40/60웨이브 첫 도달 → 고유
 export const openChapters = s => CH_KEYS.filter(c => ST.chapterUnlocked(s, c));
-export function applyRun(save, { wave, kills, drops = [], hero, stage, ch, bossKills = [] }, r = Math.random) {
+export function applyRun(save, { wave, kills, drops = [], hero, stage, ch, bossKills = [], hard = false }, r = Math.random) {
   const s = clean(save), got = reward(wave, kills); s.souls += got; if (!stage) s.bestWave = Math.max(s.bestWave, wave); // 최고 웨이브 = 도전 모드 기록만
   s.stats.runs++; s.stats.kills += kills; s.stats.waves += wave; s.stats.souls += got;
-  const cc = ch === 'open' ? openChapters(s) : CHSET[ch] ? +ch : undefined;
-  const chests = E.chestsFor(wave, hero || s.hero, r, cc).map(it => ({ it, src: 'chest' })), boss = drops.map(x => E.cleanItem(x, HEROES)).filter(Boolean).map(it => ({ it, src: 'boss' }));
+  const cc = ch === 'open' ? openChapters(s) : CHSET[ch] ? +ch : undefined; hard = !!(hard && stage);
+  const chests = (hard ? hardChests(wave, hero || s.hero, r, cc) : E.chestsFor(wave, hero || s.hero, r, cc)).map(it => ({ it, src: 'chest' })), boss = drops.map(x => E.cleanItem(x, HEROES)).filter(Boolean).map(it => ({ it, src: 'boss' }));
   const res = E.addChests(s, [...chests, ...boss]); // 보상 상자로 보관 → 마을에서 개봉
   const bk = (Array.isArray(bossKills) ? bossKills : []).map(Number).filter(Number.isFinite).slice(0, 999), add = x => x && res.push(x);
-  if (stage && typeof cc === 'number') { const k = uqOfChapter(cc, 'drop'); if (k) for (const w of bk) { void w; let hit = r() < UQ_DROP; if (!E.ownsUnique(s, k)) { s.uqPity[k] = (s.uqPity[k] || 0) + 1; if (s.uqPity[k] >= UQ_PITY) hit = true; } if (hit) add(E.grantUnique(s, k)); } }
+  if (stage && typeof cc === 'number') { const k = uqOfChapter(cc, 'drop'); if (k) for (const w of bk) { void w; let hit = r() < UQ_DROP * (hard ? ST.HARD.uqDrop : 1); if (!E.ownsUnique(s, k)) { s.uqPity[k] = (s.uqPity[k] || 0) + (hard ? ST.HARD.pityStep : 1); if (s.uqPity[k] >= UQ_PITY) hit = true; } if (hit) add(E.grantUnique(s, k)); } }
   if (!stage) { for (const k of CHAL_UQ) if (wave >= UQ[k].src.wave && !E.ownsUnique(s, k)) add(E.grantUnique(s, k));
     let ess = 0; for (const w of bk) if (w >= CHAL_ESS.wave && r() < CHAL_ESS.chance) ess++; if (ess) { s.mat.essence = (s.mat.essence || 0) + ess; res.push({ essence: ess, src: 'essence' }); } }
   return [s, got, res];
 }
+// 하드: 5웨이브마다 상자 등급이 HARD.tierUp 단계 높음 (같은 난수 소비)
+export function hardChests(wave, hero, r = Math.random, ch) { const out = []; for (let w = 5; w <= wave; w += 5) out.push(E.randomItem(hero, E.chestOdds(w / 5 + ST.HARD.tierUp), r, undefined, ch)); return out; }
 // 타워 연구소: 연구 1레벨 구매. 반환 [save, 성공]
 export function buyResearch(save, type, k) { const s = clean(save); return [s, GR.buyResearch(s, type, k)]; }
 export const permMax = (s, hero) => AD.permMax(s, hero); // 전직하면 10 → 15 (그 영웅만)
@@ -67,13 +69,15 @@ export function buyPerm(save, hero, k) {
 }
 
 // ---------- 챕터/스테이지 ----------  st = { '1-1': 별(1~3) }, starRw = 받은 별 보상 상자 수
-function cleanStages(d, e) { const st = obj(d.st); e.st = {}; for (const id in st) if (ST.STAGES[id]) { const v = int(st[id], 0, 3); if (v) e.st[id] = v; } e.starRw = int(d.starRw, 0, 999); }
+function cleanStages(d, e) { const st = obj(d.st); e.st = {}; for (const id in st) if (ST.STAGES[id]) { const v = int(st[id], 0, 3); if (v) e.st[id] = v; } e.starRw = int(d.starRw, 0, 999);
+  const hs = obj(d.hst); e.hst = {}; for (const id in hs) if (ST.STAGES[id]) { const v = int(hs[id], 0, 3); if (v) e.hst[id] = v; } } // 하드 별 (옛 저장엔 없음 → {})
 // 챕터 장비: 이름 앞에 챕터 이름, 챕터가 깊을수록 좋은 등급
 // (예전: 이름 앞 접두어 + c → 지금: 챕터 세트 이름·가중치. 옛 접두어 아이템은 c 가 있어 배지·도감은 그대로 동작)
 export const stageTier = S => 1 + S.ch + Math.floor(S.idx / 2) + (S.boss ? 2 : 0);
 export function chapterItem(ch, hero, tier, r = Math.random) { return E.randomItem(hero, E.chestOdds(tier), r, undefined, ch); }
 // 스테이지 클리어: 별 기록(최고값), 영혼석(첫 클리어 전액/재도전 절반), 첫 클리어 챕터 장비 1개, 누적 별 5개마다 별 보상 상자
-export function applyStage(save, id, stars, hero, r = Math.random) {
+export function applyStage(save, id, stars, hero, r = Math.random, hard = false, elites = 0) {
+  if (hard) return applyHardStage(save, id, stars, hero, r, elites);
   const s = clean(save), S = ST.STAGES[id]; if (!S) return [s, null]; const prev = s.st[id] || 0, first = prev === 0; stars = Math.max(1, Math.min(3, stars | 0));
   s.st[id] = Math.max(prev, stars); const souls = ST.stageReward(id, first); s.souls += souls; s.stats.souls += souls; hero = hero || s.hero;
   if (HEROES.includes(hero)) { const q = s.hq[hero] || (s.hq[hero] = { boss: 0, clr: 0 }); q.clr++; if (S.boss) q.boss++; } // 전직 시련: 그 영웅으로 클리어한 횟수 (보스 스테이지 따로)
@@ -84,9 +88,19 @@ export function applyStage(save, id, stars, hero, r = Math.random) {
   const kb = uqOfChapter(S.ch, 'boss'), ks = uqOfChapter(S.ch, 'stars');
   if (first && S.boss && kb && !E.ownsUnique(s, kb)) { const x = E.grantUnique(s, kb); if (x) res.push(x); }
   if (ks && ST.chapterStars(s, S.ch) >= chapterMax(S.ch) && !E.ownsUnique(s, ks)) { const x = E.grantUnique(s, ks); if (x) res.push(x); }
-  return [s, { id, stars, prev, first, souls, loot: res, unlocked: Object.keys(ST.STAGES).filter(k => !ST.stageUnlocked(save, k) && ST.stageUnlocked(s, k)) }];
+  return [s, { id, stars, prev, first, souls, loot: res, hardOpen: first && S.boss ? S.ch : 0, unlocked: Object.keys(ST.STAGES).filter(k => !ST.stageUnlocked(save, k) && ST.stageUnlocked(s, k)) }];
 }
 
+// 하드 스테이지 클리어: 하드 별(hst) 기록, 영혼석 = 노말 × HARD.souls (+ 정예 처치 보너스), 첫 클리어 장비 1개 (등급 +HARD.tierUp 단계), 재도전도 장비 1개(같은 등급표, 절반 확률)
+// 노말 별(st)·별 보상 상자·별 만점 고유는 건드리지 않음 (하드 별은 따로). 전직 시련 카운터(hq)는 노말과 똑같이 셈
+export function applyHardStage(save, id, stars, hero, r = Math.random, elites = 0) {
+  const s = clean(save), S = ST.STAGES[id]; if (!S || !ST.hardUnlocked(s, id)) return [s, null]; const prev = s.hst[id] || 0, first = prev === 0; stars = Math.max(1, Math.min(3, stars | 0));
+  s.hst[id] = Math.max(prev, stars); const bonus = Math.min(ST.HARD.eliteSoulsMax, Math.max(0, elites | 0) * ST.HARD.eliteSouls), souls = ST.stageRewardH(id, first, true) + bonus; s.souls += souls; s.stats.souls += souls; hero = hero || s.hero;
+  if (HEROES.includes(hero)) { const q = s.hq[hero] || (s.hq[hero] = { boss: 0, clr: 0 }); q.clr++; if (S.boss) q.boss++; }
+  const items = []; if (first || r() < .5) items.push({ it: chapterItem(S.ch, hero, stageTier(S) + ST.HARD.tierUp, r), src: 'stage' });
+  const res = E.addChests(s, items);
+  return [s, { id, stars, prev, first, souls, eliteSouls: bonus, hard: true, loot: res, unlocked: Object.keys(ST.STAGES).filter(k => !ST.hardUnlocked(save, k) && ST.hardUnlocked(s, k)) }];
+}
 // ---------- 고유 아이템: 소급 지급 · 드롭 미리보기 · 도감 ----------
 export const chapterMax = ch => ST.CHAPTERS.find(c => c.id === ch).stages.length * 3; // 장마다 6스테이지 = 18 (2026-10-21 전 2~4장 12)
 // 이미 조건을 채웠는데 아직 기록이 없는 고유 (기존 유저 소급, 여러 번·여러 기기에서 실행해도 id 가 고정이라 1개)
@@ -98,11 +112,11 @@ export function backfillList(s) { const out = [];
 export function backfill(save) { const s = clean(save), L = backfillList(s); return [s, L.map(k => E.grantUnique(s, k)).filter(Boolean)]; }
 // 스테이지 정보 패널 '드롭 미리보기' (순수): 세트·첫 클리어 등급 범위(2% 이상만 점 표시)·고유 3칸(① 보스 ② 별 만점 ③ 확률 + 천장 진행)
 export const PREVIEW_MIN = .02;
-export function dropPreview(id, hero, save) {
+export function dropPreview(id, hero, save, hard = false) {
   const S = ST.STAGES[id]; if (!S) return null; save = save || empty(); hero = isHidden(hero) || !HEROES.includes(hero) ? DEFAULT_HERO : hero;
-  const o = chOdds(E.chestOdds(stageTier(S)), S.ch), t = o.reduce((a, b) => a + b, 0), odds = o.map(v => v / t);
+  const o = chOdds(E.chestOdds(stageTier(S) + (hard ? ST.HARD.tierUp : 0)), S.ch), t = o.reduce((a, b) => a + b, 0), odds = o.map(v => v / t);
   const uq = ['boss', 'stars', 'drop'].map(kind => { const k = uqOfChapter(S.ch, kind); return k && { k, kind, have: E.ownsUnique(save, k), pity: (save.uqPity || {})[k] || 0, here: kind !== 'boss' || UQ[k].src.boss === S.id }; }).filter(Boolean);
-  return { id, ch: S.ch, set: CHSET[S.ch], hero, odds, grades: odds.map(v => v >= PREVIEW_MIN), uq, stars: ST.chapterStars(save, S.ch), starsMax: chapterMax(S.ch), pityMax: UQ_PITY };
+  return { id, ch: S.ch, set: CHSET[S.ch], hero, odds, grades: odds.map(v => v >= PREVIEW_MIN), uq, stars: ST.chapterStars(save, S.ch), starsMax: chapterMax(S.ch), pityMax: UQ_PITY, hard: !!hard, uqDrop: UQ_DROP * (hard ? ST.HARD.uqDrop : 1) };
 }
 export const uniqueCount = (save, ch) => Object.keys(UQ).filter(k => UQ[k].ch === ch && E.ownsUnique(save, k)).length;
 // 도감: 행 = 보이는 영웅 무기 + 방어구 + 장신구, 열 = 등급 5개

@@ -1,5 +1,6 @@
 // 챕터별 몬스터 구성 → 웨이브 대기열 (순수 로직, node 테스트 가능: tests/roster.test.mjs)
 import { ETYPES, ROSTERS, ENDLESS_MIX, rosterShare, NEW_TYPES, NEW_WEIGHT, newShare } from '../data/monsters.js';
+import { HARD } from '../data/stages.js';
 
 export const stageLevel = (stage, n) => n + (stage.idx || 0) * 2;
 // 레벨 lv에서 등장 가능한 [종류, 가중치]
@@ -33,7 +34,7 @@ export const newTypes = (q, seen) => [...new Set(q)].filter(t => !seen.has(t) &&
 // 반환 { n, boss: 종류|null, list: [{ t, share(0~1 예상 비율), fresh(이번에 처음 열림) }] } — share 큰 순서. waves.js startWave 의 구성 규칙을 확률로 옮긴 것
 const ICON0 = { grunt: '💀', imp: '🗡', golem: '🛡', bat: '🦇', boss: '👑' };
 export const monIcon = t => (ETYPES[t] && ETYPES[t].icon) || ICON0[t] || '💀';
-export function previewWave(stage, n, classic = false) {
+export function previewWave(stage, n, classic = false, hard = false) {
   const add = (m, t, w) => { if (w > 0) m.set(t, (m.get(t) || 0) + w); }, out = new Map(); let fresh = [];
   let boss = n % 5 === 0 ? (classic || stage ? 'boss' : endlessBoss(n)) : null;
   const pool = stage && !classic ? rosterPool(stage.ch, stageLevel(stage, n)) : [];
@@ -51,8 +52,21 @@ export function previewWave(stage, n, classic = false) {
   if (stage && n === stage.waves) boss = stage.boss && !classic ? ((ROSTERS[stage.ch] && ROSTERS[stage.ch].boss) || 'boss') : 'boss';
   { let z = 0; for (const [t, p] of out) { const v = p * (ETYPES[t].pack || 1); out.set(t, v); z += v; } if (z > 0) for (const [t, p] of out) out.set(t, p / z); } // 무리 몬스터는 한 번 뽑힐 때 pack 마리 → 마릿수 비율
   const list = [...out].filter(([t, p]) => p >= .005 && !ETYPES[t].child).map(([t, p]) => ({ t, share: p, fresh: fresh.includes(t) })).sort((a, b) => (b.fresh - a.fresh) || (b.share - a.share));
-  return { n, boss, list };
+  const el = hard && stage && !classic ? { t: eliteType(stage, n), n: eliteCount(n) } : null, elite = el && el.t && el.n ? el : null;
+  if (elite) { const r = list.find(x => x.t === elite.t); if (r) r.elite = elite.n; else list.unshift({ t: elite.t, share: 0, fresh: false, elite: elite.n }); list.sort((a, b) => (!!b.elite - !!a.elite) || (b.fresh - a.fresh) || (b.share - a.share)); }
+  return { n, boss, list, elite };
 }
+// ---------- 하드 모드 정예 (결정적: 게임 난수를 쓰지 않음 → 미리보기와 실제가 같음) ----------
+// 정예 수: HARD.eliteFrom 웨이브부터 1마리, 4웨이브마다 +1 (최대 HARD.eliteMax)
+export const eliteCount = n => n < HARD.eliteFrom ? 0 : Math.min(HARD.eliteMax, 1 + Math.floor((n - HARD.eliteFrom) / 4));
+// 정예 종류: 그 웨이브 구성에서 무리·비행·분열 새끼·보스가 아닌 종류 중 체력 상위 3종을 웨이브마다 돌아가며
+export function eliteType(stage, n) { if (!stage) return null; const c = rosterPool(stage.ch, stageLevel(stage, n)).map(p => p[0]).filter(t => ETYPES[t] && !ETYPES[t].pack && !ETYPES[t].fly && !ETYPES[t].child && !ETYPES[t].boss);
+  if (!c.length) return null; c.sort((a, b) => ETYPES[b].hp - ETYPES[a].hp || (a < b ? -1 : 1)); const top = c.slice(0, 3); return top[n % top.length]; }
+// 대기열 q 의 일부(고르게 퍼진 자리)를 정예로 교체. 반환 = q 와 같은 길이의 정예 표시 배열 (true = 정예). q 는 제자리에서 바뀜
+export function applyElites(stage, n, q) { const flags = q.map(() => false), t = eliteType(stage, n), k = Math.min(eliteCount(n), q.length); if (!t || !k) return flags;
+  const okAt = i => !flags[i] && q[i] !== 'boss' && !(ETYPES[q[i]] && (ETYPES[q[i]].boss || ETYPES[q[i]].pack));
+  for (let j = 0; j < k; j++) { const p = Math.min(q.length - 1, Math.floor((j + 1) * q.length / (k + 1))); let i = p; while (i < q.length && !okAt(i)) i++; if (i >= q.length) { i = p; while (i >= 0 && !okAt(i)) i--; } if (i < 0) continue; q[i] = t; flags[i] = true; }
+  return flags; }
 // 짧은 특성 (미리보기 칸에 한두 단어)
 export function monTrait(t) { const E = ETYPES[t]; if (!E) return ''; const ab = E.ab || {}, o = [];
   if (E.boss) o.push('보스'); if (E.fly) o.push('비행'); if (E.pack) o.push(`${E.pack}마리 무리`); if (ab.split) o.push('분열'); if (ab.heal) o.push('치유');

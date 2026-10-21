@@ -67,6 +67,19 @@ export function chapterUnlocked(save, ch) { const C = CHAPTERS.find(c => c.id ==
 export function stageUnlocked(save, id) { const S = STAGES[id]; if (!S || !chapterUnlocked(save, S.ch)) return false; if (S.idx === 0 || stars(save, id) > 0) return true; const C = CHAPTERS.find(c => c.id === S.ch); return stars(save, C.stages[S.idx - 1].id) > 0; }
 export const STAR_STEP = 5; // 별 5개마다 별 보상 상자
 export const stageReward = (id, first) => { const S = STAGES[id]; const base = 40 + S.idx * 15 + (S.ch - 1) * 60 + (S.boss ? 60 : 0); return first ? base : Math.round(base / 2); };
+// ---------- 하드 모드 (2026-10-21, docs/HARD_2026-10-21.md) ----------  저장: save.hst = { id: 별 } (노말 st 와 따로, 같은 id)
+// 해금: 그 챕터의 노말 보스를 깨면 그 챕터 하드 1번 스테이지가 열림 → 하드 안에서는 노말처럼 순서대로 (이미 깬 하드 스테이지는 항상 열림)
+export const HARD = { hp: 2.2, dmg: 1.5, spd: 1.1, bossHp: 1.3, bossCd: .8, eliteFrom: 3, eliteMax: 4, eliteHp: 2.5, eliteScale: 1.25, eliteGold: 3, eliteCore: 1, waveGold: 1.3, souls: 2, tierUp: 2, uqDrop: 3, pityStep: 2, eliteSouls: 2, eliteSoulsMax: 120 };
+export const hstars = (save, id) => (save.hst || {})[id] || 0;
+export const hardTotalStars = save => Object.values(save.hst || {}).reduce((a, b) => a + b, 0);
+export const hardChapterStars = (save, ch) => CHAPTERS.find(c => c.id === ch).stages.reduce((a, s) => a + hstars(save, s.id), 0);
+const bossOf = ch => { const C = CHAPTERS.find(c => c.id === ch); return C && C.stages.length ? C.stages[C.stages.length - 1] : null; };
+export function hardChapterUnlocked(save, ch) { const B = bossOf(ch); return !!B && chapterUnlocked(save, ch) && stars(save, B.id) > 0; }
+export const hardChapterCleared = (save, ch) => { const B = bossOf(ch); return !!B && hstars(save, B.id) > 0; }; // 하드 보스 클리어 = 챕터 하드 정복 배지
+export function hardUnlocked(save, id) { const S = STAGES[id]; if (!S || !hardChapterUnlocked(save, S.ch)) return false; if (S.idx === 0 || hstars(save, id) > 0) return true; const C = CHAPTERS.find(c => c.id === S.ch); return hstars(save, C.stages[S.idx - 1].id) > 0; }
+export const hardLockText = ch => `🔒 노말 ${stageNo(bossOf(ch) ? bossOf(ch).id : '')} 보스를 처치하면 하드가 열려요`;
+// 스테이지 보상 영혼석: 하드 = 노말의 HARD.souls 배 (첫 클리어·재도전 모두)
+export const stageRewardH = (id, first, hard) => stageReward(id, first) * (hard ? HARD.souls : 1);
 export const PREFIX = { 1: '숲의 ', 2: '서리 ', 3: '화염 ', 4: '폐허의 ' };
 // 폐허: 고대 성벽 칸 목록 (용암과 같은 꺾은선 규칙)
 export const wallTiles = (S, GW = 24, GH = 16) => lavaTiles(S, GW, GH, 'walls');

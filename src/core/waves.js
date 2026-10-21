@@ -8,13 +8,14 @@ import { hero } from '../heroes/hero.js';
 import { banner, setPhaseUI, showNote } from '../ui/hud.js';
 import { select } from '../ui/input.js';
 import { STAGE } from './grid.js';
-import { stageWave, endlessMix, endlessBoss, newTypes } from './roster.js';
+import { stageWave, endlessMix, endlessBoss, newTypes, applyElites } from './roster.js';
+import { HARD } from '../data/stages.js';
 // 처음 보는 몬스터 (신규 몬스터 알림). 브라우저에 저장해 한 번만 소개
 const SEEN_KEY = 'hd3d_seenMon';
 function seenSet() { if (!G.seenMon) { let a = []; try { a = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch (e) {} G.seenMon = new Set(Array.isArray(a) ? a : []); } return G.seenMon; }
 function markSeen(list) { const s = seenSet(); list.forEach(t => s.add(t)); try { localStorage.setItem(SEEN_KEY, JSON.stringify([...s])); } catch (e) {} }
 
-function gameOver() { if (G.phase === 'over') return; G.phase = 'over'; if (G.onRunEnd) setTimeout(() => G.onRunEnd('defeat'), 0); Snd.setMusic('none'); Snd.play('gameOver', { force: true, exact: true }); Snd.play('breakRock', { force: true }); Snd.play('glass', { force: true }); $('over').classList.remove('hidden'); $('overTxt').textContent = STAGE ? `스테이지 ${STAGE.no} · 웨이브 ${G.wave}/${STAGE.waves}에서 코어가 파괴되었습니다` : `웨이브 ${G.wave}에서 코어가 파괴되었습니다 · 최고 기록 ${Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)}`; }
+function gameOver() { if (G.phase === 'over') return; G.phase = 'over'; if (G.onRunEnd) setTimeout(() => G.onRunEnd('defeat'), 0); Snd.setMusic('none'); Snd.play('gameOver', { force: true, exact: true }); Snd.play('breakRock', { force: true }); Snd.play('glass', { force: true }); $('over').classList.remove('hidden'); $('overTxt').textContent = STAGE ? `${G.hard ? '하드 ' : ''}스테이지 ${STAGE.no} · 웨이브 ${G.wave}/${STAGE.waves}에서 코어가 파괴되었습니다` : `웨이브 ${G.wave}에서 코어가 파괴되었습니다 · 최고 기록 ${Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)}`; }
 
 // ================= 웨이브 =================
 function startWave() {
@@ -31,7 +32,8 @@ function startWave() {
   } else if (!G.classic) { const mq = endlessMix(q, n, rand); q.length = 0; q.push(...mq); } // 도전 모드: 웨이브가 오를수록 숲 → 설원 구성이 섞임
   if (boss && !(STAGE && STAGE.boss && n === STAGE.waves)) q.splice(Math.floor(count / 2), 0, G.classic || STAGE ? 'boss' : endlessBoss(n)); // 챕터 보스 스테이지 최종 웨이브: 챕터 보스만 (해골 군주 중복 X)
   if (!G.classic) { const nt = newTypes(q, seenSet()).filter(t => !intro.includes(t) && ETYPES[t].desc); intro = intro.concat(nt); markSeen(intro); }
-  G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul * (STAGE ? STAGE.hp : 1); Snd.horn(); Snd.duck(.4, 2.2); banner(STAGE && n === STAGE.waves ? `최종 웨이브 ${n}/${STAGE.waves} · ${STAGE.boss ? '챕터 보스 출현!' : '보스 웨이브!'}` : STAGE ? `웨이브 ${n}/${STAGE.waves}${boss ? ' · 보스 웨이브!' : ''}` : boss ? `웨이브 ${n} · 보스 웨이브!` : intro.length ? `웨이브 ${n} · 신규: ${intro.map(t => ETYPES[t].n).join(', ')}` : `웨이브 ${n}`, boss ? '#ff5a6a' : intro.length ? '#ffd27a' : '#ffffff', intro.length ? 2400 : undefined);
+  const hard = !!(STAGE && G.hard && !G.classic); G.spawnE = hard ? applyElites(STAGE, n, q) : null; // 하드: 정예 (q 일부 교체, 같은 길이 표시 배열)
+  G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul * (STAGE ? STAGE.hp : 1) * (hard ? HARD.hp : 1); const ne = G.spawnE ? G.spawnE.filter(Boolean).length : 0; Snd.horn(); Snd.duck(.4, 2.2); banner((hard ? '🔥 하드 · ' : '') + (STAGE && n === STAGE.waves ? `최종 웨이브 ${n}/${STAGE.waves} · ${STAGE.boss ? '챕터 보스 출현!' : '보스 웨이브!'}` : STAGE ? `웨이브 ${n}/${STAGE.waves}${boss ? ' · 보스 웨이브!' : ''}` : boss ? `웨이브 ${n} · 보스 웨이브!` : intro.length ? `웨이브 ${n} · 신규: ${intro.map(t => ETYPES[t].n).join(', ')}` : `웨이브 ${n}`) + (ne ? ` · 정예 ${ne}` : ''), boss || hard ? '#ff5a6a' : intro.length ? '#ffd27a' : '#ffffff', intro.length ? 2400 : undefined);
   if (intro.length) showNote(intro.slice(0, 4).map(t => ({ name: ETYPES[t].n, desc: ETYPES[t].desc, type: t, icon: ETYPES[t].icon })), 6500 + 900 * Math.min(4, intro.length)); setPhaseUI();
 }
 // 신규 몬스터 섞기 (classic 모드에서는 호출하지 않음 → 기존 난수열/밸런스 그대로).
@@ -47,7 +49,7 @@ function mixNewTypes(q, n) {
   return intro;
 }
 function endWave() {
-  G.phase = 'build'; G.nightTarget = 0; const bonus = 25 + G.wave * 6; G.gold += bonus; G.stats.goldEarned += bonus; Snd.play('waveClear', { force: true, exact: true }); Snd.play('coins', { delay: .3 }); Snd.duck(.4, 1.6); banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
+  G.phase = 'build'; G.nightTarget = 0; const bonus = Math.round((25 + G.wave * 6) * (STAGE && G.hard ? HARD.waveGold : 1)); G.gold += bonus; G.stats.goldEarned += bonus; Snd.play('waveClear', { force: true, exact: true }); Snd.play('coins', { delay: .3 }); Snd.duck(.4, 1.6); banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
   if (hero && hero.dead <= 0) { hero.hp = hero.max; play(hero.ch, 'Cheer', { once: true }); hero.atkT = 1.5; } computeDist(); setPhaseUI();
   if (STAGE && G.wave >= STAGE.waves && G.onStageClear) { G.onStageClear(); return; }
   try { localStorage.setItem('hd3d_best', Math.max(G.wave, +localStorage.getItem('hd3d_best') || 0)); } catch (e) {}

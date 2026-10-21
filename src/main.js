@@ -1,7 +1,8 @@
 import { Snd } from './audio/audio.js';
 import * as THREE from 'three';
 import { $, rand, rnd } from './core/util.js';
-import { CORE, GH, GW, SPAWN, SPAWNS, STAGE, T, tileX, tileZ, toTile } from './core/grid.js';
+import { CORE, GH, GW, SPAWN, SPAWNS, STAGE, HARDQ, T, tileX, tileZ, toTile } from './core/grid.js';
+G.hard = HARDQ; G.eliteKills = 0; // 하드 모드 (출정 흐름에서는 ui/flow.js 가 해금 확인 후 다시 정함)
 import { BLK } from './data/terrain.js';
 import { startWarp } from './heroes/hero.js';
 import { updPreview } from './ui/preview.js';
@@ -73,7 +74,7 @@ function step(dt) {
   G.t += dt;
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
   if (G.phase === 'select') updSelect(dt);
-  if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); const t0 = G.spawnQ.shift(); spawnEnemy(t0, G.hpMul); if (ETYPES[t0].pack && G.spawnQ[0] === t0) G.spawnT = .22; /* 무리는 붙어서 */ } } else if (!G.enemies.length && !pendingSpawns()) endWave(); }
+  if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); const t0 = G.spawnQ.shift(), el = G.spawnE ? G.spawnE.shift() : false; spawnEnemy(t0, G.hpMul, undefined, el); if (ETYPES[t0].pack && G.spawnQ[0] === t0) G.spawnT = .22; /* 무리는 붙어서 */ } } else if (!G.enemies.length && !pendingSpawns()) endWave(); }
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
     if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
       tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); updLegend(dt); }
