@@ -26,7 +26,7 @@ window.T_ = {
   r: v => Math.round(v * 1000) / 1000,
   grassNearRoute(minI, maxD, avoid) { const r = G.route, on = new Set(r.map(([c, rr]) => c + ',' + rr)), used = new Set(avoid || []);
     for (let i = minI; i < r.length - 1; i++) { const [c, rr] = r[i]; for (let d = 1; d <= maxD; d++) for (let dc = -d; dc <= d; dc++) for (let dr = -d; dr <= d; dr++) {
-      const t = G.tileAt(c + dc, rr + dr); if (t && t.t === 0 && !t.tower && !t.bar && !on.has((c + dc) + ',' + (rr + dr)) && !used.has((c + dc) + ',' + (rr + dr))) return [c + dc, rr + dr]; } } return null; },
+      const t = (G.tiles[c + dc] || [])[rr + dr]; if (t && t.t === 0 && !t.tower && !t.bar && !on.has((c + dc) + ',' + (rr + dr)) && !used.has((c + dc) + ',' + (rr + dr))) return [c + dc, rr + dr]; } } return null; },
   sounds: {},
   hookSound() { const S = G.Snd, me = this; for (const k of ['play', 'horn', 'roar', 'crackle', 'whoosh']) { const f = S[k].bind(S); S[k] = (...a) => { const n = k === 'play' ? a[0] : k; me.sounds[n] = (me.sounds[n] || 0) + 1; return f(...a); }; } },
   enemyAt(type, x, z) { const e = G.spawnEnemy(type, 1); e.g.position.set(x, 0, z); const [c, r] = G.toTile(x, z); e.tile = [c, r]; e.state = 'walk'; return e; },
