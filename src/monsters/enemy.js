@@ -4,6 +4,7 @@ import { SPAWN, SPAWNS, tileX, tileZ, GW } from '../core/grid.js';
 import { ETYPES } from '../data/monsters.js';
 import { G, later } from '../core/state.js';
 import { scene } from '../render/scene.js';
+import { disposeObj } from '../render/toon.js';
 import { P, PB, debris, dmgText, emit, popCoins } from '../render/vfx.js';
 import { hpBar } from '../render/hpbars.js';
 import { shadowOf } from './ai.js';
@@ -71,6 +72,6 @@ function reachCore(e) {
   emit(P, core.position.x, 3, core.position.z, 30, 0xff3a5a, 6, .7); crystalMat.emissive.setHex(0xff2a3a); later(.22, () => crystalMat.emissive.setHex(0x1890c0)); Snd.play('coreHit', { force: true }); Snd.play('glass', { vol: .6 });
   banner(`코어 피격! -${e.E.core}`, '#ff6a7a', 700); if (G.coreHp <= 0) gameOver();
 }
-function removeEnemy(e) { scene.remove(e.g); e.hb.dispose(); if (e.m.mats) e.m.mats.forEach(m => m.dispose()); if (e.m.mixer) e.m.mixer.stopAllAction(); const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1); }
+function removeEnemy(e) { scene.remove(e.g); disposeObj(e.g); e.hb.dispose(); if (e.m.mats) e.m.mats.forEach(m => m.dispose()); if (e.m.mixer) e.m.mixer.stopAllAction(); const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1); }
 
 export { spawnEnemy, hurt, killEnemy, reachCore, removeEnemy, shieldFactor, armorOf };

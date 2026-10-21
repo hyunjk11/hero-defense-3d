@@ -5,7 +5,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { $ } from '../core/util.js';
 import { CLASSES, HERO_KEYS, HIDDEN_HEROES, isHidden } from '../data/heroes.js';
 import { ETYPES } from '../data/monsters.js';
-import { addOutline, glow, grad, mk, toon } from './toon.js';
+import { addOutline, glow, grad, mk, shareGeo, toon } from './toon.js';
 import { makeWolf, makeSlime, makeWisp, extraProp } from './monsters3d.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
@@ -35,7 +35,7 @@ async function loadAssets(keys = ASSETS) {
 // 백그라운드: 순서대로 하나씩 (실패해도 계속, 필요할 때 ensureModels 가 다시 시도)
 async function loadBackground(keys) { for (const k of keys) { if (GL[k]) continue; try { await loadModel(k); } catch (e) { console.warn('bg model', k, e); } } return true; }
 function prep(g) {
-  g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; } });
+  g.scene.traverse(o => { if (o.isMesh) { const om = o.material; o.material = new THREE.MeshToonMaterial({ color: om.color ? om.color.clone() : 0xffffff, map: om.map || null, gradientMap: grad }); o.castShadow = true; shareGeo(o.geometry); } });
   g.scene.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(g.scene); g.userData.h = box.max.y - box.min.y || 1;
 }
 // Meshy 마법사: 루트 모션 잠금 (Hips 위치 트랙의 X/Z를 첫 프레임 값으로 고정, Y는 유지 → 쓰러짐/피격이 제자리에서)

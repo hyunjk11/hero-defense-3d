@@ -15,13 +15,15 @@ function outlineMat(th) {
   m.customProgramCacheKey = () => 'outline'; return olMats[key] = m;
 }
 const olCache = new WeakMap();
+// 여러 개체가 함께 쓰는 지오메트리(모델 템플릿·캐시) 표시 → disposeObj 가 건드리지 않음. 나머지(개체마다 새로 만든 것)는 개체 제거 때 해제
+const SHARED_GEO = new WeakSet(); const shareGeo = g => { SHARED_GEO.add(g); return g; };
 function olGeo(g) {
   if (olCache.has(g)) return olCache.get(g);
   const gf = ['getX', 'getY', 'getZ', 'getW'], plain = a => { const n = a.itemSize, Arr = a.isInterleavedBufferAttribute ? a.data.array.constructor : a.array.constructor, arr = new Arr(a.count * n);
     for (let i = 0; i < a.count; i++) for (let k = 0; k < n; k++) arr[i * n + k] = a[gf[k]](i); return new THREE.BufferAttribute(arr, n, a.normalized); };
   let o = new THREE.BufferGeometry(); for (const k of ['position', 'skinIndex', 'skinWeight']) if (g.attributes[k]) o.setAttribute(k, plain(g.attributes[k]));
   if (g.index) o.setIndex(g.index.clone());
-  o = mergeVertices(o, 1e-3); o.computeVertexNormals(); olCache.set(g, o); return o;
+  o = mergeVertices(o, 1e-3); o.computeVertexNormals(); olCache.set(g, o); if (SHARED_GEO.has(g)) SHARED_GEO.add(o); return o;
 }
 function addOutline(m, th) {
   const geo = olGeo(m.geometry); let o;
@@ -29,6 +31,8 @@ function addOutline(m, th) {
   else o = new THREE.Mesh(geo, outlineMat(th));
   o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; o.raycast = () => {}; o.userData.ol = true; m.add(o); return o;
 }
+// 장면에서 뺀 개체의 GPU 자원 해제: 스킨 뼈 텍스처(SkeletonUtils.clone 이 개체마다 만듦) + 공유 표시 없는 지오메트리. 머티리얼은 호출하는 쪽이 관리
+function disposeObj(root) { root.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); const g = o.geometry; if (g && !SHARED_GEO.has(g)) g.dispose(); }); }
 function mk(geo, mat, x = 0, y = 0, z = 0, parent, ol = .035) {
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
   if (ol) addOutline(m, ol); if (parent) parent.add(m); return m;
@@ -44,4 +48,4 @@ function IM(geo, mat, count, ol = .03, shadow = true) {
 function setI(im, i, x, y, z, sx, sy = sx, sz = sx, ry = 0, rx = 0) { dummy.position.set(x, y, z); dummy.rotation.set(rx, ry, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.instanceMatrix.needsUpdate = true; }
 function hideI(im, i) { dummy.scale.set(0, 0, 0); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); im.instanceMatrix.needsUpdate = true; }
 
-export { grad, toon, glow, addOutline, mk, dummy, tmpC, IM, setI, hideI, olGeo, outlineMat };
+export { grad, toon, glow, addOutline, mk, shareGeo, disposeObj, dummy, tmpC, IM, setI, hideI, olGeo, outlineMat };

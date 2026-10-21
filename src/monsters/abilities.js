@@ -25,7 +25,7 @@ import { tileX, tileZ, toTile, inGrid } from '../core/grid.js';
 import { scene } from '../render/scene.js';
 import { P, PB, debris, dmgText, emit, ringFx } from '../render/vfx.js';
 import { play } from '../render/characters.js';
-import { glow, mk, toon } from '../render/toon.js';
+import { glow, mk, shareGeo, toon } from '../render/toon.js';
 import { damageTower } from '../world/towers.js';
 import { spawnEnemy } from './enemy.js';
 import { ETYPES } from '../data/monsters.js';
@@ -158,7 +158,7 @@ function fire(e, c) {
 // 석상(가고일) · 실체 소멸(망령): 무적(immT) + 타워/영웅이 노리지 않음. 석상은 회색 돔, 망령은 반투명
 let _domeG, _domeM;
 function statue(e, on, dur = 0) { const p = e.g.position; e.statueT = on ? dur : 0; e.immT = on ? G.t + dur : 0;
-  if (on && !e.m.dome) { _domeG ||= new THREE.SphereGeometry(1, 18, 12, 0, Math.PI * 2, 0, Math.PI * .55); _domeM ||= toon(0x8a849a, { transparent: true, opacity: .78 }); const d = new THREE.Mesh(_domeG, _domeM); d.scale.set(e.E.h * .42, e.E.h * .95, e.E.h * .42); e.g.add(d); e.m.dome = d; }
+  if (on && !e.m.dome) { _domeG ||= shareGeo(new THREE.SphereGeometry(1, 18, 12, 0, Math.PI * 2, 0, Math.PI * .55)); _domeM ||= toon(0x8a849a, { transparent: true, opacity: .78 }); const d = new THREE.Mesh(_domeG, _domeM); d.scale.set(e.E.h * .42, e.E.h * .95, e.E.h * .42); e.g.add(d); e.m.dome = d; }
   if (e.m.dome) e.m.dome.visible = on; if (on) { debris(p.x, e.E.h * .5, p.z, 6, [0x8a849a, 0x6a6478], 3); Snd.play('breakRock', { pos: p, rate: 1.2, vol: .45 }); txt(p.x, e.E.h + .7, p.z, '🗿 석상 (무적)', '#d8d0f0', true); }
   else { emit(P, p.x, e.E.h * .6, p.z, 14, 0xb0a8c8, 4, .5, -6, 1); } }
 function phased(e, on, dur = 0) { e.phaseT = on ? dur : 0; e.immT = on ? G.t + dur : 0; const inner = e.m.inner; if (!inner) return; inner.visible = true;
@@ -205,7 +205,7 @@ function spawnPending() { while (pend.length) { const o = pend.shift(); bump('sp
     ch.stunT = .4; ch.kup = { t: 0, dur: .4, h: .9 }; }
   emit(P, o.x, .6, o.z, 18, ETYPES[o.S.type]?.col || 0x8aff6a, 4, .5, -8, 1); Snd.play('digSoft', { pos: { x: o.x, z: o.z }, rate: 1.7, vol: .6 }); } }
 // ---- 표시 (보호막 거품, 고리, 타워 상태) ----
-let _bubG, _bubM; function bubble(e, on) { if (on && !e.shBub) { _bubG ||= new THREE.SphereGeometry(1, 20, 14); _bubM ||= new THREE.MeshBasicMaterial({ color: 0x7ac8ff, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+let _bubG, _bubM; function bubble(e, on) { if (on && !e.shBub) { _bubG ||= shareGeo(new THREE.SphereGeometry(1, 20, 14)); _bubM ||= new THREE.MeshBasicMaterial({ color: 0x7ac8ff, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   const b = new THREE.Mesh(_bubG, _bubM.clone()); if (e.shDark) b.material.color.setHex(DARK); b.scale.setScalar(Math.max(.8, e.E.h * .55)); b.position.y = e.E.h * .5; b.userData.hit = 0; e.g.add(b); e.shBub = b; }
   if (e.shBub) { e.shBub.visible = on; if (on) e.shBub.material.color.setHex(e.shDark ? DARK : 0x7ac8ff); } }
 function groundRing(g, r, color, op) { const m = new THREE.Mesh(new THREE.RingGeometry(r * .93, r, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));

@@ -1,9 +1,9 @@
 // 챕터 몬스터 모델: 절차적 늑대/슬라임/서리 정령 + 해골 모델용 소품(고블린 귀, 버섯 갓, 나무껍질, 설인 털, 얼음 결정)
 // 절차적 모델은 { g, inner, mats, anim(e, dt) } — 스켈레탈 믹서 대신 anim 이 걷기/파기/죽기 동작을 만든다
 import * as THREE from 'three';
-import { glow, mk, toon } from './toon.js';
+import { glow, mk, shareGeo, toon } from './toon.js';
 
-const GEO = {}; const geo = (k, f) => GEO[k] || (GEO[k] = f()); // 공유 지오메트리 (몬스터마다 새로 만들지 않음)
+const GEO = {}; const geo = (k, f) => GEO[k] || (GEO[k] = shareGeo(f())); // 공유 지오메트리 (몬스터마다 새로 만들지 않음)
 const SPH = (r, a = 18, b = 12) => geo(`s${r}_${a}`, () => new THREE.SphereGeometry(r, a, b));
 const CONE = (r, h, n = 10) => geo(`c${r}_${h}`, () => new THREE.ConeGeometry(r, h, n));
 const CYL = (a, b, h, n = 10) => geo(`y${a}_${b}_${h}`, () => new THREE.CylinderGeometry(a, b, h, n));
