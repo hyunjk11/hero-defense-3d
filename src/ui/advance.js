@@ -1,7 +1,7 @@
 // 여신탑 '전직' 탭 (여신의 축복 창 #twBless): 조건 체크리스트 + 분기 카드 2장(미리보기: 마을 영웅 발밑 링 색) + 확인 창 → 전직/재전직
 // 소유권은 서버(hd3d_owned) 기준 Sh.heroOwned — 세이브 값은 믿지 않음
 import { Snd } from '../audio/audio.js';
-import { $ } from '../core/util.js';
+import { $, setH } from '../core/util.js';
 import { CLASSES } from '../data/heroes.js';
 import * as AD from '../data/advance.js';
 import * as Acc from '../account/account.js';
@@ -9,7 +9,6 @@ import * as P from '../account/progress.js';
 import * as Sh from '../account/shop.js';
 import { banner } from './hud.js';
 let hooks = { onChange() {}, cheer() {}, preview() {} }, pv = null, pend = null;
-const setH = (el, h) => { if (el._h !== h) { el._h = h; el.innerHTML = h; } };
 export function initAdv(h) { hooks = { ...hooks, ...h }; $('advConfirm').addEventListener('click', e => { if (e.target.id === 'advConfirm') closeConfirm(); }); }
 export const resetPreview = () => { pv = null; };
 export function renderAdv() {

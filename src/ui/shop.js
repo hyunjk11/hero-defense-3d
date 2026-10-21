@@ -2,7 +2,7 @@
 // 상점: 구매 신청(결제 연동 없음) → 관리자 승인 → 우편 발송 → 우편함 '받기'로 지급. 게스트는 구매 불가. 서버 테이블이 없으면 '서버 준비 중'.
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
-import { $ } from '../core/util.js';
+import { $, esc } from '../core/util.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
@@ -10,7 +10,6 @@ import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import { SHOP, PAY_INFO } from '../config/shop.js';
 
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtD = s => { const d = new Date(s); return isNaN(d) ? '' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const ST_N = { pending: '승인 대기', approved: '승인됨', rejected: '거절됨' };
 // 상품별 표시 정보 (상점 카드 · 미리보기 동작 · 색)

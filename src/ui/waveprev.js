@@ -1,12 +1,11 @@
 // 다음 웨이브 미리보기 (건설 단계에만): 몬스터 아이콘 + 이름 + 짧은 특성 + 예상 비율. 계산은 core/roster.js previewWave (게임 난수를 쓰지 않음)
 // 자리: 오른쪽 '영웅 강화' 패널 아래 ~ 카메라 버튼 위. 공간이 좁으면(태블릿 가로 1024×600 등) 줄 수를 줄이고, 더 좁으면 아이콘 한 줄(compact), 그래도 안 되면 숨김
-import { $ } from '../core/util.js';
+import { $, esc } from '../core/util.js';
 import { G } from '../core/state.js';
 import { STAGE } from '../core/grid.js';
 import { ETYPES } from '../data/monsters.js';
 import { previewWave, monIcon, monTrait } from '../core/roster.js';
 // NEW 표시 = 이번 레벨에 처음 열리는 종류 또는 아직 소개(waves.js markSeen: 설명이 있는 종류만 기록)되지 않은 종류
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function seen() { try { const a = JSON.parse(localStorage.getItem('hd3d_seenMon') || '[]'); return new Set(Array.isArray(a) ? a : []); } catch (e) { return new Set(); } }
 let lastKey = '';
 export function refreshWavePrev() {
