@@ -97,7 +97,11 @@ HIT = """()=>{ const b=document.getElementById('retreat'); b.scrollIntoView({blo
   return document.elementsFromPoint(x,y).slice(0,4).map(n=>n.tagName+'#'+n.id+'.'+String(n.className).slice(0,40)); }"""
 def click_retreat(pg):
     # 타워 ★★★ 진화 팝업(#branchPop, 전체 화면 모달 · 게임은 계속)이 떠 있으면 사용자처럼 '나중에'로 닫음 — 의도된 동작
-    J(pg, "()=>{ const p=document.getElementById('branchPop'); if (!p.classList.contains('hidden')) document.getElementById('bpLater').click(); }"); pg.wait_for_timeout(300)
+    # 여러 타워가 동시에 ★★★ 이 되면 팝업이 줄지어(queue, 250ms 간격) 다시 뜨므로 안 뜰 때까지 반복
+    for _ in range(12):
+        if not J(pg, "()=>{ const p=document.getElementById('branchPop'); if (p.classList.contains('hidden')) return false; document.getElementById('bpLater').click(); return true; }"): break
+        pg.wait_for_timeout(1200)
+    pg.wait_for_timeout(300)
     try: pg.click('#retreat', timeout=8000)
     except Exception as e:
         note('BUG?', 'retreat not clickable; at point: ' + json.dumps(J(pg, HIT), ensure_ascii=False) + ' ' + str(e).split('\n')[-1][:200])
