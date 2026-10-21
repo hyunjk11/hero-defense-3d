@@ -14,7 +14,6 @@ const TC = { arrow: '#5a9aff', cannon: '#ff9a4a', magic: '#c07aff' };
 const setH = (el, h) => { if (el._h !== h) { el._h = h; el.innerHTML = h; } };
 const MATN = { steel: '⚙ 강철', crystal: '💎 마력석' };
 export function initLab(h) { hooks = { ...hooks, ...h }; $('labClose').onclick = () => closeLab(); addEventListener('keydown', e => { if (e.key === 'Escape' && open) closeLab(); }); }
-export const labOpen = () => open;
 export function openLab() { if (G.screen !== 'town') return; if (!open) { Snd.play('confirm'); Snd.play('magic', { vol: .4 }); } open = true; $('labPanel').classList.remove('hidden'); renderLab(); }
 export function closeLab(silent) { if (open && !silent) Snd.play('ui'); open = false; $('labPanel').classList.add('hidden'); }
 function build() {

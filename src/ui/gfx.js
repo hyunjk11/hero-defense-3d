@@ -7,4 +7,3 @@ function sync() {
 }
 document.querySelectorAll('.gfxSeg button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); Q.set(b.dataset.gfx); sync(); }));
 Q.onChange(sync); sync();
-export { sync as syncGfx };

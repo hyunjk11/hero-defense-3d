@@ -78,7 +78,6 @@ export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; 
 export function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------
-export const smithOpen = () => ui.smith;
 export function openSmith() { closeLab(true); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
 export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; $('smithPanel').classList.add('hidden'); hideTip(); }
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');

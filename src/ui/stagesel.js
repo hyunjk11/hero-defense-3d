@@ -5,13 +5,12 @@ import * as Acc from '../account/account.js';
 import * as ST from '../data/stages.js';
 import * as P from '../account/progress.js';
 import * as E from '../account/equip.js';
-import { UQ, CHAL_UQ, CHSET } from '../data/items.js';
+import { UQ, CHAL_UQ } from '../data/items.js';
 import { GRADES } from '../account/equip.js';
 import { card, showTip, hideTip, sampleItem, weaponIcon, iconKey, icon } from './gear.js';
 
 const ICONS = { forest: ['🌲', '🍄', '🍃', '🌳'], snow: ['❄️', '⛄', '🌨️', '❄️'], volcano: ['🌋', '🔥', '🪨', '🔥'], ruins: ['🏛️', '🗿', '🕸️', '🏺'] };
 let ui = { open: false, ch: 1, sel: null }, hooks = { challenge: () => {}, start: () => {} };
-export const stageOpen = () => ui.open;
 export function initStageSel(h) { hooks = { ...hooks, ...h }; $('stClose').onclick = () => closeStageSel(); addEventListener('keydown', e => { if (e.key === 'Escape' && ui.open) closeStageSel(); }); }
 function current(s) { for (const ch of ST.CHAPTERS) for (const st of ch.stages) if (ST.stageUnlocked(s, st.id) && !ST.stars(s, st.id)) return st.id; return null; }
 export function openStageSel() {
