@@ -2,7 +2,7 @@
 """2026-10-21 새 스테이지(2~4장 x-5·x-6, 보스 앞) 브라우저 테스트.  python3 tests/stages6.py
  - 저장 호환: 4스테이지 시절 저장(2·3·4장 보스 id x-4 클리어) → 보스·다음 장 열림 유지, 새 스테이지 x-5 = 현재(cur), x-6 잠김
  - 원정 지도: 장마다 6개 노드, 1440×860 / 1024×600 에서 지도 안·서로 겹치지 않음, 화면 번호(no) 표시. 스크린샷 shots/stages/ch<N>_<W>x<H>.png
- - 새 스테이지 2-5·3-5·4-6 출정: 지형(용암/성벽)·포털마다 경로·웨이브 미리보기·실제 전투 몇 초·최종 웨이브 클리어 → 별 저장(id), 클리어 화면 표시 번호, 콘솔 오류 없음"""
+ - 새 스테이지 6개 전부(2-5·2-6·3-5·3-6·4-5·4-6, 해금 순서) 출정: 지형(용암/성벽)·포털마다 경로·웨이브 미리보기·실제 전투 몇 초·최종 웨이브 클리어 → 별 저장(id), 클리어 화면 표시 번호, 콘솔 오류 없음"""
 import sys, os, pathlib
 sys.path.insert(0, os.path.dirname(__file__))
 from regress import serve, ARGS, HELP
@@ -39,9 +39,10 @@ with sync_playwright() as pw:
             J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(700); pg.screenshot(path=f'{OUT}/ch{ch}_{tag}.png'); J(pg, "()=>G.pauseRender=false")
         if vw == 1440:
             pg.click('.chtab[data-c="2"]'); pg.click('.snode[data-id="2-4"]'); t = pg.inner_text('#stInfo'); ok('boss_info_label', '2-6 · 빙결의 군주' in t and '챕터 보스' in t, t[:60])
-            # 새 스테이지 출정: 2-5 (설원) · 3-5 (용암) · 4-6 (성벽)
-            for sid, kind in [('2-5', 'ice'), ('3-5', 'lava'), ('4-6', 'wall')]:
-                if sid == '4-6': J(pg, "()=>G.gear.Acc.update(d=>{ d.st['4-5']=1; return d; })")
+            # 새 스테이지 6개 출정 (해금 순서: 앞 스테이지 클리어 → 다음 열림): 2장 설원 · 3장 용암 · 4장 성벽
+            for sid, kind in [('2-5', 'ice'), ('2-6', 'ice'), ('3-5', 'lava'), ('3-6', 'lava'), ('4-5', 'wall'), ('4-6', 'wall')]:
+                sv0 = J(pg, "()=>G.gear.Acc.load().st"); prev = sid[0] + ('-3' if sid.endswith('-5') else '-5')  # 순서상 앞 스테이지
+                ok(f'{sid}_unlock_chain', sv0.get(prev, 0) >= 1 and sv0.get(sid, 0) == 0, (prev, sv0.get(prev), sv0.get(sid)))
                 pg.goto(url + f'?seed=12345&flow=1&stage={sid}&run=1'); pg.wait_for_function("()=>window.G&&G.ready&&G.stage&&G.phase==='build'", timeout=120000); pg.wait_for_timeout(500); pg.evaluate(HELP)
                 st = J(pg, "()=>{ let lava=0, wall=0; for (let c=0;c<G.GW;c++) for (let r=0;r<G.GH;r++) { const t=G.tileAt(c,r); if (t.lava) lava++; if (t.wall) wall++; } const W=document.getElementById('wavePrev');"
                           " return { id:G.stage.id, no:G.stage.no, lava, wall, sp:G.SPAWNS.length, routes:(G.routes||[]).map(r=>r.length), prev: !!W && !W.closest('.hidden') && W.getClientRects().length>0 && W.querySelectorAll('.wpRow,.wpI').length>0, core:G.CORE.join(',') }; }")
@@ -51,6 +52,7 @@ with sync_playwright() as pw:
                 # 실제 전투 몇 초 (실시간 렌더) → 몬스터가 포털에서 나와 움직임
                 J(pg, "()=>{ G.startWave(); }"); pg.wait_for_timeout(4000)
                 mv = J(pg, "()=>{ G.manual=true; G.sim(6); return [G.phase, G.enemies.filter(e=>!e.dead).length + G.spawnQ.length, G.core ? G.coreHp : 0]; }"); ok(f'{sid}_wave_runs', mv[0] == 'wave' and mv[1] > 0, mv)
+                pg.wait_for_timeout(1500); pg.screenshot(path=f'{OUT}/play_{sid}.png')
                 J(pg, f"()=>{{ G.manual=true; G.wave={S['waves']}-1; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9,'#fff',false); G.spawnQ=[]; G.sim(1); }}")
                 for _ in range(40):
                     ph = J(pg, "()=>{ if (G.phase==='build') G.startWave(); G.spawnQ.length=0; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9,'#fff',false); G.sim(1); return G.phase; }")
