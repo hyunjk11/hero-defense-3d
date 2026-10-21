@@ -26,12 +26,12 @@ import * as THREE from 'three';
 // (분열 새끼는 e.max / e.E.hp = G.hpMul 로 태어나므로 정예·보스 추가 체력은 물려받지 않음)
 const HARD_E = new Map(), DMG_KEYS = ['tower', 'hero', 'dps', 'bar', 'block'];
 function scaleAb(ab, boss) { if (!ab) return ab; const o = {}; for (const [k, v] of Object.entries(ab)) { if (!v || typeof v !== 'object') { o[k] = v; continue; } const c = { ...v };
-  for (const d of DMG_KEYS) if (typeof c[d] === 'number' && k !== 'shield') c[d] = c[d] * HARD.dmg; if (boss && typeof c.every === 'number') { c.every *= HARD.bossCd; if (typeof c.first === 'number') c.first *= HARD.bossCd; } o[k] = c; } return o; }
+  for (const d of DMG_KEYS) if (typeof c[d] === 'number' && k !== 'shield') c[d] = c[d] * (d === 'tower' ? HARD.towerDmg : HARD.dmg); if (boss && typeof c.every === 'number') { c.every *= HARD.bossCd; if (typeof c.first === 'number') c.first *= HARD.bossCd; } o[k] = c; } return o; }
 export function hardE(type, elite) { const key = type + (elite ? '*' : ''); let H = HARD_E.get(key); if (H) return H; const E = ETYPES[type];
-  H = { ...E, dps: E.dps * HARD.dmg, spd: E.spd * HARD.spd, hard: true };
-  if (E.sprint) H.sprint = E.sprint * HARD.spd; if (E.towerDps) H.towerDps = E.towerDps * HARD.dmg; if (E.bomb) H.bomb = { ...E.bomb, tower: E.bomb.tower * HARD.dmg, bar: E.bomb.bar * HARD.dmg, hero: E.bomb.hero * HARD.dmg };
-  if (E.ab) H.ab = scaleAb(E.ab, !!E.boss); if (E.boss) H.hp = E.hp * HARD.bossHp;
-  if (elite) Object.assign(H, { elite: true, hp: E.hp * HARD.eliteHp, h: E.h * HARD.eliteScale, gold: E.gold * HARD.eliteGold, core: E.core + HARD.eliteCore, n: '정예 ' + E.n });
+  H = { ...E, dps: E.dps * HARD.dmg, spd: E.spd * HARD.spd, gold: Math.round(E.gold * HARD.killGold), hard: true }; const chBoss = !!E.boss && type !== 'boss'; // 챕터 보스만 추가 체력·빠른 스킬 (5·10웨이브 해골 군주는 기본 하드 배수만)
+  if (E.sprint) H.sprint = E.sprint * HARD.spd; if (E.towerDps) H.towerDps = E.towerDps * HARD.towerDmg; if (E.bomb) H.bomb = { ...E.bomb, tower: E.bomb.tower * HARD.towerDmg, bar: E.bomb.bar * HARD.dmg, hero: E.bomb.hero * HARD.dmg };
+  if (E.ab) H.ab = scaleAb(E.ab, chBoss); if (chBoss) H.hp = E.hp * HARD.bossHp;
+  if (elite) Object.assign(H, { elite: true, hp: E.hp * HARD.eliteHp, h: E.h * HARD.eliteScale, gold: Math.round(E.gold * HARD.killGold * HARD.eliteGold), core: E.core + HARD.eliteCore, n: '정예 ' + E.n });
   HARD_E.set(key, H); return H; }
 let _eRingG = null, _eRingM = null, _eAuraM = null;
 function eliteMark(e) { _eRingG ||= shareGeo(new THREE.RingGeometry(.66, 1, 40)); _eRingM ||= new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: .9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });

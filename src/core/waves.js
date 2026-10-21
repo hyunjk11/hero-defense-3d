@@ -9,7 +9,7 @@ import { banner, setPhaseUI, showNote } from '../ui/hud.js';
 import { select } from '../ui/input.js';
 import { STAGE } from './grid.js';
 import { stageWave, endlessMix, endlessBoss, newTypes, applyElites } from './roster.js';
-import { HARD } from '../data/stages.js';
+import { HARD, hardHp } from '../data/stages.js';
 // 처음 보는 몬스터 (신규 몬스터 알림). 브라우저에 저장해 한 번만 소개
 const SEEN_KEY = 'hd3d_seenMon';
 function seenSet() { if (!G.seenMon) { let a = []; try { a = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch (e) {} G.seenMon = new Set(Array.isArray(a) ? a : []); } return G.seenMon; }
@@ -33,7 +33,7 @@ function startWave() {
   if (boss && !(STAGE && STAGE.boss && n === STAGE.waves)) q.splice(Math.floor(count / 2), 0, G.classic || STAGE ? 'boss' : endlessBoss(n)); // 챕터 보스 스테이지 최종 웨이브: 챕터 보스만 (해골 군주 중복 X)
   if (!G.classic) { const nt = newTypes(q, seenSet()).filter(t => !intro.includes(t) && ETYPES[t].desc); intro = intro.concat(nt); markSeen(intro); }
   const hard = !!(STAGE && G.hard && !G.classic); G.spawnE = hard ? applyElites(STAGE, n, q) : null; // 하드: 정예 (q 일부 교체, 같은 길이 표시 배열)
-  G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul * (STAGE ? STAGE.hp : 1) * (hard ? HARD.hp : 1); const ne = G.spawnE ? G.spawnE.filter(Boolean).length : 0; Snd.horn(); Snd.duck(.4, 2.2); banner((hard ? '🔥 하드 · ' : '') + (STAGE && n === STAGE.waves ? `최종 웨이브 ${n}/${STAGE.waves} · ${STAGE.boss ? '챕터 보스 출현!' : '보스 웨이브!'}` : STAGE ? `웨이브 ${n}/${STAGE.waves}${boss ? ' · 보스 웨이브!' : ''}` : boss ? `웨이브 ${n} · 보스 웨이브!` : intro.length ? `웨이브 ${n} · 신규: ${intro.map(t => ETYPES[t].n).join(', ')}` : `웨이브 ${n}`) + (ne ? ` · 정예 ${ne}` : ''), boss || hard ? '#ff5a6a' : intro.length ? '#ffd27a' : '#ffffff', intro.length ? 2400 : undefined);
+  G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul * (STAGE ? STAGE.hp : 1) * (hard ? hardHp(n, STAGE.ch) : 1); const ne = G.spawnE ? G.spawnE.filter(Boolean).length : 0; Snd.horn(); Snd.duck(.4, 2.2); banner((hard ? '🔥 하드 · ' : '') + (STAGE && n === STAGE.waves ? `최종 웨이브 ${n}/${STAGE.waves} · ${STAGE.boss ? '챕터 보스 출현!' : '보스 웨이브!'}` : STAGE ? `웨이브 ${n}/${STAGE.waves}${boss ? ' · 보스 웨이브!' : ''}` : boss ? `웨이브 ${n} · 보스 웨이브!` : intro.length ? `웨이브 ${n} · 신규: ${intro.map(t => ETYPES[t].n).join(', ')}` : `웨이브 ${n}`) + (ne ? ` · 정예 ${ne}` : ''), boss || hard ? '#ff5a6a' : intro.length ? '#ffd27a' : '#ffffff', intro.length ? 2400 : undefined);
   if (intro.length) showNote(intro.slice(0, 4).map(t => ({ name: ETYPES[t].n, desc: ETYPES[t].desc, type: t, icon: ETYPES[t].icon })), 6500 + 900 * Math.min(4, intro.length)); setPhaseUI();
 }
 // 신규 몬스터 섞기 (classic 모드에서는 호출하지 않음 → 기존 난수열/밸런스 그대로).

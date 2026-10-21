@@ -69,7 +69,9 @@ export const STAR_STEP = 5; // 별 5개마다 별 보상 상자
 export const stageReward = (id, first) => { const S = STAGES[id]; const base = 40 + S.idx * 15 + (S.ch - 1) * 60 + (S.boss ? 60 : 0); return first ? base : Math.round(base / 2); };
 // ---------- 하드 모드 (2026-10-21, docs/HARD_2026-10-21.md) ----------  저장: save.hst = { id: 별 } (노말 st 와 따로, 같은 id)
 // 해금: 그 챕터의 노말 보스를 깨면 그 챕터 하드 1번 스테이지가 열림 → 하드 안에서는 노말처럼 순서대로 (이미 깬 하드 스테이지는 항상 열림)
-export const HARD = { hp: 2.2, dmg: 1.5, spd: 1.1, bossHp: 1.3, bossCd: .8, eliteFrom: 3, eliteMax: 4, eliteHp: 2.5, eliteScale: 1.25, eliteGold: 3, eliteCore: 1, waveGold: 1.3, souls: 2, tierUp: 2, uqDrop: 3, pityStep: 2, eliteSouls: 2, eliteSoulsMax: 120 };
+export const HARD = { hp: 2.2, hpCh: { 1: 2.2, 2: 2.05, 3: 1.9, 4: 1.75 }, hpRamp: [.73, .82, .91], dmg: 1.5, towerDmg: 1.25, spd: 1.1, bossHp: 1.3, bossCd: .8, eliteFrom: 3, eliteMax: 4, eliteHp: 2.5, eliteScale: 1.25, eliteGold: 3, eliteCore: 1, waveGold: 1.3, killGold: 1.25, startGold: 120, souls: 2, tierUp: 2, uqDrop: 3, pityStep: 2, eliteSouls: 2, eliteSoulsMax: 120 };
+// 하드 체력 배수 (스테이지 체력 위에 곱함): 챕터별 HARD.hpCh (뒤 챕터는 스테이지 체력이 이미 높아 조금 낮춤), 1~3웨이브는 hpRamp 로 낮게 시작(시작 골드로 타워가 적을 때)
+export const hardHp = (n, ch = 1) => (HARD.hpCh[ch] ?? HARD.hp) * (HARD.hpRamp[n - 1] ?? 1);
 export const hstars = (save, id) => (save.hst || {})[id] || 0;
 export const hardTotalStars = save => Object.values(save.hst || {}).reduce((a, b) => a + b, 0);
 export const hardChapterStars = (save, ch) => CHAPTERS.find(c => c.id === ch).stages.reduce((a, s) => a + hstars(save, s.id), 0);

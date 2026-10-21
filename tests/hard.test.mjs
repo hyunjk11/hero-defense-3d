@@ -9,6 +9,8 @@ let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const H = ST.HARD, ids = ch => ST.CHAPTERS.find(c => c.id === ch).stages.map(s => s.id), boss = ch => ids(ch).at(-1);
 // ---- 수치 (문서와 같음) ----
 assert.equal(H.hp, 2.2); assert.equal(H.dmg, 1.5); assert.equal(H.spd, 1.1); assert.equal(H.souls, 2); assert.ok(H.bossHp > 1 && H.bossCd < 1); assert.ok(H.eliteHp > 1 && H.eliteGold > 1);
+const near = (a, b) => Math.abs(a - b) < 1e-9; assert.ok(near(ST.hardHp(1, 1), 2.2 * .73)); assert.ok(near(ST.hardHp(3, 1), 2.2 * .91)); assert.equal(ST.hardHp(4, 1), 2.2); assert.equal(ST.hardHp(15, 1), H.hp); assert.equal(ST.hardHp(9, 4), H.hpCh[4]);
+for (let c = 1; c < 4; c++) assert.ok(H.hpCh[c] >= H.hpCh[c + 1] && ST.STAGES[c === 1 ? '1-6' : c + '-4'].hp * H.hpCh[c] < ST.STAGES[(c + 1) + '-4'].hp * H.hpCh[c + 1] * 1.5); assert.ok(H.towerDmg <= H.dmg && H.startGold > 0 && H.killGold >= 1);
 // ---- 해금 ----
 let s = P.empty();
 for (const C of ST.CHAPTERS) { assert.ok(!ST.hardChapterUnlocked(s, C.id)); for (const id of ids(C.id)) assert.ok(!ST.hardUnlocked(s, id)); }

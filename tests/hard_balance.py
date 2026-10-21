@@ -13,7 +13,7 @@ PERM = int(sys.argv[sys.argv.index('--perm') + 1]) if '--perm' in sys.argv else 
 ADV = '--adv' in sys.argv
 TEAM = sys.argv[sys.argv.index('--team') + 1] if '--team' in sys.argv else 'max'  # none | mid | max : 연구소·장비·타워 성장
 BOT = r"""async ({ hard, perm, adv, team }) => {
-  G.stage = G.STAGE_CFG; G.onStageClear = () => { G.phase = 'over'; }; G.perm = { hp: perm, atk: perm }; G.hard = hard; G.grow = team !== 'none';
+  G.stage = G.STAGE_CFG; G.onStageClear = () => { G.phase = 'over'; }; G.perm = { hp: perm, atk: perm }; G.hard = hard; if (hard) G.gold += G.stageSel.ST.HARD.startGold; G.grow = team !== 'none';
   const lv = team === 'max' ? { atk: 10, rng: 5, spd: 8, start: 4 } : team === 'mid' ? { atk: 5, rng: 2, spd: 4, start: 2 } : { atk: 0, rng: 0, spd: 0, start: 0 };
   G.research = { arrow: { ...lv }, cannon: { ...lv }, magic: { ...lv } }; G.equip = team === 'max' ? { atk: 60, hp: 40, spd: 20, skill: 30 } : team === 'mid' ? { atk: 30, hp: 20, spd: 10 } : {};
   G.choose('mage');

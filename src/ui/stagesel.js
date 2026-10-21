@@ -46,7 +46,7 @@ function render() {
     if (want === ui.hard) return; ui.hard = want; Snd.play(want ? 'magic' : 'select'); const c2 = C.stages.find(x => (want ? ST.hardUnlocked(s, x.id) && !ST.hstars(s, x.id) : ST.stageUnlocked(s, x.id) && !ST.stars(s, x.id))); if (c2) ui.sel = c2.id; render(); });
   const S = ST.STAGES[ui.sel] || C.stages[0], u = isU(S.id), k = starOf(S.id), HD = ST.HARD, r2 = v => Math.round(v * 100) / 100;
   info.innerHTML = `<div class="sn">${H ? '<span class="hardTag">하드</span> ' : ''}${S.no} · ${S.n}${S.boss ? ' <span class="bossT">챕터 보스</span>' : ''}</div>
-    <div class="sd">${H ? `웨이브 ${S.waves} · 체력 ×${r2(S.hp * HD.hp)}${S.boss ? ` (보스 ×${r2(S.hp * HD.hp * HD.bossHp)})` : ''} · 피해 ×${HD.dmg} · 속도 +${Math.round((HD.spd - 1) * 100)}% · 정예 ${HD.eliteFrom}웨이브~` : `웨이브 ${S.waves} · 몬스터 포털 ${S.spawns.length}개 · 몬스터 체력 ×${S.hp}`}</div>
+    <div class="sd">${H ? `웨이브 ${S.waves} · 체력 ×${r2(S.hp * ST.hardHp(9, S.ch))}${S.boss ? ` (보스 ×${r2(S.hp * ST.hardHp(9, S.ch) * HD.bossHp)})` : ''} · 피해 ×${HD.dmg} · 속도 +${Math.round((HD.spd - 1) * 100)}% · 정예 ${HD.eliteFrom}웨이브~` : `웨이브 ${S.waves} · 몬스터 포털 ${S.spawns.length}개 · 몬스터 체력 ×${S.hp}`}</div>
     <div class="prop" style="--cc:${C.color}"><b>${C.propN}</b> ${C.propD}</div>
     <div class="conds">${ST.STAR_D.map((d, i) => `<div class="${i < k ? 'got' : ''}">${i < k ? '★' : '☆'} ${d}</div>`).join('')}</div>
     ${H ? `<div class="rw hardRw">보상: 영혼석 <b>${ST.stageRewardH(S.id, !k, true)}</b> (×${HD.souls})${k ? ' (재도전) + 장비 50%' : ' + 장비 1개'} <span style="color:${C.color}">(등급 +${HD.tierUp})</span> · 정예 처치 +${HD.eliteSouls}</div>`
