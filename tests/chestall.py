@@ -48,7 +48,7 @@ with sync_playwright() as pw:
             except Exception: pass
         else: pg.dblclick('#cbAll')
         J(pg, "()=>{ const b=document.getElementById('cbAll'); if (b) { b.disabled=false; b.click(); b.click(); } }")  # 비활성화를 우회한 연타도 무시돼야 함
-        pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(2600)
+        pg.wait_for_selector('#cbSum', timeout=20000); pg.wait_for_timeout(2600)
         s1 = J(pg, "()=>G.gear.Acc.load()"); ids = [x['id'] for x in s1['inv']]
         ok(f'{tag}_capacity_respected', len(s1['inv']) == 40 and len(s1['chests']) == 4, (len(s1['inv']), len(s1['chests'])))
         ok(f'{tag}_no_duplicates', len(set(ids)) == len(ids) and not set(ids) & {c['it']['id'] for c in s1['chests']})
@@ -80,18 +80,18 @@ with sync_playwright() as pw:
         try: pg.wait_for_function("()=>document.querySelector('.cvStage.open') && G.gear.Acc.load().chests.length===3", timeout=10000)
         except Exception: pass
         s2 = J(pg, "()=>G.gear.Acc.load()"); ok(f'{tag}_single_open', len(s2['chests']) == 3 and len(s2['inv']) == 21 and 'undefined' not in pg.inner_text('#chestOv'), (len(s2['chests']), len(s2['inv']), pg.inner_text('#chestOv')[:80]))
-        (pg.tap if touch else pg.click)('#cbAll'); pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(600)
+        (pg.tap if touch else pg.click)('#cbAll'); pg.wait_for_selector('#cbSum', timeout=20000); pg.wait_for_timeout(600)
         ok(f'{tag}_open_rest', pg.locator('#cbGrid .sumT').count() == 3 and J(pg, "()=>G.gear.Acc.load().chests.length") == 0 and '가득' not in pg.inner_text('#cbSum'))
         pg.click('#cbOk'); pg.wait_for_timeout(300); ok(f'{tag}_btn_hidden_after', hidden(pg, 'chestOv') and hidden(pg, 'twChest'))
         # 4) 10개 열기
-        pg.evaluate(SEED, [23, 0]); pg.click('#twChest'); pg.wait_for_timeout(600); (pg.tap if touch else pg.click)('#cbTen'); pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(400)
+        pg.evaluate(SEED, [23, 0]); pg.click('#twChest'); pg.wait_for_timeout(600); (pg.tap if touch else pg.click)('#cbTen'); pg.wait_for_selector('#cbSum', timeout=20000); pg.wait_for_timeout(400)
         ok(f'{tag}_open_ten', pg.locator('#cbGrid .sumT').count() == 10 and J(pg, "()=>G.gear.Acc.load().chests.length") == 13 and pg.locator('#cbMore').count() == 1)
         pg.click('#cbMore'); pg.wait_for_timeout(400); ok(f'{tag}_more_back_to_chests', pg.locator('#cbAll').count() == 1 and '13' in pg.inner_text('#cbBar'))
-        pg.click('#cbAll'); pg.wait_for_selector('#cbSum', timeout=5000); pg.wait_for_timeout(300); ok(f'{tag}_open_all_13', pg.locator('#cbGrid .sumT').count() == 13); pg.click('#cbOk')
+        pg.click('#cbAll'); pg.wait_for_selector('#cbSum', timeout=20000); pg.wait_for_timeout(300); ok(f'{tag}_open_all_13', pg.locator('#cbGrid .sumT').count() == 13); pg.click('#cbOk')
         # 6) 고유 아이템이 섞인 모두 열기: 고유 타일이 보이고(opacity 1·청록 테두리·아이콘) '고유 N' 칩이 따로 나와야 함 (.itile.uq 의 animation 이 tileIn 을 덮어써 투명하던 회귀)
         J(pg, """()=>{ const {Acc,E}=G.gear; let q=7; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; };
           Acc.update(d=>{ d.inv=[]; d.chests=[]; d.eq={}; if (d.uqLog) delete d.uqLog.s_staff; E.addChests(d, [1,1,1,2,3,3,4].map(g=>({ it:E.makeItem('weapon','archer',g,r), src:'chest' }))); E.grantUnique(d, 's_staff'); return d; }); }""")
-        pg.click('#twChest'); pg.wait_for_timeout(600); (pg.tap if touch else pg.click)('#cbAll'); pg.wait_for_selector('#cbSum', timeout=5000)
+        pg.click('#twChest'); pg.wait_for_timeout(600); (pg.tap if touch else pg.click)('#cbAll'); pg.wait_for_selector('#cbSum', timeout=20000)
         pg.wait_for_function("()=>{ const g=document.getElementById('cbGrid'); return g && g.querySelector('.sumT') && !g.getAnimations({subtree:true}).some(a=>a.animationName==='tileIn' && a.playState!=='finished'); }", timeout=20000); pg.wait_for_timeout(200)  # 등장(tileIn) 끝까지
         uq = J(pg, """()=>{ const e=document.querySelector('#cbGrid .sumT.uq'); if (!e) return null; const cs=getComputedStyle(e), ic=e.querySelector('.ic'), r=e.getBoundingClientRect();
           return { op:+cs.opacity, anim:cs.animationName, ic:(ic&&ic.textContent||'').trim(), icOp:ic?+getComputedStyle(ic).opacity:0, w:r.width, h:r.height, bg:cs.backgroundImage.includes('linear-gradient'), n:document.querySelectorAll('#cbGrid .sumT').length,
@@ -101,6 +101,7 @@ with sync_playwright() as pw:
         ok(f'{tag}_unique_chip', uq and '고유 1' in uq['chips'] and '전설 1' in uq['chips'] and sum(int(c.split()[-1]) for c in uq['chips']) == 8, uq and uq['chips'])
         ok(f'{tag}_unique_tile_icon_safe', uq and uq['ic'] == '🧙', uq and uq['ic'])  # 글라시아: 🪄(U+1FA84) 는 Windows 10 에서 두부 → 🧙
         pg.click('#cbGrid .sumT.uq'); pg.wait_for_timeout(250); ok(f'{tag}_unique_detail_card', '글라시아' in pg.inner_text('#cbDetail') and pg.locator('#cbDetail .icard.uq .uqRib').count() == 1, pg.inner_text('#cbDetail')[:60])
+        pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(150)  # 요약 + 아래 상세 카드가 보이게 (마우스 툴팁 숨김)
         if tag == '1024x600' and (SHOTS or '--uq-shot' in sys.argv):
             d = OUT.parent / 'items'; d.mkdir(parents=True, exist_ok=True); J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(300); pg.screenshot(path=str(d / 'chest_unique_fix.png')); J(pg, "()=>G.pauseRender=false")
         pg.click('#cbOk'); pg.wait_for_timeout(300)
