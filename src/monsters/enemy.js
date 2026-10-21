@@ -34,8 +34,8 @@ export function hardE(type, elite) { const key = type + (elite ? '*' : ''); let 
   if (elite) Object.assign(H, { elite: true, hp: E.hp * HARD.eliteHp, h: E.h * HARD.eliteScale, gold: E.gold * HARD.eliteGold, core: E.core + HARD.eliteCore, n: '정예 ' + E.n });
   HARD_E.set(key, H); return H; }
 let _eRingG = null, _eRingM = null, _eAuraM = null;
-function eliteMark(e) { _eRingG ||= shareGeo(new THREE.RingGeometry(.78, 1, 40)); _eRingM ||= new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: .75, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  _eAuraM ||= new THREE.MeshBasicMaterial({ color: 0xff5a1a, transparent: true, opacity: .16, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+function eliteMark(e) { _eRingG ||= shareGeo(new THREE.RingGeometry(.66, 1, 40)); _eRingM ||= new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: .9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  _eAuraM ||= new THREE.MeshBasicMaterial({ color: 0xff5a1a, transparent: true, opacity: .3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   const r = Math.max(.9, e.E.h * .42) / HARD.eliteScale, ring = new THREE.Mesh(_eRingG, _eRingM), aura = new THREE.Mesh(_eRingG, _eAuraM); ring.rotation.x = aura.rotation.x = -Math.PI / 2; ring.position.y = .1; aura.position.y = .14;
   ring.scale.setScalar(r); aura.scale.setScalar(r * 1.35); ring.userData.elite = aura.userData.elite = 1; e.g.add(ring, aura); e.eliteRing = ring;
   if (e.m.mats) for (const m of e.m.mats) if (m.emissive) { m.emissive.setHex(0x5a0a00); m.userData.e = m.emissive.clone(); } } // 붉은 기운 (피격 플래시 후에도 유지)

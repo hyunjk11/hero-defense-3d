@@ -105,7 +105,11 @@ with sync_playwright() as pw:
             shot(pg, f'{OUT}/clear_hard_1440x860.png')
             pg.click('#scTown'); pg.wait_for_function("()=>G.screen==='town'", timeout=120000); pg.wait_for_timeout(800)
             ok('back_town_url', 'hard' not in J(pg, "()=>location.search"), J(pg, "()=>location.search"))
-            pop = J(pg, "()=>document.getElementById('townPop').innerText"); ok('town_popup_hard', '하드' in pop and '1-1' in pop, pop[:80])
+            pg.wait_for_function("()=>!document.getElementById('chestOv').classList.contains('hidden') || !document.getElementById('townPop').classList.contains('hidden')", timeout=30000)
+            nch = J(pg, "()=>G.gear.Acc.load().chests.length")
+            if pg.locator('#cbLater').count(): pg.click('#cbLater'); pg.wait_for_timeout(400)  # 상자 보관함 (하드 보상 상자) → 나중에
+            pg.wait_for_function("()=>!document.getElementById('townPop').classList.contains('hidden')", timeout=30000)
+            pop = J(pg, "()=>document.getElementById('townPop').innerText"); ok('town_popup_hard', '하드' in pop and '1-1' in pop and nch >= 3, (pop[:80], nch))
             J(pg, "()=>{ document.getElementById('townPop').classList.add('hidden'); const o=document.getElementById('chestOv'); if (o) o.classList.add('hidden'); }")
             open_map(pg, 1)
             if not J(pg, "()=>document.getElementById('stMap').classList.contains('hard')"): pg.click('.modeTog .hardB'); pg.wait_for_timeout(200)
