@@ -47,7 +47,7 @@ with sync_playwright() as pw:
     ok('unknown_icon_fallback', J(pg, "async()=>{ const m=await import('./src/ui/gear.js'); return [m.icon({s:'weapon',h:'nope'}), m.icon({s:'weird'}), m.icon(null)].join('') }") == '⚔️📦📦')
     if SHOTS: os.makedirs('shots/shop', exist_ok=True); pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(300); pg.locator('#invPanel').screenshot(path='shots/shop/gun_gear.png')
     J(pg, "()=>{ G.gear.Acc.update(d=>{ d.hero='mage'; d.inv=d.inv.filter(x=>!['gun4','gun1','zzz1'].includes(x.id)); delete d.eq.gunner.weapon; return d; }); }")
-    # 메카닉(버들) 전설 건틀릿: SQL 모양 + 별칭 h('버들', 'robot') → 아이콘 🦾 · '메카닉 전용' · 고유 스킬 이름, undefined 없음
+    # 메카닉(버들) 전설 건틀릿: SQL 모양 + 별칭 h('버들', 'robot') → 아이콘 🛠️ · '메카닉 전용' · 고유 스킬 이름, undefined 없음
     J(pg, """()=>{ const {Acc}=G.gear; Acc.update(d=>{ d.hero='mechanic';
         d.inv.push({id:'mec4', s:'weapon', h:'mechanic', g:4, n:'버들의 개조암 그린기어', m:['atk',25], sub:[['hp',10],['spd',9]], e:0, u:'gigahammer'},
                    {id:'mec1', s:'weapon', h:'버들', g:1, n:'증기 해머 건틀릿', m:['atk',9], sub:[['crit',4]], e:0},
@@ -57,8 +57,8 @@ with sync_playwright() as pw:
     ml = J(pg, "()=>G.gear.Acc.load().inv.filter(x=>x.s==='weapon'&&x.h==='mechanic').map(x=>x.id).sort()")
     ok('mech_items_kept_and_alias', ml == ['mec1', 'mec2', 'mec4'], ml)
     pg.click('#invGrid .itile[data-id="mec4"]'); pg.wait_for_timeout(150)
-    txt = pg.inner_text('#invPanel'); ok('mech_no_undefined', 'undefined' not in txt and '🦾' in J(pg, "()=>document.querySelector('#invGrid .itile[data-id=\"mec4\"] .ic').textContent"), txt.count('undefined'))
-    ok('mech_detail', '🦾' in pg.inner_text('#invDetail .ic') and '기가 해머 낙하' in pg.inner_text('#invDetail'), pg.inner_text('#invDetail')[:200])
+    txt = pg.inner_text('#invPanel'); ok('mech_no_undefined', 'undefined' not in txt and '🛠️' in J(pg, "()=>document.querySelector('#invGrid .itile[data-id=\"mec4\"] .ic').textContent"), txt.count('undefined'))
+    ok('mech_detail', '🛠️' in pg.inner_text('#invDetail .ic') and '기가 해머 낙하' in pg.inner_text('#invDetail'), pg.inner_text('#invDetail')[:200])
     ok('mech_legend', J(pg, "()=>G.gear.E.legendOf(G.gear.Acc.load(),'mechanic')") == 'gigahammer')
     # 장비 id 는 세이브(사용자 쓰기 가능)에서 오므로 data-id 속성에 이스케이프해서 넣어야 함 (HTML 주입 방지)
     J(pg, """()=>{ G.gear.Acc.update(d=>{ d.inv.push({id:'\"><i id=pwn></i>', s:'armor', g:1, n:'<b id=pwn2>x</b>', m:['hp',5], sub:[], e:0}); return d; }); G.gear.refreshGear && G.gear.refreshGear(); }""")

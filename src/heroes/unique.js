@@ -69,14 +69,14 @@ export function uqPostHit(prev) {
     if (x.U.tr === 'onHit' && x.cd <= 0 && UR() < (G.uqForce ? 1 : A3(x) ? .35 : p.chance)) { x.cd = p.icd; count(x.k); ringFx(h, p.r, 0xff6a2a, .4); emit(PB, h.x, .6, h.z, 18, 0xff5a1a, 6, .5, -3, 1.2); Snd.play('boom', { pos: h, vol: .5, rate: 1.4 });
       for (const e of near(h.x, h.z, p.r)) hurt(e, stat.dmg() * p.mul * pow(x), '#ffb05a'); }
     if (x.U.tr === 'lowHp' && x.cd <= 0 && hero.hp > 0 && prev / hero.max > p.th && hero.hp / hero.max <= p.th) { x.cd = cdOf(x, A3(x) ? 30 : p.cd); count(x.k); hero.uqBarT = p.dur; hero.uqBarR = p.red; showBarrier(true);
-      banner('🐻‍❄️ 얼음 장벽!', '#bfefff', 1000); Snd.play('glass', { pos: h, force: true }); ringFx(h, p.r, 0xbfefff, .5);
+      banner('🐻 얼음 장벽!', '#bfefff', 1000); Snd.play('glass', { pos: h, force: true }); ringFx(h, p.r, 0xbfefff, .5);
       for (const e of near(h.x, h.z, p.r)) { e.stunT = Math.max(e.stunT || 0, e.E.boss ? .3 : p.frz * pow(x)); e.frozen = true; } }
   }
 }
 // 쓰러질 때: 불사조 부활 (판당 1회, ★3 2회) → true 면 사망 처리 생략
 export function uqOnDeath() {
   const x = has('onDeath').find(o => o.lives > 0); if (!x) return false; x.lives--; count(x.k); const p = x.U.p, h = hero.g.position;
-  hero.hp = Math.round(hero.max * p.hp); hero.flash = .2; banner('🪶 불사조 부활!', '#ffb05a', 1400); Snd.play('meteor', { pos: h, force: true, rate: 1.3 }); Snd.play('levelUp', { force: true });
+  hero.hp = Math.round(hero.max * p.hp); hero.flash = .2; banner('🦅 불사조 부활!', '#ffb05a', 1400); Snd.play('meteor', { pos: h, force: true, rate: 1.3 }); Snd.play('levelUp', { force: true });
   ringFx(h, p.r + 1, 0xff8a2a, .6); ringFx(h, p.r * .6, 0xffe0a0, .4); emit(PB, h.x, 1, h.z, 40, 0xff6a1a, 9, .9, -4, 2.5); emit(P, h.x, 1, h.z, 120, 0xffc04a, 12, 1, -10, 3); G.shake = Math.max(G.shake || 0, .6);
   for (const e of near(h.x, h.z, p.r)) hurt(e, stat.dmg() * p.mul * pow(x), '#ffb05a', true); return true;
 }

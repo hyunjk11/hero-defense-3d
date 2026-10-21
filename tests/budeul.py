@@ -78,7 +78,7 @@ with sync_playwright() as pw:
     login(pg, 'p@test.kr', up=False); town(pg); sstat(pg)
     ok('locked_before_claim', J(pg, "()=>document.querySelector('.hcard[data-h=mechanic]').classList.contains('locked')"))
     pg.click('#twMail'); pg.wait_for_function("()=>document.querySelectorAll('#mailList .mClaim').length===1", timeout=15000)
-    ok('mail_icon', '🦾' in pg.inner_text('#mailList') and '버들' in pg.inner_text('#mailList'))
+    ok('mail_icon', '🛠️' in pg.inner_text('#mailList') and '버들' in pg.inner_text('#mailList'))
     pg.click('#mailList .mClaim'); pg.wait_for_function("()=>document.getElementById('mailMsg').innerText.includes('해금')", timeout=15000)
     ok('unlocked', J(pg, f"()=>{SH}.heroOwned('mechanic') && !{SH}.heroOwned('gunner') && !document.querySelector('.hcard[data-h=mechanic]').classList.contains('locked')") and any(k.endswith(':hero_mechanic') for k in db(pg)['hd3d_owned']))
     r = J(pg, f"()=>{SH}.order('hero_mechanic')"); ok('owned_cannot_buy', not r['ok'] and '보유' in r['msg'], r)

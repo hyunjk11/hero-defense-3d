@@ -19,7 +19,7 @@ export const ADV = {
   warrior: {
     paladin: { n: '성기사', icon: '🛡️', c: '#ffe9a0', col: 0xffe9a0, d: '체력 ×1.25 · 방어 .40→.55 · 피격 시 10% 확률 주변 적 0.5초 기절(내부 쿨 2초)', mod: { hp: 1.25, armor: .55 }, atk: { stunCh: .1, stunT: .5, stunCd: 2, stunR: 3 },
       skill: 'sanct', sk: '성역', sd: '4초 성역(반경 3.5): 적 40% 둔화 + 0.5초마다 공격력 50% · 영웅 초당 3% 회복', tower: { bar: 1.15 }, td: '바리케이드 체력 +15%', ws: 1.1 },
-    berserk: { n: '광전사', icon: '🩸', c: '#ff5a5a', col: 0xff4a4a, d: '공격속도 ×1.3 · 피해 ×0.8 · 방어 .40→.25 · 피해의 4% 흡혈 · 체력 50% 이하 공격력 +20%', mod: { rate: 1.3, dmg: .8, armor: .25 }, atk: { leech: .04, lowHp: .5, lowAtk: 1.2 },
+    berserk: { n: '광전사', icon: '💢', c: '#ff5a5a', col: 0xff4a4a, d: '공격속도 ×1.3 · 피해 ×0.8 · 방어 .40→.25 · 피해의 4% 흡혈 · 체력 50% 이하 공격력 +20%', mod: { rate: 1.3, dmg: .8, armor: .25 }, atk: { leech: .04, lowHp: .5, lowAtk: 1.2 },
       skill: 'bloodspin', sk: '피의 회오리', sd: '지속 2.5→4초 · 회전 반경 +20% · 회전 중 이동 +30%', tower: { cannon: { dmg: 1.05 } }, td: '대포 타워 피해 +5%', ws: 1.2 },
   },
   gunner: {

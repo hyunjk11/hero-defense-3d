@@ -46,7 +46,7 @@ with sync_playwright() as pw:
             if sm.count(): sm.first.hover(); pg.wait_for_timeout(200); ok('drop_tip_sample', not hidden(pg, 'itemTip')); pg.mouse.move(5, 5); pg.wait_for_timeout(100)
         J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')")
         shot(pg, f'{OUT}/stage_preview_{tag}.png')
-        # 고유 칸 아이콘: 모든 칸에 보이는 아이콘(빈 글자·잘림·진행도 겹침 없음) — 2-3 서리 협곡(미보유 보스 고유 🪄 · 별 만점 · 1.5% 천장 진행도)
+        # 고유 칸 아이콘: 모든 칸에 보이는 아이콘(빈 글자·잘림·진행도 겹침 없음) — 2-3 서리 협곡(미보유 보스 고유 🧙 · 별 만점 · 1.5% 천장 진행도)
         pg.click('#stClose'); pg.wait_for_timeout(200)
         J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st['2-1']=3; d.st['2-2']=3; d.st['2-3']=1; d.uqPity={...(d.uqPity||{}), s_acc:6}; return d; }); G.stageSel.openStageSel(); }"); pg.wait_for_timeout(300)
         pg.click('.chtab[data-c="2"]'); pg.click('.snode[data-id="2-3"]'); pg.wait_for_timeout(300)
