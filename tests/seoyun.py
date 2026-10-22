@@ -173,13 +173,14 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.manual=true; G.pauseRender=true; }")
     ok('dg_party', J(pg, "()=>G.heroes.map(h=>h.cls)") == ['warrior', 'mage', 'fighter'] and J(pg, "()=>!!G.heroes[2].ft && !!G.heroes[2].ch.acts.JabLs"))
     J(pg, "()=>{ G.dgAiSkills=0; }"); f0 = J(pg, FTN); t = 0; shot_done = False
-    while t < 240 and not J(pg, "()=>!!G.dgResult"):
+    # 3단계부터 던전이 5층: 1층 돌파 = 축복 3택1 대기(D.blessing) — 결과 화면(dgResult)은 5층 완주/전멸 때만 뜸
+    while t < 240 and not J(pg, "()=>!!(G.dg.blessing || G.dgResult)"):
         J(pg, "()=>G.sim(2)"); t += 2
         if not shot_done and J(pg, "()=>G.enemies.filter(e=>!e.dead).length") >= 6:
             shot_done = True; J(pg, "()=>{ G.cam.target.copy(G.heroes[2].g.position); }"); pshot(pg, 'dungeon_run', True)
-    f1 = J(pg, FTN); R = J(pg, "()=>G.dgResult"); print('dungeon', R, f1, flush=True)
+    f1 = J(pg, FTN); R = J(pg, "()=>({res:G.dgResult, bless:G.dg.blessing, floor:G.dg.floor, cleared:G.dg.cleared, t:Math.round(G.dg.t)})"); print('dungeon', R, f1, flush=True)
     ok('dg_fighter_ai_fights', f1['jab'] + f1['kick'] - f0['jab'] - f0['kick'] >= 5, f1)
-    ok('dg_floor_clear', R and R['win'], R)
+    ok('dg_floor_clear', R['cleared'] >= 1 and (bool(R['bless']) or bool(R['res'] and R['res']['win'])), R)
     ok('dg_no_nan', J(pg, "()=>G.heroes.every(h=>Number.isFinite(h.g.position.x)&&Number.isFinite(h.hp))"))
     c.close()
     # ===== 5) 태블릿 1024x600: 마을 카드 · 상점 탭 · 전투 버튼 터치 ≥44px =====
