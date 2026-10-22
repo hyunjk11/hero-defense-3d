@@ -612,3 +612,16 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @media (pointer:coarse){#adminPanel select{min-height:44px}.nbX{min-height:44px;min-width:44px}}
 #acfReason{background:#120f22;color:#f0e6c8;border:1px solid #c9a24a88;border-radius:8px;padding:8px;font:inherit;font-size:14px;box-sizing:border-box;resize:vertical}
 .admBar label.amChk{flex-direction:row;align-items:center;gap:6px;white-space:nowrap}
+/* 관리자 보상 입력: 고유 정수(조각) · 아이템 검색 · 아이템 줄 · 미리보기 (2026-10-22) */
+.rwBox{display:flex;flex-direction:column;gap:6px;border:1px solid #5a4a2a;border-radius:8px;padding:8px;background:rgba(0,0,0,.18)}
+.rwBox .amRw{flex-wrap:wrap}.rwBox .amRw label{min-width:110px}
+.rwAdd{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rwAdd .rwQ{flex:1 1 100%}
+.rwPick select{min-width:0;max-width:190px;flex:0 1 auto;padding:4px 6px;font-size:13px}
+.rwRes{display:flex;flex-wrap:wrap;gap:4px;max-height:96px;overflow:auto}
+.rwHit{background:#2a2216;border:1px solid var(--gc,#888);color:#f0e6cc;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;text-align:left}.rwHit:hover{background:#3a3020}
+.rwLines{display:flex;flex-direction:column;gap:3px}.rwEmpty{font-size:12px;color:#a89878}
+.rwLine{display:flex;align-items:center;gap:6px;border-left:4px solid var(--gc,#888);background:rgba(255,255,255,.05);padding:3px 6px;border-radius:4px;font-size:13px}
+.rwLine .rwN{flex:1;color:var(--gc,#eee);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rwLine select{padding:2px 4px;font-size:12px}
+.rwPrev{font-size:12px;color:#d8c8a0;background:rgba(80,140,80,.12);border-radius:6px;padding:5px 8px}.rwPrev ul,.bcItems{margin:3px 0 0 16px;padding:0}.rwPrev .dim{color:#a89878}
+.bcItems{font-size:12px;text-align:left}
+.rwRes .dim{font-size:12px;color:#a89878}

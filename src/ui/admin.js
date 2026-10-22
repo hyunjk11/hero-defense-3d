@@ -3,12 +3,15 @@
 // 되돌릴 수 없는 일(환불·회수·정지·전체 우편·관리자 삭제)은 게임 안 확인 창(#admConfirm)을 거칩니다. 사유가 필요한 일은 사유 입력 필수.
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
-import { CLASSES, heroLabel } from '../data/heroes.js';
+import { CLASSES, heroLabel, VISIBLE_HEROES } from '../data/heroes.js';
 import * as AD from '../data/advance.js';
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import * as Adm from '../account/admin.js';
 import * as L from '../account/adminlogic.js';
+import * as RI from '../account/rewarditems.js';
+import { GRADES, SLOTS, SLOT_KEYS } from '../account/equip.js';
+import { CHSET, CH_KEYS, UQ } from '../data/items.js';
 import { SHOP } from '../config/shop.js';
 
 const fmtD = s => { const d = new Date(s); return !s || isNaN(d) ? '—' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -19,7 +22,7 @@ const heroName = h => (CLASSES[h] ? heroLabel(h) : h), advName = (h, b) => { con
 const rwText = rw => Sh.rewardText(rw);
 let isOpen = false, hooks = { closeOthers: () => {}, onChange: () => {} }, fresh = false;
 const st = { tab: 'orders', msg: null, ord: { status: '', q: '', off: 0, lim: 20, data: null, legacy: false }, usr: { q: '', off: 0, lim: 20, data: null, sel: null, detail: null },
-  ntc: { list: null, edit: null }, log: { action: '', off: 0, lim: 30, data: null }, adm: { list: null }, busy: false };
+  ntc: { list: null, edit: null }, log: { action: '', off: 0, lim: 30, data: null }, adm: { list: null }, busy: false, rw: { ud: [], am: [], bc: [] } };
 export const adminOpen = () => isOpen;
 const paintMsg = () => { const m = $('admMsg'), x = st.msg; if (m) m.innerHTML = x ? `<span class="${x.ok ? 'ok' : 'bad'}">${x.ok ? '✅' : '⚠'} ${esc(x.t)}</span>` : ''; };
 const msg = (t, ok = false) => { st.msg = t ? { t, ok } : null; paintMsg(); };
@@ -52,11 +55,34 @@ function confirmBox({ title, html, reason = false, yes = '확인', danger = true
 function setBody(h) { // 같은 id 입력칸 값은 다시 그려도 유지 (fresh = 의도적으로 새 값)
   const b = $('admBody'); if (b._h === h) return; const keep = {}; if (!fresh) b.querySelectorAll('input[id],textarea[id],select[id]').forEach(e => { keep[e.id] = e.type === 'checkbox' ? e.checked : e.value; });
   b._h = h; b.innerHTML = h; fresh = false; for (const [id, v] of Object.entries(keep)) { const e = b.querySelector('#' + id); if (e) { if (e.type === 'checkbox') e.checked = v; else e.value = v; } }
+  for (const px of ['ud', 'am', 'bc']) if ($(px + 'Prev')) { rwPaint(px); if ($(px + 'Q') && $(px + 'Q').value) rwSearch(px); const sl = $(px + 'Slot'); if (sl && $(px + 'H')) $(px + 'H').disabled = sl.value !== 'weapon'; }
 }
 const pager = (d, act) => { if (!d || d.total <= d.limit) return ''; const p = L.pageInfo(d.total, d.offset, d.limit);
   return `<div class="admPager"><button class="gbtn sm" data-act="${act}" data-off="${p.prev ?? ''}" ${p.prev == null ? 'disabled' : ''}>◀ 이전</button><span>${p.page} / ${p.pages} 쪽 · 전체 ${d.total}</span><button class="gbtn sm" data-act="${act}" data-off="${p.next ?? ''}" ${p.next == null ? 'disabled' : ''}>다음 ▶</button></div>`; };
-const rwForm = (px, hero = true) => `<div class="amRw"><label>영혼석<input id="${px}Souls" type="number" min="0" max="1000000" value="0"></label><label>강철<input id="${px}Steel" type="number" min="0" max="1000000" value="0"></label><label>마력석<input id="${px}Crystal" type="number" min="0" max="1000000" value="0"></label>${hero ? `<label>영웅 지급<select id="${px}Hero"><option value="">없음</option>${ITEMS.filter(Sh.onSale).map(k => `<option value="${heroOf(k)}">${esc(heroName(heroOf(k)))}</option>`).join('')}</select></label>` : ''}</div>`;
-const rwRead = px => L.buildReward({ souls: $(px + 'Souls').value, steel: $(px + 'Steel').value, crystal: $(px + 'Crystal').value, hero: $(px + 'Hero') ? $(px + 'Hero').value : '' });
+// ---------- 보상 입력 (재화 + 고유 정수(조각) + 아이템 줄 최대 10개 + 미리보기). px = ud(유저 상세) · am(우편 보내기) · bc(전체 우편) ----------
+// 아이템 줄은 st.rw[px] 에 보관 (다시 그려도 유지). 서버가 hd3d_valid_reward/hd3d_valid_item 으로 다시 검사
+const rwNum = (px, k, n, max) => `<label>${n}<input id="${px}${k}" type="number" min="0" max="${max}" value="0" data-rw="${px}"></label>`;
+const gOpts = g => GRADES.map((G, i) => `<option value="${i}" ${i === g ? 'selected' : ''}>${G.n}</option>`).join('');
+function rwLines(px) { const Ls = st.rw[px];
+  if (!Ls.length) return '<div class="rwEmpty">아이템 없음 — 위에서 검색하거나 장비/고유를 골라 추가하세요 (최대 10개)</div>';
+  return Ls.map((x, i) => `<div class="rwLine" style="--gc:${RI.gradeColor(x)}"><span class="rwIc">${RI.itemIcon(x)}</span><span class="rwN">${esc(RI.itemLabel(x))}</span>`
+    + (x.k === 'gear' ? `<select class="rwG" data-change="rwg" data-px="${px}" data-i="${i}" aria-label="등급">${gOpts(x.g)}</select>` : '')
+    + `<button class="gbtn sm" data-act="rwdel" data-px="${px}" data-i="${i}" aria-label="빼기">✕</button></div>`).join(''); }
+function rwPrev(px) { const rw = rwRead(px), P = RI.previewLines(rw); return P.length ? `<b>받을 보상 미리보기</b><ul>${P.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '<span class="dim">보상 없음 (메시지만 보냅니다)</span>'; }
+const rwForm = (px, hero = true) => `<div class="rwBox" id="${px}Rw"><div class="amRw">${rwNum(px, 'Souls', '영혼석', 1000000)}${rwNum(px, 'Steel', '강철', 1000000)}${rwNum(px, 'Crystal', '마력석', 1000000)}${rwNum(px, 'Ess', '고유 정수(조각)', RI.MAX_ESSENCE)}${hero ? `<label>영웅 지급<select id="${px}Hero" data-rw="${px}"><option value="">없음</option>${ITEMS.filter(Sh.onSale).map(k => `<option value="${heroOf(k)}">${esc(heroName(heroOf(k)))}</option>`).join('')}</select></label>` : ''}</div>
+  <div class="rwAdd"><label class="rwQ">아이템 검색<input id="${px}Q" maxlength="30" placeholder="이름으로 검색 (예: 세계수, 전설 방어구)" data-rwq="${px}" autocomplete="off"></label><div class="rwRes" id="${px}Res"></div></div>
+  <div class="rwAdd rwPick"><select id="${px}Slot" data-change="rwslot" data-px="${px}" aria-label="부위">${SLOT_KEYS.map(k => `<option value="${k}">${SLOTS[k]}</option>`).join('')}</select><select id="${px}H" aria-label="영웅">${VISIBLE_HEROES.map(h => `<option value="${h}">${esc(heroName(h))}</option>`).join('')}</select><select id="${px}G" aria-label="등급">${gOpts(4)}</select><select id="${px}C" aria-label="세트"><option value="">세트 없음</option>${CH_KEYS.map(c => `<option value="${c}">${CHSET[c].badge} ${CHSET[c].n} 세트</option>`).join('')}</select><button class="gbtn sm" data-act="rwgear" data-px="${px}">＋ 장비</button>
+    <select id="${px}U" aria-label="고유 아이템">${RI.UQ_KEYS.map(k => `<option value="${k}">◆ ${esc(UQ[k].n)}</option>`).join('')}</select><button class="gbtn sm" data-act="rwuq" data-px="${px}">＋ 고유</button></div>
+  <div class="rwLines" id="${px}Lines">${rwLines(px)}</div><div class="rwPrev" id="${px}Prev">${rwPrev(px)}</div></div>`;
+const rv = id => { const e = $(id); return e ? e.value : ''; };
+const rwRead = px => L.buildReward({ souls: rv(px + 'Souls'), steel: rv(px + 'Steel'), crystal: rv(px + 'Crystal'), essence: rv(px + 'Ess'), hero: rv(px + 'Hero'), items: st.rw[px] });
+const rwPaint = px => { const a = $(px + 'Lines'), b = $(px + 'Prev'); if (a) a.innerHTML = rwLines(px); if (b) b.innerHTML = rwPrev(px); };
+const rwReset = px => { st.rw[px] = []; };
+const rwAddLine = (px, spec) => { if (st.rw[px].length >= RI.MAX_ITEMS) { msg(`아이템은 우편 한 통에 최대 ${RI.MAX_ITEMS}개까지 넣을 수 있어요.`); Snd.play('error'); return; } if (!RI.validItem(spec)) return; st.rw[px].push({ ...spec }); Snd.play('ui'); rwPaint(px); };
+let rwHits = {};
+function rwSearch(px) { const q = $(px + 'Q').value, H = RI.searchCatalog(q, 8, CAT()); rwHits[px] = H; const el = $(px + 'Res'); if (!el) return;
+  el.innerHTML = !q.trim() ? '' : H.length ? H.map((e, i) => `<button class="rwHit" data-act="rwhit" data-px="${px}" data-i="${i}" style="--gc:${RI.gradeColor(e.spec)}">${RI.itemIcon(e.spec)} ${esc(e.label)}</button>`).join('') : '<span class="dim">검색 결과 없음</span>'; }
+let catC = null; const CAT = () => catC || (catC = RI.catalog());
 const badge = (t, c) => `<em class="aBadge ${c}">${t}</em>`;
 
 export function renderAdmin() {
@@ -90,7 +116,7 @@ async function decide(b, p, okMsg) { b.disabled = true; Snd.play('ui'); const r 
 
 // ---------- 유저 관리 ----------
 async function loadUsers() { const u = st.usr, r = await Adm.users(u.q, u.off, u.lim); if (need(r)) u.data = r.data; else u.data = u.data || null; renderAdmin(); }
-async function loadUser(id) { const u = st.usr; u.sel = id; const r = await Adm.user(id); if (need(r)) u.detail = r.data; else if (!u.detail || u.detail.user.id !== id) { u.detail = null; u.sel = null; } renderAdmin(); }
+async function loadUser(id) { const u = st.usr; if (u.sel !== id) rwReset('ud'); u.sel = id; const r = await Adm.user(id); if (need(r)) u.detail = r.data; else if (!u.detail || u.detail.user.id !== id) { u.detail = null; u.sel = null; } renderAdmin(); }
 const ownedIcons = c => (c.owned || []).map(k => `<i title="${esc(itemN(k))}">${ICO[k] || '🎁'}</i>`).join('');
 const roleBadges = c => (c.owner ? badge('최고 관리자', 'own') : c.admin ? badge('관리자', 'adm') : '') + (c.banned ? badge('⛔ 정지', 'ban') : '');
 function hUsers() {
@@ -198,16 +224,22 @@ const ACT = {
   uunban: async () => { const c = st.usr.detail.user;
     const ok = await confirmBox({ title: '정지 해제', html: `<b>${esc(c.nickname || '')}</b> (${esc(c.email || '')}) 계정의 정지를 해제합니다.`, reason: true, yes: '해제', danger: false });
     if (!ok) return; const r = await Adm.unban(c.id, ok.reason); msg(r.ok ? '정지를 해제했어요.' : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); loadUser(c.id); },
+  rwgear: b => { const px = b.dataset.px, sl = $(px + 'Slot').value, spec = { k: 'gear', s: sl, g: +$(px + 'G').value }; if (sl === 'weapon') spec.h = $(px + 'H').value; if ($(px + 'C').value) spec.c = +$(px + 'C').value; rwAddLine(px, spec); },
+  rwuq: b => { const px = b.dataset.px; rwAddLine(px, { k: 'uq', u: $(px + 'U').value }); },
+  rwhit: b => { const px = b.dataset.px, e = (rwHits[px] || [])[+b.dataset.i]; if (e) rwAddLine(px, e.spec); },
+  rwdel: b => { const px = b.dataset.px; st.rw[px].splice(+b.dataset.i, 1); Snd.play('ui'); rwPaint(px); },
+  rwg: t => { const px = t.dataset.px, x = st.rw[px][+t.dataset.i]; if (x && x.k === 'gear') { x.g = +t.value; rwPaint(px); } },
+  rwslot: t => { const h = $(t.dataset.px + 'H'); if (h) h.disabled = t.value !== 'weapon'; },
   umail: async b => { const c = st.usr.detail.user, ti = $('udTitle').value.trim(); if (!ti) { msg('제목을 입력해 주세요.'); Snd.play('error'); return; }
-    b.disabled = true; const r = await Sh.sendMail(c.email, ti, $('udBody').value, rwRead('ud')); b.disabled = false; msg(r.ok ? `${c.email} 에게 우편을 보냈어요.` : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); if (r.ok) loadUser(c.id); },
+    b.disabled = true; const r = await Sh.sendMail(c.email, ti, $('udBody').value, rwRead('ud')); b.disabled = false; msg(r.ok ? `${c.email} 에게 우편을 보냈어요.` : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); if (r.ok) { rwReset('ud'); fresh = true; loadUser(c.id); } },
   amsend: async b => { const em = $('amEmail').value.trim(), ti = $('amTitle').value.trim(); if (!L.validEmail(em) || !ti) { msg('이메일과 제목을 확인해 주세요.'); Snd.play('error'); return; }
-    b.disabled = true; const r = await Sh.sendMail(em, ti, $('amBody').value, rwRead('am')); b.disabled = false; msg(r.ok ? `${em} 에게 우편을 보냈어요.` : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); },
+    b.disabled = true; const r = await Sh.sendMail(em, ti, $('amBody').value, rwRead('am')); b.disabled = false; msg(r.ok ? `${em} 에게 우편을 보냈어요.` : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); if (r.ok) { rwReset('am'); rwPaint('am'); } },
   bcsend: async b => { if (st.busy) return; const ti = $('bcTitle').value.trim(), body = $('bcBody').value, rw = rwRead('bc'); if (!ti) { msg('제목을 입력해 주세요.'); Snd.play('error'); return; }
     st.busy = true; b.disabled = true; try {
       const n = await Adm.broadcastCount(); if (!need(n)) return; const cnt = n.data.count; if (!cnt) { msg('받을 사용자가 없어요.'); return; }
-      const t = rwText(rw), ok = await confirmBox({ title: '📨 전체 우편 보내기', html: `<div class="bcCnt">받는 사람 <b>${cnt}명</b></div>` + L.broadcastConfirmText(cnt, esc(t)) + `<div class="bcPrev"><b>${esc(ti)}</b><small>${esc(body.slice(0, 120))}</small></div>` + (rw.hero ? '<div class="warn">⚠ 유료 영웅을 모두에게 지급합니다!</div>' : ''), yes: `${cnt}명에게 보내기` });
+      const t = rwText(rw), ok = await confirmBox({ title: '📨 전체 우편 보내기', html: `<div class="bcCnt">받는 사람 <b>${cnt}명</b></div>` + L.broadcastConfirmText(cnt, esc(t)) + `<div class="bcPrev"><b>${esc(ti)}</b><small>${esc(body.slice(0, 120))}</small></div>` + (rw.items ? `<ul class="bcItems">${RI.previewLines({ items: rw.items }).map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '') + (rw.hero ? '<div class="warn">⚠ 유료 영웅을 모두에게 지급합니다!</div>' : '') + ((rw.items || []).some(x => x.k === 'uq' || x.g === 4) ? '<div class="warn">⚠ 고유/전설 아이템을 모두에게 지급합니다!</div>' : ''), yes: `${cnt}명에게 보내기` });
       if (!ok) { msg('전체 우편을 취소했어요.'); return; }
-      const r = await Adm.broadcast(ti, body, rw, cnt); if (r.ok) { msg(`${r.data.count}명에게 전체 우편을 보냈어요.`, true); Snd.play('confirm'); fresh = true; renderAdmin(); }
+      const r = await Adm.broadcast(ti, body, rw, cnt); if (r.ok) { msg(`${r.data.count}명에게 전체 우편을 보냈어요.`, true); Snd.play('confirm'); rwReset('bc'); fresh = true; renderAdmin(); }
       else { msg(r.reason === 'count_mismatch' ? `받는 사람 수가 ${cnt}명 → ${r.count}명으로 바뀌었어요. 다시 보내기를 눌러 확인해 주세요.` : r.msg); Snd.play('error'); }
     } finally { st.busy = false; const x = $('bcSend'); if (x) x.disabled = false; } },
   ntsave: async b => { const e = st.ntc.edit, ti = $('ntTitle').value.trim(); if (!ti) { msg('공지 제목을 입력해 주세요.'); Snd.play('error'); return; }
@@ -236,6 +268,8 @@ export function initAdmin(h) {
   const body = $('admBody');
   body.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b || b.disabled || !body.contains(b)) return; const f = ACT[b.dataset.act]; if (f) f(b); });
   body.addEventListener('keydown', e => { if (e.key !== 'Enter') return; const t = e.target.closest('[data-enter]'); if (t && ACT[t.dataset.enter]) { e.preventDefault(); ACT[t.dataset.enter](t); } });
+  body.addEventListener('input', e => { const q = e.target.closest('[data-rwq]'); if (q) return rwSearch(q.dataset.rwq); const r = e.target.closest('[data-rw]'); if (r) { const p = $(r.dataset.rw + 'Prev'); if (p) p.innerHTML = rwPrev(r.dataset.rw); } });
+  body.addEventListener('change', e => { const r = e.target.closest('[data-rw]'); if (r) { const p = $(r.dataset.rw + 'Prev'); if (p) p.innerHTML = rwPrev(r.dataset.rw); } });
   body.addEventListener('change', e => { const t = e.target.closest('[data-change]'); if (t && ACT[t.dataset.change]) ACT[t.dataset.change](t); });
   $('admConfirm').addEventListener('click', e => { if (e.target.id === 'admConfirm') $('acfNo').click(); });
 }

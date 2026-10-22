@@ -24,7 +24,7 @@ export const cleanItems = v => (Array.isArray(v) ? v.filter(validItem).slice(0, 
 const gearName = x => { const row = x.s === 'weapon' ? x.h : x.s, C = x.c && CHSET[x.c]; const n = C && C.names[row] && C.names[row][x.g]; return n || (GEAR_NAMES[row] || [])[x.g]?.join(' / ') || SLOTS[x.s]; };
 export function itemLabel(x) {
   if (!validItem(x)) return '알 수 없는 아이템';
-  if (x.k === 'uq') { const U = UQ[x.u]; return `◆ 고유 ${U.n}`; }
+  if (x.k === 'uq') { const U = UQ[x.u]; return `고유 · ${U.n}`; }
   return `${GRADES[x.g].n} ${x.s === 'weapon' ? (CLASSES[x.h] ? CLASSES[x.h].n + ' ' : '') + '무기' : SLOTS[x.s]}${x.c && CHSET[x.c] ? ` · ${CHSET[x.c].n} 세트` : ''} (${gearName(x)})`;
 }
 export const itemIcon = x => (x && x.k === 'uq' ? (UQ[x.u] && UQ[x.u].ic) || '◆' : x && x.s === 'weapon' ? '⚔️' : x && x.s === 'armor' ? '🛡️' : '💍');
