@@ -13,18 +13,21 @@
 - 연습 원정(게스트·오프라인·schema 미실행)은 드롭·천장 없음
 
 ## 체크리스트
-- [ ] 데이터: items.js UQ.d_fist + UQ_DG 상수, LSK.catpaw
-- [ ] 스킬 구현 fighter.js catpaw + legend.js 연결
-- [ ] 도감/카드 출처 텍스트 (gear.js)
-- [ ] 던전 데이터: DG_SHOP 고유 상품, shopState 보유, DG_REASON
-- [ ] account/dungeon.js: uniques/uqPity, finish 드롭 결과, buy
-- [ ] UI: 상점 보유/품절, 입장 화면 안내, 결과 화면 드롭 표시
-- [ ] schema.sql: 지갑 열, valid_item d_fist, uq_roll, finish/buy/status/claim_mail
-- [ ] sbmock.js 흉내
-- [ ] node 테스트 (items/dungeon/admin/unique)
-- [ ] schema_pg 추가
+- [x] 데이터: items.js UQ.d_fist + UQ_DG 상수, LSK.catpaw
+- [x] 스킬 구현 fighter.js catpaw + legend.js 연결
+- [x] 도감/카드 출처 텍스트 (gear.js)
+- [x] 던전 데이터: DG_SHOP 고유 상품, shopState 보유, DG_REASON
+- [x] account/dungeon.js: uniques/uqPity, finish 드롭 결과, buy
+- [x] UI: 상점 보유/품절, 입장 화면 안내, 결과 화면 드롭 표시
+- [x] schema.sql: 지갑 열, valid_item d_fist, uq_roll, finish/buy/status/claim_mail
+- [x] sbmock.js 흉내
+- [x] node 테스트 (items/dungeon/admin/unique)
+- [x] schema_pg 추가
 - [ ] 브라우저 tests/uqfighter.py + 스크린샷 shots/seoyun/
 - [ ] 스위트 단독 실행: node, dungeon, seoyun, unique, items_ui, shop, schema_pg, regress, uqfighter
 - [ ] main 병합 · push · Pages 확인
 
 ## 진행 기록
+- schema_pg 227/227 OK (U4/U5 auth.users insert 충돌 → on conflict do nothing 로 수정)
+- node 테스트 전부 OK (items 16개·admin catalog 16·dungeon 상점 고유 가격/롤 상수 = schema.sql)
+- 목 sbmock: 기본은 드롭 안 함(천장 40만), `__mockflags.dgUqRoll=true` 면 드롭
