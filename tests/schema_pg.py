@@ -292,7 +292,67 @@ try:
     A(f"select public.hd3d_admin_ban('{U2['sub']}', '테스트')", ADM)
     ok('dg_banned_denied', not A('select public.hd3d_dungeon_start()', U2)[0] and not A("select public.hd3d_dungeon_buy('dg_steel')", U2)[0] and JS('select public.hd3d_dungeon_status()', U2)['banned'])
     A(f"select public.hd3d_admin_unban('{U2['sub']}', 'x')", ADM)
+    # 11) 던전 고유 진서윤 '묘신 너클 호랑냥이' d_fist (2026-10-23): 모르비아 드롭(서버 random · 5% · 천장 40) · 상점 450 · 계정당 1개
+    U3 = {'sub': '00000000-0000-0000-0000-000000000003', 'email': 'u3@test.kr', 'role': 'authenticated'}
+    U4 = {'sub': '00000000-0000-0000-0000-000000000004', 'email': 'u4@test.kr', 'role': 'authenticated'}
+    U5 = {'sub': '00000000-0000-0000-0000-000000000005', 'email': 'u5@test.kr', 'role': 'authenticated'}
+    psql(f"insert into auth.users (id, email) values ('{U3['sub']}', 'u3@test.kr'), ('{U4['sub']}', 'u4@test.kr'), ('{U5['sub']}', 'u5@test.kr') on conflict (id) do nothing")
+    RL = lambda p_, r_: psql(f'select public.hd3d_dungeon_uq_roll({p_}, {r_})')[1]
+    ok('uq_roll_rate', RL(0, 0.049) == 't' and RL(0, 0.05) == 'f' and RL(0, 0.99) == 'f' and RL(10, 0.0) == 't', [RL(0, 0.049), RL(0, 0.05)])
+    ok('uq_roll_pity', RL(38, 0.99) == 'f' and RL(39, 0.99) == 't' and RL(500, 0.99) == 't')
+    ok('uq_roll_denied_to_users', not A('select public.hd3d_dungeon_uq_roll(39, 0.0)', U3)[0])
+    ok('uq_shop_item', json.loads(psql("select public.hd3d_dungeon_item('dg_uq_fist')")[1]) == {'price': 450, 'name': '묘신 너클 호랑냥이', 'uq': 'd_fist'})
+    ok('uq_valid_item', VG('{"items": [{"k":"uq","u":"d_fist"}]}') == 't' and VG('{"items": [{"k":"uq","u":"d_fake"}]}') == 'f')
+    # 결정적 난수: setseed 후 random() 첫 값이 > 0.5 (빗나감) / < 0.05 (적중) 인 시드 찾기 (정산 함수 안의 random() 은 1번)
+    def first_r(sd): return float(psql(f'select setseed({sd}); select random()')[1])
+    seeds = [i / 1000 for i in range(-999, 1000, 7)]
+    MISS = next(x for x in seeds if first_r(x) > 0.5); HIT = next(x for x in seeds if first_r(x) < 0.05)
+    ok('uq_seeds_found', first_r(MISS) > 0.5 and first_r(HIT) < 0.05, (MISS, HIT))
+    def run(U, floors, win, seed):
+        s_ = JS('select public.hd3d_dungeon_start()', U)
+        if not s_ or not s_.get('token'): print('START FAIL', A('select public.hd3d_dungeon_start()', U))
+        psql(f"update public.hd3d_dungeon_runs set started_at = now() - interval '30 minutes' where token = '{s_['token']}'")
+        f_ = json.loads(A(f"select setseed({seed}); select public.hd3d_dungeon_finish('{s_['token']}', {floors}, {str(win).lower()})", U)[1] or 'null')
+        psql(f"update public.hd3d_dungeon_runs set day = day - 1 where user_id = '{U['sub']}'")  # 하루 3회 제한 우회 (다음 날)
+        return f_
+    st = JS('select public.hd3d_dungeon_status()', U3); ok('uq_status_initial', st['uniques'] == [] and st['uq_pity'] == 0, st)
+    f = run(U3, 4, False, HIT); ok('uq_no_roll_on_loss', f['ok'] and f['uq'] is None and f['uq_pity'] == 0 and not f['win'], f)
+    f = run(U3, 5, False, HIT); ok('uq_no_roll_without_boss_kill', f['ok'] and f['uq'] is None and f['uq_pity'] == 0, f)
+    f = run(U3, 5, True, MISS); ok('uq_miss_adds_pity', f['ok'] and f['win'] and f['uq'] is None and f['mail'] is None and f['uq_pity'] == 1, f)
+    s_ = JS('select public.hd3d_dungeon_start()', U3); f = json.loads(A(f"select setseed({HIT}); select public.hd3d_dungeon_finish('{s_['token']}', 5, true)", U3)[1])
+    ok('uq_too_fast_no_roll', f['ok'] and not f['win'] and f['uq'] is None and f['uq_pity'] == 1, f); psql(f"update public.hd3d_dungeon_runs set day = day - 1 where user_id = '{U3['sub']}'")
+    ok('uq_cannot_edit_pity', (lambda r: (not r[0]) or r[1] == '')(A('update public.hd3d_dungeon_wallet set uq_pity = 39, uniques = \'{d_fist}\' returning uq_pity', U3)) and JS('select public.hd3d_dungeon_status()', U3)['uq_pity'] == 1)
+    psql(f"update public.hd3d_dungeon_wallet set uq_pity = 38 where user_id = '{U3['sub']}'")
+    f = run(U3, 5, True, MISS); ok('uq_pity_39_no_drop', f['uq'] is None and f['uq_pity'] == 39, f)
+    f = run(U3, 5, True, MISS); ok('uq_pity_guaranteed', f['uq'] == 'd_fist' and f['mail'] and f['uq_pity'] == 0 and f['uniques'] == ['d_fist'] and f['medals'] == 15, f)
+    dmid = f['mail']; mrow = json.loads(psql(f"select jsonb_build_object('reward', reward, 'user', user_id) from public.hd3d_mail where id = {dmid}")[1])
+    ok('uq_drop_mail', mrow['reward'] == {'items': [{'k': 'uq', 'u': 'd_fist'}]} and mrow['user'] == U3['sub'], mrow)
+    ok('uq_drop_run_logged', psql(f"select count(*) from public.hd3d_dungeon_runs where user_id = '{U3['sub']}' and uq = 'd_fist'")[1] == '1')
+    f = run(U3, 5, True, HIT); ok('uq_no_second_drop', f['ok'] and f['win'] and f['uq'] is None and f['mail'] is None and f['uniques'] == ['d_fist'], f)
+    r = A(f'select public.hd3d_claim_mail({dmid})', U3); ok('uq_drop_claim', r[0] and '"d_fist"' in r[1] and JS('select public.hd3d_dungeon_status()', U3)['uniques'] == ['d_fist'], r)
+    psql(f"update public.hd3d_dungeon_wallet set medals = 1000 where user_id = '{U3['sub']}'")
+    b = JS("select public.hd3d_dungeon_buy('dg_uq_fist')", U3); ok('uq_buy_after_drop_owned', b['ok'] is False and b['reason'] == 'owned' and b['medals'] == 1000, b)
+    # 상점 구매: 메달 부족 → 정확히 450 → 구매 · 우편 · 다시 구매 거부 · 이후 모르비아 드롭 없음
+    ok('uq_buy_no_wallet', JS("select public.hd3d_dungeon_buy('dg_uq_fist')", U4)['reason'] == 'not_enough')
+    f = run(U4, 5, True, MISS); psql(f"update public.hd3d_dungeon_wallet set medals = 449 where user_id = '{U4['sub']}'")
+    b = JS("select public.hd3d_dungeon_buy('dg_uq_fist')", U4); ok('uq_buy_not_enough', b['reason'] == 'not_enough' and b['price'] == 450 and JS('select public.hd3d_dungeon_status()', U4)['uniques'] == [], b)
+    psql(f"update public.hd3d_dungeon_wallet set medals = 450 where user_id = '{U4['sub']}'")
+    b = JS("select public.hd3d_dungeon_buy('dg_uq_fist')", U4); ok('uq_buy_ok', b['ok'] and b['medals'] == 0 and b['mail'] and b['uniques'] == ['d_fist'] and b['price'] == 450, b)
+    ok('uq_buy_mail', json.loads(psql(f"select reward from public.hd3d_mail where id = {b['mail']}")[1]) == {'items': [{'k': 'uq', 'u': 'd_fist'}]})
+    psql(f"update public.hd3d_dungeon_wallet set medals = 900 where user_id = '{U4['sub']}'")
+    b2 = JS("select public.hd3d_dungeon_buy('dg_uq_fist')", U4); ok('uq_buy_once', b2['reason'] == 'owned' and JS('select public.hd3d_dungeon_status()', U4)['medals'] == 900, b2)
+    f = run(U4, 5, True, HIT); ok('uq_no_drop_after_buy', f['uq'] is None and f['mail'] is None, f)
+    ok('uq_buy_logged', psql(f"select count(*) || '|' || sum(price) from public.hd3d_dungeon_buys where user_id = '{U4['sub']}'")[1] == '1|450')
+    # 관리자 우편으로 받은 d_fist 도 서버가 기록 → 상점 '보유 중' · 드롭 없음
+    r = A("""select public.hd3d_admin_send_mail('u5@test.kr', '고유 선물', '', '{"items": [{"k":"uq","u":"d_fist"}]}')""", ADM); ok('uq_admin_mail', '"ok": true' in r[1], r)
+    m5 = A("select id from public.hd3d_mail where reward -> 'items' -> 0 ->> 'u' = 'd_fist'", U5)[1]
+    ok('uq_admin_claim_records', A(f'select public.hd3d_claim_mail({m5})', U5)[0] and JS('select public.hd3d_dungeon_status()', U5)['uniques'] == ['d_fist'])
+    psql(f"update public.hd3d_dungeon_wallet set medals = 999 where user_id = '{U5['sub']}'")
+    ok('uq_admin_then_buy_owned', JS("select public.hd3d_dungeon_buy('dg_uq_fist')", U5)['reason'] == 'owned')
+    ok('uq_anon_finish_denied', not psql("select public.hd3d_dungeon_finish('00000000-0000-0000-0000-0000000000ff', 5, true)", 'anon', {})[0])
+    j = JS(f"select public.hd3d_admin_user('{U3['sub']}')", ADM); ok('uq_admin_user_view', j['dungeon']['uniques'] == ['d_fist'] and j['dungeon']['uq_pity'] == 0, j.get('dungeon'))
     r3 = psql(sql); ok('schema_run3_after_data', r3[0], r3[2][-300:])
+    ok('uq_kept_after_rerun', JS('select public.hd3d_dungeon_status()', U3)['uniques'] == ['d_fist'] and JS('select public.hd3d_dungeon_status()', U4)['uniques'] == ['d_fist'])
     ok('owner_kept_after_rerun', A('select public.hd3d_is_owner()', ADM)[1] == 't' and psql('select count(*) from public.hd3d_admins')[1] == '1')
 finally:
     subprocess.run([f'{B}/pg_ctl', '-D', data, '-m', 'immediate', 'stop'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); shutil.rmtree(tmp, ignore_errors=True)

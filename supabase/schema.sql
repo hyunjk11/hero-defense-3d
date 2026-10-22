@@ -207,7 +207,7 @@ language sql immutable set search_path = '' as $$
       and case when x ->> 's' = 'weapon' then x ->> 'h' in ('archer', 'mage', 'warrior', 'gunner', 'mechanic', 'fighter') else not (x ? 'h') end
       and (not (x ? 'c') or (jsonb_typeof(x -> 'c') = 'number' and x ->> 'c' in ('1', '2', '3', '4')))
     when 'uq' then not exists (select 1 from jsonb_object_keys(x) k where k not in ('k', 'u'))
-      and x ->> 'u' in ('f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring')
+      and x ->> 'u' in ('f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring', 'd_fist')
     else false end, false);
 $$;
 -- 보상 검증: souls/steel/crystal 0~1,000,000 정수, essence(고유 정수 = 조각) 0~10,000, medals(던전 메달, 2026-10-23 — 받을 때 서버 지갑 hd3d_dungeon_wallet 에 더함) 0~10,000, hero 는 판매 영웅만, items 는 1~10개 (위 hd3d_valid_item)
@@ -256,6 +256,13 @@ begin
   if coalesce((m.reward ->> 'medals')::int, 0) > 0 then
     insert into public.hd3d_dungeon_wallet (user_id, medals, earned) values (m.user_id, (m.reward ->> 'medals')::int, (m.reward ->> 'medals')::int)
       on conflict (user_id) do update set medals = least(1000000, public.hd3d_dungeon_wallet.medals + excluded.medals), earned = public.hd3d_dungeon_wallet.earned + excluded.earned, updated_at = now();
+  end if;
+  -- 고유 장비(2026-10-23): 받은 고유 키를 서버 지갑 uniques 에 기록 → 던전 고유(d_fist)는 계정당 1개 (드롭 중단 · 상점 '보유 중'). 지갑 테이블이 아직 없으면(첫 실행 중) 건너뜀
+  if m.reward ? 'items' and to_regclass('public.hd3d_dungeon_wallet') is not null then
+    insert into public.hd3d_dungeon_wallet (user_id, uniques)
+      select m.user_id, coalesce(array_agg(distinct x ->> 'u'), '{}') from jsonb_array_elements(m.reward -> 'items') x where x ->> 'k' = 'uq'
+      having count(*) > 0
+      on conflict (user_id) do update set uniques = (select array(select distinct u from unnest(public.hd3d_dungeon_wallet.uniques || excluded.uniques) u order by u)), updated_at = now();
   end if;
   return jsonb_build_object('ok', true, 'already', false, 'id', m.id, 'reward', m.reward);
 end $$;
@@ -437,7 +444,9 @@ begin
       'earned', coalesce((select w.earned from public.hd3d_dungeon_wallet w where w.user_id = p_user), 0),
       'spent', coalesce((select w.spent from public.hd3d_dungeon_wallet w where w.user_id = p_user), 0),
       'today', (select count(*) from public.hd3d_dungeon_runs r where r.user_id = p_user and r.day = (now() at time zone 'Asia/Seoul')::date),
-      'runs', (select count(*) from public.hd3d_dungeon_runs r where r.user_id = p_user)));
+      'runs', (select count(*) from public.hd3d_dungeon_runs r where r.user_id = p_user),
+      'uniques', coalesce((select to_jsonb(w.uniques) from public.hd3d_dungeon_wallet w where w.user_id = p_user), '[]'::jsonb),
+      'uq_pity', coalesce((select w.uq_pity from public.hd3d_dungeon_wallet w where w.user_id = p_user), 0)));
 end $$;
 
 -- ---------- 2) 유료 영웅 지급 / 회수 (사유 필수) ----------
@@ -719,6 +728,10 @@ create table if not exists public.hd3d_dungeon_runs (
   win boolean,
   medals int not null default 0 check (medals between 0 and 100)
 );
+-- 2026-10-23 던전 고유(진서윤 '묘신 너클 호랑냥이' d_fist): 받은 고유 키 · 모르비아 드롭 천장 · 판별 드롭 기록
+alter table public.hd3d_dungeon_wallet add column if not exists uniques text[] not null default '{}';
+alter table public.hd3d_dungeon_wallet add column if not exists uq_pity int not null default 0 check (uq_pity between 0 and 1000);
+alter table public.hd3d_dungeon_runs add column if not exists uq text;
 create index if not exists hd3d_dungeon_runs_user_day on public.hd3d_dungeon_runs (user_id, day);
 alter table public.hd3d_dungeon_runs enable row level security;
 drop policy if exists hd3d_dungeon_runs_select on public.hd3d_dungeon_runs;
@@ -746,8 +759,13 @@ language sql immutable set search_path = '' as $$
     when 'dg_crystal' then '{"price": 8,  "name": "마력석 꾸러미", "reward": {"crystal": 10}}'::jsonb
     when 'dg_essence' then '{"price": 15, "name": "고유 정수",     "reward": {"essence": 3}}'::jsonb
     when 'dg_title'   then '{"price": 60, "name": "칭호 · 망령 사냥꾼", "title": "lich_hunter"}'::jsonb
+    when 'dg_uq_fist' then '{"price": 450, "name": "묘신 너클 호랑냥이", "uq": "d_fist"}'::jsonb
     else null end;
 $$;
+-- 던전 고유 드롭 판정 (서버 상수 — 클라이언트 src/data/items.js UQ_DG 는 표시용, tests/dungeon.test.mjs 가 비교)
+-- p_pity = 지금까지 드롭 없이 처치한 횟수, p_r = 0~1 난수. 5% 또는 이번이 40번째 처치(천장)면 드롭
+create or replace function public.hd3d_dungeon_uq_roll(p_pity int, p_r double precision) returns boolean
+language sql immutable set search_path = '' as $$ select coalesce(p_pity, 0) + 1 >= 40 or coalesce(p_r, 1) < 0.05; $$;
 -- 오늘 (Asia/Seoul 날짜) — 하루 입장 수 초기화 기준 = 한국 시간 0시
 create or replace function public.hd3d_kst_day() returns date
 language sql stable set search_path = '' as $$ select (now() at time zone 'Asia/Seoul')::date; $$;
@@ -760,7 +778,8 @@ begin
   select count(*) into v_used from public.hd3d_dungeon_runs r where r.user_id = v_me and r.day = v_day;
   select * into w from public.hd3d_dungeon_wallet x where x.user_id = v_me;
   return jsonb_build_object('ok', true, 'day', v_day, 'limit', 3, 'used', v_used, 'left', greatest(0, 3 - v_used),
-    'medals', coalesce(w.medals, 0), 'titles', to_jsonb(coalesce(w.titles, '{}'::text[])), 'banned', public.hd3d_is_banned());
+    'medals', coalesce(w.medals, 0), 'titles', to_jsonb(coalesce(w.titles, '{}'::text[])), 'banned', public.hd3d_is_banned(),
+    'uniques', to_jsonb(coalesce(w.uniques, '{}'::text[])), 'uq_pity', coalesce(w.uq_pity, 0));
 end $$;
 
 create or replace function public.hd3d_dungeon_start() returns jsonb
@@ -781,6 +800,7 @@ end $$;
 create or replace function public.hd3d_dungeon_finish(p_token uuid, p_floors int, p_win boolean) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_me uuid := auth.uid(); r public.hd3d_dungeon_runs%rowtype; v_sec numeric; v_fl int; v_win boolean; v_m int; v_tot int;
+  w public.hd3d_dungeon_wallet%rowtype; v_uq text; v_mid bigint;
 begin
   if v_me is null then raise exception 'not authenticated' using errcode = '42501'; end if;
   if public.hd3d_is_banned() then raise exception 'banned' using errcode = '42501', hint = 'banned'; end if;
@@ -800,35 +820,55 @@ begin
   update public.hd3d_dungeon_runs set status = 'done', finished_at = now(), floors = v_fl, win = v_win, medals = v_m where id = r.id;
   insert into public.hd3d_dungeon_wallet (user_id, medals, earned) values (v_me, v_m, v_m)
     on conflict (user_id) do update set medals = least(1000000, public.hd3d_dungeon_wallet.medals + excluded.medals), earned = public.hd3d_dungeon_wallet.earned + excluded.earned, updated_at = now()
-    returning medals into v_tot;
-  return jsonb_build_object('ok', true, 'medals', v_m, 'total', v_tot, 'floors', v_fl, 'win', v_win, 'capped', v_fl < least(greatest(coalesce(p_floors, 0), 0), 5));
+    returning * into w;
+  v_tot := w.medals;
+  -- 던전 고유 드롭 (2026-10-23): 모르비아 처치(완주) 때만 · 아직 없는 계정만 · 5% + 천장 40회 — 서버 random() (클라이언트 값 안 믿음). 배달 = 우편 items uq
+  if v_win and not ('d_fist' = any(w.uniques)) then
+    if public.hd3d_dungeon_uq_roll(w.uq_pity, random()) then
+      v_uq := 'd_fist';
+      insert into public.hd3d_mail (user_id, title, body, reward)
+        values (v_me, '🐾 망령 여왕의 전리품', '모르비아를 쓰러뜨리고 진서윤 전용 고유 무기 「묘신 너클 호랑냥이」를 얻었습니다! ''받기''를 눌러 수령하세요.', '{"items": [{"k": "uq", "u": "d_fist"}]}'::jsonb) returning id into v_mid;
+      update public.hd3d_dungeon_wallet set uniques = uniques || v_uq, uq_pity = 0, updated_at = now() where user_id = v_me returning * into w;
+      update public.hd3d_dungeon_runs set uq = v_uq where id = r.id;
+    else
+      update public.hd3d_dungeon_wallet set uq_pity = least(1000, uq_pity + 1), updated_at = now() where user_id = v_me returning * into w;
+    end if;
+  end if;
+  return jsonb_build_object('ok', true, 'medals', v_m, 'total', v_tot, 'floors', v_fl, 'win', v_win, 'capped', v_fl < least(greatest(coalesce(p_floors, 0), 0), 5),
+    'uq', v_uq, 'mail', v_mid, 'uq_pity', w.uq_pity, 'uniques', to_jsonb(w.uniques));
 end $$;
 
 create or replace function public.hd3d_dungeon_buy(p_item text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare v_me uuid := auth.uid(); v_it jsonb := public.hd3d_dungeon_item(p_item); v_price int; v_title text; w public.hd3d_dungeon_wallet%rowtype; v_mid bigint;
+declare v_me uuid := auth.uid(); v_it jsonb := public.hd3d_dungeon_item(p_item); v_price int; v_title text; v_uq text; w public.hd3d_dungeon_wallet%rowtype; v_mid bigint;
 begin
   if v_me is null then raise exception 'not authenticated' using errcode = '42501'; end if;
   if public.hd3d_is_banned() then raise exception 'banned' using errcode = '42501', hint = 'banned'; end if;
   if v_it is null then return jsonb_build_object('ok', false, 'reason', 'bad_item'); end if;
-  v_price := (v_it ->> 'price')::int; v_title := v_it ->> 'title';
+  v_price := (v_it ->> 'price')::int; v_title := v_it ->> 'title'; v_uq := v_it ->> 'uq';
+  perform pg_advisory_xact_lock(hashtext('hd3d_dungeon:' || v_me::text)); -- 정산(드롭)과 직렬화
   select * into w from public.hd3d_dungeon_wallet x where x.user_id = v_me for update;
   if v_title is not null and found and v_title = any(w.titles) then return jsonb_build_object('ok', false, 'reason', 'already', 'medals', w.medals); end if;
+  if v_uq is not null and found and v_uq = any(w.uniques) then return jsonb_build_object('ok', false, 'reason', 'owned', 'medals', w.medals, 'uniques', to_jsonb(w.uniques)); end if; -- 고유 = 계정당 1개
   if not found or w.medals < v_price then return jsonb_build_object('ok', false, 'reason', 'not_enough', 'medals', coalesce(w.medals, 0), 'price', v_price); end if;
   update public.hd3d_dungeon_wallet set medals = medals - v_price, spent = spent + v_price,
-    titles = case when v_title is null then titles else titles || v_title end, updated_at = now() where user_id = v_me returning * into w;
-  if v_it ? 'reward' then
+    titles = case when v_title is null then titles else titles || v_title end,
+    uniques = case when v_uq is null then uniques else uniques || v_uq end, updated_at = now() where user_id = v_me returning * into w;
+  if v_uq is not null then
+    insert into public.hd3d_mail (user_id, title, body, reward)
+      values (v_me, '🏪 던전 상점 구매품', (v_it ->> 'name') || ' — 던전 메달 ' || v_price || '개로 구매했습니다. ''받기''를 눌러 수령하세요.', jsonb_build_object('items', jsonb_build_array(jsonb_build_object('k', 'uq', 'u', v_uq)))) returning id into v_mid;
+  elsif v_it ? 'reward' then
     insert into public.hd3d_mail (user_id, title, body, reward)
       values (v_me, '🏪 던전 상점 구매품', (v_it ->> 'name') || ' — 던전 메달 ' || v_price || '개로 구매했습니다. ''받기''를 눌러 수령하세요.', v_it -> 'reward') returning id into v_mid;
   end if;
   insert into public.hd3d_dungeon_buys (user_id, item, price, mail_id) values (v_me, p_item, v_price, v_mid);
-  return jsonb_build_object('ok', true, 'item', p_item, 'price', v_price, 'medals', w.medals, 'mail', v_mid, 'titles', to_jsonb(w.titles));
+  return jsonb_build_object('ok', true, 'item', p_item, 'price', v_price, 'medals', w.medals, 'mail', v_mid, 'titles', to_jsonb(w.titles), 'uniques', to_jsonb(w.uniques));
 end $$;
 
 -- ---------- privileges (2026-10-23) ----------
 revoke all on public.hd3d_dungeon_wallet, public.hd3d_dungeon_runs, public.hd3d_dungeon_buys from anon, authenticated;
 grant select on public.hd3d_dungeon_wallet, public.hd3d_dungeon_runs, public.hd3d_dungeon_buys to authenticated; -- RLS: 본인 것만 (관리자 전체), 쓰기는 위 함수로만
-revoke all on function public.hd3d_dungeon_item(text), public.hd3d_kst_day() from public, anon, authenticated;
+revoke all on function public.hd3d_dungeon_item(text), public.hd3d_kst_day(), public.hd3d_dungeon_uq_roll(int, double precision) from public, anon, authenticated;
 revoke all on function public.hd3d_dungeon_status(), public.hd3d_dungeon_start(), public.hd3d_dungeon_finish(uuid, int, boolean), public.hd3d_dungeon_buy(text) from public, anon;
 grant execute on function public.hd3d_dungeon_status(), public.hd3d_dungeon_start(), public.hd3d_dungeon_finish(uuid, int, boolean), public.hd3d_dungeon_buy(text) to authenticated;
 
