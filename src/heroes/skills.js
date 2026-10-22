@@ -1,7 +1,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { rand } from '../core/util.js';
-import { G, later } from '../core/state.js';
+import { G, later, asSkill } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { ringFx } from '../render/vfx.js';
@@ -17,7 +17,8 @@ import { uqOnSkill } from './unique.js';
 import { advSkill } from './advfx.js';
 
 // ================= 스킬 =================
-function castSkill(at) { // at: 목표 지점(Vector3, 던전 AI). 없으면(키·버튼) 마우스 지점
+function castSkill(at) { return asSkill(castSkill0, at); } // 피해 미터: 스킬 피해로 집계
+function castSkill0(at) { // at: 목표 지점(Vector3, 던전 AI). 없으면(키·버튼) 마우스 지점
   if (!hero || hero.dead > 0 || hero.skillCd > 0 || G.phase === 'select' || G.phase === 'over') return;
   const mul = stat.skillMul(), base = stat.dmg();
   if (hero.cls === 'mechanic') { if (mechTransform(mul, base)) { hero.skillCd = stat.skillCd(); if (hero.uqs) uqOnSkill(hero.g.position); } return; } // 메카닉: 변신 (이미 로봇이면 무시)

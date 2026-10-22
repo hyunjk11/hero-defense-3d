@@ -16,7 +16,7 @@ const bulletGeo = new THREE.CylinderGeometry(.045, .045, .9, 6).rotateX(Math.PI 
 const cmats = {}, cmat = (c, i) => cmats[c + ':' + i] || (cmats[c + ':' + i] = glow(c, i)); // 전직 투사체 색 (opts.col 있을 때만)
 function shoot(kind, from, target, dmg, opts = {}) {
   const m = kind === 'arrow' ? makeArrow(opts.color || 0xd0ffd0) : kind === 'bullet' ? new THREE.Mesh(bulletGeo, opts.col ? cmat(opts.col, 3.2) : bulletMat) : new THREE.Mesh(orbGeo, opts.col ? cmat(opts.col, 4) : orbMat); m.position.copy(from); scene.add(m);
-  G.projs.push({ kind, m, target, dmg, spd: kind === 'arrow' ? 32 : kind === 'bullet' ? 62 : 16, h: G.curHero, ...opts }); // h: 쏜 영웅 (onHit 을 그 영웅 문맥으로)
+  G.projs.push({ kind, m, target, dmg, spd: kind === 'arrow' ? 32 : kind === 'bullet' ? 62 : 16, h: G.curHero, mk: G.mK | 0, ...opts }); // h: 쏜 영웅 (onHit 을 그 영웅 문맥으로)
 }
 function aoe(pos, r, dmg, color, opts = {}) {
   for (const e of [...G.enemies]) { if (e.dead) continue; const dx = e.g.position.x - pos.x, dz = e.g.position.z - pos.z; if (dx * dx + dz * dz <= r * r && (!opts.groundOnly || !e.E.fly)) { if (opts.slowT) { e.slowT = Math.max(e.slowT, opts.slowT); e.slowAmt = Math.max(e.slowAmt || 0, opts.slowAmt); } else if (opts.slow) { e.slowT = 1.5; e.slowAmt = .45; } hurt(e, dmg, color, opts.big); } }
@@ -24,14 +24,16 @@ function aoe(pos, r, dmg, color, opts = {}) {
 // 광역 폭발 분기: 착탄 후 집속탄 (고정 각도, 게임 난수 미사용)
 function clusterBombs(p) { const B = p.cluster, tw = p.tw, d = p.dest.clone();
   for (let k = 0; k < B.cluster; k++) later(.16 + k * .09, () => { const a = k * Math.PI * 2 / B.cluster + .5, q = new THREE.Vector3(d.x + Math.cos(a) * 1.9, d.y, d.z + Math.sin(a) * 1.9);
-    G.xpSrc = G.grow && tw && !tw.dead ? tw : null; aoe(q, B.clusterR, p.dmg * B.clusterK, '#ffd07a', { groundOnly: true }); G.xpSrc = null;
+    G.xpSrc = G.grow && tw && !tw.dead ? tw : null; const w0 = G.mWho; G.mWho = tw ? null : (p.h || undefined); aoe(q, B.clusterR, p.dmg * B.clusterK, '#ffd07a', { groundOnly: true }); G.mWho = w0; G.xpSrc = null;
     ringFx(q, B.clusterR, 0xffb03a, .3); emit(P, q.x, .4, q.z, 22, 0xffc04a, 5, .5, -6, 1); emit(PB, q.x, .6, q.z, 3, 0xff7a2a, 2, .4, 0, .6); Snd.play('boom', { pos: q, vol: .35, rate: 1.3 }); }); }
 // 명중 콜백(전직 화상·빙결·도탄 등)을 쏜 영웅 문맥으로 (파티). 단일 영웅이면 그대로 호출
 function hitCb(p, ...a) { if (p.h && p.h !== G.curHero && G.withHero) G.withHero(p.h, () => p.onHit(...a)); else p.onHit(...a); }
 function killProj(i) { const p = G.projs[i]; scene.remove(p.m); G.projs.splice(i, 1); }
-function updProjs(dt) {
+// 피해 미터: 투사체마다 주인(쏜 영웅 / 타워 = null)·종류(스킬)를 정해 hurt() 가 집계
+function updProjs(dt) { const w0 = G.mWho, k0 = G.mK; try { updProjs0(dt); } finally { G.mWho = w0; G.mK = k0; } }
+function updProjs0(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
-    const p = G.projs[i], m = p.m;
+    const p = G.projs[i], m = p.m; G.mWho = p.tw ? null : (p.h || undefined); G.mK = p.mk | 0;
     if (p.kind === 'ball') { p.t += dt; const k = Math.min(1, p.t / p.dur); m.position.lerpVectors(p.from, p.dest, k); m.position.y = p.from.y + (p.dest.y + .3 - p.from.y) * k + Math.sin(k * Math.PI) * 3.2;
       if (rand() < .5) emit(P, m.position.x, m.position.y, m.position.z, 1, 0x9a9a9a, .5, .5, 1, 0);
       if (k >= 1) { killProj(i); G.xpSrc = p.tw && G.grow ? p.tw : null; aoe(p.dest, p.r, p.dmg, '#ffc07a', { groundOnly: true }); G.xpSrc = null; if (p.cluster && p.cluster.cluster) clusterBombs(p); ringFx(p.dest, p.r, 0xff8a2a, .35); emit(P, p.dest.x, .4, p.dest.z, 40, 0xffa04a, 7, .6, -8, 1.5); emit(PB, p.dest.x, .6, p.dest.z, 6, 0xff7a2a, 3, .5, 0, 1); debris(p.dest.x, .3, p.dest.z, 4, [0x8a6a4a, 0x5a5a5a], 4); G.shake = Math.max(G.shake, .08); Snd.play('boom', { pos: p.dest, vol: .6 }); }

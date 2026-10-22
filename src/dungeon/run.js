@@ -108,7 +108,8 @@ function joint() { if (D.over || D.blessing || G.paused || !jointReady(G.heroes)
   G.shake = Math.max(G.shake || 0, 1); Snd.play('meteorCast', { force: true }); Snd.play('levelUp', { force: true }); banner('✦ 합동 공격! ✦', '#ffe066', 1800);
   const fl = $('dgFlash'); if (fl) { fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on'); }
   later(.55, () => { const c = { x: 0, y: 0, z: 1 }; ringFx(new THREE.Vector3(c.x, 0, c.z), 26, 0xffd23a, .9); emit(PB, c.x, 3, c.z, 120, 0xffe9a0, 16, 1.2, -4, 6); Snd.play('boom', { force: true });
-    let n = 0; for (const e of [...G.enemies]) { if (e.dead || e.dying !== undefined) continue; hurt(e, dmg, '#ffe066', true); n++; const q = e.g.position; emit(PT, q.x, 1.5, q.z, 12, 0xffd23a, 5, .6); } G.dgJointHits = n; });
+    let n = 0; const w0 = G.mWho; G.mWho = null; G.mK = 1; // 피해 미터: 합동 공격은 공용(파티) 칸
+    for (const e of [...G.enemies]) { if (e.dead || e.dying !== undefined) continue; hurt(e, dmg, '#ffe066', true); n++; const q = e.g.position; emit(PT, q.x, 1.5, q.z, 12, 0xffd23a, 5, .6); } G.mWho = w0; G.dgJointHits = n; });
   refreshBar(); return true; }
 G.dgJoint = joint;
 

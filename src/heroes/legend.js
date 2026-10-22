@@ -4,7 +4,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { QS, mulberry32 } from '../core/util.js';
-import { G, later, heroFx } from '../core/state.js';
+import { G, later, heroFx, asSkill } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
@@ -48,7 +48,8 @@ function aim(maxD) {
 }
 
 // ---------- proc (기본 공격 직후 호출) ----------
-export function legendProc(t) {
+export function legendProc(t) { return asSkill(legendProc0, t); } // 피해 미터: 전설 효과 = 스킬 피해
+function legendProc0(t) {
   const s = legendSkill(); if (!s || s.type !== 'proc' || hero.licd > 0 || !t || t.dead) return;
   if (LR() >= (G.legendForce ? 1 : s.chance)) return; hero.licd = s.icd; count(hero.lsk);
   ({ multishot, frostorb, boomerang, ricochet, overdrill, pawstorm })[hero.lsk](t, s);
@@ -98,7 +99,8 @@ function boomerang(t, s) {
 }
 
 // ---------- active ([E]) ----------
-export function castLegend() {
+export function castLegend() { return asSkill(castLegend0); }
+function castLegend0() {
   const s = legendActive(); if (!s || !hero || hero.dead > 0 || hero.lcd > 0 || hero.leap || (hero.ft && hero.ft.leap) || (hero.mech && hero.mech.busy > 0) || (G.phase !== 'build' && G.phase !== 'wave')) { if (s && hero && hero.lcd > 0) Snd.play('error'); return false; }
   if (hero.warpT > 0) return false; hero.lcd = legendCd(); hero.spinT = 0; hero.roseT = 0; if (hero.swirl) hero.swirl.visible = false; count(hero.lsk);
   if (hero.lsk === 'rosebarrage') rosebarrage(s, aim(14)); else if (hero.lsk === 'gigahammer') gigahammer(s, aim(12)); else if (hero.lsk === 'tigerdash') tigerdash(s, aim(9)); else if (hero.lsk === 'catpaw') catpaw(s, aim(14)); else ({ pierce, meteorstorm, quake, rootshot: pierce, zeroabs, eruption: quake, execution })[hero.lsk](s); return true;
@@ -155,7 +157,8 @@ function quake(s) {
   hero.leap = { t: 0, dur: .6, from, to, s };
 }
 // hero.js updHero에서 hero.leap이 있을 때만 호출
-export function updLeap(dt) {
+export function updLeap(dt) { return asSkill(updLeap0, dt); }
+function updLeap0(dt) {
   const L = hero.leap, p = hero.g.position; L.t += dt; const k = Math.min(1, L.t / L.dur);
   p.x = L.from.x + (L.to.x - L.from.x) * k; p.z = L.from.z + (L.to.z - L.from.z) * k; p.y = groundY(p.x, p.z) + Math.sin(k * Math.PI) * 3.6; hero.g.rotation.y = hero.face;
   if (k > .55 && !L.chop) { L.chop = 1; play(hero.ch, '2H_Melee_Attack_Chop', { once: true, force: true, speed: 1.8 }); }
