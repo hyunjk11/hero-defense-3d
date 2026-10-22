@@ -64,6 +64,7 @@ with sync_playwright() as pw:
     # 초상화 탭 → 조작 전환, 바닥 탭 → 이동, Q → 스킬
     pg.tap('#dgBar .dgP[data-i="1"]'); J(pg, "()=>G.sim(.05)"); ok('portrait_switch', J(pg, "()=>G.hero.cls") == 'archer' and J(pg, "()=>document.querySelector('#dgBar .dgP[data-i=\"1\"]').classList.contains('ctl')"))
     tgt = J(pg, "async()=>{ const {camera}=await import('./src/render/scene.js'); const h=G.hero.g.position, v=new G.THREE.Vector3(h.x+6,0,h.z+3).project(camera); return [(v.x+1)/2*innerWidth, (1-v.y)/2*innerHeight]; }")
+    p0 = J(pg, "()=>[G.hero.g.position.x, G.hero.g.position.z]")
     pg.mouse.click(tgt[0], tgt[1]); J(pg, "()=>G.sim(1.5)"); p1 = J(pg, "()=>[G.hero.g.position.x, G.hero.g.position.z]")
     ok('ground_tap_moves', ((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** .5 > 3, (p0, p1))
     J(pg, "()=>{ G.hero.skillCd=0; G.mouseGround.set(G.hero.g.position.x+4,0,G.hero.g.position.z); }"); pg.keyboard.press('q'); J(pg, "()=>G.sim(.05)")

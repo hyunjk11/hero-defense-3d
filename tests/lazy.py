@@ -12,6 +12,7 @@ MOCK = (pathlib.Path(__file__).parent / 'sbmock.js').read_text(encoding='utf-8')
 import subprocess
 HIDE = subprocess.run(['node', '-e', "import('./src/data/heroes.js').then(m => process.exit(m.isHidden('mechanic') ? 0 : 1))"], cwd=os.path.join(os.path.dirname(__file__), '..')).returncode == 0  # 버들 숨김 중
 HIDDEN_MODELS = ['budeul_meshy', 'budeul_gear', 'mech_robot_meshy'] if HIDE else []
+LAZY_ONLY = ['rose_rifle_meshy', 'rose_rifle_gun']  # 로즈 2차 전직(장미 저격수) 전용 — 백그라운드가 아니라 전직 장착 시에만 받음 (3deef3e)
 NA = lambda pg: J(pg, "()=>import('./src/render/characters.js').then(m => m.ASSETS.length)")
 MEASURE = '--measure-only' in sys.argv; OUT = 'shots/improve'; os.makedirs(OUT, exist_ok=True)
 srv, url = serve(); errs, res, M = [], {}, {}
@@ -35,7 +36,7 @@ with sync_playwright() as pw:
     b, pg, got, m = run(pw, 'intro_first_visit', '?seed=12345&flow=1')
     if not MEASURE:
         ok('intro_only_hero_first', m['models'] == ['mage_meshy'], m['models'])
-        pg.wait_for_function('()=>G.allModels', timeout=240000); ok('intro_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg) == 15 - len(HIDDEN_MODELS), J(pg, '()=>Object.keys(G.GL).sort()'))
+        pg.wait_for_function('()=>G.allModels', timeout=240000); ok('intro_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg) - len(LAZY_ONLY) == 15 - len(HIDDEN_MODELS), J(pg, '()=>Object.keys(G.GL).sort()'))
         ok('podium_all_heroes', J(pg, "()=>{ let n = 0; G.scene.traverse(o => { if (o.isSkinnedMesh && !o.userData.ol) n++; }); return n; }") >= 5 - (1 if HIDE else 0))
         ok('no_hidden_models_requested', not any(u.split('/')[-1][:-4] in HIDDEN_MODELS for _, u, _ in got if u.startswith('models/')))
     b.close()
@@ -65,7 +66,7 @@ with sync_playwright() as pw:
         if HIDE:
             ok('hidden_not_in_shop', J(pg, "()=>{ G.shop.openShop('hero_mechanic'); const t = document.getElementById('shopPanel').innerText; return !t.includes('버들') && !t.includes('메카닉'); }"))
             ok('hidden_not_in_town_cards', J(pg, "()=>!document.querySelector('#twHeroes .hcard[data-h=\"mechanic\"]') && document.querySelectorAll('#twHeroes .hcard').length === 4"))
-        pg.wait_for_function('()=>G.allModels', timeout=240000); ok('town_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg))
+        pg.wait_for_function('()=>G.allModels', timeout=240000); ok('town_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg) - len(LAZY_ONLY), J(pg, '()=>Object.keys(G.GL).sort()'))
         ok('town_no_hidden_models', not any(u.split('/')[-1][:-4] in HIDDEN_MODELS for _, u, _ in got if u.startswith('models/')))
     b.close()
     if HIDE and not MEASURE:  # 숨김: 영웅 선택 화면에 버들 카드 없음, choose('mechanic') → 기본 영웅
