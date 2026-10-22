@@ -80,6 +80,7 @@ export const BLESS = [
   { id: 'tank', icon: '🛡', n: '수호자의 맹세', d: '전방(세라) 받는 피해 -25%', role: 'tank', max: 2 },
   { id: 'ranged', icon: '🏹', n: '명사수의 눈', d: '후방(실바·로즈) 사거리 +15% · 공격력 +15%', role: 'ranged', max: 2 },
   { id: 'caster', icon: '🔮', n: '마력 폭주', d: '광역(루나) 스킬 재사용 대기 -25%', role: 'caster', max: 2 },
+  { id: 'bruiser', icon: '👊', n: '맹호의 기세', d: '측면(서윤) 공격력 +20% · 받는 피해 -15%', role: 'bruiser', max: 2 },
 ];
 export const BLESS_BY = Object.fromEntries(BLESS.map(b => [b.id, b]));
 // 후보 3개 (중복 없음, 최대 횟수 넘은 것·파티에 없는 역할 제외). rnd = 0~1 난수 함수 (테스트는 고정 난수)
@@ -90,8 +91,8 @@ export function blessChoices(taken = {}, roles = [], rnd = Math.random, n = 3) {
 }
 // 고른 축복 → 배수/가산값. role = 그 영웅의 역할 (역할 축복은 해당 역할만)
 export function blessMods(taken = {}, role = null) { const k = id => taken[id] || 0;
-  return { rate: 1 + .15 * k('haste'), dmg: (1 + .12 * k('might')) * (role === 'ranged' ? 1 + .15 * k('ranged') : 1), crit: 12 * k('crit'), critD: 25 * k('crit'),
-    regen: .01 * k('regen'), ult: 1 + .4 * k('ult'), taken: role === 'tank' ? Math.pow(.75, k('tank')) : 1, range: role === 'ranged' ? 1 + .15 * k('ranged') : 1, cd: role === 'caster' ? Math.pow(.75, k('caster')) : 1 }; }
+  return { rate: 1 + .15 * k('haste'), dmg: (1 + .12 * k('might')) * (role === 'ranged' ? 1 + .15 * k('ranged') : 1) * (role === 'bruiser' ? 1 + .2 * k('bruiser') : 1), crit: 12 * k('crit'), critD: 25 * k('crit'),
+    regen: .01 * k('regen'), ult: 1 + .4 * k('ult'), taken: role === 'tank' ? Math.pow(.75, k('tank')) : role === 'bruiser' ? Math.pow(.85, k('bruiser')) : 1, range: role === 'ranged' ? 1 + .15 * k('ranged') : 1, cd: role === 'caster' ? Math.pow(.75, k('caster')) : 1 }; }
 
 // ---------- 궁극기 게이지 · 합동 공격 ----------
 // 게이지 0~100: 전투 중(살아있는 적이 있을 때) 매초 ULT_RATE + 적 처치마다 ULT_KILL (파티 전원, 축복 배수). 살아있는 영웅 전원이 가득 차면 합동 공격 가능

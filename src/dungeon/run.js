@@ -53,7 +53,7 @@ export async function startDungeonRun() {
   buildHud(); startFloor(0);
 }
 // 축복 배수 (역할별로 미리 계산) → hero.js stat 이 G.dgM(영웅) 으로 읽음. 던전 밖에서는 G.dgM 이 없어 일반 판과 동일
-function setMods() { const M = {}; for (const r of ['tank', 'ranged', 'caster', null]) M[r] = blessMods(D.bless, r); D.mods = M; G.dgM = h => G.dungeon ? M[ROLE[h.cls] || null] || M[null] : null; }
+function setMods() { const M = {}; for (const r of ['tank', 'ranged', 'caster', 'bruiser', null]) M[r] = blessMods(D.bless, r); D.mods = M; G.dgM = h => G.dungeon ? M[ROLE[h.cls] || null] || M[null] : null; }
 const killCount = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + b, 0);
 // 층 시작: 쓰러진 영웅 = 체력 30% 로 복귀, 살아남은 영웅 = 15% 회복 (생명의 샘 축복: +50%), 파티를 방 가운데로
 function startFloor(f, heal = 0, ult0 = 0) {

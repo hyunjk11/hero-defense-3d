@@ -41,7 +41,8 @@ t('축복 효과: 공통 + 역할 한정', () => { const N = blessMods({}); asse
   const B = { haste: 2, might: 1, crit: 1, tank: 1, ranged: 1, caster: 1, ult: 1, regen: 1 };
   const T = blessMods(B, 'tank'), Rr = blessMods(B, 'ranged'), C = blessMods(B, 'caster');
   assert.ok(Math.abs(T.rate - 1.3) < 1e-9 && Math.abs(T.dmg - 1.12) < 1e-9 && T.crit === 12 && T.critD === 25 && T.taken === .75 && T.range === 1 && T.cd === 1);
-  assert.ok(Math.abs(Rr.dmg - 1.12 * 1.15) < 1e-9 && Math.abs(Rr.range - 1.15) < 1e-9 && Rr.taken === 1); assert.ok(C.cd === .75 && C.range === 1 && Math.abs(C.ult - 1.4) < 1e-9 && C.regen === .01); });
+  assert.ok(Math.abs(Rr.dmg - 1.12 * 1.15) < 1e-9 && Math.abs(Rr.range - 1.15) < 1e-9 && Rr.taken === 1); assert.ok(C.cd === .75 && C.range === 1 && Math.abs(C.ult - 1.4) < 1e-9 && C.regen === .01);
+  const F = blessMods({ bruiser: 1 }, 'bruiser'); assert.ok(Math.abs(F.dmg - 1.2) < 1e-9 && F.taken === .85); assert.equal(blessMods({ bruiser: 1 }, 'tank').dmg, 1); assert.ok(!blessChoices({}, ['tank'], () => 0, 20).includes('bruiser')); });
 t('궁극기 게이지: 전투 중 시간 + 처치, 배수', () => { assert.equal(ultGain(1, 0, false), 0); assert.equal(ultGain(2, 0, true), 2); assert.equal(ultGain(0, 4, false), 6); assert.ok(Math.abs(ultGain(1, 2, true, 1.4) - 5.6) < 1e-9); });
 t('합동 공격: 살아있는 영웅 전원 가득일 때만 · 피해 = 공격력 합 × K', () => { const h = (ult, dead = 0) => ({ ult, dead });
   assert.ok(jointReady([h(100), h(100), h(100)])); assert.ok(!jointReady([h(100), h(99.9), h(100)])); assert.ok(jointReady([h(100), h(0, 1e9), h(100)])); /* 쓰러진 영웅은 제외 */
