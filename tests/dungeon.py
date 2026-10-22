@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """던전 원정(파티 던전) 1층 테스트 (가짜 Supabase tests/sbmock.js).
- 마을 던전 건물 → 입장 화면(파티 3명, 로즈는 서버 소유일 때만 — 저장 값 조작은 무시) → 출발(?dungeon=1&run=1) → 파티 4명 · 영웅별 장비/전직 ·
+ 마을 던전 건물 → 입장 화면(파티 3명, 로즈·서윤은 서버 소유일 때만 · 출전 영웅 고르기 최대 4명 — 저장 값 조작은 무시) → 출발(?dungeon=1&run=1) → 파티 4명 · 영웅별 장비/전직 ·
  타워/코어 없음 · 초상화 탭 = 조작 전환 · 바닥 탭 = 이동 · Q = 스킬 · 가장 가까운 영웅 타겟팅 · 입구에서 추적 · 일시정지/배속/탭 숨김 →
  AI 자동 전투로 1층 클리어 → 결과 → 마을 · 전멸 → 실패 화면 · 일반 판은 파티 1명 · 데스크톱 + 태블릿 1024x600 (터치 ≥44px) · 콘솔 오류 0
 python3 tests/dungeon.py [--shots]   (스크린샷 shots/dungeon/*.png)"""
@@ -52,7 +52,8 @@ with sync_playwright() as pw:
     J(pg, "()=>G.openDungeon()"); pg.wait_for_function("()=>!document.getElementById('dgPanel').classList.contains('hidden') && document.querySelectorAll('.dgCard').length>=3", timeout=20000); pg.wait_for_timeout(1500)
     cards = J(pg, "()=>[...document.querySelectorAll('.dgCard:not(.lock)')].map(e=>e.dataset.cls)")
     ok('entry_party_no_rose', cards == ['warrior', 'archer', 'mage'], cards)
-    ok('entry_rose_locked', J(pg, "()=>document.querySelectorAll('.dgCard.lock').length") == 1)
+    ok('entry_paid_locked', len(J(pg, "()=>[...document.querySelectorAll('.dgCard.lock')].map(e=>e.innerText)")) == 2 and '서윤' in pg.inner_text('#dgPanel') and '로즈' in pg.inner_text('#dgPanel'))  # 로즈 · 서윤 잠김 카드
+    ok('entry_pick_default', J(pg, "()=>[...document.querySelectorAll('.dgCard.pick.on')].map(e=>e.dataset.cls)") == ['warrior', 'archer', 'mage'] and '출전 3 / 4' in pg.inner_text('#dgPickN'))
     ok('entry_no_budeul', 'mechanic' not in json.dumps(cards) and '버들' not in pg.inner_text('#dgPanel'))
     arch = pg.inner_text('.dgCard[data-cls="archer"]'); ok('entry_gear_adv_summary', '바람의 순찰자' in arch and '장비 1/3' in arch and '%' in arch, arch.replace('\n', ' | '))
     ok('entry_others_plain', '전직 없음' in pg.inner_text('.dgCard[data-cls="mage"]'))
@@ -164,10 +165,23 @@ with sync_playwright() as pw:
     c = b.new_context(viewport={'width': 1024, 'height': 600}, has_touch=True, is_mobile=False); c.add_init_script(MOCK); pg = c.new_page()
     pg.on('dialog', lambda d: d.accept()); pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     login(pg, 'dgt@test.kr', owned=True)
+    J(pg, "()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const u=Object.values(d.users)[0].id; d.hd3d_owned[u+':hero_fighter']={user_id:u,item:'hero_fighter'}; localStorage.setItem('__mockdb', JSON.stringify(d)); }")
     J(pg, "()=>G.openDungeon()"); pg.wait_for_function("()=>document.querySelectorAll('.dgCard[data-cls=\"gunner\"]').length===1", timeout=30000); pg.wait_for_timeout(500)
     fit = J(pg, "()=>{ const r=document.getElementById('dgPanel').getBoundingClientRect(), s=document.getElementById('dgStart').getBoundingClientRect(); return [r.top>=0 && r.bottom<=innerHeight+1, s.bottom<=innerHeight, Math.round(s.height)]; }")
-    ok('tablet_entry_fits', fit[0] and fit[1] and fit[2] >= 44, fit); shot(pg, 'entry_tablet', True)
+    ok('tablet_entry_fits', fit[0] and fit[1] and fit[2] >= 44, fit)
+    # 출전 고르기: 5명 중 기본 앞 4명 · 서윤 탭 → 최대 4명 안내 · 로즈 빼고 서윤 넣기 · 카드 터치 ≥44px
+    ON = "()=>[...document.querySelectorAll('.dgCard.pick.on')].map(e=>e.dataset.cls)"
+    pg.wait_for_function("()=>document.querySelectorAll('.dgCard.pick').length===5", timeout=30000)
+    ok('tablet_pick_default4', J(pg, ON) == ['warrior', 'archer', 'mage', 'gunner'], J(pg, ON))
+    pg.tap('.dgCard.pick[data-cls="fighter"]'); pg.wait_for_timeout(200); ok('tablet_pick_max4', J(pg, ON) == ['warrior', 'archer', 'mage', 'gunner'] and '최대' in pg.inner_text('#banner'))
+    pg.tap('.dgCard.pick[data-cls="gunner"]'); pg.wait_for_timeout(150); pg.tap('.dgCard.pick[data-cls="fighter"]'); pg.wait_for_timeout(150)
+    ok('tablet_pick_swap', J(pg, ON) == ['warrior', 'archer', 'mage', 'fighter'] and '출전 4 / 4' in pg.inner_text('#dgPickN'), J(pg, ON))
+    cs = J(pg, "()=>[...document.querySelectorAll('.dgCard.pick')].map(b=>{ const r=b.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), r.bottom<=innerHeight+1]; })")
+    ok('tablet_pick_touch44', all(w >= 44 and h >= 44 for w, h, _ in cs), cs)
+    fit = J(pg, "()=>{ const s=document.getElementById('dgStart').getBoundingClientRect(); return s.bottom<=innerHeight && s.top>=0; }"); ok('tablet_start_visible_after_pick', fit)
+    shot(pg, 'entry_tablet', True)
     pg.tap('#dgStart'); pg.wait_for_function("()=>window.G&&G.dungeon&&G.phase==='wave'&&G.heroes.length===4", timeout=300000); J(pg, "()=>{ G.manual=true; G.pauseRender=true; }")
+    ok('tablet_run_picked_party', J(pg, "()=>G.heroes.map(h=>h.cls)") == ['warrior', 'archer', 'mage', 'fighter'], J(pg, "()=>G.heroes.map(h=>h.cls)"))
     sz = J(pg, SIZES); ok('touch_targets_tablet', all(w >= 44 and h >= 44 for _, w, h in sz), sz)
     ov = J(pg, "()=>{ const a=document.getElementById('dgBar').getBoundingClientRect(), b=document.getElementById('skillBtn').getBoundingClientRect(), c=document.getElementById('cam').getBoundingClientRect(); return [a.right<=b.left, b.right<=c.left, a.bottom<=innerHeight]; }")
     ok('tablet_layout_no_overlap', all(ov), ov)

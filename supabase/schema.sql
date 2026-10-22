@@ -108,17 +108,17 @@ $$;
 -- 판매 상품 → 우편 보상 (서버가 결정, 클라이언트 값 사용 안 함)
 create or replace function public.hd3d_item_reward(p_item text) returns jsonb
 language sql immutable set search_path = '' as $$
-  select case p_item when 'hero_gunner' then '{"hero":"gunner"}'::jsonb when 'hero_mechanic' then '{"hero":"mechanic"}'::jsonb else null end;
+  select case p_item when 'hero_gunner' then '{"hero":"gunner"}'::jsonb when 'hero_mechanic' then '{"hero":"mechanic"}'::jsonb when 'hero_fighter' then '{"hero":"fighter"}'::jsonb else null end;
 $$;
 create or replace function public.hd3d_item_name(p_item text) returns text
 language sql immutable set search_path = '' as $$
-  select case p_item when 'hero_gunner' then '유료 영웅 · 총사 로즈' when 'hero_mechanic' then '유료 영웅 · 메카닉 버들' else p_item end;
+  select case p_item when 'hero_gunner' then '유료 영웅 · 총사 로즈' when 'hero_mechanic' then '유료 영웅 · 메카닉 버들' when 'hero_fighter' then '유료 영웅 · 격투가 서윤' else p_item end;
 $$;
 
 -- ---------- hd3d_owned: 서버가 기록하는 소유권 (사용자는 읽기만) ----------
 create table if not exists public.hd3d_owned (
   user_id uuid not null references auth.users (id) on delete cascade,
-  item text not null check (item in ('hero_gunner', 'hero_mechanic')),
+  item text not null check (item in ('hero_gunner', 'hero_mechanic', 'hero_fighter')),
   source_mail bigint,
   created_at timestamptz not null default now(),
   primary key (user_id, item)
@@ -133,17 +133,17 @@ create table if not exists public.hd3d_orders (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   email text,
   nickname text,
-  item text not null check (item in ('hero_gunner', 'hero_mechanic')),
+  item text not null check (item in ('hero_gunner', 'hero_mechanic', 'hero_fighter')),
   status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   note text check (note is null or char_length(note) <= 200),
   created_at timestamptz not null default now(),
   decided_at timestamptz
 );
--- 판매 상품 목록 갱신 (이미 만들어진 테이블의 check 제약도 교체 → 이 파일을 다시 실행하면 새 상품이 반영됨. 2026-10-19: hero_mechanic 추가)
+-- 판매 상품 목록 갱신 (이미 만들어진 테이블의 check 제약도 교체 → 이 파일을 다시 실행하면 새 상품이 반영됨. 2026-10-19: hero_mechanic 추가, 2026-10-22: hero_fighter(격투가 서윤) 추가)
 alter table public.hd3d_owned drop constraint if exists hd3d_owned_item_check;
-alter table public.hd3d_owned add constraint hd3d_owned_item_check check (item in ('hero_gunner', 'hero_mechanic'));
+alter table public.hd3d_owned add constraint hd3d_owned_item_check check (item in ('hero_gunner', 'hero_mechanic', 'hero_fighter'));
 alter table public.hd3d_orders drop constraint if exists hd3d_orders_item_check;
-alter table public.hd3d_orders add constraint hd3d_orders_item_check check (item in ('hero_gunner', 'hero_mechanic'));
+alter table public.hd3d_orders add constraint hd3d_orders_item_check check (item in ('hero_gunner', 'hero_mechanic', 'hero_fighter'));
 -- 2026-10-22: 환불(refunded) 상태 + 환불 시각/사유
 alter table public.hd3d_orders drop constraint if exists hd3d_orders_status_check;
 alter table public.hd3d_orders add constraint hd3d_orders_status_check check (status in ('pending', 'approved', 'rejected', 'refunded'));
@@ -204,7 +204,7 @@ language sql immutable set search_path = '' as $$
     when 'gear' then not exists (select 1 from jsonb_object_keys(x) k where k not in ('k', 's', 'h', 'g', 'c'))
       and x ->> 's' in ('weapon', 'armor', 'acc')
       and jsonb_typeof(x -> 'g') = 'number' and x ->> 'g' in ('0', '1', '2', '3', '4')
-      and case when x ->> 's' = 'weapon' then x ->> 'h' in ('archer', 'mage', 'warrior', 'gunner', 'mechanic') else not (x ? 'h') end
+      and case when x ->> 's' = 'weapon' then x ->> 'h' in ('archer', 'mage', 'warrior', 'gunner', 'mechanic', 'fighter') else not (x ? 'h') end
       and (not (x ? 'c') or (jsonb_typeof(x -> 'c') = 'number' and x ->> 'c' in ('1', '2', '3', '4')))
     when 'uq' then not exists (select 1 from jsonb_object_keys(x) k where k not in ('k', 'u'))
       and x ->> 'u' in ('f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring')
@@ -222,7 +222,7 @@ language sql immutable set search_path = '' as $$
     and coalesce((r ->> 'souls') ~ '^[0-9]{1,7}$', true) and coalesce((r ->> 'souls')::bigint <= 1000000, true)
     and coalesce((r ->> 'steel') ~ '^[0-9]{1,7}$', true) and coalesce((r ->> 'steel')::bigint <= 1000000, true)
     and coalesce((r ->> 'crystal') ~ '^[0-9]{1,7}$', true) and coalesce((r ->> 'crystal')::bigint <= 1000000, true)
-    and coalesce(r ->> 'hero' in ('gunner', 'mechanic'), true));
+    and coalesce(r ->> 'hero' in ('gunner', 'mechanic', 'fighter'), true));
 $$;
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'hd3d_mail_reward_valid') then
@@ -434,7 +434,7 @@ language plpgsql security definer set search_path = '' as $$
 declare r text := public.hd3d_reason(p_reason);
 begin
   if not public.hd3d_is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
-  if p_item is null or p_item not in ('hero_gunner', 'hero_mechanic') then return jsonb_build_object('ok', false, 'reason', 'bad_item'); end if;
+  if p_item is null or p_item not in ('hero_gunner', 'hero_mechanic', 'hero_fighter') then return jsonb_build_object('ok', false, 'reason', 'bad_item'); end if;
   if r is null then return jsonb_build_object('ok', false, 'reason', 'bad_reason'); end if;
   if not exists (select 1 from auth.users u where u.id = p_user) then return jsonb_build_object('ok', false, 'reason', 'no_user'); end if;
   insert into public.hd3d_owned (user_id, item) values (p_user, p_item) on conflict do nothing;
@@ -448,7 +448,7 @@ language plpgsql security definer set search_path = '' as $$
 declare r text := public.hd3d_reason(p_reason); n int;
 begin
   if not public.hd3d_is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
-  if p_item is null or p_item not in ('hero_gunner', 'hero_mechanic') then return jsonb_build_object('ok', false, 'reason', 'bad_item'); end if;
+  if p_item is null or p_item not in ('hero_gunner', 'hero_mechanic', 'hero_fighter') then return jsonb_build_object('ok', false, 'reason', 'bad_item'); end if;
   if r is null then return jsonb_build_object('ok', false, 'reason', 'bad_reason'); end if;
   delete from public.hd3d_owned where user_id = p_user and item = p_item;
   if not found then return jsonb_build_object('ok', false, 'reason', 'not_owned'); end if;

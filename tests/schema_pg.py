@@ -217,6 +217,20 @@ try:
     ok('send_items_bad', '"bad_reward"' in A("""select public.hd3d_admin_send_mail('u1@test.kr', 'x', '', '{"items": [{"k":"uq","u":"zzz"}]}')""", ADM)[1])
     ok('send_items_user_denied', not A("""select public.hd3d_admin_send_mail('u1@test.kr', 'x', '', '{"essence": 5}')""", U1)[0])
     ok('user_cannot_insert_items_mail', not A(f"""insert into public.hd3d_mail (user_id, title, reward) values ('{U1['sub']}', 'x', '{{"essence": 5}}')""", U1)[0])
+    # 9) 격투가 서윤 (2026-10-22): 주문 → 승인 → 우편 → 받기 → 소유 · 이름/보상 · 지급/회수 · 무기 보상
+    r = A("insert into public.hd3d_orders (item) values ('hero_fighter') returning status", U2); ok('fighter_order', r[0] and r[1] == 'pending', r)
+    oid = psql("select id from public.hd3d_orders where item = 'hero_fighter' and status = 'pending'")[1]
+    r = A(f'select public.hd3d_admin_approve({oid})', ADM); ok('fighter_approve', r[0] and '"ok": true' in r[1], r)
+    mm = A("select id || '|' || title || '|' || body from public.hd3d_mail where reward ->> 'hero' = 'fighter' and not claimed", U2)[1]; ok('fighter_mail', '격투가 서윤' in mm, mm)
+    r = A(f"select public.hd3d_claim_mail({mm.split('|')[0]})", U2); ok('fighter_claim', r[0] and 'fighter' in r[1], r)
+    ok('fighter_owned', 'hero_fighter' in A("select string_agg(item, ',') from public.hd3d_owned", U2)[1])
+    ok('fighter_owned_blocks_order', not A("insert into public.hd3d_orders (item) values ('hero_fighter')", U2)[0])
+    ok('fighter_user_cannot_insert_owned', not A(f"insert into public.hd3d_owned (user_id, item) values ('{U1['sub']}', 'hero_fighter')", U1)[0])
+    ok('fighter_names', psql("select public.hd3d_item_name('hero_fighter') || '|' || (public.hd3d_item_reward('hero_fighter') ->> 'hero')")[1] == '유료 영웅 · 격투가 서윤|fighter')
+    ok('fighter_valid_reward', VG('{"hero":"fighter"}') == 't' and VG('{"items": [{"k":"gear","s":"weapon","h":"fighter","g":4,"c":4}]}') == 't' and VG('{"hero":"seoyun"}') == 'f')
+    r = A(f"select public.hd3d_admin_grant_hero('{U1['sub']}', 'hero_fighter', '이벤트')", ADM); ok('fighter_grant', '"ok": true' in r[1], r)
+    r = A(f"select public.hd3d_admin_revoke_hero('{U1['sub']}', 'hero_fighter', '테스트 회수')", ADM); ok('fighter_revoke', '"ok": true' in r[1] and 'hero_fighter' not in A("select coalesce(string_agg(item, ','), '') from public.hd3d_owned", U1)[1], r)
+    ok('bad_hero_item', not A("insert into public.hd3d_orders (item) values ('hero_seoyun')", U1)[0])
     r3 = psql(sql); ok('schema_run3_after_data', r3[0], r3[2][-300:])
     ok('owner_kept_after_rerun', A('select public.hd3d_is_owner()', ADM)[1] == 't' and psql('select count(*) from public.hd3d_admins')[1] == '1')
 finally:

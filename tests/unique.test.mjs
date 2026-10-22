@@ -65,7 +65,7 @@ const J = o => JSON.parse(JSON.stringify(o));
   const other = P.clean({ ...J(s), codexRw: [] }); const m = P.merge(other, s); assert.deepEqual(m.codexRw, ['1:armor']); assert.equal(P.claimCodex(m, '1:armor')[1], null, '병합 후에도 한 번');
   assert.equal(P.claimCodex(s, '1:acc')[1], null, '미완성'); assert.equal(P.claimCodex(s, '1:all')[1], null);
   const full = P.empty(); for (const row of P.codexRows()) for (let g = 0; g < 5; g++) full.inv.push(E.makeItem(row === 'armor' || row === 'acc' ? row : 'weapon', row, g, r, 2)); const f = P.clean(full);
-  const cs = P.codexState(f, 2); assert.equal(cs.seen, 30); assert.equal(cs.total, 30); assert.ok(cs.all.done); const [f2, rwa] = P.claimCodex(f, '2:all'); assert.deepEqual(rwa, { essence: 10, souls: 500 }); assert.equal(f2.mat.essence, 10);
+  const cs = P.codexState(f, 2), NC = P.codexRows().length * 5; assert.equal(cs.seen, NC); assert.equal(cs.total, NC); assert.ok(cs.all.done); const [f2, rwa] = P.claimCodex(f, '2:all'); assert.deepEqual(rwa, { essence: 10, souls: 500 }); assert.equal(f2.mat.essence, 10);
   const op = P.empty(); E.addChests(op, [{ it: E.makeItem('acc', 'mage', 3, r, 4), src: 'chest' }]); assert.equal(P.codexBits(op, 4, 'acc'), 0, '미개봉 상자는 아직 도감에 없음'); E.openChests(op); assert.equal(P.codexBits(op, 4, 'acc'), 8);
   const cl = P.clean({ codex: { 1: { archer: 99, evil: 3, mechanic: 1 }, 7: { armor: 1 } }, codexRw: ['1:armor', '1:armor', 'x', '9:all'] }); assert.deepEqual(cl.codex, { 1: { archer: 31, mechanic: 1 } }); assert.deepEqual(cl.codexRw, ['1:armor']); }
 console.log('unique tests OK');

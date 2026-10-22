@@ -6,13 +6,24 @@ import { CLASSES, isHidden } from './heroes.js';
 export const DG_LIVE = true;
 export const DG_OPEN = DG_LIVE || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('dgtest'));
 
-// 파티: 무료 3영웅 고정 + 유료 영웅은 '서버 소유 확인'(account/shop.js heroOwned — hd3d_owned) 이 참일 때만. 숨긴 영웅(버들)은 소유해도 제외
+// 출전 후보: 무료 3영웅 + 유료 영웅은 '서버 소유 확인'(account/shop.js heroOwned — hd3d_owned) 이 참일 때만. 숨긴 영웅(버들)은 소유해도 제외
+// 실제 파티 = 후보 중 최대 DG_MAX(4)명 (입장 화면에서 탭으로 고름, 기본 = 후보 앞 4명, 최소 1명) — pickParty
 export const DG_BASE = ['warrior', 'archer', 'mage'];
-export const DG_PAID = ['gunner'];
+export const DG_PAID = ['gunner', 'fighter'];
+export const DG_MAX = 4, DG_PICK_KEY = 'hd3d_dgparty'; // 고른 파티는 이 기기 localStorage 에만 (소유는 출발 때 서버로 다시 확인)
 export function dungeonParty(owned) { return [...DG_BASE, ...DG_PAID.filter(c => CLASSES[c] && !isHidden(c) && typeof owned === 'function' && owned(c) === true)].filter(c => !isHidden(c)); }
 // 역할: tank = 앞에서 어그로, ranged = 뒤에서 사격, caster = 밀집 지점 광역
-export const ROLE = { warrior: 'tank', archer: 'ranged', gunner: 'ranged', mage: 'caster', mechanic: 'tank' };
-export const ROLE_N = { tank: '전방 · 어그로', ranged: '후방 · 사격', caster: '광역 · 밀집 공격' };
+// 고른 목록(want) → 실제 파티: 후보에 있는 것만 · 후보 순서(세라 먼저 = 조작 영웅) · 최대 4명 · 비면 후보 앞 4명
+export function pickParty(cands, want) { const c = Array.isArray(cands) ? cands : [], w = Array.isArray(want) ? want : [], p = c.filter(x => w.includes(x)).slice(0, DG_MAX); return p.length ? p : c.slice(0, DG_MAX); }
+// 입장 화면 탭: 넣기/빼기. → { pick, msg } (msg = 막힌 이유: 최소 1명 / 최대 4명)
+export function togglePick(cur, cls, cands) { const p = pickParty(cands, cur);
+  if (!cands.includes(cls)) return { pick: p, msg: null };
+  if (p.includes(cls)) return p.length <= 1 ? { pick: p, msg: '최소 1명은 출전해야 해요' } : { pick: p.filter(x => x !== cls), msg: null };
+  if (p.length >= DG_MAX) return { pick: p, msg: `최대 ${DG_MAX}명까지 출전할 수 있어요` };
+  return { pick: cands.filter(x => p.includes(x) || x === cls), msg: null }; }
+// 역할: tank = 앞에서 어그로, ranged = 뒤에서 사격, caster = 밀집 지점 광역, bruiser = 측면에서 원거리 적을 먼저 덮침 (서윤)
+export const ROLE = { warrior: 'tank', archer: 'ranged', gunner: 'ranged', mage: 'caster', mechanic: 'tank', fighter: 'bruiser' };
+export const ROLE_N = { tank: '전방 · 어그로', ranged: '후방 · 사격', caster: '광역 · 밀집 공격', bruiser: '측면 · 원거리 적 덮치기' };
 // 어그로: 몬스터가 노릴 영웅을 고를 때 탱커는 이만큼 가깝게 친다 (AGGRO_R 안에 있을 때만)
 export const AGGRO_BONUS = 4, AGGRO_R = 9;
 

@@ -30,7 +30,7 @@ function showSelect() {
 }
 function updSelect(dt) {
   for (const p of preview) { p.mixer.update(dt); p.nextCheer -= dt; if (p.cheerT > 0) { p.cheerT -= dt; if (p.cheerT <= 0) play(p, 'Idle', { fade: .3 }); }
-    else if (p.nextCheer <= 0) { if (p.cls === 'gunner') { p.nextCheer = 6 + Math.random() * 4; play(p, 'Flourish', { once: true }); p.cheerT = 4; } else if (p.cls === 'mechanic') { p.nextCheer = 6 + Math.random() * 4; play(p, Math.random() < .5 ? 'Uppercut' : 'FistPump', { once: true }); p.cheerT = 1.6; } else { p.nextCheer = rnd(5, 9); play(p, p.cls === 'mage' ? 'Spellcast_Raise' : p.cls === 'archer' ? '2H_Ranged_Shoot' : (p.acts.Melee_Show ? 'Melee_Show' : '1H_Melee_Attack_Slice_Horizontal'), { once: true }); p.cheerT = 1.6; } } // 로즈·버들은 게임 난수 미사용(회귀 결정성)
+    else if (p.nextCheer <= 0) { if (p.cls === 'gunner') { p.nextCheer = 6 + Math.random() * 4; play(p, 'Flourish', { once: true }); p.cheerT = 4; } else if (p.cls === 'mechanic') { p.nextCheer = 6 + Math.random() * 4; play(p, Math.random() < .5 ? 'Uppercut' : 'FistPump', { once: true }); p.cheerT = 1.6; } else if (p.cls === 'fighter') { p.nextCheer = 6 + Math.random() * 4; const sp = Math.random() < .5; play(p, sp ? 'SpinK' : 'CheerJ', { once: true }); p.cheerT = sp ? 1 : 3; } else { p.nextCheer = rnd(5, 9); play(p, p.cls === 'mage' ? 'Spellcast_Raise' : p.cls === 'archer' ? '2H_Ranged_Shoot' : (p.acts.Melee_Show ? 'Melee_Show' : '1H_Melee_Attack_Slice_Horizontal'), { once: true }); p.cheerT = 1.6; } } // 로즈·버들은 게임 난수 미사용(회귀 결정성)
     p.ring.material.opacity = hoverCls === p.cls ? .95 : .45; p.ring.scale.setScalar(hoverCls === p.cls ? 1.2 + Math.sin(G.t * 6) * .05 : 1); }
   if (!G.heroShot) cam.theta = Math.sin(G.t * .2) * .18;
 }

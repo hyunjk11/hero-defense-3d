@@ -1,6 +1,6 @@
 // 던전 순수 로직 단위 테스트: 파티 구성(로즈는 서버 소유만, 버들 제외) · 맵 · 웨이브 · 흐름장 · 어그로 · 역할 AI
 import assert from 'node:assert/strict';
-import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K } from '../src/data/dungeon.js';
+import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K } from '../src/data/dungeon.js';
 import { ETYPES } from '../src/data/monsters.js';
 import { bfsField, downhill, aggroHero, bestCluster, rolePlan } from '../src/dungeon/logic.js';
 let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
@@ -46,4 +46,20 @@ t('궁극기 게이지: 전투 중 시간 + 처치, 배수', () => { assert.equa
 t('합동 공격: 살아있는 영웅 전원 가득일 때만 · 피해 = 공격력 합 × K', () => { const h = (ult, dead = 0) => ({ ult, dead });
   assert.ok(jointReady([h(100), h(100), h(100)])); assert.ok(!jointReady([h(100), h(99.9), h(100)])); assert.ok(jointReady([h(100), h(0, 1e9), h(100)])); /* 쓰러진 영웅은 제외 */
   assert.ok(!jointReady([h(100, 1e9)])); assert.ok(!jointReady([])); assert.equal(ULT_MAX, 100); assert.equal(jointDamage([50, 24, 34]), 108 * JOINT_K); });
+t('파티 후보: 서윤도 소유(true)일 때만', () => { assert.deepEqual(dungeonParty(c => c === 'fighter'), ['warrior', 'archer', 'mage', 'fighter']); assert.deepEqual(dungeonParty(() => true), ['warrior', 'archer', 'mage', 'gunner', 'fighter']); assert.equal(ROLE.fighter, 'bruiser'); });
+t('파티 고르기: 기본 = 후보 앞 4명 · 후보 순서 · 최대 4 · 소유 안 한 영웅 제외', () => { const all = ['warrior', 'archer', 'mage', 'gunner', 'fighter'];
+  assert.equal(DG_MAX, 4); assert.deepEqual(pickParty(all, null), all.slice(0, 4)); assert.deepEqual(pickParty(all, []), all.slice(0, 4)); assert.deepEqual(pickParty(all, ['fighter', 'mage']), ['mage', 'fighter']);
+  assert.deepEqual(pickParty(all, all), all.slice(0, 4)); assert.deepEqual(pickParty(['warrior', 'archer', 'mage'], ['fighter']), ['warrior', 'archer', 'mage'], '소유 안 한 서윤만 골랐으면 기본'); assert.deepEqual(pickParty(['warrior'], ['x', 'warrior']), ['warrior']); assert.deepEqual(pickParty([], ['warrior']), []); });
+t('파티 고르기: 탭 = 넣기/빼기 · 최소 1 · 최대 4', () => { const all = ['warrior', 'archer', 'mage', 'gunner', 'fighter'];
+  let r = togglePick(['warrior', 'archer', 'mage', 'gunner'], 'fighter', all); assert.ok(r.msg && /최대/.test(r.msg)); assert.equal(r.pick.length, 4);
+  r = togglePick(['warrior', 'archer', 'mage', 'gunner'], 'archer', all); assert.equal(r.msg, null); assert.deepEqual(r.pick, ['warrior', 'mage', 'gunner']);
+  r = togglePick(r.pick, 'fighter', all); assert.deepEqual(r.pick, ['warrior', 'mage', 'gunner', 'fighter']);
+  r = togglePick(['mage'], 'mage', all); assert.ok(/최소/.test(r.msg)); assert.deepEqual(r.pick, ['mage']);
+  r = togglePick(['mage'], 'mechanic', all); assert.deepEqual(r.pick, ['mage']); });
+t('역할 AI: 격투가는 원거리 지상 적을 먼저 덮침', () => { const E = [{ x: 2, z: 0 }, { x: 9, z: 3, r: true }, { x: 4, z: 0, fly: true, r: true }]; const p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, skillReady: false }, { enemies: E }); assert.equal(p.focus, 1); assert.deepEqual(p.move, { x: 9, z: 3 }); });
+t('역할 AI: 격투가 — 원거리 없으면 가까운 지상 적 · 사거리 안이면 제자리', () => { const p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10 }, { enemies: [{ x: 6, z: 0 }, { x: 2, z: 0 }] }); assert.equal(p.focus, 1); assert.equal(p.move, null); });
+t('역할 AI: 격투가 — 비행만 남으면 장풍 사거리 안에서 멈춤', () => { const far = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10 }, { enemies: [{ x: 20, z: 0, fly: true, r: true }] }); assert.ok(far.move && Math.abs(far.move.x - 14) < 1e-9);
+  assert.equal(rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10 }, { enemies: [{ x: 7, z: 0, fly: true, r: true }] }).move, null); });
+t('역할 AI: 격투가 Q — 지상 적 3명 이상 모인 곳(9 이내)', () => { const E = [{ x: 5, z: 0 }, { x: 5.5, z: .5 }, { x: 6, z: 0 }, { x: 5, z: 0, fly: true }]; const p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, skillReady: true }, { enemies: E }); assert.ok(p.skill && Math.abs(p.skill.x - 5.5) < 1e-9);
+  assert.equal(rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, skillReady: true }, { enemies: [{ x: 5, z: 0 }, { x: 5, z: 0, fly: true }, { x: 5.2, z: 0, fly: true }] }).skill, null, '비행은 세지 않음'); });
 console.log(`dungeon: ${ok} ok`);

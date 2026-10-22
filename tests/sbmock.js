@@ -1,5 +1,5 @@
 // Fake supabase-js createClient for tests/account.py (hero-defense-3d) (no network, no emails). Server state lives in localStorage '__mockdb'
-// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, noAdmin2: 2026-10-22 관리자 확장 SQL 미실행(새 RPC/테이블 없음), confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실}). Installed as window.__hd3dSupabaseMock.
+// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, noAdmin2: 2026-10-22 관리자 확장 SQL 미실행(새 RPC/테이블 없음), oldSchema: 격투가 서윤(hero_fighter) 추가 전 schema.sql (상품·보상 검사에 fighter 없음), confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실}). Installed as window.__hd3dSupabaseMock.
 // 관리자 확장(supabase/schema.sql 2026-10-22)도 흉내: hd3d_admins(owner)·hd3d_bans·hd3d_notices·hd3d_admin_log·hd3d_broadcasts + 권한 검사(관리자/owner/정지) 그대로.
 (() => {
   const db = () => JSON.parse(localStorage.getItem('__mockdb') || '{"users":{},"hd3d_profiles":{},"hd3d_progress":{},"hd3d_records":{},"calls":[]}');
@@ -48,13 +48,14 @@
     const ts = d => { d.lastTs = Math.max(Date.now(), (d.lastTs || 0) + 1); return new Date(d.lastTs).toISOString(); }; // 저장 행 updated_at: 쓸 때마다 증가 (낙관적 동시성 검사용)
     const missing = t => flags().noTables || (flags().noShop && SHOPT.includes(t)) || (flags().noAdmin2 && ADM2T.includes(t));
     // hd3d_valid_reward / hd3d_valid_item 과 같은 규칙 (2026-10-22: essence 0~10000, items 1~10개 — 장비 {k:'gear',s,h?,g,c?} · 고유 {k:'uq',u})
-    const UQK = ['f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring'], HK = ['archer', 'mage', 'warrior', 'gunner', 'mechanic'];
+    const UQK = ['f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring'], HK0 = ['archer', 'mage', 'warrior', 'gunner', 'mechanic', 'fighter'], HKF = () => (flags().oldSchema ? HK0.filter(h => h !== 'fighter') : HK0); // oldSchema: fighter 추가 전 서버
     const INT = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
     const VITEM = x => !!x && typeof x === 'object' && !Array.isArray(x) && (x.k === 'uq' ? Object.keys(x).every(k => k === 'k' || k === 'u') && UQK.includes(x.u)
-      : x.k === 'gear' && Object.keys(x).every(k => ['k', 's', 'h', 'g', 'c'].includes(k)) && ['weapon', 'armor', 'acc'].includes(x.s) && INT(x.g, 0, 4) && (x.s === 'weapon' ? HK.includes(x.h) : !('h' in x)) && (!('c' in x) || INT(x.c, 1, 4)));
-    const VALID = r => r == null || (typeof r === 'object' && !Array.isArray(r) && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.essence == null || INT(r.essence, 0, 10000)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic')
+      : x.k === 'gear' && Object.keys(x).every(k => ['k', 's', 'h', 'g', 'c'].includes(k)) && ['weapon', 'armor', 'acc'].includes(x.s) && INT(x.g, 0, 4) && (x.s === 'weapon' ? HKF().includes(x.h) : !('h' in x)) && (!('c' in x) || INT(x.c, 1, 4)));
+    const VALID = r => r == null || (typeof r === 'object' && !Array.isArray(r) && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.essence == null || INT(r.essence, 0, 10000)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic' || (r.hero === 'fighter' && !flags().oldSchema))
       && (r.items === undefined || (Array.isArray(r.items) && r.items.length >= 1 && r.items.length <= 10 && r.items.every(VITEM))));
-    const REW = { hero_gunner: { hero: 'gunner' }, hero_mechanic: { hero: 'mechanic' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈', hero_mechanic: '유료 영웅 · 메카닉 버들' };
+    const REW = { hero_gunner: { hero: 'gunner' }, hero_mechanic: { hero: 'mechanic' }, hero_fighter: { hero: 'fighter' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈', hero_mechanic: '유료 영웅 · 메카닉 버들', hero_fighter: '유료 영웅 · 격투가 서윤' };
+    const ITEMOK = it => it === 'hero_gunner' || it === 'hero_mechanic' || (it === 'hero_fighter' && !flags().oldSchema); // owned·orders check 제약
     const mail = (d, user_id, title, body, reward, order_id) => { const id = nid(d); d.hd3d_mail[id] = { id, user_id, title, body, reward: reward || null, order_id: order_id || null, claimed: false, claimed_at: null, created_at: now() }; return id; };
     function from(t) {
       const q = { t, f: [], op: 'select', lim: null, ord: null, single: false };
@@ -72,7 +73,7 @@
         if (q.op === 'insert') {
           if (t !== 'hd3d_orders' || !uid()) return RLS;
           if (banned()) return { data: null, error: { code: '42501', message: 'banned', hint: 'banned' }, status: 403 }; // 주문 트리거: 정지 계정
-          const item = q.row.item; if (item !== 'hero_gunner' && item !== 'hero_mechanic') return { data: null, error: { code: '23514', message: 'check constraint' }, status: 400 };
+          const item = q.row.item; if (!ITEMOK(item)) return { data: null, error: { code: '23514', message: 'check constraint' }, status: 400 };
           if (d.hd3d_owned[uid() + ':' + item]) return { data: null, error: { code: '23505', message: 'already owned', hint: 'hd3d_owned' }, status: 409 };
           if (Object.values(d.hd3d_orders).some(o => o.user_id === uid() && o.item === item && o.status === 'pending')) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "hd3d_orders_one_pending"' }, status: 409 };
           const id = nid(d), nick = (d.hd3d_profiles[uid()] || {}).nickname || null; d.hd3d_orders[id] = { id, user_id: uid(), email: sess().user.email, nickname: nick, item, status: 'pending', note: null, created_at: now(), decided_at: null }; put(d); return { data: null, error: null, status: 201 };
@@ -108,7 +109,7 @@
     // ---------- 관리자 확장 (schema.sql 2026-10-22 흉내) ----------
     const ADM2F = ['hd3d_my_status', 'hd3d_admin_users', 'hd3d_admin_user', 'hd3d_admin_grant_hero', 'hd3d_admin_revoke_hero', 'hd3d_admin_broadcast_count', 'hd3d_admin_broadcast', 'hd3d_admin_notice_save', 'hd3d_admin_notice_active',
       'hd3d_admin_ban', 'hd3d_admin_unban', 'hd3d_admin_orders', 'hd3d_admin_refund', 'hd3d_admin_log_list', 'hd3d_owner_admins', 'hd3d_owner_add_admin', 'hd3d_owner_remove_admin'];
-    const ITEMS = ['hero_gunner', 'hero_mechanic'], STS = ['pending', 'approved', 'rejected', 'refunded'];
+    const STS = ['pending', 'approved', 'rejected', 'refunded'];
     const logA = (d, action, target, detail) => { d.hd3d_admin_log = d.hd3d_admin_log || {}; const id = nid(d); d.hd3d_admin_log[id] = { id, admin_id: uid(), admin_email: sess().user.email, action, target_user: target || null, target_email: target && d.users[target] ? d.users[target].email : null, detail: detail || null, created_at: now() }; };
     const reason = r => { const t = String(r == null ? '' : r).trim(); return t.length >= 1 && t.length <= 200 ? t : null; };
     const jn = v => (typeof v === 'number' && v >= 0 && isFinite(v) ? Math.floor(v) : 0), ob = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
@@ -138,7 +139,7 @@
           return { data: { ok: true, total: f.length, offset: off, limit: lim, rows: f.slice(off, off + lim).map(id => card(d, id)) }, error: null }; }
         case 'hd3d_admin_user': { const c = card(d, a.p_user); if (!c) return NO('no_user'); const by = (o, n) => Object.values(o).filter(x => (x.user_id || x.target_user) === a.p_user).sort((x, y) => (x.created_at < y.created_at ? 1 : -1)).slice(0, n);
           return { data: { ok: true, user: c, orders: by(d.hd3d_orders, 30), mail: by(d.hd3d_mail, 30).map(m => ({ id: m.id, title: m.title, reward: m.reward, claimed: m.claimed, revoked: !!m.revoked, created_at: m.created_at })), log: Object.values(d.hd3d_admin_log).filter(l => l.target_user === a.p_user).sort((x, y) => y.id - x.id).slice(0, 20) }, error: null }; }
-        case 'hd3d_admin_grant_hero': case 'hd3d_admin_revoke_hero': { if (!ITEMS.includes(a.p_item)) return NO('bad_item'); const r = reason(a.p_reason); if (!r) return NO('bad_reason'); const k = a.p_user + ':' + a.p_item;
+        case 'hd3d_admin_grant_hero': case 'hd3d_admin_revoke_hero': { if (!ITEMOK(a.p_item)) return NO('bad_item'); const r = reason(a.p_reason); if (!r) return NO('bad_reason'); const k = a.p_user + ':' + a.p_item;
           if (fn === 'hd3d_admin_grant_hero') { if (!d.users[a.p_user]) return NO('no_user'); if (d.hd3d_owned[k]) return NO('already'); d.hd3d_owned[k] = { user_id: a.p_user, item: a.p_item, source_mail: null, created_at: now() }; L('hero_grant', a.p_user, { item: a.p_item, reason: r }); return R({ ok: true }); }
           if (!d.hd3d_owned[k]) return NO('not_owned'); delete d.hd3d_owned[k]; let n = 0; for (const m of Object.values(d.hd3d_mail)) if (m.user_id === a.p_user && !m.claimed && !m.revoked && m.reward && 'hero_' + m.reward.hero === a.p_item) { m.revoked = true; n++; }
           L('hero_revoke', a.p_user, { item: a.p_item, reason: r, mail_revoked: n }); return R({ ok: true, mail_revoked: n }); }

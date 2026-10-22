@@ -16,7 +16,7 @@ import { SHOP } from '../config/shop.js';
 
 const fmtD = s => { const d = new Date(s); return !s || isNaN(d) ? '—' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const ST_N = { pending: '승인 대기', approved: '승인됨', rejected: '거절됨', refunded: '환불됨' };
-const ITEMS = Object.keys(SHOP.items), ICO = { hero_gunner: '🌹', hero_mechanic: '🛠️' };
+const ITEMS = Object.keys(SHOP.items), ICO = { hero_gunner: '🌹', hero_mechanic: '🛠️', hero_fighter: '👊' };
 const itemN = k => (SHOP.items[k] || {}).n || k, heroOf = k => (SHOP.items[k] || {}).hero;
 const heroName = h => (CLASSES[h] ? heroLabel(h) : h), advName = (h, b) => { const a = AD.ADV[h] && AD.ADV[h][b]; return a ? a.icon + ' ' + a.n : b; };
 const rwText = rw => Sh.rewardText(rw);

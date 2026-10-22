@@ -12,6 +12,7 @@ import { banner } from '../ui/hud.js';
 import { mouseGround } from '../ui/input.js';
 import { gunSkill } from './gunner.js';
 import { mechTransform } from './mechanic.js';
+import { fighterSkill } from './fighter.js';
 import { uqOnSkill } from './unique.js';
 import { advSkill } from './advfx.js';
 
@@ -20,6 +21,7 @@ function castSkill(at) { // at: 목표 지점(Vector3, 던전 AI). 없으면(키
   if (!hero || hero.dead > 0 || hero.skillCd > 0 || G.phase === 'select' || G.phase === 'over') return;
   const mul = stat.skillMul(), base = stat.dmg();
   if (hero.cls === 'mechanic') { if (mechTransform(mul, base)) { hero.skillCd = stat.skillCd(); if (hero.uqs) uqOnSkill(hero.g.position); } return; } // 메카닉: 변신 (이미 로봇이면 무시)
+  if (hero.cls === 'fighter') { const t = at && at.isVector3 ? at : mouseGround.lengthSq() > 0 ? mouseGround : null; if (fighterSkill(t, mul)) { hero.skillCd = stat.skillCd(); if (hero.uqs) uqOnSkill(hero.g.position); } return; } // 격투가: 냥냥 진각 (도약 내려찍기)
   hero.skillCd = stat.skillCd();
   const tgt = (at && at.isVector3 ? at : mouseGround).clone(); const hp = hero.g.position; if (hp.distanceTo(tgt) > 16) tgt.sub(hp).setLength(16).add(hp);
   if (hero.cls !== 'warrior') hero.face = Math.atan2(tgt.x - hp.x, tgt.z - hp.z);
