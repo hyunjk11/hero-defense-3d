@@ -137,6 +137,11 @@ export const RECIPES = [
   { k: 'basic', n: '기본 제작', cost: { souls: 30, steel: 15, crystal: 0 }, odds: [55, 32, 11, 2, 0] },
   { k: 'fine', n: '정교한 제작', cost: { souls: 80, steel: 40, crystal: 2 }, odds: [0, 50, 35, 13, 2] },
   { k: 'master', n: '명장의 제작', cost: { souls: 200, steel: 80, crystal: 8 }, odds: [0, 0, 50, 38, 12] }];
+// 챕터 세트에서 정상 경로(상자·하드 상자·보스 드롭·스테이지·별 보상·대장간 세트 제작·도전 모드)로 나오는 등급 = 도감 완성 조건의 단일 기준.
+// 모든 경로가 randomItem → chOdds(원본 확률, ch) 를 거치므로, 원본 확률표(상자 tier 1·최고 tier, 보스, 제작 레시피) 합집합에 chOdds 를 씌워 0 이 아닌 등급. (관리자 우편은 정상 경로 아님)
+const SRC_ODDS = () => [chestOdds(1), chestOdds(99), bossOdds(0), ...RECIPES.map(R => R.odds)];
+const OBT = {}; export const obtainableGrades = ch => OBT[ch] || (OBT[ch] = [0, 1, 2, 3, 4].filter(g => SRC_ODDS().some(o => (CHSET[ch] ? chOdds(o, +ch) : o)[g] > 0)));
+export const gradeMask = ch => obtainableGrades(ch).reduce((m, g) => m | (1 << g), 0);
 const afford = (s, c) => s.souls >= c.souls && s.mat.steel >= c.steel && s.mat.crystal >= c.crystal;
 const pay = (s, c) => { s.souls -= c.souls; s.mat.steel -= c.steel; s.mat.crystal -= c.crystal; };
 // 반환 [save, 결과]  결과: 'ok' | 'fail' | 'max' | 'poor' | 'none'

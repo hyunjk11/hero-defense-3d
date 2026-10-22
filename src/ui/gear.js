@@ -7,7 +7,7 @@ import * as E from '../account/equip.js';
 import { closeLab } from './lab.js';
 import * as P from '../account/progress.js';
 import * as ST from '../data/stages.js';
-import { UQ, UQ_COLOR, UQ_DUP, AWAKE_MAX, CHSET, CH_KEYS, UQ_PITY, CODEX_RW, awakeMul, awakeCd } from '../data/items.js';
+import { UQ, UQ_COLOR, UQ_DUP, AWAKE_MAX, CHSET, CH_KEYS, UQ_PITY, CODEX_RW, awakeMul, awakeCd, chOdds } from '../data/items.js';
 
 const ICON = { ...Object.fromEntries(HERO_KEYS.map(k => [k, CLASSES[k].icon])), armor: '🛡️', acc: '💍' }; // 영웅 무기 아이콘은 data/heroes.js 의 icon (빠진 영웅이 없도록 한 곳에서)
 const FALLBACK = { weapon: '⚔️', any: '📦' }; // 모르는 영웅/슬롯 키 → 'undefined' 대신 일반 아이콘
@@ -119,7 +119,7 @@ function renderSmith() {
     const h = s.hero; const slots = [['weapon', `무기 (${CLASSES[h].n})`], ['armor', '방어구'], ['acc', '장신구']], sets = clearedSets(s); if (!sets.includes(ui.crSet)) ui.crSet = 0;
     body.innerHTML = `<div class="crSlots">${slots.map(([k, n]) => `<button class="ftab ${ui.crSlot === k ? 'on' : ''}" data-s="${k}">${k === 'weapon' ? weaponIcon(h) : iconKey(k)} ${n}</button>`).join('')}</div>
       <div class="crSets">세트 <button class="ftab ${!ui.crSet ? 'on' : ''}" data-c="0">🎲 무작위</button>${CH_KEYS.map(c => { const C = CHSET[c], un = sets.includes(c); return `<button class="ftab ${ui.crSet === c ? 'on' : ''}" data-c="${c}" ${un ? '' : 'disabled title="그 챕터 보스를 처치하면 열려요"'} style="--cc:${C.color}">${C.badge} ${C.n}${un ? '' : ' 🔒'}</button>`; }).join('')}<small>${ui.crSet ? '세트 제작: 비용 +20%' : ''}</small></div>
-      <div class="recipes">${E.RECIPES.map(R => { const od = ui.crSet >= 3 ? [0, ...R.odds.slice(1)] : R.odds, t = od.reduce((a, b) => a + b, 0); return `<div class="recipe"><div class="rn">${R.n}</div><div class="odds">${od.map((o, i) => o ? `<div class="ob" style="--gc:${GC(i)};flex:${o}"><span>${E.GRADES[i].n} ${Math.round(o / t * 100)}%</span></div>` : '').join('')}</div><div class="costs">${costHtml(E.craftCost(R, ui.crSet || undefined), s)}</div><button class="gbtn main crGo" data-r="${R.k}">⚒ 제작</button></div>`; }).join('')}</div>
+      <div class="recipes">${E.RECIPES.map(R => { const od = ui.crSet ? chOdds(R.odds, ui.crSet) : R.odds, t = od.reduce((a, b) => a + b, 0); return `<div class="recipe"><div class="rn">${R.n}</div><div class="odds">${od.map((o, i) => o ? `<div class="ob" style="--gc:${GC(i)};flex:${o}"><span>${E.GRADES[i].n} ${Math.round(o / t * 100)}%</span></div>` : '').join('')}</div><div class="costs">${costHtml(E.craftCost(R, ui.crSet || undefined), s)}</div><button class="gbtn main crGo" data-r="${R.k}">⚒ 제작</button></div>`; }).join('')}</div>
       ${s.inv.length >= E.CAP ? '<div class="warn">가방이 가득 차서 제작할 수 없어요. 먼저 분해하세요!</div>' : ''}`;
     body.querySelectorAll('.crSlots .ftab').forEach(b => b.onclick = () => { ui.crSlot = b.dataset.s; Snd.play('ui'); renderSmith(); });
     body.querySelectorAll('.crSets .ftab').forEach(b => b.onclick = () => { if (b.disabled) return; ui.crSet = +b.dataset.c; Snd.play('ui'); renderSmith(); });
@@ -249,12 +249,12 @@ const sampleR = () => { let q = 12345; return () => (q = (q * 16807) % 214748364
 export const sampleItem = (ch, row, g) => E.makeItem(cxSlot(row), cxSlot(row) === 'weapon' ? row : P.codexRows()[0], g, sampleR(), ch);
 let lastClaim = null; export const lastCodexClaim = () => lastClaim;
 function renderCodex(s) {
-  const tabs = [...CH_KEYS.map(c => [c, `${CHSET[c].badge} ${CHSET[c].n}`, `${P.codexState(s, c).seen}/30`]), [0, '◆ 고유', `${Object.keys(UQ).filter(k => E.ownsUnique(s, k)).length}/${Object.keys(UQ).length}`]];
+  const tabs = [...CH_KEYS.map(c => [c, `${CHSET[c].badge} ${CHSET[c].n}`, (C => `${C.seen}/${C.total}`)(P.codexState(s, c))]), [0, '◆ 고유', `${Object.keys(UQ).filter(k => E.ownsUnique(s, k)).length}/${Object.keys(UQ).length}`]];
   let h = `<div class="cxTabs">${tabs.map(([c, n, sm]) => `<button class="ftab ${ui.cxTab === c ? 'on' : ''}" data-c="${c}" style="--cc:${c ? CHSET[c].color : UQ_COLOR}">${n} <small>${sm}</small></button>`).join('')}</div>`;
   if (ui.cxTab) { const ch = ui.cxTab, C = P.codexState(s, ch), SC = ST.CHAPTERS.find(c => c.id === ch), un = ST.chapterUnlocked(s, ch);
     h += `<div class="cxGrid" style="--cc:${CHSET[ch].color}"><div class="cxHd"></div>${E.GRADES.map(g => `<div class="cxHd" style="color:${g.c}">${g.n}</div>`).join('')}<div class="cxHd">보상</div>`
-      + C.rows.map(r => `<div class="cxRow">${cxRowIcon(r.row)}<small>${cxRowN(r.row)}</small></div>` + [0, 1, 2, 3, 4].map(g => { const seen = r.bits & (1 << g); return `<button class="cxC ${seen ? 'seen' : ''}" data-ch="${ch}" data-row="${r.row}" data-g="${g}" style="--gc:${GC(g)}">${seen ? `<span>${cxRowIcon(r.row)}</span>` : '?'}</button>`; }).join('')
-        + `<div class="cxRw">${r.got ? '✓' : r.done ? `<button class="gbtn sm main cxGet" data-k="${r.key}">받기</button>` : `${r.n}/5`}</div>`).join('') + '</div>'
+      + C.rows.map(r => `<div class="cxRow">${cxRowIcon(r.row)}<small>${cxRowN(r.row)}</small></div>` + [0, 1, 2, 3, 4].map(g => { const seen = r.bits & (1 << g), na = !(C.mask & (1 << g)); /* na: 이 챕터에서 나오지 않는 등급 (완성 조건 아님) — 예전 저장·관리자 우편으로 등록돼 있으면 보여 주되 extra */ return `<button class="cxC ${seen ? 'seen' : ''}${na ? ' na' : ''}" data-ch="${ch}" data-row="${r.row}" data-g="${g}" style="--gc:${GC(g)}">${seen ? `<span>${cxRowIcon(r.row)}</span>` : na ? '—' : '?'}</button>`; }).join('')
+        + `<div class="cxRw">${r.got ? '✓' : r.done ? `<button class="gbtn sm main cxGet" data-k="${r.key}">받기</button>` : `${r.n}/${r.max}`}</div>`).join('') + '</div>'
       + `<div class="cxFoot"><span>${SC.n} · 본 장비 <b>${C.seen}/${C.total}</b>${un ? '' : ' · 🔒 아직 열리지 않은 챕터'}</span><span class="cxAllRw">행 완성 ${rwTxt(CODEX_RW.row)} · 전부 완성 ${rwTxt(CODEX_RW.all)}</span>${C.all.got ? '<b class="cxDone">✓ 완성 보상 받음</b>' : C.all.done ? `<button class="gbtn main cxGet" data-k="${C.all.key}">🏆 완성 보상 받기</button>` : ''}</div>`;
   } else {
     h += `<div class="uqGrid">${Object.keys(UQ).map(k => { const U = UQ[k], have = E.ownsUnique(s, k), it = s.inv.find(x => x.uq === k), src = U.src;
@@ -264,7 +264,7 @@ function renderCodex(s) {
   $('codexBody').innerHTML = h;
   document.querySelectorAll('#codexBody .cxTabs .ftab').forEach(b => b.onclick = () => { ui.cxTab = +b.dataset.c; Snd.play('ui'); hideTip(); renderInv(); });
   document.querySelectorAll('#codexBody .cxGet').forEach(b => b.onclick = () => { let rw; Acc.update(d => { const o = P.claimCodex(d, b.dataset.k); rw = o[1]; return o[0]; }); lastClaim = rw; if (rw) { Snd.play('levelUp', { force: true }); Snd.play('coins'); hooks.cheer(); } else Snd.play('error'); hooks.onChange(true); renderInv(); });
-  const tipOf = b => { if (b.dataset.k) { const k = b.dataset.k, it = S().inv.find(x => x.uq === k) || E.makeUnique(k); return card(it); } const it = sampleItem(+b.dataset.ch, b.dataset.row, +b.dataset.g); return (b.classList.contains('seen') ? '' : '<div class="cxUnseen">아직 얻지 못한 장비 (견본)</div>') + card(it); };
+  const tipOf = b => { if (b.dataset.k) { const k = b.dataset.k, it = S().inv.find(x => x.uq === k) || E.makeUnique(k); return card(it); } const it = sampleItem(+b.dataset.ch, b.dataset.row, +b.dataset.g), na = b.classList.contains('na'); return (na ? `<div class="cxUnseen">${CHSET[+b.dataset.ch].n} 세트는 ${E.GRADES[+b.dataset.g].n} 등급이 나오지 않아요 · 도감 완성에 필요 없음${b.classList.contains('seen') ? ' (특별 획득)' : ''}</div>` : b.classList.contains('seen') ? '' : '<div class="cxUnseen">아직 얻지 못한 장비 (견본)</div>') + card(it); };
   document.querySelectorAll('#codexBody .cxC, #codexBody .uqCell').forEach(b => { b.onpointerenter = e => { if (e.pointerType === 'mouse') showTip(b, tipOf(b)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); };
     b.onclick = () => { showTip(b, tipOf(b)); clearTimeout(tipT); tipT = setTimeout(hideTip, 3200); Snd.play('select'); }; });
 }
