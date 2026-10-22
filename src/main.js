@@ -51,7 +51,8 @@ import { updVolcano } from './render/volcano.js';
 import { updRuins } from './render/ruins.js';
 import { updDungeon } from './dungeon/run.js';
 import { DUNGEON } from './core/grid.js';
-import { DG_BASE, DG_PAID } from './data/dungeon.js';
+import { DG_BASE, DG_PAID, pickParty } from './data/dungeon.js';
+import { loadPick } from './dungeon/run.js';
 
 Object.assign(G, { Q, STAGE_CFG: STAGE, ROSTERS, ROSTER, towerRateK, pendingSpawns, towerXp, chooseBranch, GROW, castLegend, SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
@@ -101,7 +102,7 @@ function bootPlan() {
   if ((QS.has('test') || QS.has('skipintro')) && !QS.has('lazy')) return { first: ASSETS, bg: [] };
   let h = 'mage'; try { const s = accLoad(); if (CLASSES[s.hero] && !isHidden(s.hero)) h = s.hero; } catch (e) {}
   const heroes = CLASSES[h].paid ? [h, 'mage'] : [h], uniq = a => [...new Set(a)];
-  if (DUNGEON && QS.has('run')) return { first: uniq([...MON_ASSETS, ...[...DG_BASE, ...DG_PAID].flatMap(c => heroAssets(c, true))]), bg: [] }; // 던전 원정: 몬스터 + 파티 (로즈는 소유 확인 전이라 같이 받음)
+  if (DUNGEON && QS.has('run')) return { first: uniq([...MON_ASSETS, ...pickParty([...DG_BASE, ...DG_PAID].filter(c => !isHidden(c)), loadPick()).flatMap(c => heroAssets(c, true))]), bg: [] }; // 던전 원정: 몬스터 + 고른 파티 (유료 영웅은 소유 확인 전이라 고른 대로 받음 · 실제 파티가 다르면 startDungeonRun 이 나머지를 받음) (로즈는 소유 확인 전이라 같이 받음)
   if (STAGE && QS.has('run')) return { first: uniq([...MON_ASSETS, ...heroes.flatMap(c => heroAssets(c, true))]), bg: [] };
   const first = uniq(heroes.flatMap(c => heroAssets(c))), order = [...MON_ASSETS, ...(h === 'mechanic' ? ['mech_robot_meshy'] : []), ...VISIBLE_HEROES.filter(c => !CLASSES[c].paid).flatMap(c => heroAssets(c)), ...VISIBLE_HEROES.filter(c => CLASSES[c].paid).flatMap(c => heroAssets(c, true))];
   return { first, bg: uniq(order).filter(k => !first.includes(k)) };

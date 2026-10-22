@@ -648,3 +648,10 @@ body.dungeonRun #build,body.dungeonRun #ups,body.dungeonRun #wavePrev,body.dunge
 .tlabel.dungeon{border-color:#b07aff;box-shadow:0 0 12px #9a5aff;color:#f0e0ff}.tlabel.dungeon small{color:#d0b0ff}
 @media (max-width:1100px),(max-height:800px){.dgCard{width:150px;font-size:11.5px;padding:8px}.dgSt{min-height:44px}.dgParty{margin:8px 0;gap:8px}}
 @media (max-height:680px){.dgCard{width:140px;gap:3px}.dgLv{display:none}.dgInfo{font-size:12px;line-height:1.4}}
+/* 던전 입장: 출전 영웅 고르기 (2026-10-22 서윤) — 카드 = 버튼(탭으로 넣기/빼기, 최대 4명) */
+.dgCard.pick{font:inherit;text-align:left;cursor:pointer;position:relative;min-height:44px;transition:transform .12s,box-shadow .12s,opacity .12s}
+.dgCard.pick.on{box-shadow:0 0 14px color-mix(in srgb,var(--hc) 60%,transparent);border-style:solid}.dgCard.pick.off{opacity:.55;border-style:dashed;filter:saturate(.6)}
+.dgCard.pick:active{transform:scale(.97)}.dgChk{position:absolute;top:6px;right:8px;font-size:11px;font-weight:bold;padding:1px 7px;border-radius:9px;background:#00000066;color:#c8b8e0}
+.dgCard.pick.on .dgChk{background:var(--hc);color:#1a1020}.dgPickN{text-align:center;font-size:13px;color:#e8d8ff;margin-top:6px}.dgPickN b{color:#ffe08a;font-size:15px}
+.card[data-cls=fighter]{border-color:#ff9a3a}.card.paid.fighter{box-shadow:0 0 18px #ff9a3a55}.card.paid.fighter h2{color:#ffc890}
+.advSoon{padding:14px 10px;line-height:1.6}

@@ -36,6 +36,12 @@ export function rolePlan(role, self, { lead = null, tank = null, enemies = [], b
     if (dist(t, self) > self.range * .8) out.move = { x: t.x, z: t.z };
     if (self.skillReady && E.filter(e => dist(e, self) <= 3.6).length >= 3) out.skill = { x: self.x, z: self.z };
     return out; }
+  if (role === 'bruiser') { // 격투가: 원거리(지상) 적을 먼저 덮치고, 없으면 가장 가까운 지상 적 · 비행만 남으면 장풍 사거리(jp) 안에 서서 충전
+    const idx = E.map((e, i) => i), ground = idx.filter(i => !E[i].fly), rg = ground.filter(i => E[i].r), pool = rg.length ? rg : ground;
+    if (pool.length) { let ti = pool[0], td = Infinity; for (const i of pool) { const d = dist(E[i], self); if (d < td) { td = d; ti = i; } } out.focus = ti; if (td > self.range * .8) out.move = { x: E[ti].x, z: E[ti].z }; }
+    else { const jp = self.jp || 10, f = E[near.i]; if (near.d > jp * .85) { const k = (near.d - jp * .6) / near.d; out.move = { x: self.x + (f.x - self.x) * k, z: self.z + (f.z - self.z) * k }; } }
+    if (self.skillReady) { const cl = bestCluster(E.filter(e => !e.fly), 3.5, self, 9); if (cl && cl.n >= 3) out.skill = { x: cl.x, z: cl.z }; }
+    return out; }
   // ranged / caster: 너무 가까우면 탱커 쪽(없으면 반대쪽)으로 물러나고, 사거리 밖이면 다가감
   const e0 = E[near.i];
   if (near.d < 4) { let ax = self.x - e0.x, az = self.z - e0.z; if (tank) { ax += (tank.x - self.x) * .25; az += (tank.z - self.z) * .25; } const L = Math.hypot(ax, az) || 1; out.move = { x: self.x + ax / L * 4, z: self.z + az / L * 4 }; }
