@@ -30,7 +30,7 @@ function render() { const p = $('dgPanel'); if (!p) return; const s = Acc.load()
     <div class="dgInfo"><b>${esc(F.n)}</b> · 웨이브 ${F.waves.length} · 타워 없음 · 입구 4곳에서 몬스터가 영웅을 쫓아와요<br><small>쓰러진 영웅은 이 층에서 부활하지 않아요 · 파티 전멸 = 실패</small></div>
     <div class="dgGo"><button id="dgStart" class="gbtn main">⚔ 원정 출발</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgStart').onclick = () => depart(); }
-export function openDungeon() { if (departing || !DG_OPEN) return; // 공개 전(DG_LIVE=false): 건물은 '준비 중' H.closeOthers(); open = true; $('dgPanel').classList.remove('hidden'); Snd.play('ui');
+export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; $('dgPanel').classList.remove('hidden'); Snd.play('ui');
   if (Acc.A.user && !checking) { checking = true; render(); Sh.verifyOwned().finally(() => { checking = false; if (open) render(); }); } else render(); }
 export function closeDungeon(quiet) { if (!open) return; open = false; $('dgPanel').classList.add('hidden'); if (!quiet) Snd.play('ui'); }
 function depart() { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');

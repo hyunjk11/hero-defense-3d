@@ -26,7 +26,7 @@ def login(pg, email, owned=False):
     pg.mouse.click(400, 300); pg.wait_for_timeout(300); pg.fill('#lgEmail', email); pg.fill('#lgPw', 'secret12'); pg.click('#lgUp'); pg.wait_for_function("()=>G.screen==='menu'", timeout=20000); pg.wait_for_timeout(400)
     # 장비·전직: 궁수(실바)에게 공격력 장비 + 바람의 순찰자 전직. 저장의 영웅 값을 유료 영웅으로 조작 (소유 기록 없음 → 무시되어야 함)
     J(pg, """()=>{ const {Acc,E}=G.gear; let q=31; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; };
-      Acc.update(d=>{ d.souls=50; d.stats={runs:1,kills:1,waves:1,souls:1}; const it={...E.makeItem('weapon','archer',3,r), id:'dgW'}; d.inv.push(it); d.eq.archer={weapon:'dgW'}; d.adv={...(d.adv||{}), archer:'wind'}; d.hero='gunner'; return d; }); }""")
+      Acc.update(d=>{ d.souls=50; d.stats={runs:1,kills:1,waves:1,souls:1}; const it={...E.makeItem('weapon','archer',3,r), id:'dgW'}; d.inv.push(it); d.eq.archer={weapon:'dgW'}; d.adv={...(d.adv||{}), archer:{b:'wind',n:1}}; d.hero='gunner'; return d; }); }""")
     if owned: J(pg, "()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const u=Object.values(d.users)[0].id; d.hd3d_owned={[u+':hero_gunner']:{user_id:u,item:'hero_gunner'}}; localStorage.setItem('__mockdb', JSON.stringify(d)); }")
     J(pg, "()=>import('./src/ui/flow.js').then(m=>m.enterTown())"); pg.wait_for_function("()=>G.screen==='town'", timeout=30000); pg.wait_for_timeout(600)
 
@@ -77,7 +77,7 @@ with sync_playwright() as pw:
     ok('nearest_hero_targeted', r[2] > 0 and r[0] == 0 and r[1] == 0 and r[3] == 0, r)
     # 추적: 입구에서 나온 적이 영웅 쪽으로 (경로 비추종)
     r = J(pg, """()=>{ const L=G.heroes; L.forEach((h,i)=>{ h.hp=h.max; h.g.position.set(-2+i,0,1); h.path=[]; }); const e=G.spawnEnemy('imp', 1); e.hp=e.max=1e7; const d=()=>Math.min(...L.map(h=>h.g.position.distanceTo(e.g.position)));
-      const savedAI=G.partyAI; G.partyAI=null; L.forEach(h=>{ h.cd=99; }); const d0=d(); G.sim(4); const d1=d(); G.partyAI=savedAI; L.forEach(h=>{ h.cd=0; }); e.dead=true; e.hb.show(false); G.enemies.length=0; return [Math.round(d0*10)/10, Math.round(d1*10)/10, e.next===null]; }""")
+      const savedAI=G.partyAI; G.partyAI=null; L.forEach(h=>{ h.cd=99; }); const d0=d(); G.sim(6); const d1=d(); G.partyAI=savedAI; L.forEach(h=>{ h.cd=0; }); e.dead=true; e.hb.show(false); G.enemies.length=0; return [Math.round(d0*10)/10, Math.round(d1*10)/10, e.next===null]; }""")
     ok('chase_from_entrance', r[1] < r[0] - 8 and r[1] < 3, r)
     # 일시정지 · 배속 · 탭 숨김(자동 일시정지 + 소리 끔)
     J(pg, "()=>{ G.setPaused(true); }"); ok('pause', J(pg, "()=>G.paused") and not hidden(pg, 'pauseOv')); J(pg, "()=>G.setPaused(false)")
