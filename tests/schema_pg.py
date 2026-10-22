@@ -21,13 +21,13 @@ def psql(sql, role=None, claims=None):
 try:
     STUB = """
     create role anon nologin; create role authenticated nologin;
-    create schema auth; create table auth.users (id uuid primary key, email text);
+    create schema auth; create table auth.users (id uuid primary key, email text, created_at timestamptz default now(), last_sign_in_at timestamptz);
     create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
     create function auth.uid() returns uuid language sql stable as $$ select nullif(auth.jwt() ->> 'sub', '')::uuid $$;
     grant usage on schema auth to anon, authenticated; grant execute on all functions in schema auth to anon, authenticated; grant usage on schema public to anon, authenticated;
     -- 기존 cart_ 테이블이 있어도 건드리지 않는지 확인용
     create table public.cart_dummy (id int); insert into public.cart_dummy values (1);
-    insert into auth.users values ('00000000-0000-0000-0000-00000000000a', 'hyunjk11@daum.net'), ('00000000-0000-0000-0000-000000000001', 'u1@test.kr'), ('00000000-0000-0000-0000-000000000002', 'u2@test.kr');
+    insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000a', 'hyunjk11@daum.net'), ('00000000-0000-0000-0000-000000000001', 'u1@test.kr'), ('00000000-0000-0000-0000-000000000002', 'u2@test.kr');
     """
     ok('stub', psql(STUB)[0])
     sql = open(os.path.join(ROOT, 'supabase', 'schema.sql'), encoding='utf-8').read()
