@@ -44,4 +44,6 @@ const NR = P.codexRows().length; assert.equal(NR, VISIBLE_HEROES.length + 2); as
 // 옛 저장(예전 규칙으로 1~4 등급만 등록해 막혀 있던 3장) → 이제 보상 받기 가능, 이미 받은 키는 다시 못 받음
 { const s = fill(3, [1, 2, 3, 4]); s.codexRw = ['3:armor']; const t = P.clean(J(s)); const C = P.codexState(t, 3);
   assert.equal(C.rows.find(x => x.row === 'armor').got, true); assert.equal(P.claimCodex(t, '3:armor')[1], null, '이미 받은 행'); assert.deepEqual(P.claimCodex(t, '3:acc')[1], CODEX_RW.row, '새로 완성된 행'); }
+// 행 = 보이는 영웅 + 방어구 + 장신구: 진서윤(격투가, 무기 드롭 가능) 포함 · 숨긴 버들 제외 → 3장 7행 28칸 (서윤 전 24칸)
+assert.ok(P.codexRows().includes('fighter') && !P.codexRows().includes('mechanic')); assert.equal(P.codexState(P.empty(), 3).total, 28); { const s = P.empty(); s.inv.push(E.randomItem('fighter', E.chestOdds(3), r, 'weapon', 3)); const t = P.clean(s); assert.equal(t.inv[0].h, 'fighter'); assert.ok(P.codexBits(t, 3, 'fighter') & E.gradeMask(3), '3장 서윤 무기 드롭 → 도감 fighter 행 등록'); }
 console.log('codex tests OK');

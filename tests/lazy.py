@@ -4,7 +4,7 @@
  - 인트로·마을: 백그라운드로 나머지 모델이 모두 도착(G.allModels) · 영웅 단상에 5명 · 상점 미리보기(미보유 유료 영웅) 모델 표시
  - 스테이지 출정: 필요한 모델만(다른 영웅 없음, 버들이면 장비·변신 로봇 포함) · 바로 판 시작
  - 마을에서 아직 안 받은 영웅으로 바꾸면 도착 후 교체 · 콘솔 오류 0. 결과 shots/improve/p3_firstload.json"""
-import sys, os, json, pathlib
+import sys, os, json, pathlib, re
 sys.path.insert(0, os.path.dirname(__file__))
 from regress import serve, ARGS
 from playwright.sync_api import sync_playwright
@@ -13,6 +13,9 @@ import subprocess
 HIDE = subprocess.run(['node', '-e', "import('./src/data/heroes.js').then(m => process.exit(m.isHidden('mechanic') ? 0 : 1))"], cwd=os.path.join(os.path.dirname(__file__), '..')).returncode == 0  # 버들 숨김 중
 HIDDEN_MODELS = ['budeul_meshy', 'budeul_gear', 'mech_robot_meshy'] if HIDE else []
 LAZY_ONLY = ['rose_rifle_meshy', 'rose_rifle_gun']  # 로즈 2차 전직(장미 저격수) 전용 — 백그라운드가 아니라 전직 장착 시에만 받음 (3deef3e)
+_root = pathlib.Path(__file__).parent.parent
+N_ALL = len(re.findall(r"'([\w]+)'", re.search(r'const ALL_ASSETS = \[(.*?)\];', (_root / 'src/render/characters.js').read_text(encoding='utf-8')).group(1)))  # 전체 모델 수 (영웅 추가 시 자동 — 진서윤으로 15→16)
+N_VIS = int(subprocess.run(['node', '-e', "import('./src/data/heroes.js').then(m => console.log(m.VISIBLE_HEROES.length))"], cwd=_root, capture_output=True, text=True).stdout)  # 마을 카드 수 = 보이는 영웅 (진서윤으로 4→5)
 NA = lambda pg: J(pg, "()=>import('./src/render/characters.js').then(m => m.ASSETS.length)")
 MEASURE = '--measure-only' in sys.argv; OUT = 'shots/improve'; os.makedirs(OUT, exist_ok=True)
 srv, url = serve(); errs, res, M = [], {}, {}
@@ -36,7 +39,7 @@ with sync_playwright() as pw:
     b, pg, got, m = run(pw, 'intro_first_visit', '?seed=12345&flow=1')
     if not MEASURE:
         ok('intro_only_hero_first', m['models'] == ['mage_meshy'], m['models'])
-        pg.wait_for_function('()=>G.allModels', timeout=240000); ok('intro_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg) - len(LAZY_ONLY) == 15 - len(HIDDEN_MODELS), J(pg, '()=>Object.keys(G.GL).sort()'))
+        pg.wait_for_function('()=>G.allModels', timeout=240000); ok('intro_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg) - len(LAZY_ONLY) == N_ALL - len(LAZY_ONLY) - len(HIDDEN_MODELS), J(pg, '()=>Object.keys(G.GL).sort()'))
         ok('podium_all_heroes', J(pg, "()=>{ let n = 0; G.scene.traverse(o => { if (o.isSkinnedMesh && !o.userData.ol) n++; }); return n; }") >= 5 - (1 if HIDE else 0))
         ok('no_hidden_models_requested', not any(u.split('/')[-1][:-4] in HIDDEN_MODELS for _, u, _ in got if u.startswith('models/')))
     b.close()
@@ -65,7 +68,7 @@ with sync_playwright() as pw:
         J(pg, f"()=>G.shop.openShop('{PAIDK}')"); pg.wait_for_function(f"()=>G.shop.pvKey()==='{PAIDK}'", timeout=120000); ok('shop_preview_paid_hero', True)
         if HIDE:
             ok('hidden_not_in_shop', J(pg, "()=>{ G.shop.openShop('hero_mechanic'); const t = document.getElementById('shopPanel').innerText; return !t.includes('버들') && !t.includes('메카닉'); }"))
-            ok('hidden_not_in_town_cards', J(pg, "()=>!document.querySelector('#twHeroes .hcard[data-h=\"mechanic\"]') && document.querySelectorAll('#twHeroes .hcard').length === 4"))
+            ok('hidden_not_in_town_cards', J(pg, "()=>!document.querySelector('#twHeroes .hcard[data-h=\"mechanic\"]') && document.querySelectorAll('#twHeroes .hcard').length === " + str(N_VIS)), N_VIS)
         pg.wait_for_function('()=>G.allModels', timeout=240000); ok('town_bg_all_models', J(pg, '()=>Object.keys(G.GL).length') == NA(pg) - len(LAZY_ONLY), J(pg, '()=>Object.keys(G.GL).sort()'))
         ok('town_no_hidden_models', not any(u.split('/')[-1][:-4] in HIDDEN_MODELS for _, u, _ in got if u.startswith('models/')))
     b.close()

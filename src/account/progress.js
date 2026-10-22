@@ -129,7 +129,7 @@ export const uniqueCount = (save, ch) => Object.keys(UQ).filter(k => UQ[k].ch ==
 // 도감: 행 = 보이는 영웅 무기 + 방어구 + 장신구, 열 = 등급 5개
 export const codexRows = () => [...VISIBLE_HEROES, 'armor', 'acc'];
 export const codexBits = (save, ch, row) => ((save.codex || {})[ch] || {})[row] || 0;
-// 완성 조건 = 그 챕터에서 정상 경로로 나오는 등급만 (E.obtainableGrades — 3·4장은 일반 없음 → 행 4칸, 챕터 24칸). mask = 그 등급 비트.
+// 완성 조건 = 그 챕터에서 정상 경로로 나오는 등급만 (E.obtainableGrades — 3·4장은 일반 없음 → 행 4칸, 챕터 (보이는 영웅+방어구+장신구)×4 = 서윤 추가 후 28칸). mask = 그 등급 비트.
 // bits 는 저장값 그대로(관리자 우편 등으로 등록된 불가능 등급도 지우지 않음) · n/seen 은 mask 안만 세어 total 을 넘지 않음 · extra = mask 밖 등록 비트(표시용)
 export function codexState(save, ch) { const grades = E.obtainableGrades(ch), mask = E.gradeMask(ch), rw = save.codexRw || [];
   const rows = codexRows().map(row => { const b = codexBits(save, ch, row), key = ch + ':' + row; return { row, bits: b, n: grades.filter(g => b & (1 << g)).length, max: grades.length, done: (b & mask) === mask, extra: b & ~mask & 31, key, got: rw.includes(key) }; });
