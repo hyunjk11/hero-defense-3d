@@ -13,6 +13,7 @@ import { enterCost, nextStep } from '../world/pathfinding.js';
 import { reachCore, removeEnemy } from './enemy.js';
 import { damageTower } from '../world/towers.js';
 import { hero, heroDamage } from '../heroes/hero.js';
+import { nearestHero, heroesWithin } from '../core/party.js';
 import { abilityTick, updAbilities } from './abilities.js';
 
 function groundY(x, z) { const [c, r] = toTile(x, z); return inGrid(c, r) && tileAt(c, r).t === T.CARVED ? -.46 : 0; }
@@ -57,8 +58,9 @@ function updEnemies(dt) {
       const [tc, tr] = toTile(g.position.x, g.position.z); if (inGrid(tc, tr)) e.tile = [tc, tr]; continue;
     }
     // 영웅과 근접 전투
-    const hd = hero && hero.dead <= 0 ? Math.hypot(hero.g.position.x - g.position.x, hero.g.position.z - g.position.z) : 99;
-    if (hd < 1.25 + E.h * .2) { faceTo(g, hero.g.position.x, hero.g.position.z, dt, 14); play(e.m, E.dig, { speed: 1.2 }); e.atkCd -= dt; if (e.atkCd <= 0) { e.atkCd = .85; heroDamage(E.dps * .85); } continue; }
+    const th = G.heroes.length > 1 ? nearestHero(G.heroes, g.position.x, g.position.z) : hero; // 파티: 가장 가까운 살아있는 영웅 (1명이면 기존 그대로)
+    const hd = th && th.dead <= 0 ? Math.hypot(th.g.position.x - g.position.x, th.g.position.z - g.position.z) : 99;
+    if (hd < 1.25 + E.h * .2) { faceTo(g, th.g.position.x, th.g.position.z, dt, 14); play(e.m, E.dig, { speed: 1.2 }); e.atkCd -= dt; if (e.atkCd <= 0) { e.atkCd = .85; heroDamage(E.dps * .85, th); } continue; }
     if (e.ai !== 'basic') { const r = special(e, dt, slowK); if (r === true) continue; }
     if (e.next && enterCost(tileAt(e.next[0], e.next[1])) === Infinity) e.next = null;
     if (!e.next) e.next = e.profile === 'default' ? nextStep(e.tile[0], e.tile[1]) : nextStep(e.tile[0], e.tile[1], e.profile);
@@ -147,7 +149,7 @@ function explode(e) {
   for (const tw of [...G.towers]) { const d = Math.hypot(tileX(tw.c) - p.x, tileZ(tw.r) - p.z); if (d <= B.r + 1) damageTower(tw, B.tower * (d <= B.r * .6 + 1 ? 1 : .6), { x: p.x, z: p.z, kind: 'bomb' }); }
   const R = Math.ceil(B.r / 2) + 1; for (let c = e.tile[0] - R; c <= e.tile[0] + R; c++) for (let r = e.tile[1] - R; r <= e.tile[1] + R; r++) { if (!inGrid(c, r)) continue; const t = tileAt(c, r), d = Math.hypot(tileX(c) - p.x, tileZ(r) - p.z);
     if (t.bar && d <= B.r + 1) damageTile(t, B.bar); else if (isBlock(t.t) && d <= B.r) damageTile(t, B.block); }
-  if (hero && hero.dead <= 0 && Math.hypot(hero.g.position.x - p.x, hero.g.position.z - p.z) <= B.r) heroDamage(B.hero);
+  for (const h of heroesWithin(G.heroes.length ? G.heroes : [hero], p.x, p.z, B.r)) heroDamage(B.hero, h); // 파티: 반경 안 영웅 모두
   removeEnemy(e);
 }
 const ramAnim = '2H_Melee_Attack_Chop';

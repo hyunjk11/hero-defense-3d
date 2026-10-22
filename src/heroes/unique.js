@@ -5,7 +5,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { QS, mulberry32 } from '../core/util.js';
-import { G } from '../core/state.js';
+import { G, heroFx } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { P, PB, emit, ringFx, debris } from '../render/vfx.js';
@@ -15,7 +15,7 @@ import { banner } from '../ui/hud.js';
 import { hero, stat } from './hero.js';
 
 let UR = mulberry32(((+QS.get('rng') || (Math.random() * 1e9 | 0)) ^ 0x5eed11) >>> 0); G.uniqueSeed = s => { UR = mulberry32(s >>> 0); };
-G.uqN = {}; G.uqDmg = 0; const FX = [];
+G.uqN = {}; G.uqDmg = 0; const FX = heroFx();
 const count = k => { G.uqN[k] = (G.uqN[k] || 0) + 1; };
 const hurt = (e, d, ...a) => { if (!e.dead) G.uqDmg += d; hurt0(e, d, ...a); };
 const alive = () => G.enemies.filter(e => !e.dead && e.dying === undefined);
@@ -88,6 +88,9 @@ function showShield(on) { if (!hero.uqSh) { const m = new THREE.Mesh(new THREE.T
 // ---------- 매 프레임 (legend.js updLegend 에서) ----------
 export function updUnique(dt) {
   for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
+  uniqueHero(dt);
+}
+export function uniqueHero(dt) { // 영웅별: 고유 장비 쿨다운·트리거
   const h = hero; if (!h || !h.uqs) return; if (h.uqRateT > 0) h.uqRateT -= dt; if (h.uqBarT > 0) { h.uqBarT -= dt; if (h.uqBarT <= 0) showBarrier(false); else h.uqBar.rotation.y += dt * 2; }
   if (h.uqSh && h.uqSh.visible) h.uqSh.rotation.z += dt * 3;
   for (const x of h.uqs) { if (x.cd > 0) x.cd -= dt; const p = x.U.p;

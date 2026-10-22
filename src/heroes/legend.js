@@ -4,7 +4,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { QS, mulberry32 } from '../core/util.js';
-import { G, later } from '../core/state.js';
+import { G, later, heroFx } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
@@ -16,14 +16,14 @@ import { LSK } from '../account/equip.js';
 import { banner } from '../ui/hud.js';
 import { mouseGround } from '../ui/input.js';
 import { hero, heroTip, passAt, stat } from './hero.js';
-import { ricochet, rosebarrage, updGun } from './gunner.js';
+import { ricochet, rosebarrage, updGun, gunFlash } from './gunner.js';
 import { gigahammer, overdrill, updMechFx } from './mechanic.js';
-import { updUnique } from './unique.js';
+import { updUnique, uniqueHero } from './unique.js';
 import { awakeMul, awakeCd } from '../data/items.js';
 
 const lr = mulberry32(((+QS.get('rng') || (Math.random() * 1e9 | 0)) ^ 0x1e9e7d) >>> 0);
 let lrNext = lr; const LR = () => lrNext(); G.legendSeed = s => { lrNext = mulberry32(s >>> 0); }; // 테스트: 발동 난수 고정
-const FX = G.lfx = []; G.legendN = {}; // 발동 횟수 (테스트용)
+const FX = G.lfx = heroFx(); G.legendN = {}; // 발동 횟수 (테스트용)
 G.legendDmg = 0; const hurt = (e, d, ...a) => { if (!e.dead) G.legendDmg += d; hurt0(e, d, ...a); }; // 고유 스킬 피해 합계 (테스트용)
 const count = k => G.legendN[k] = (G.legendN[k] || 0) + 1;
 let lastPT = 'mouse'; addEventListener('pointerdown', e => { lastPT = e.pointerType; }, true);
@@ -178,6 +178,11 @@ export function updLegend(dt) {
   if (hero && hero.lsk) { if (hero.lcd > 0) hero.lcd -= dt; if (hero.licd > 0) hero.licd -= dt; }
   for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
   updGun(dt); updMechFx(dt); updUnique(dt);
+}
+// 파티의 다른 영웅(조작 영웅 아닌): 영웅별 부분만 (이펙트 목록은 updLegend 가 한 번만 돌림)
+export function updLegendHero(dt) {
+  if (hero && hero.lsk) { if (hero.lcd > 0) hero.lcd -= dt; if (hero.licd > 0) hero.licd -= dt; }
+  gunFlash(dt); uniqueHero(dt);
 }
 
 // ---------- 고유 무기 [E] (data/items.js UQ.sk, LSK uq:true) ----------

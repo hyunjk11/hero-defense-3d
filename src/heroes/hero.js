@@ -16,32 +16,42 @@ import { hurt } from '../monsters/enemy.js';
 import { groundY } from '../monsters/ai.js';
 import { banner } from '../ui/hud.js';
 import { keys } from '../ui/input.js';
-import { legendProc, updLeap } from './legend.js';
+import { legendProc, updLeap, updLegendHero } from './legend.js';
 import { gunAttack, updRose } from './gunner.js';
 import { mechAbsorb, mechInit, mechRevert, mechSwing, updMech } from './mechanic.js';
-import { advInit, advUpd, advPick, advArrow, advOrb, advLeech, advAtkMul, advOnHurt } from './advfx.js';
+import { advFx, advInit, advUpd, advPick, advArrow, advOrb, advLeech, advAtkMul, advOnHurt } from './advfx.js';
 import { uqInit, uqPreHit, uqPostHit, uqOnDeath, uqRate } from './unique.js';
 
 // ================= 영웅 =================
-let hero = null;
+let hero = null; // 현재 '문맥' 영웅 (stat·스킬·전직·전설 모듈이 이 값을 씀). 평소 = G.hero(조작 영웅), 파티 업데이트 중에만 잠깐 다른 영웅
+G.heroes = []; G.curHero = null; // 파티 (src/core/party.js). 일반 스테이지·하드·도전 = [G.hero] 1명
+// 영웅 h 문맥으로 fn 실행 (같은 영웅이면 그냥 호출 → 단일 영웅에서는 기존과 동일). later()/FX 콜백도 만든 영웅 문맥으로 실행됨 (core/state.js)
+function withHero(h, fn) { if (!h || h === hero) return fn(); const prev = hero; hero = G.curHero = h; try { return fn(); } finally { hero = G.curHero = prev; } }
+G.withHero = withHero;
+// 조작 영웅 바꾸기 (던전 초상화 탭): G.hero = 조작/주 영웅
+function setControlled(h) { if (!h) return; hero = G.hero = G.curHero = h; }
 const stat = {
   dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk) * (hero.uqAtk || 1) * (hero.adv ? advAtkMul() : 1), q = hero.eq, cc = ((q && q.crit) || 0) + ((hero.adv && hero.adv.atk.crit) || 0); stat.crit = cc > 0 && Math.random() * 100 < cc; return stat.crit ? b * (1.5 + ((q && q.critD) || 0) / 100) : b; }, // 치명타 = 장비 + 전직(장미 저격수 +15%). stat.crit = 마지막 계산이 치명타였는지
   rate: () => hero.C.rate * (1 + .1 * G.ups.spd) * uqRate(), range: () => hero.C.range * (1 + .08 * G.ups.rng) * (hero.robo ? 1.45 : 1), // 메카닉 로봇: 사거리 +45%
   skillMul: () => (1 + .25 * G.ups.skill) * (1 + ((hero.eq && hero.eq.skill) || 0) / 100), skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100),
 };
-function spawnHero(cls) {
+// L = 영웅별 출정 정보 { perm, equip, legend, adv, uq } (던전 파티). 없으면 기존처럼 G.perm/G.equip/… (단일 영웅). party=true 면 G.heroes 에 추가, 아니면 [이 영웅] 으로 교체
+function spawnHero(cls, L = null, party = false) {
+  if (L) { const keep = { perm: G.perm, equip: G.equip, legend: G.legend, adv: G.adv, uq: G.uq }; Object.assign(G, L); try { return spawnHero(cls, null, party); } finally { Object.assign(G, keep); } }
   let C = CLASSES[cls]; if (G.perm) C = { ...C, hp: Math.round(C.hp * (1 + .06 * (G.perm.hp || 0))), dmg: C.dmg * (1 + .05 * (G.perm.atk || 0)) }; // 마을 영구 강화
   if (G.perm && G.adv && G.adv.h === cls) C = applyAdv(C, G.adv); // 전직 (마을 출정 때만): 기본 → 여신탑 → 전직 → 장비
   const q = G.perm && G.equip ? G.equip : null; if (q) C = { ...C, hp: Math.round(C.hp * (1 + (q.hp || 0) / 100)), dmg: C.dmg * (1 + (q.atk || 0) / 100), rate: C.rate * (1 + (q.spd || 0) / 100), range: C.range * (1 + (q.rng || 0) / 100) }; // 장비
   const ch = makeHeroModel(cls, null, C.adv && C.adv.model); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
-  hero = G.hero = { adv: C.adv || null, advHits: 0, advStunCd: 0, warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
+  const prevCtl = G.hero; hero = G.hero = G.curHero = { adv: C.adv || null, advHits: 0, advStunCd: 0, warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
   advInit(hero); // 전직: 오라 링 · 무기 스케일 (전직 없으면 카운터만 초기화)
   uqInit(hero); // 고유 방어구·장신구 자동 궁극기 + 고유 무기 각성 (마을 출정 때만, 없으면 hero.uqs 없음)
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle'); if (cls === 'mechanic') mechInit(hero);
   $('heroName').textContent = C.title ? `${CLASSES[cls].nm} · ${C.title} · 스킬 [Q] ${C.skill}` : `${heroLabel(cls)} · 스킬 [Q] ${C.skill}`; $('heroName').classList.toggle('adv', !!C.title); if (C.adv) $('heroName').style.setProperty('--adv', C.adv.c); else $('heroName').style.removeProperty('--adv'); $('skillName').textContent = C.skill; $('skillName').classList.toggle('long', C.skill.length > 5);
+  const h0 = hero; if (party) { G.heroes.push(h0); if (prevCtl && G.heroes.includes(prevCtl)) setControlled(prevCtl); } else G.heroes = [h0]; // 파티: 첫 영웅이 계속 조작 영웅
+  return h0;
 }
-function heroDamage(d) {
+function heroDamage(d, h = hero) { if (!h) return; if (h !== hero) return withHero(h, () => heroDamage(d, h)); // 피해는 맞은 영웅에게 (파티)
   if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.uqs) uqPostHit(hp0); if (hero.adv && hero.hp > 0) advOnHurt(); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
   if (hero.hp <= 0 && hero.uqs && uqOnDeath()) return; // 불사조 부활
   if (hero.hp <= 0) { if (hero.mech) mechRevert(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; hero.snipeT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
@@ -102,7 +112,7 @@ function updHero(dt) {
   const h = hero; h.ch.mixer.update(dt); if (h.adv) advUpd(dt); // 전직: 오라·무기 스케일·불꽃 바닥·성역
   if (h.dead > 0) { h.dead -= dt; if (h.dead <= 0) { h.hp = h.max; h.hb.show(true); h.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); play(h.ch, 'Cheer', { once: true }); h.atkT = 1.2; emit(P, h.g.position.x, 1, h.g.position.z, 40, 0x8aff9a, 5, .8); ringFx(h.g.position, 2.5, 0x8aff9a, .6); } return; }
   const fwd = new THREE.Vector3(-Math.sin(cam.theta), 0, -Math.cos(cam.theta)), right = new THREE.Vector3(-fwd.z, 0, fwd.x), mv = new THREE.Vector3();
-  let fromPath = false; if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right);
+  let fromPath = false; if (h === G.hero) { if (keys.w) mv.add(fwd); if (keys.s) mv.sub(fwd); if (keys.d) mv.add(right); if (keys.a) mv.sub(right); } // 키보드 = 조작 영웅만 (파티)
   if (h.warpCd > 0) h.warpCd -= dt;
   if (h.leap) { updLeap(dt); h.hb.set(h.hp / h.max); return; } // 천지파열무 도약 중
   if (h.mech && updMech(dt)) { h.g.rotation.y += Math.atan2(Math.sin(h.face - h.g.rotation.y), Math.cos(h.face - h.g.rotation.y)) * Math.min(1, dt * 10); h.hb.set(h.hp / h.max); return; } // 메카닉 변신/피니시 연출 중
@@ -149,6 +159,11 @@ function updHero(dt) {
   if (!G.enemies.some(e => !e.dead && e.g.position.distanceTo(h.g.position) < 4)) h.hp = Math.min(h.max, h.hp + h.max * .03 * dt);
   h.hb.set(h.hp / h.max);
 }
+// 파티 업데이트 (G.heroes 2명 이상일 때만 main.js 에서 호출): 영웅마다 그 영웅 문맥으로 AI(G.partyAI, 조작 영웅 제외) → updHero
+function updParty(dt) {
+  for (const h of G.heroes) withHero(h, () => { if (h !== G.hero && G.partyAI && h.dead <= 0) G.partyAI(h, dt); updHero(dt); if (h !== G.hero && h.skillCd > 0) h.skillCd -= dt; });
+  advFx(dt); for (const h of G.heroes) if (h !== G.hero) withHero(h, () => updLegendHero(dt));
+}
 function heroTip() { if (hero.ch.tip) { hero.g.updateMatrixWorld(true); const v = hero.ch.tip.getWorldPosition(new THREE.Vector3()); if (v.y > .8) return v; } const p = hero.g.position, f = hero.g.rotation.y; return new THREE.Vector3(p.x + Math.sin(f) * .6, p.y + (hero.cls === 'mage' ? 2.2 : 1.5), p.z + Math.cos(f) * .6); }
 function attack(t) {
   const h = hero, from = heroTip(); if (h.cls === 'archer') Snd.play('bolt', { pos: from }); else if (h.cls === 'mage') Snd.play('magic', { pos: from, rate: .8 }); else { Snd.play('sword', { pos: from }); Snd.whoosh(from, .22, 700, 2200, .25); }
@@ -161,4 +176,4 @@ function attack(t) {
     arc.rotation.x = -Math.PI / 2; arc.rotation.z = h.face - Math.PI / 2; arc.position.set(h.g.position.x, 1, h.g.position.z); scene.add(arc); G.fxs.push({ m: arc, t: 0, dur: .2, kind: 'fade' }); }
 }
 
-export { startWarp, WARP_CD, hero, stat, heroTip, passAt, spawnHero, heroDamage, heroGoTo, updHero };
+export { updParty, withHero, setControlled, startWarp, WARP_CD, hero, stat, heroTip, passAt, spawnHero, heroDamage, heroGoTo, updHero };

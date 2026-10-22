@@ -2,7 +2,7 @@
 // 기본 공격은 왼손·오른손 총을 번갈아 쏨(총구 섬광 + 탄피 불꽃 + 합성 총성). 다른 영웅 코드 경로는 건드리지 않음 (cls === 'gunner' 일 때만 호출)
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
-import { G, later } from '../core/state.js';
+import { G, later, heroFx } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { P, PB, emit, ringFx } from '../render/vfx.js';
 import { play } from '../render/characters.js';
@@ -12,7 +12,7 @@ import { banner } from '../ui/hud.js';
 import { hero, stat } from './hero.js';
 import { advBullet, rifleShot } from './advfx.js';
 
-const FX = []; let side = 0; const _v = new THREE.Vector3();
+const FX = heroFx(); let side = 0; const _v = new THREE.Vector3();
 const alive = () => G.enemies.filter(e => !e.dead && e.dying === undefined);
 const d2 = (e, x, z) => { const dx = e.g.position.x - x, dz = e.g.position.z - z; return dx * dx + dz * dz; };
 const ADD = (c, o = .9) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
@@ -98,7 +98,9 @@ export function bloom(p, s, leg = true) { const c = p.clone().setY(0), R = 3.4, 
   ringFx(c, R + 1, 0xff3a8a, .5); ringFx(c, R * .5, 0xffe0f0, .3); petals(c, 34, 6); emit(P, c.x, 1, c.z, 60, 0xff6aa8, 8, .6, -6, 1.5); Snd.play('boom', { pos: c, vol: .6, rate: 1.3 }); }
 
 // 매 프레임 (legend.js updLegend에서 호출): 총구 섬광 감쇠 + 탄환/이펙트
-export function updGun(dt) {
-  if (hero && hero.ch && hero.ch.flashes) for (const f of hero.ch.flashes) if (f.t > 0) { f.t -= dt; const k = Math.max(0, f.t / (.07 * f.big)); f.g.scale.setScalar(f.s * (.5 + k * .8) * f.big); f.mat.opacity = k; if (f.t <= 0) f.g.visible = false; }
+export function updGun(dt) { gunFlash(dt);
   for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
 }
+export function gunFlash(dt) { // 영웅별: 총구 섬광 감쇠
+  if (hero && hero.ch && hero.ch.flashes) for (const f of hero.ch.flashes) if (f.t > 0) { f.t -= dt; const k = Math.max(0, f.t / (.07 * f.big)); f.g.scale.setScalar(f.s * (.5 + k * .8) * f.big); f.mat.opacity = k; if (f.t <= 0) f.g.visible = false; }
+  }

@@ -3,7 +3,7 @@
 // 확률(성기사 기절)은 Math.random — 게임 난수(rand) 소비 없음. 카운터 G.advN (테스트용), 전직 효과 피해 합계 G.advDmg
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
-import { G, later } from '../core/state.js';
+import { G, later, heroFx } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { P, PB, emit, ringFx } from '../render/vfx.js';
 import { glow } from '../render/toon.js';
@@ -15,7 +15,7 @@ import { banner } from '../ui/hud.js';
 import { hero, stat } from './hero.js';
 import { gunSkill, ricochet, bloom, muzzle, flash, petals, tracer } from './gunner.js';
 
-const FX = [];
+const FX = heroFx(); // 만든 영웅 문맥으로 실행 (파티)
 G.advN = {}; G.advDmg = 0;
 const alive = () => G.enemies.filter(e => !e.dead && e.dying === undefined);
 const d2 = (e, x, z) => { const dx = e.g.position.x - x, dz = e.g.position.z - z; return dx * dx + dz * dz; };
@@ -41,8 +41,9 @@ export function advUpd(dt) {
   const h = hero, A = h.adv; if (h.aura) { h.aura.rotation.y += dt * 1.4; const [a, b] = h.aura.children; a.material.opacity = .42 + Math.sin(G.t * 3) * .14; if (b) b.rotation.z -= dt * 2.6; }
   if (A.ws && A.ws !== 1) for (const b of h.advBones) b.scale.setScalar(A.ws);
   if (h.advStunCd > 0) h.advStunCd -= dt; if (h.sanctT > 0) updSanct(dt);
-  for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
+  if (G.heroes.length <= 1) advFx(dt); // 파티: 이펙트는 updParty 에서 한 번만 (core/party 루프)
 }
+export function advFx(dt) { for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1); }
 // 전직 저격수: 체력 높은 적(보스) 우선
 export function advPick(rng) { const p = hero.g.position; let best = null, bh = -1;
   for (const e of G.enemies) { if (e.dead || e.immT > G.t || (hero.cls === 'warrior' && e.E.fly)) continue; if (d2(e, p.x, p.z) < rng * rng && e.hp > bh) { bh = e.hp; best = e; } } return best; }
@@ -121,7 +122,7 @@ export function advSkill(tgt, mul, base) { const A = hero.adv, k = A && A.skill;
     const dir = new THREE.Vector3(tgt.x - hp.x, 0, tgt.z - hp.z); if (dir.lengthSq() < .01) dir.set(Math.sin(hero.face), 0, Math.cos(hero.face)); dir.normalize(); hero.face = Math.atan2(dir.x, dir.z);
     banner('일섬 저격!', A.c, 900); play(hero.ch, '2H_Ranged_Shoot', { once: true, force: true, speed: .9 }); hero.atkT = .7; G.shake = Math.max(G.shake || 0, .3);
     later(.25, () => { if (!hero || hero.dead > 0) return; const from = hp.clone().setY(1.4), m = makeArrow(A.col); m.scale.set(3, 3, 3.2); m.position.copy(from); m.lookAt(from.clone().add(dir)); scene.add(m);
-      G.projs.push({ kind: 'pierce', m, dir, left: 32, spd: 75, dmg: base * 6 * mul, hit: new Set(), tw: null, air: true, col: A.col, txt: '#ffe08a', onHit: e => { G.advDmg += base * 6 * mul; cnt('snipeHit'); } });
+      G.projs.push({ h: G.curHero, kind: 'pierce', m, dir, left: 32, spd: 75, dmg: base * 6 * mul, hit: new Set(), tw: null, air: true, col: A.col, txt: '#ffe08a', onHit: e => { G.advDmg += base * 6 * mul; cnt('snipeHit'); } });
       ringFx(from, 2.2, A.col, .3); emit(PB, from.x, from.y, from.z, 20, A.col, 6, .4, 0, .5); Snd.play('bolt', { pos: from, rate: .6, force: true }); Snd.whoosh(from, .5, 600, 4000, .6); }); return true; }
   if (k === 'meteors') { // 유성우: 메테오 3개 (각 ×7, 0.3초 간격, 반경 3 산포)
     banner('유성우!', A.c, 900); play(hero.ch, 'Spellcast_Long', { once: true, force: true, speed: 1.4 }); hero.atkT = 1; ringFx(tgt, 5.5, 0xff6a2a, 1.2);

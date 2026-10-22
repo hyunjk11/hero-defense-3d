@@ -28,6 +28,8 @@ import { play } from '../render/characters.js';
 import { glow, mk, shareGeo, toon } from '../render/toon.js';
 import { damageTower } from '../world/towers.js';
 import { towerRateK as rateK } from '../combat/towerstatus.js';
+import { nearestHero, heroesWithin } from '../core/party.js';
+const party = () => (G.heroes && G.heroes.length ? G.heroes : G.hero ? [G.hero] : []); // 파티 (일반 판 = [G.hero])
 import { spawnEnemy } from './enemy.js';
 import { ETYPES } from '../data/monsters.js';
 import { banner } from '../ui/hud.js';
@@ -82,7 +84,7 @@ function begin(e, k, S) {
     L.sort((a, b) => a.g.position.distanceToSquared(p) - b.g.position.distanceToSquared(p)); return { k, S, t: .5, tgt: L.slice(0, S.n) }; }
   if (k === 'lavapool') { const tws = towersNear(p, S.range, S.n, tw => tw.meltT > 0 || tw.warnT > 0); if (!tws.length) return null;
     for (const tw of tws) { tw.warnT = S.windup; tw.warnC = 0xff6a1a; ringFx(twPos(tw), 1.8, 0xff5a1a, S.windup); } play(e.m, 'Taunt', { speed: 1.1 }); Snd.play('meteorCast', { pos: p, rate: .6, vol: .7 }); return { k, S, t: S.windup, tws }; }
-  if (k === 'meteor') { const n = S.n + (e.enraged ? e.E.ab.enrage.extra : 0), pts = towersNear(p, S.range, n, () => false).map(twPos), h = G.hero;
+  if (k === 'meteor') { const n = S.n + (e.enraged ? e.E.ab.enrage.extra : 0), pts = towersNear(p, S.range, n, () => false).map(twPos), h = nearestHero(party(), p.x, p.z); // 파티: 가장 가까운 영웅을 노림
     if (h && h.dead <= 0 && h.g.position.distanceTo(p) <= S.range) pts.push(h.g.position.clone().setY(0)); if (!pts.length) return null;
     for (const q of pts) meteors.push({ q, t: -S.windup, S, mark: meteorMark(q, S.r), m: null }); play(e.m, 'Taunt', { speed: 1.3 }); Snd.play('meteorCast', { pos: p, rate: .5 });
     txt(p.x, e.E.h + 1, p.z, '☄ 화염 운석!', '#ff8a4a', true); return { k, S, t: Math.min(1, S.windup) }; }
@@ -113,7 +115,7 @@ function updMeteors(dt) { for (let i = meteors.length - 1; i >= 0; i--) { const 
     emit(P, q.x, .6, q.z, 40, 0xff7a2a, 7, .6, -8, 1.5); emit(PB, q.x, 1, q.z, 14, 0xff5a1a, 5, .7, -4, 1.4); debris(q.x, .5, q.z, 10, [0x2a2020, 0xff7a2a, 0x5a3a30], 6); ringFx(q, S.r, 0xff6a2a, .4);
     G.shake = Math.max(G.shake || 0, .3); Snd.play('boom', { pos: q, vol: .7 });
     for (const tw of G.towers) if (!tw.dead && Math.hypot(tileX(tw.c) - q.x, tileZ(tw.r) - q.z) <= S.r) { damageTower(tw, S.tower, { x: q.x, z: q.z, kind: 'fire' }); bump('meteorHits'); }
-    const h = G.hero; if (h && h.dead <= 0 && Math.hypot(h.g.position.x - q.x, h.g.position.z - q.z) <= S.r && G.heroDamage) { G.heroDamage(S.hero); bump('meteorHero'); } } } }
+    if (G.heroDamage) for (const h of heroesWithin(party(), q.x, q.z, S.r)) { G.heroDamage(S.hero, h); bump('meteorHero'); } } } } // 파티: 맞은 영웅마다
 function castFx(e, c) { const p = e.g.position;
   if (c.k === 'heal' && e.m.capMat) { const f = 1 - c.t / c.S.windup; e.m.capMat.emissive.setHex(0x3aff3a).multiplyScalar(.3 + f * .9); if (e.m.cap) e.m.cap.scale.setScalar((e.m.cap.userData.s0 ??= e.m.cap.scale.x) * (1 + f * .25)); }
   if (c.k === 'heal' && rand() < .5) emit(P, p.x + (rand() - .5) * 2, .4, p.z + (rand() - .5) * 2, 1, 0x8aff6a, 1.2, .6, 2, .3);
@@ -152,7 +154,7 @@ function fire(e, c) {
   if (c.k === 'dread') { scene.remove(c.mark); e.phase2 = true; bump('dreads'); for (const k of TIMED) if (e.abT[k] !== undefined) e.abT[k] = Math.min(e.abT[k], 3);
     G.shake = Math.max(G.shake || 0, .8); ringFx(p, S.r, DARK, .7); ringFx(p, S.r * .6, 0x6affe8, .5); emit(PB, p.x, 1.5, p.z, 60, DARK, 9, .9, -2, 3); Snd.play('boom', { pos: p, force: true });
     for (const tw of G.towers) if (!tw.dead && Math.hypot(tileX(tw.c) - p.x, tileZ(tw.r) - p.z) <= S.r) { damageTower(tw, S.tower, { x: p.x, z: p.z, kind: 'dark' }); if (!tw.dead) tw.curseT = Math.max(tw.curseT || 0, S.stun); bump('dreadHits'); }
-    const h = G.hero; if (h && h.dead <= 0 && Math.hypot(h.g.position.x - p.x, h.g.position.z - p.z) <= S.r && G.heroDamage) { G.heroDamage(S.hero); bump('dreadHero'); }
+    if (G.heroDamage) for (const h of heroesWithin(party(), p.x, p.z, S.r)) { G.heroDamage(S.hero, h); bump('dreadHero'); }
     const amt = e.max * S.shield; e.shield = amt; e.shieldMax = amt; e.shieldT = 9; e.shDark = true; bubble(e, true); banner(`💀 ${e.E.n} 2페이즈 — 어둠 보호막 · 소환이 늘어납니다`, '#c08aff', 2400);
     if (!e.m.enrRing) e.m.enrRing = groundRing(e.g, 2.6, DARK, .55); }
 }

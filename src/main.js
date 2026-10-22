@@ -17,7 +17,7 @@ import { camera as _camera } from './render/scene.js';
 import { CLASSES, VISIBLE_HEROES, isHidden } from './data/heroes.js';
 import { ETYPES } from './data/monsters.js';
 import { TOWERS } from './data/towers.js';
-import { G } from './core/state.js';
+import { G, runTimer } from './core/state.js';
 import { renderer, DAY, NIGHT, LIGHT, bloom, cam, composer, hemi, moon, scene, skyU, sun, updateCam } from './render/scene.js';
 import { P, PB, emit, stars, updCoins, updDebris, updFx, updParticles } from './render/vfx.js';
 import { BARS, updBars } from './render/hpbars.js';
@@ -34,7 +34,7 @@ import { separate, updEnemies, updLod } from './monsters/ai.js';
 import { Q } from './render/quality.js';
 import './ui/gfx.js';
 import './ui/speed.js';
-import { hero, heroDamage, heroGoTo, updHero } from './heroes/hero.js';
+import { hero, heroDamage, heroGoTo, updHero, updParty } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
 import { castLegend, updLegend } from './heroes/legend.js';
 import { endWave, startWave } from './core/waves.js';
@@ -72,13 +72,13 @@ G.Snd = Snd; G.sim = (sec, h = .05) => { for (let t = 0; t < sec; t += h) step(h
 function step(dt) {
   if (G.slowT > 0) { dt *= G.slowF || .4; G.slowT -= dt; } // 메카닉 변신 연출: 잠깐 슬로 모션 (변신할 때만)
   G.t += dt;
-  for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
+  for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); runTimer(tm); } }
   if (G.phase === 'select') updSelect(dt);
   if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); const t0 = G.spawnQ.shift(), el = G.spawnE ? G.spawnE.shift() : false; spawnEnemy(t0, G.hpMul, undefined, el); if (ETYPES[t0].pack && G.spawnQ[0] === t0) G.spawnT = .22; /* 무리는 붙어서 */ } } else if (!G.enemies.length && !pendingSpawns()) endWave(); }
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
     if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
       tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); updLegend(dt); }
-    else { updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); updLegend(dt); } if (hero.skillCd > 0) hero.skillCd -= dt;
+    else { if (G.heroes.length > 1) updParty(dt); else updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); updLegend(dt); } if (hero.skillCd > 0) hero.skillCd -= dt;
     if (keys.w || keys.a || keys.s || keys.d || hero.path.length) cam.target.lerp(new THREE.Vector3(hero.g.position.x * .4, 0, hero.g.position.z * .4 + 1), dt * 2);
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }

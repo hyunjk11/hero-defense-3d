@@ -4,7 +4,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { inGrid, isBlock, T, toTile } from '../core/grid.js';
-import { G, later } from '../core/state.js';
+import { G, later, heroFx } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { P, PB, debris, emit, ringFx } from '../render/vfx.js';
 import { GL, ensureModels, gearAct, makeHeroModel, play } from '../render/characters.js';
@@ -15,7 +15,7 @@ import { hpBar } from '../render/hpbars.js';
 import { banner } from '../ui/hud.js';
 import { hero, passAt, stat } from './hero.js';
 
-const FX = []; const _v = new THREE.Vector3();
+const FX = heroFx(); const _v = new THREE.Vector3();
 const alive = () => G.enemies.filter(e => !e.dead && e.dying === undefined);
 const d2 = (e, x, z) => { const dx = e.g.position.x - x, dz = e.g.position.z - z; return dx * dx + dz * dz; };
 const ADD = (c, o = .9) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
