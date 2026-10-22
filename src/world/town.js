@@ -1,6 +1,7 @@
 // ================= 마을 (절차적 생성, 툰 스타일): 광장·분수·집·풍차·호수광장·여신탑 =================
 import * as THREE from 'three';
 import { mk, toon, glow, olGeo, outlineMat } from '../render/toon.js';
+import { DG_OPEN } from '../data/dungeon.js';
 
 export const LAKE = new THREE.Vector2(21, 2); export const LR = 6.6; // 호수 중심/반지름 (마을 로컬)
 export const PORTAL = new THREE.Vector2(0, -15);
@@ -371,7 +372,7 @@ function ambient() {
 // ---------- 생성 / 갱신 ----------
 export function buildTown(parent) {
   T = parent; ground(); cobbles(); fountain(waterMat(2.05)); gate();
-  dungeon = house({ x: DUNGEON_P.x, z: DUNGEON_P.y, w: 4.6, d: 4, h: 3.2, wall: 0x8a7a9a, roof: 0x3a2a5a, trim: 0x2a2236, shutter: 0x5a3a8a, sign: '던전', signBg: '#3a2a5a', smoke: 0x9a8ab0, label: '⚔ 던전 원정<small>파티 던전 · 1층</small>', cls: 'dungeon',
+  dungeon = house({ x: DUNGEON_P.x, z: DUNGEON_P.y, w: 4.6, d: 4, h: 3.2, wall: 0x8a7a9a, roof: 0x3a2a5a, trim: 0x2a2236, shutter: 0x5a3a8a, sign: '던전', signBg: '#3a2a5a', smoke: 0x9a8ab0, label: DG_OPEN ? '⚔ 던전 원정<small>파티 던전 · 1층</small>' : '⚔ 던전<small>준비 중</small>', cls: DG_OPEN ? 'dungeon' : undefined,
     extra: (g, w, d) => { mk(Cyl(1, 1.2, 7, 10), toon(0x5a4a6a), w / 2 + .6, 3.5, -d / 2 + .2, g, .04); mk(new THREE.ConeGeometry(1.45, 2.4, 10), toon(0x2a1a4a), w / 2 + .6, 8.2, -d / 2 + .2, g, .04); const f = mk(new THREE.OctahedronGeometry(.3), glow(0xb07aff, 2.5), w / 2 + .6, 9.9, -d / 2 + .2, g, 0); anims.push(t => f.rotation.y = t * 2);
       for (const s of [-1, 1]) { mk(Cyl(.06, .08, 1.4, 6), toon(0x2a2a34), s * 1.1, 1.1, d / 2 + .5, g, .01); mk(new THREE.SphereGeometry(.16, 8, 6), glow(0xb07aff, 2.5), s * 1.1, 1.9, d / 2 + .5, g, 0); } } });
   shop = house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: '💰 상점<small>✨ 유료 영웅 로즈 · 버들</small>', cls: 'shop',

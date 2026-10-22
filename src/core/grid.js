@@ -1,5 +1,5 @@
 import { STAGES } from '../data/stages.js';
-import { ENTRANCES, DG_CENTER } from '../data/dungeon.js';
+import { ENTRANCES, DG_CENTER, DG_OPEN } from '../data/dungeon.js';
 // ================= 기본 설정 =================
 const GW = 24, GH = 16, S = 2, DIGK = 30;
 const T = { GRASS: 0, CARVED: 1, DIRT: 2, FOREST: 3, ROCK: 4, BEDROCK: 5, SPAWN: 6, CORE: 7 };
@@ -8,7 +8,7 @@ const SPAWN = [0, 8], CORE = [22, 7];
 const STAGE = STAGES[new URLSearchParams(location.search).get('stage')] || null;
 if (STAGE) { CORE[0] = STAGE.core[0]; CORE[1] = STAGE.core[1]; SPAWN[0] = STAGE.spawns[0][0]; SPAWN[1] = STAGE.spawns[0][1]; }
 // 던전 원정(?dungeon=1, 스테이지가 아닐 때만): 동굴 방 맵 (data/dungeon.js) · 코어 자리 = 파티 시작 위치(코어는 숨김) · 입구 4곳 = 포털
-const DUNGEON = !STAGE && new URLSearchParams(location.search).get('dungeon') === '1';
+const DUNGEON = DG_OPEN && !STAGE && new URLSearchParams(location.search).get('dungeon') === '1';
 if (DUNGEON) { CORE[0] = DG_CENTER[0]; CORE[1] = DG_CENTER[1]; SPAWN[0] = ENTRANCES[0][0]; SPAWN[1] = ENTRANCES[0][1]; }
 // 하드 모드 요청(?hard=1): 실제 적용(G.hard)은 출정 때 하드 해금 확인 후 (ui/flow.js startStageRun2)
 const HARDQ = !!STAGE && new URLSearchParams(location.search).get('hard') === '1';

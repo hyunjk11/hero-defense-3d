@@ -22,7 +22,7 @@ SHOW = "()=>{ delete document.visibilityState; document.dispatchEvent(new Event(
 SIZES = "()=>[...document.querySelectorAll('#dgBar .dgP, #dgGiveUp, #skillBtn')].map(b=>{ const r=b.getBoundingClientRect(); return [b.id||b.className.split(' ')[0], Math.round(r.width), Math.round(r.height)]; })"
 
 def login(pg, email, owned=False):
-    pg.goto(url + '?seed=12345&rng=777&flow=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000)
+    pg.goto(url + '?seed=12345&rng=777&flow=1&dgtest=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000)
     pg.mouse.click(400, 300); pg.wait_for_timeout(300); pg.fill('#lgEmail', email); pg.fill('#lgPw', 'secret12'); pg.click('#lgUp'); pg.wait_for_function("()=>G.screen==='menu'", timeout=20000); pg.wait_for_timeout(400)
     # 장비·전직: 궁수(실바)에게 공격력 장비 + 바람의 순찰자 전직. 저장의 영웅 값을 유료 영웅으로 조작 (소유 기록 없음 → 무시되어야 함)
     J(pg, """()=>{ const {Acc,E}=G.gear; let q=31; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; };
