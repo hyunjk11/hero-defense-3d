@@ -560,3 +560,54 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #wavePrev.compact .wpI.elite{filter:drop-shadow(0 0 3px #ff6a2a)}
 @media (max-height:640px){.modeTog{left:6px;top:6px}.modeTog .mt{font-size:12px;padding:4px 10px;min-height:0}}
 @media (pointer:coarse){.modeTog .mt{min-height:44px;min-width:56px;padding:4px 12px}}
+/* ---------- 관리자 확장 (2026-10-22): 주문·유저·전체 우편·공지·기록·관리자 탭, 확인 창, 공지 배너, 정지 안내 ---------- */
+#adminPanel{width:min(1040px,96vw)}
+#adminPanel #admTabs .ftab{font-size:13px;padding:6px 11px}
+#adminPanel select{background:#120f22;color:#f0e6c8;border:1px solid #c9a24a88;border-radius:8px;padding:7px;font:inherit;font-size:14px}
+#adminPanel .admForm .amChk select{min-width:120px}
+#admBody{display:flex;flex-direction:column;gap:8px;min-height:0}
+.admChips{display:flex;gap:6px;flex-wrap:wrap}.admChips .ftab b{color:#ffe08a;margin-left:3px}
+.admBar .aCnt{color:#c9b88a;font-size:13px;white-space:nowrap}
+.admRow .aItem small,.admRow .aDate small{display:block}
+.admRow .gbtn.admRefund{background:linear-gradient(#6a4a8a,#3a2050);border-color:#d8b0ff}
+.gbtn.danger{background:linear-gradient(#8a2a2a,#4a1010);border-color:#ff9a8a}
+.s_refunded .aSt,b.s_refunded{color:#d8b0ff}b.s_pending{color:#ffd06a}b.s_approved{color:#9affb0}b.s_rejected{color:#ff9a9a}
+.auRow{grid-template-columns:1.5fr 1.3fr 1fr 1.1fr auto;cursor:pointer}.auRow:hover{background:#241c40}.auRow.s_banned{box-shadow:inset 3px 0 #ff6a6a}
+.auRow .aOwn i{font-style:normal;font-size:18px;margin-right:3px}.aGo{color:#ffe08a;font-size:12px;white-space:nowrap}
+.aBadge{font-style:normal;font-size:10.5px;padding:1px 6px;border-radius:6px;margin-left:4px;vertical-align:1px;white-space:nowrap}
+.aBadge.own{background:#6a5020;color:#ffe9a0}.aBadge.adm{background:#1a3a5a;color:#9ad8ff}.aBadge.ban{background:#5a1a1a;color:#ffb0a0}
+.admPager{display:flex;gap:10px;align-items:center;justify-content:center;font-size:13px;color:#c9b88a}
+.udName{font-size:16px;color:#ffe9b0}.udMail{color:#a898c0;font-size:12px;flex:1;overflow-wrap:anywhere}
+.udGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:auto;max-height:60vh}
+.udCol{display:flex;flex-direction:column;gap:8px;min-width:0}
+.udCard{background:#1a1530;border:1px solid #c9a24a33;border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:5px}
+.udH{color:#ffe08a;font-weight:bold;font-size:13px}
+.udKv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px}.udKv span{color:#a898c0}.udId{font-size:10.5px;color:#8a7aa8;overflow-wrap:anywhere;font-weight:normal}
+.udLine{font-size:13px}
+.udHero{display:flex;align-items:center;gap:8px;font-size:13px}.udHero i{font-style:normal;font-size:20px}.udHero b{flex:1}.udHero span{color:#a898c0;font-size:12px}.udHero.has span{color:#9affb0}
+.udBanRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.udBan{flex:1;font-size:13px;color:#9affb0}.udBan.on{color:#ffb0a0}.udBan small{display:block;color:#e8c8c0}
+.udList{margin:0;padding-left:16px;font-size:12px;line-height:1.6;max-height:130px;overflow:auto}
+.bcInfo{background:#1a2440;border:1px solid #8ad0ff55;border-radius:9px;padding:8px 10px;font-size:13px;line-height:1.5}
+.ntForm{background:#1a1530;border:1px solid #c9a24a33;border-radius:10px;padding:9px 11px}
+.ntRow{grid-template-columns:2fr 1fr .9fr auto}.nt_off,.nt_ended{opacity:.6}.nt_on .aSt{color:#9affb0}.nt_wait .aSt{color:#ffd06a}.nt_off .aSt,.nt_ended .aSt{color:#a898c0}
+.logRow{grid-template-columns:.9fr 1fr 1.1fr 2fr}.aDet{font-size:12px;color:#d8c8a0;overflow-wrap:anywhere}
+.admAdm{grid-template-columns:2fr 1fr auto}
+#admConfirm{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:40}#admConfirm.hidden{display:none}
+.acfBox{width:min(460px,90%);display:flex;flex-direction:column;gap:10px;text-align:center}
+.acfT{font-size:18px;font-weight:bold;color:#ffe08a}.acfM{font-size:14px;line-height:1.6}.acfE{color:#ffb0a0;font-size:13px;min-height:16px}
+.acfR{text-align:left}#acfReason{width:100%}
+.acfBtns{display:flex;gap:10px;justify-content:center}.acfBtns .gbtn{min-width:120px}#acfYes.danger{background:linear-gradient(#a02a2a,#5a1010);border-color:#ffb0a0}
+.bcCnt{font-size:20px;margin-bottom:4px}.bcCnt b{color:#ffe066;font-size:26px}.bcPrev{margin-top:8px;background:#1a1530;border-radius:8px;padding:6px 10px;text-align:left}.bcPrev small{display:block;color:#a898c0}
+#twNotes{position:absolute;top:62px;left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 520px));min-width:360px;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:3}
+#twNotes>*{pointer-events:auto}#twNotes .hidden{display:none}
+.noticeBar{padding:10px 14px;border-color:#8ad0ff;box-shadow:0 0 0 3px #10203a,0 0 18px #4aa8ff55;animation:panelIn2 .35s ease-out}
+@keyframes panelIn2{from{opacity:0;transform:translateY(-10px)}}
+.nbHead{display:flex;align-items:center;gap:8px}.nbIco{font-size:20px}.nbT{flex:1;color:#cfeaff;font-size:16px}.nbN{color:#9ab8d8}
+.nbB{margin-top:6px;font-size:14px;line-height:1.55;white-space:pre-wrap;max-height:28vh;overflow:auto}
+.nbAct{display:flex;justify-content:flex-end;margin-top:6px}.nbX{padding:3px 9px}
+.banNote{padding:9px 14px;border-color:#ff8a7a;box-shadow:0 0 0 3px #3a1010,0 0 18px #ff4a4a55;display:flex;flex-direction:column;gap:3px;font-size:14px}
+.banNote b{color:#ffb0a0}.banNote .bnR{color:#ffe0d0}.banNote small{color:#d8b8b0;font-size:12px;line-height:1.45}
+.mAct .got.revoked{color:#a898c0}
+@media (max-height:640px){.udGrid{max-height:52vh}.admTable{max-height:46vh}#twNotes{top:56px}}
+@media (pointer:coarse){#adminPanel select{min-height:44px}.nbX{min-height:44px;min-width:44px}}
+#acfReason{background:#120f22;color:#f0e6c8;border:1px solid #c9a24a88;border-radius:8px;padding:8px;font:inherit;font-size:14px;box-sizing:border-box;resize:vertical}

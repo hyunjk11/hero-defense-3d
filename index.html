@@ -133,8 +133,10 @@
   <div id="shopPanel" class="gpanel bigPanel wide hidden"><button id="shopClose" class="gbtn sm xbtn">✕</button><div class="gtitle">💰 상점</div><div class="labSub">특별한 영웅과 상품을 만나보세요</div><div id="shopBody"></div><canvas id="shopPv"></canvas></div>
   <div id="mailPanel" class="gpanel bigPanel hidden"><button id="mailClose" class="gbtn sm xbtn">✕</button><div class="gtitle">✉ 우편함</div><div id="mailMsg" class="shopMsg"></div><div id="mailList" class="mailList"></div></div>
   <div id="townPop" class="gpanel hidden"></div>
+  <div id="twNotes"><div id="banNote" class="banNote gpanel hidden"></div><div id="noticeBar" class="noticeBar gpanel hidden"></div></div>
 </div>
-<div id="adminPanel" class="gpanel bigPanel wide hidden"><button id="admClose" class="gbtn sm xbtn">✕</button><div class="gtitle">🛡 관리자</div><div id="admTabs" class="ftabs"><button class="ftab on" data-t="orders">구매 신청</button><button class="ftab" data-t="mail">우편 보내기</button></div><div id="admMsg" class="shopMsg"></div><div id="admBody"></div></div>
+<div id="adminPanel" class="gpanel bigPanel wide hidden"><button id="admClose" class="gbtn sm xbtn">✕</button><div class="gtitle">🛡 관리자</div><div id="admTabs" class="ftabs"><button class="ftab on" data-t="orders">🧾 주문 관리</button><button class="ftab" data-t="users">👥 유저 관리</button><button class="ftab" data-t="mail">✉ 우편 보내기</button><button class="ftab" data-t="broadcast">📨 전체 우편</button><button class="ftab" data-t="notice">📢 공지</button><button class="ftab" data-t="log">📜 활동 기록</button><button class="ftab hidden" data-t="admins">🛡 관리자</button></div><div id="admMsg" class="shopMsg"></div><div id="admBody"></div></div>
+<div id="admConfirm" class="hidden"><div class="acfBox gpanel"><div class="acfT"></div><div class="acfM"></div><label class="acfR hidden">사유 (필수 · 200자 이내)<textarea id="acfReason" maxlength="200" rows="2"></textarea></label><div class="acfE"></div><div class="acfBtns"><button class="gbtn" id="acfNo">취소</button><button class="gbtn main" id="acfYes">확인</button></div></div></div>
 <div id="branchPop" class="hidden"></div><div id="chestOv" class="hidden"></div><div id="stageClear" class="hidden"></div><div id="itemTip" class="hidden"></div>
 <div id="fade"></div>
 <div id="loading"><div class="spin"></div><div id="loadTxt">모델 불러오는 중…</div></div>

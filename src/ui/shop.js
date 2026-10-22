@@ -9,6 +9,8 @@ import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../r
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import { SHOP, PAY_INFO } from '../config/shop.js';
+import { openAdmin, closeAdmin, renderAdmin, adminOpen, initAdmin } from './admin.js';
+export { openAdmin, closeAdmin };
 
 const fmtD = s => { const d = new Date(s); return isNaN(d) ? '' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const ST_N = { pending: '승인 대기', approved: '승인됨', rejected: '거절됨' };
@@ -20,7 +22,7 @@ const PROD = {
     sk: '부품이 날아와 합체! 10초간 거대 로봇(보호막 · 넓은 범위 강펀치 · 드릴 돌진) → 로켓 펀치 피니시', lg: '<b>✦ 전설 건틀릿</b> 과부하 드릴(다단 갈기 · 둔화) · 기가 해머 낙하([E] 거대 해머 · 기절)' },
 };
 const PKEYS = Object.keys(SHOP.items).filter(Sh.onSale); // 숨긴 영웅 상품 제외 (data/heroes.js hidden)
-let ui = { prod: 'hero_gunner', shop: false, mail: false, admin: false, msg: '', msgOk: true, mailMsg: '', adm: 'orders', admMsg: '', busy: false };
+let ui = { prod: 'hero_gunner', shop: false, mail: false, msg: '', msgOk: true, mailMsg: '', busy: false };
 let hooks = { onChange: () => {}, closeOthers: () => {}, cheer: () => {} };
 
 // ---------- 로즈 3D 미리보기 (별도 작은 렌더러, 상점이 열려 있을 때만 그림) ----------
@@ -59,6 +61,7 @@ export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.s
 function itemState(k) {
   const A = Acc.A, st = Sh.S.status;
   if (!A.user) return { cls: 'guest', btn: '🔒 로그인 후 구매 가능', dis: true, note: '게스트는 구매할 수 없어요. 메뉴에서 로그인해 주세요.' };
+  if (Sh.isBanned()) return { cls: 'soon', btn: '⛔ 계정 정지', dis: true, note: '계정이 정지되어 구매 신청을 할 수 없어요. 문의는 관리자에게 해 주세요.' };
   if (Sh.owns(k)) return { cls: 'own', btn: '✓ 보유 중', dis: true, note: '이미 보유한 영웅이에요. 마을 왼쪽 영웅 선택에서 고를 수 있어요.' };
   if (st === 'missing') return { cls: 'soon', btn: '서버 준비 중', dis: true, note: '상점 서버가 아직 준비되지 않았어요. 잠시 후 다시 와 주세요.' };
   if (st === 'error') return { cls: 'soon', btn: '서버 연결 실패', dis: true, note: '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.' };
@@ -101,52 +104,24 @@ function renderMail() {
   else if (st !== 'ok' && !L.length) h = '<div class="emptyMsg">불러오는 중…</div>';
   else if (!L.length) h = '<div class="emptyMsg">받은 우편이 없어요.</div>';
   else h = L.map(m => { const rw = Sh.rewardText(m.reward), hero = m.reward && m.reward.hero;
-    return `<div class="mailItem ${m.claimed ? 'done' : ''} ${!m.claimed && (m.reward || !m.read) ? 'new' : ''}" data-id="${m.id}"><div class="mIco">${hero ? '🎁' : m.reward ? '💰' : '✉'}</div><div class="mMain"><div class="mT">${esc(m.title)}</div><div class="mB">${esc(m.body)}</div>${rw ? `<div class="mR">${hero ? `<i class="rose">${(PROD['hero_' + hero] || {}).icon || '🎁'}</i>` : ''}${esc(rw)}</div>` : ''}<div class="mD">${fmtD(m.created_at)}</div></div>
-      <div class="mAct">${m.reward ? (m.claimed ? '<span class="got">받음 ✓</span>' : `<button class="gbtn main mClaim" data-id="${m.id}">받기</button>`) : ''}</div></div>`; }).join('');
+    return `<div class="mailItem ${m.claimed || m.revoked ? 'done' : ''} ${!m.claimed && !m.revoked && (m.reward || !m.read) ? 'new' : ''}" data-id="${m.id}"><div class="mIco">${hero ? '🎁' : m.reward ? '💰' : '✉'}</div><div class="mMain"><div class="mT">${esc(m.title)}</div><div class="mB">${esc(m.body)}</div>${rw ? `<div class="mR">${hero ? `<i class="rose">${(PROD['hero_' + hero] || {}).icon || '🎁'}</i>` : ''}${esc(rw)}</div>` : ''}<div class="mD">${fmtD(m.created_at)}</div></div>
+      <div class="mAct">${m.reward ? (m.claimed ? '<span class="got">받음 ✓</span>' : m.revoked ? '<span class="got revoked">회수됨</span>' : `<button class="gbtn main mClaim" data-id="${m.id}">받기</button>`) : ''}</div></div>`; }).join('');
   if ($('mailList')._h !== h) { $('mailList')._h = h; $('mailList').innerHTML = h;
     document.querySelectorAll('#mailList .mailItem').forEach(el => el.onclick = () => { const id = +el.dataset.id, m = Sh.S.mail.find(x => x.id === id); if (m && !m.read) { Sh.markRead(id); render(); } });
     document.querySelectorAll('#mailList .mClaim').forEach(b => b.onclick = async e => { e.stopPropagation(); b.disabled = true; const r = await Sh.claim(+b.dataset.id); ui.mailMsg = (r.ok ? '✅ ' : '⚠ ') + esc(r.msg);
       if (r.ok && !r.already) { Snd.play('levelUp'); Snd.play('coins'); if (r.reward && r.reward.hero) { ui.mailMsg = `${(PROD['hero_' + r.reward.hero] || {}).icon || '🎁'} <b>${esc(heroLabel(r.reward.hero))}</b> 해금! 영웅 선택에서 고를 수 있어요.`; hooks.cheer(); } } else Snd.play(r.ok ? 'ui' : 'error');
       hooks.onChange(); render(); }); }
-  $('mailMsg').innerHTML = ui.mailMsg;
+  $('mailMsg').innerHTML = ui.mailMsg || (Sh.isBanned() ? '<span class="bad">⛔ 계정이 정지되어 우편을 받을 수 없어요.</span>' : '');
 }
 function badge() { const n = Acc.A.user ? Sh.unread() : 0, b = $('twMailN'); if (b) { b.textContent = n > 9 ? '9+' : n || ''; b.classList.toggle('hidden', !n); }
   const adm = Sh.isAdminUI(); for (const id of ['twAdmin', 'mnAdmin']) { const e = $(id); if (e) e.classList.toggle('hidden', !adm); } }
 
-// ---------- 관리자 ----------
-export function openAdmin() { if (!Sh.isAdminUI()) return; Snd.play('confirm'); hooks.closeOthers('admin'); ui.admin = true; $('adminPanel').classList.remove('hidden'); ui.admMsg = ''; renderAdmin(); loadOrders(); }
-export function closeAdmin(silent) { if (ui.admin && !silent) Snd.play('ui'); ui.admin = false; $('adminPanel').classList.add('hidden'); }
-async function loadOrders() { const r = await Sh.adminOrders(); if (!r.ok) ui.admMsg = '⚠ ' + esc(r.msg); renderAdmin(); }
-function renderAdmin() {
-  if (!ui.admin) return;
-  document.querySelectorAll('#admTabs .ftab').forEach(b => b.classList.toggle('on', b.dataset.t === ui.adm));
-  const body = $('admBody');
-  if (ui.adm === 'orders') { const L = Sh.S.adminOrders, pend = L.filter(o => o.status === 'pending').length;
-    const h = `<div class="admBar"><span>대기 <b>${pend}</b> · 전체 ${L.length}</span><input id="admReason" placeholder="거절 사유 (선택)" maxlength="200"><button class="gbtn sm" id="admReload">새로고침</button></div>` +
-      (L.length ? `<div class="admTable">${L.map(o => `<div class="admRow s_${o.status}"><div class="aWho"><b>${esc(o.nickname || '—')}</b><small>${esc(o.email || o.user_id)}</small></div><div class="aItem">${esc((SHOP.items[o.item] || {}).n || o.item)}</div><div class="aDate">${fmtD(o.created_at)}</div><div class="aSt">${ST_N[o.status] || o.status}${o.decided_at ? `<small>${fmtD(o.decided_at)}</small>` : ''}</div>
-        <div class="aAct">${o.status === 'pending' ? `<button class="gbtn main admOk" data-id="${o.id}">승인</button><button class="gbtn admNo" data-id="${o.id}">거절</button>` : ''}</div></div>`).join('')}</div>` : '<div class="emptyMsg">구매 신청이 없어요.</div>');
-    if (body._h !== h) { const rs = $('admReason') ? $('admReason').value : ''; body._h = h; body.innerHTML = h; $('admReason').value = rs;
-      $('admReload').onclick = () => { Snd.play('ui'); loadOrders(); };
-      body.querySelectorAll('.admOk').forEach(b => b.onclick = () => decide(b, Sh.approve(+b.dataset.id), '승인 완료 · 보상 우편을 보냈어요'));
-      body.querySelectorAll('.admNo').forEach(b => b.onclick = () => decide(b, Sh.reject(+b.dataset.id, $('admReason').value.trim()), '거절 완료 · 안내 우편을 보냈어요')); } }
-  else if (!body._mailForm) { body._h = ''; body._mailForm = true; body.innerHTML = `<div class="admForm"><label>받는 사람 이메일<input id="amEmail" type="email" placeholder="user@example.com"></label><label>제목<input id="amTitle" maxlength="60" value="운영자의 선물"></label>
-      <label>내용<textarea id="amBody" maxlength="1000" rows="3">모험에 도움이 되길 바랍니다!</textarea></label><div class="amRw"><label>영혼석<input id="amSouls" type="number" min="0" max="1000000" value="0"></label><label>강철<input id="amSteel" type="number" min="0" max="1000000" value="0"></label><label>마력석<input id="amCrystal" type="number" min="0" max="1000000" value="0"></label></div>
-      <label class="amChk">영웅 지급 <select id="amHero"><option value="">없음</option>${PKEYS.map(x => SHOP.items[x].hero).map(h => `<option value="${h}">${esc(heroLabel(h))}</option>`).join('')}</select></label><button class="gbtn main" id="amSend">✉ 우편 보내기</button></div>`;
-    $('amSend').onclick = async () => { const n = id => Math.max(0, Math.min(1e6, Math.floor(+$(id).value || 0))), rw = {}; if (n('amSouls')) rw.souls = n('amSouls'); if (n('amSteel')) rw.steel = n('amSteel'); if (n('amCrystal')) rw.crystal = n('amCrystal'); if ($('amHero').value) rw.hero = $('amHero').value;
-      const em = $('amEmail').value.trim(), ti = $('amTitle').value.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em) || !ti) { ui.admMsg = '⚠ 이메일과 제목을 확인해 주세요.'; Snd.play('error'); renderAdmin(); return; }
-      $('amSend').disabled = true; const r = await Sh.sendMail(em, ti, $('amBody').value, rw); $('amSend').disabled = false; ui.admMsg = r.ok ? `✅ ${esc(em)} 에게 우편을 보냈어요.` : '⚠ ' + esc(r.msg); Snd.play(r.ok ? 'confirm' : 'error'); renderAdmin(); }; }
-  if (ui.adm === 'orders') body._mailForm = false;
-  $('admMsg').innerHTML = ui.admMsg;
-}
-async function decide(b, p, okMsg) { b.disabled = true; Snd.play('ui'); const r = await p; ui.admMsg = r.ok ? '✅ ' + okMsg : '⚠ ' + esc(r.msg); Snd.play(r.ok ? 'confirm' : 'error'); await loadOrders(); }
-
 export function initShop(h) {
   hooks = { ...hooks, ...h };
-  $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); $('admClose').onclick = () => closeAdmin();
+  $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); initAdmin({ closeOthers: k => hooks.closeOthers(k), onChange: () => hooks.onChange() });
   $('twMail').onclick = () => { if (ui.mail) closeMail(); else openMail(); }; $('twAdmin').onclick = () => openAdmin(); $('mnAdmin').onclick = () => openAdmin();
-  document.querySelectorAll('#admTabs .ftab').forEach(b => b.onclick = () => { ui.adm = b.dataset.t; ui.admMsg = ''; Snd.play('ui'); renderAdmin(); if (ui.adm === 'orders') loadOrders(); });
   Sh.onShop(() => render()); Acc.onChange(() => badge());
-  addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (ui.admin) closeAdmin(); else if (ui.mail) closeMail(); else if (ui.shop) closeShop(); });
+  addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (adminOpen()) closeAdmin(); else if (ui.mail) closeMail(); else if (ui.shop) closeShop(); });
   badge();
 }
 G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };

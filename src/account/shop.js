@@ -1,13 +1,15 @@
 // 상점 · 우편함 · 관리자 클라이언트 (Supabase). 유료 영웅 소유권은 서버 테이블 hd3d_owned(사용자 쓰기 불가)에서 읽은 값만 메모리에 둠 (localStorage/세이브에 저장하지 않음).
 // 테이블/함수가 아직 없으면(schema.sql 미실행) status = 'missing' → UI는 '서버 준비 중'. 게스트는 구매/우편 불가.
-import { A, ensureClient, load as accLoad, store as accStore, onChange as accOnChange } from './account.js';
+import { A, ensureClient, load as accLoad, store as accStore, onChange as accOnChange, setBanned, onDenied } from './account.js';
+import { isBannedErr } from './adminlogic.js';
 import { applyMail } from './progress.js';
 import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
 import { CLASSES, DEFAULT_HERO, isHidden } from '../data/heroes.js';
 
 const T = SHOP.tables;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
-export const S = { status: 'idle', owned: [], ownedUid: null, orders: [], mail: [], adminOrders: [], msg: '', listeners: [] }; // status: idle | guest | loading | ok | missing | error
+export const S = { status: 'idle', owned: [], ownedUid: null, orders: [], mail: [], adminOrders: [], msg: '', listeners: [], me: { st: 'idle', admin: false, owner: false, banned: false, reason: null } }; // status: idle | guest | loading | ok | missing | error
+// me = 서버 hd3d_my_status (관리자/owner/정지). st: idle | ok | missing(schema.sql 재실행 전) | error
 const emit = () => S.listeners.forEach(f => { try { f(S); } catch (e) { console.warn(e); } });
 export const onShop = f => S.listeners.push(f);
 const isMissing = e => !!e && (e.code === 'PGRST205' || e.code === 'PGRST202' || e.code === '42P01' || e.code === '42883' || e.status === 404);
@@ -20,8 +22,22 @@ export const heroOwned = cls => !!CLASSES[cls] && !isHidden(cls) && (!CLASSES[cl
 export const usableHero = cls => heroOwned(cls) ? cls : isHidden(cls) ? DEFAULT_HERO : 'mage';
 // 판매 중인 상품 (숨긴 영웅 상품은 목록·구매에서 제외, schema 상품은 그대로)
 export const onSale = item => !!SHOP.items[item] && !(SHOP.items[item].kind === 'hero' && isHidden(SHOP.items[item].hero)); // 저장된 영웅이 잠겨 있으면 기본 영웅
-export const isAdminUI = () => !!(A.user && String(A.user.email || '').toLowerCase() === ADMIN_EMAIL); // 버튼 표시용 (서버가 다시 검사)
-export const unread = () => S.mail.filter(m => !m.claimed && (m.reward || !m.read)).length;
+// 버튼 표시용 (서버가 다시 검사): 서버 상태를 받았으면 그 값(하위 관리자 포함), 아직/구버전 서버면 owner 이메일
+export const isAdminUI = () => !!A.user && (S.me.st === 'ok' ? S.me.admin : String(A.user.email || '').toLowerCase() === ADMIN_EMAIL);
+export const isOwnerUI = () => !!A.user && S.me.st === 'ok' && S.me.owner;
+export const isBanned = () => !!A.user && S.me.banned;
+export const unread = () => S.mail.filter(m => !m.claimed && !m.revoked && (m.reward || !m.read)).length;
+const BAN_MSG = { order: '계정이 정지되어 구매 신청을 할 수 없습니다.', claim: '계정이 정지되어 우편을 받을 수 없습니다.' };
+// 내 상태 (관리자·정지) 다시 읽기
+export async function refreshMe() {
+  if (!A.user) { S.me = { st: 'idle', admin: false, owner: false, banned: false, reason: null }; setBanned(false); emit(); return S.me; }
+  const u = A.user.id, c = await sb(), { data, error } = await q(c.rpc('hd3d_my_status'));
+  if (!A.user || A.user.id !== u) return S.me;
+  if (error) S.me = { ...S.me, st: isMissing(error) ? 'missing' : 'error', admin: false, owner: false };
+  else S.me = { st: 'ok', admin: !!(data && data.admin), owner: !!(data && data.owner), banned: !!(data && data.banned), reason: (data && data.ban_reason) || null, at: (data && data.banned_at) || null };
+  setBanned(S.me.banned); emit(); return S.me;
+}
+onDenied(() => { refreshMe().catch(() => {}); }); // 저장이 42501 로 거부되면 (정지됐을 수 있음) 상태 다시 확인
 
 async function sb() { return A.sb || ensureClient(); }
 async function q(p) { try { const r = await p; return r; } catch (e) { return { data: null, error: { message: String(e && e.message || e) } }; } }
@@ -30,7 +46,7 @@ export async function refresh() {
   if (!A.user) { S.status = 'guest'; S.owned = []; S.ownedUid = null; S.orders = []; S.mail = []; emit(); return S; }
   if (S.status !== 'ok') S.status = 'loading'; emit();
   const c = await sb(), u = A.user.id;
-  const [o, r, m] = await Promise.all([q(c.from(T.owned).select('item').eq('user_id', u)), q(c.from(T.orders).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(50)), q(c.from(T.mail).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(100))]);
+  const [o, , r, m] = await Promise.all([q(c.from(T.owned).select('item').eq('user_id', u)), refreshMe().catch(() => {}), q(c.from(T.orders).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(50)), q(c.from(T.mail).select('*').eq('user_id', u).order('created_at', { ascending: false }).limit(100))]);
   const bad = [o, r, m].find(x => x.error);
   if (bad) { S.status = isMissing(bad.error) ? 'missing' : 'error'; S.msg = bad.error.message || ''; emit(); return S; }
   if (!A.user || A.user.id !== u) return S;
@@ -52,9 +68,10 @@ export async function order(item) {
   if (S.status === 'missing') return { ok: false, msg: '서버 준비 중이에요. 잠시 후 다시 시도해 주세요.' };
   if (S.status !== 'ok') return { ok: false, msg: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.' };
   if (owns(item)) return { ok: false, msg: '이미 보유한 상품이에요.' };
+  if (S.me.banned) return { ok: false, banned: true, msg: BAN_MSG.order };
   if (pendingOf(item)) return { ok: false, msg: '이미 구매 신청이 접수되어 관리자 확인을 기다리는 중이에요.' };
   const c = await sb(), { error } = await q(c.from(T.orders).insert({ item }));
-  if (error) { await refresh(); if (error.code === '23505') return { ok: false, msg: owns(item) ? '이미 보유한 상품이에요.' : '이미 구매 신청이 접수되어 있어요.' }; if (isMissing(error)) return { ok: false, msg: '서버 준비 중이에요.' }; return { ok: false, msg: '구매 신청 실패: ' + (error.message || '') }; }
+  if (error) { await refresh(); if (isBannedErr(error)) return { ok: false, banned: true, msg: BAN_MSG.order }; if (error.code === '23505') return { ok: false, msg: owns(item) ? '이미 보유한 상품이에요.' : '이미 구매 신청이 접수되어 있어요.' }; if (isMissing(error)) return { ok: false, msg: '서버 준비 중이에요.' }; return { ok: false, msg: '구매 신청 실패: ' + (error.message || '') }; }
   await refresh(); return { ok: true, msg: '구매 신청이 접수되었습니다!' };
 }
 
@@ -73,7 +90,10 @@ export async function claim(id, { quiet = false } = {}) {
   try {
     pendSet(id, true);
     const c = await sb(), { data, error } = await q(c.rpc('hd3d_claim_mail', { p_mail_id: id }));
-    if (error) { if (error.code === 'P0002' || /not found/i.test(error.message || '')) pendSet(id, false); return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') }; }
+    if (error) { if (error.code === 'P0002' || /not found|revoked/i.test(error.message || '')) pendSet(id, false);
+      if (isBannedErr(error)) { refreshMe().catch(() => {}); return { ok: false, banned: true, msg: BAN_MSG.claim }; }
+      if (/revoked/i.test(error.message || '') || error.hint === 'revoked') { await refresh(); return { ok: false, msg: '회수된 우편이라 받을 수 없습니다.' }; }
+      return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') }; }
     if (uid() !== u) return { ok: false, msg: '계정이 바뀌었습니다.' };
     const r = data || {}; let applied = false;
     if (r.reward && (!r.already || wasPending)) applied = applyReward(id, r.reward);
@@ -96,12 +116,12 @@ export async function adminOrders() {
   if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : error.message }; S.adminOrders = data || []; emit(); return { ok: true, list: S.adminOrders };
 }
 async function adminRpc(fn, args) { const c = await sb(), { data, error } = await q(c.rpc(fn, args)); if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : /forbidden|42501/.test(error.message + error.code) ? '관리자 권한이 없습니다.' : error.message };
-  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: '보상 값이 올바르지 않습니다.' }[data.reason] || '실패' }; return { ok: true, data }; }
+  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: '보상 값이 올바르지 않습니다.', bad_title: '제목을 확인해 주세요.' }[data.reason] || '실패' }; return { ok: true, data }; }
 export const approve = id => adminRpc('hd3d_admin_approve', { p_order_id: id });
 export const reject = (id, reason) => adminRpc('hd3d_admin_reject', { p_order_id: id, p_reason: reason || null });
 export const sendMail = (email, title, body, reward) => adminRpc('hd3d_admin_send_mail', { p_email: email, p_title: title, p_body: body || '', p_reward: reward && Object.keys(reward).length ? reward : null });
 
 // 로그인/로그아웃 시 자동 갱신
-let lastU = null; accOnChange(() => { const u = A.user ? A.user.id : null; if (u !== lastU) { lastU = u; S.owned = []; S.ownedUid = null; S.orders = []; S.mail = []; S.adminOrders = []; S.status = u ? 'loading' : 'guest'; if (u) refresh().catch(() => {}); else emit(); } });
+let lastU = null; accOnChange(() => { const u = A.user ? A.user.id : null; if (u !== lastU) { lastU = u; S.owned = []; S.ownedUid = null; S.orders = []; S.mail = []; S.adminOrders = []; S.me = { st: 'idle', admin: false, owner: false, banned: false, reason: null }; setBanned(false); S.status = u ? 'loading' : 'guest'; if (u) refresh().catch(() => {}); else emit(); } });
 // 새로고침으로 출정할 때(?stage&run) 유료 영웅이면 로그인·서버 소유권 확인을 먼저 (최대 ms)
 export async function verifyOwned(ms = 8000) { const to = new Promise(r => setTimeout(r, ms)); try { await Promise.race([(async () => { if (!A.user) { const { autoLogin } = await import('./account.js'); await autoLogin(); } if (A.user) await refresh(); })(), to]); } catch (e) {} }

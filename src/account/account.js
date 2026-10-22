@@ -12,10 +12,15 @@ const mergedKey = uid => 'hd3d_merged_' + uid, tsKey = uid => 'hd3d_cloud_ts_' +
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
 const parse = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 
-export const A = { sb: null, user: null, tables: 'unknown', sync: 'local', msg: '', listeners: [], mode: ls.get(K_MODE) || '', conflicts: 0, leaving: false }; // mode: '' | 'guest' | 'account'
+export const A = { sb: null, user: null, tables: 'unknown', sync: 'local', msg: '', listeners: [], mode: ls.get(K_MODE) || '', conflicts: 0, leaving: false, banned: false }; // mode: '' | 'guest' | 'account'
 let timer = 0, retry = 0, sbP = null;
-const emit = () => A.listeners.forEach(f => { try { f(A); } catch (e) { console.warn(e); } });
+const emit = () => { if (A.banned && A.user) A.sync = 'banned'; A.listeners.forEach(f => { try { f(A); } catch (e) { console.warn(e); } }); };
 export const onChange = f => A.listeners.push(f);
+// 계정 정지 (서버 hd3d_my_status → account/shop.js): 서버 저장을 멈추고 이 기기에만 저장. 해제되면 밀린 저장을 다시 올림
+let deniedHook = () => {};
+export const onDenied = f => { deniedHook = f; };
+export function setBanned(b) { b = !!b; if (A.banned === b) return; A.banned = b; clearTimeout(timer);
+  if (b) { A.sync = 'banned'; emit(); } else if (A.user && A.tables === 'ok') { if (ls.get(K_DIRTY) === '1') save(); else { A.sync = 'saved'; emit(); } } }
 
 // ---------- 로컬 저장 ----------
 export function load() { const raw = parse(ls.get(K_SAVE)) || {}, s = P.clean(raw); if (!ls.get(K_SAVE)) migrateOld(s); else if (raw.hero !== s.hero && isHidden(raw.hero)) store(s); return s; } // 숨긴 영웅 → 기본 영웅 이전은 바로 저장
@@ -73,7 +78,7 @@ export function playGuest() { if (A.user) return; A.mode = 'guest'; ls.set(K_MOD
 export async function signOut() { try { if (A.sb) await A.sb.auth.signOut(); } catch (e) {} restoreGuest(); }
 
 function restoreGuest() {
-  A.user = null; A.tables = 'unknown'; A.sync = 'local'; clearTimeout(timer);
+  A.user = null; A.tables = 'unknown'; A.sync = 'local'; A.banned = false; clearTimeout(timer);
   const g = ls.get(K_GUEST); if (g) ls.set(K_SAVE, g); ls.del(K_GUEST); ls.del(K_UID); ls.del(K_DIRTY); A.mode = ''; ls.set(K_MODE, ''); emit();
 }
 
@@ -115,13 +120,13 @@ export async function saveNick(nick) {
   return nick;
 }
 function schedule(isRetry) {
-  clearTimeout(timer); if (!A.user || A.tables !== 'ok') return;
+  clearTimeout(timer); if (!A.user || A.tables !== 'ok') return; if (A.banned) { A.sync = 'banned'; return; }
   const ms = isRetry ? SUPABASE.retryMs[Math.min(retry++, SUPABASE.retryMs.length - 1)] : SUPABASE.saveDebounceMs; A.sync = isRetry ? 'offline' : 'pending';
   timer = setTimeout(() => save(), ms);
 }
 let inflight = null, again = false;
 export function save() {
-  if (!A.user || A.tables !== 'ok') return Promise.resolve(false);
+  if (!A.user || A.tables !== 'ok') return Promise.resolve(false); if (A.banned) { A.sync = 'banned'; emit(); return Promise.resolve(false); }
   if (inflight) { again = true; return inflight; } // 저장 중에 또 저장 → 끝난 뒤 한 번 더 (같은 기준 시각으로 두 번 쓰지 않게 직렬화)
   inflight = (async () => { let r; do { again = false; r = await saveOnce(); } while (again && r && A.user); return r; })().finally(() => { inflight = null; });
   return inflight;
@@ -144,7 +149,7 @@ async function saveOnce() {
       store(P.merge(load(), c.data.data), { cloud: false }); ls.set(K_DIRTY, '1'); ls.set(tsKey(uid), c.data.updated_at);
     }
     throw new Error('save conflict');
-  } catch (e) { A.msg = koErr(e); schedule(true); emit(); return false; }
+  } catch (e) { A.msg = koErr(e); if (e && e.code === '42501') deniedHook(); schedule(true); emit(); return false; }
 }
 // 즉시 저장 (판 종료 시 등) — 디바운스 무시
 export const flush = () => save();
@@ -154,4 +159,4 @@ function leaveFlush() { if (A.user && ls.get(K_DIRTY) === '1') { A.leaving = tru
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaveFlush(); });
 addEventListener('pagehide', leaveFlush);
 addEventListener('beforeunload', leaveFlush);
-export const SYNC_TXT = { local: '이 기기에 저장', loading: '불러오는 중…', missing: '서버 준비 중 · 이 기기에 저장', error: '서버 오류 · 이 기기에 저장', pending: '저장 대기', saving: '저장 중…', saved: '클라우드 저장됨 ✓', offline: '오프라인 · 재시도 예정' };
+export const SYNC_TXT = { local: '이 기기에 저장', loading: '불러오는 중…', missing: '서버 준비 중 · 이 기기에 저장', error: '서버 오류 · 이 기기에 저장', pending: '저장 대기', saving: '저장 중…', saved: '클라우드 저장됨 ✓', offline: '오프라인 · 재시도 예정', banned: '⛔ 계정 정지 · 서버 저장 중단 (이 기기에만 저장)' };

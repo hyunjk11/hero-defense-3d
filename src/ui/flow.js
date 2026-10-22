@@ -26,6 +26,7 @@ import { lab, LAB, labFront } from '../world/town.js';
 let labNear = false;
 import * as Sh from '../account/shop.js';
 import { initShop, openShop, closeShop, closeMail, closeAdmin, updShop } from './shop.js';
+import { initNotice, showNotices } from './notice.js';
 import { shop as shopBld, SHOP_P, shopFront } from '../world/town.js';
 let shopNear = false; const closeShopUI = () => { closeShop(true); closeMail(true); };
 
@@ -133,7 +134,7 @@ function spawnTownHero() {
 }
 export function enterTown() {
   hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);
-  cam.target.set(0, 1, TOWN_Z - 2); cam.r = 34; cam.phi = .78; cam.theta = 0; G.nightTarget = 0; refreshTown(); if (Acc.A.user) Sh.refresh().catch(() => {}); // 마을 입장 시 우편·소유권 갱신
+  cam.target.set(0, 1, TOWN_Z - 2); cam.r = 34; cam.phi = .78; cam.theta = 0; G.nightTarget = 0; refreshTown(); if (Acc.A.user) Sh.refresh().catch(() => {}); showNotices().catch(() => {}); // 마을 입장 시 우편·소유권·공지 갱신
   const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'clear' ? `${r.hard ? '<span class="hardTag">하드</span> ' : ''}스테이지 ${ST.stageNo(r.stage)} 클리어! <span class="popStars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</span>` : r.reason === 'retreat' ? '무사히 귀환했습니다' : r.stage ? `${r.hard ? '하드 ' : ''}스테이지 ${ST.stageNo(r.stage)} 실패 · 코어가 파괴되었습니다` : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${lootLines(r.loot || [])}`); if (chestCount()) setTimeout(() => openChestUI(show2), 600); else show2(); }
 }
 // 판 결과 팝업: 보상 상자 수 + 고유 획득 / 중복 → 정수 변환 / 도전 모드 정수
@@ -203,6 +204,7 @@ function bindUI() {
     if (towerHit || Math.hypot(p.x - LAKE.x, p.z - LAKE.y) < LR + .3) { routeToTower(); if (Math.hypot(th.g.position.x - LAKE.x, th.g.position.z - LAKE.y) < 3.4) openBless(); }
     else { th.goal = p; th.goals = null; } });
   $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeShopUI(); closeStageSel(true); closeLab(true); openInv(); }; $('twChest').onclick = () => { if (revealing()) return; closeShopUI(); closeStageSel(true); closeLab(true); closeBless(); openChestUI(); };
+  initNotice();
   initShop({ onChange: () => refreshTown(), closeOthers: k => { closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (k !== 'shop') closeShop(true); if (k !== 'mail') closeMail(true); }, cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   Sh.onShop(() => { if (th && G.screen === 'town' && th.cls !== Sh.usableHero(Acc.load().hero)) spawnTownHero(); refreshTown(); refreshMenu(); }); // 서버 소유권 갱신 → 마을 영웅 모델도 맞춤
   document.querySelectorAll('#blessTabs .ftab').forEach(b => b.onclick = () => { if (b.dataset.bt === blessTab) return; Snd.play('ui'); setBlessTab(b.dataset.bt); });
