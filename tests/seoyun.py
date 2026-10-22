@@ -43,7 +43,7 @@ OWN = "(it)=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const u=Obj
 CLEAR = "()=>{ for (const e of G.enemies) { e.dead=true; e.hb&&e.hb.show(false); if(e.g) e.g.visible=false; } G.enemies.length=0; }"
 # 적 배치: [type, 앞쪽 거리, 옆 오프셋] — 체력 매우 큼 (피해 합계로 검사)
 PUT = """(L)=>{ const h=G.hero.g.position, f=G.hero.face, out=[]; for (const [ty, d, s] of L) { const x=h.x+Math.sin(f)*d+Math.cos(f)*s, z=h.z+Math.cos(f)*d-Math.sin(f)*s;
-  const e=G.spawnEnemy(ty, 40, { x, z, tile:G.toTile(x,z) }); e.g.position.set(x, e.g.position.y, z); e.state='walk'; e.spawnT=0; e.next=null; e.path=null; e.spd0=e.spd; e.spd=0; e.spdK=0; /* 이동 속도 배수 0 = 제자리 (코어 쪽으로 걸어가 버리면 사거리 밖) */ e.max=e.hp=1e6; out.push(G.enemies.indexOf(e)); } window.__bp=G.enemies.filter(e=>!e.dead); return out.length; }"""
+  const e=G.spawnEnemy(ty, 40, { x, z, tile:G.toTile(x,z) }); e.g.position.set(x, e.g.position.y, z); e.state='walk'; e.spawnT=0; e.next=null; e.path=null; e.spd0=e.spd; e.spd=0; e.spdK=1e-9; /* 이동 속도 배수 ≈0 = 제자리 (ai.js 는 spdK||1 이라 0 은 무시됨 · 코어 쪽으로 걸어가 버리면 사거리 밖) */ e.max=e.hp=1e6; out.push(G.enemies.indexOf(e)); } window.__bp=G.enemies.filter(e=>!e.dead); return out.length; }"""
 DMG = "()=>window.__bp.reduce((a,e)=>a+(e.max-Math.max(0,e.hp)),0)"
 FIN = "()=>Number.isFinite(G.hero.g.position.x) && Number.isFinite(G.hero.hp) && G.enemies.every(e=>Number.isFinite(e.hp)&&Number.isFinite(e.g.position.x)&&Number.isFinite(e.g.position.z))"
 SPOT = """()=>{ const ok=(c,r)=>{ for(let dc=-2;dc<=2;dc++) for(let dr=-2;dr<=2;dr++){ const t=G.tileAt(c+dc,r+dr); if(!t||t.tower||t.bar||(t.t!==G.T.GRASS&&t.t!==G.T.CARVED)) return false; } return true; };
