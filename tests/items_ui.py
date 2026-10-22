@@ -101,6 +101,14 @@ with sync_playwright() as pw:
             ok('codex_claim_once', not c2[0] and c2[1] == c1, c2)
             pg.click('#codexBody .cxTabs .ftab[data-c="0"]'); pg.wait_for_timeout(200); ok('codex_unique_tab', pg.locator('#codexBody .uqCell').count() == 15 and pg.locator('#codexBody .uqCell.have').count() == 2, pg.locator('#codexBody .uqCell.have').count())
             shot(pg, f'{OUT}/codex_unique.png', '#invPanel')
+            # 3장(화산): 일반 등급은 정상 경로로 안 나옴 → 행 4칸·챕터 24칸, 일반 칸은 '—'(na). 고급~전설 4개면 행 완성 · 관리자 우편식 일반 등록은 extra 로 유지
+            J(pg, "()=>{ const {Acc,E}=G.gear; Acc.update(d=>{ let q=9; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; for (let g=1; g<5; g++) d.inv.push(E.makeItem('weapon','archer',g,r,3)); d.codex[3]={...(d.codex[3]||{}), armor:1}; return d; }); }")
+            pg.click('#codexBody .cxTabs .ftab[data-c="3"]'); pg.wait_for_timeout(250)
+            cx3 = J(pg, "()=>({ tab: document.querySelector('#codexBody .cxTabs .ftab[data-c=\"3\"]').textContent, foot: document.querySelector('#codexBody .cxFoot').textContent, na: document.querySelectorAll('#codexBody .cxC.na').length, naSeen: document.querySelectorAll('#codexBody .cxC.na.seen').length, get: [...document.querySelectorAll('#codexBody .cxGet')].map(b=>b.dataset.k), st: (()=>{ const C=G.gear.P.codexState(G.gear.Acc.load(),3); return [C.seen,C.total,C.rows.find(x=>x.row==='archer').done]; })() })")
+            ok('codex_ch3_obtainable_only', cx3['tab'].endswith('4/24') and '4/24' in cx3['foot'] and cx3['na'] == 6 and cx3['naSeen'] == 1 and cx3['get'] == ['3:archer'] and cx3['st'] == [4, 24, True], cx3)
+            shot(pg, f'{OUT}/codex_ch3.png', '#invPanel')
+            c3 = J(pg, "()=>G.gear.Acc.load().mat.crystal"); pg.click('#codexBody .cxGet[data-k="3:archer"]'); pg.wait_for_timeout(200); c4 = J(pg, "()=>G.gear.Acc.load().mat.crystal")
+            ok('codex_ch3_claim', c4 == c3 + 5 and pg.locator('#codexBody .cxGet').count() == 0, (c3, c4))
         J(pg, "()=>G.gear.closeInv?G.gear.closeInv():document.getElementById('invPanel').classList.add('hidden')")
         # 대장간: 분해 목록에 고유 없음 · 각성
         J(pg, "()=>G.gear.openSmith()"); pg.wait_for_timeout(300)
