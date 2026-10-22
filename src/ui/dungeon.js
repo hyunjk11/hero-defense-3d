@@ -27,7 +27,7 @@ function render() { const p = $('dgPanel'); if (!p) return; const s = Acc.load()
   const paidNote = DG_PAID.filter(c => !party.includes(c)).map(c => `<div class="dgCard lock"><div class="dgCH"><span class="dgIc">${CLASSES[c].icon}</span><b>${esc(CLASSES[c].nm)}</b> <small>· ${esc(CLASSES[c].n)}</small></div><div class="dgRole">${checking ? '소유 확인 중…' : '🔒 상점에서 영입하면<br>함께 출전해요'}</div></div>`).join('');
   p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn">✕</button><div class="gtitle">⚔ 던전 원정</div><div class="labSub">파티 ${party.length}명이 함께 동굴로! 초상화를 눌러 조작할 영웅을 바꾸고, 나머지는 역할대로 자동 전투해요</div>
     <div class="dgParty">${party.map(c => card(s, c)).join('')}${paidNote}</div>
-    <div class="dgInfo"><b>${esc(F.n)}</b> · 웨이브 ${F.waves.length} · 타워 없음 · 입구 4곳에서 몬스터가 영웅을 쫓아와요<br><small>쓰러진 영웅은 이 층에서 부활하지 않아요 · 파티 전멸 = 실패</small></div>
+    <div class="dgInfo"><b>${FLOORS.length}개 층</b> (${esc(F.n)} → ${esc(FLOORS[FLOORS.length - 1].n)}) · 타워 없음 · 입구 4곳에서 몬스터가 영웅을 쫓아와요<br>층 사이 <b>축복 3택1</b> · 모두의 궁극기 게이지가 차면 <b>⚡ 합동 공격</b><br><small>쓰러진 영웅은 그 층을 쉬고 다음 층에 체력 30% 로 복귀 · 파티 전멸 = 실패 · 돌파한 층만큼 보상</small></div>
     <div class="dgGo"><button id="dgStart" class="gbtn main">⚔ 원정 출발</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgStart').onclick = () => depart(); }
 export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; $('dgPanel').classList.remove('hidden'); Snd.play('ui');

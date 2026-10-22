@@ -19,7 +19,15 @@ def shot(pg, name, force=False):
     if SHOTS or force: J(pg, RAF); pg.screenshot(path=f'{OUT}/{name}.png', timeout=240000)
 HIDE = "()=>{ Object.defineProperty(document, 'visibilityState', { get: () => 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }"
 SHOW = "()=>{ delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange')); }"
-SIZES = "()=>[...document.querySelectorAll('#dgBar .dgP, #dgGiveUp, #skillBtn')].map(b=>{ const r=b.getBoundingClientRect(); return [b.id||b.className.split(' ')[0], Math.round(r.width), Math.round(r.height)]; })"
+SIZES = "()=>[...document.querySelectorAll('#dgBar .dgP, #dgGiveUp, #skillBtn, #dgJoint')].map(b=>{ const r=b.getBoundingClientRect(); return [b.id||b.className.split(' ')[0], Math.round(r.width), Math.round(r.height)]; })"
+
+# 층 건너뛰기(테스트): 남은 웨이브·적 제거 → 다음 스텝에 층 돌파 (마지막 층이면 결과, 아니면 축복 3택1)
+SKIP = """async()=>{ const {FLOORS}=await import('./src/data/dungeon.js'); const D=G.dg; D.q=[]; D.wave=FLOORS[D.floor].waves.length-1; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e, 1e9); G.sim(2.5); return [D.floor, !!D.blessing, !!G.dgResult]; }"""
+BLESS_OK = "()=>{ const el=document.getElementById('dgBless'); if (!el || el.classList.contains('hidden')) return null; return [...el.querySelectorAll('.dgBc')].map(b=>{ const r=b.getBoundingClientRect(); return [b.dataset.id, Math.round(r.width), Math.round(r.height), r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight]; }); }"
+def pick_bless(pg, avoid=('heal',), tap=False, prefer='haste'):
+    cards = J(pg, BLESS_OK); i = next((k for k, c in enumerate(cards) if c[0] == prefer), None)
+    if i is None: i = next((k for k, c in enumerate(cards) if c[0] not in avoid), 0)
+    sel = f'#dgBless .dgBc[data-i="{i}"]'; pg.tap(sel) if tap else pg.click(sel); J(pg, "()=>G.sim(.1)"); return cards[i][0]
 
 def login(pg, email, owned=False):
     pg.goto(url + '?seed=12345&rng=777&flow=1&dgtest=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000)
@@ -87,22 +95,69 @@ with sync_playwright() as pw:
     # 1층: 역할 AI 자동 전투 (조작 영웅 = 세라, 가만히) → 클리어
     J(pg, """()=>{ const L=G.heroes; const off=[[0,0],[-2.2,1.8],[-2.2,-1.8],[-4,0]]; L.forEach((h,i)=>{ h.hp=h.max; h.skillCd=0; h.g.position.set(off[i][0],0,off[i][1]+1); h.path=[]; }); G.dgAiSkills=0; }""")
     shot_done = False; t = 0
-    while t < 300 and not J(pg, "()=>!!G.dgResult"):
+    while t < 300 and not J(pg, "()=>!!(G.dg.blessing || G.dgResult)"):
         J(pg, "()=>G.sim(2)"); t += 2
         if not shot_done and J(pg, "()=>G.enemies.filter(e=>!e.dead).length") >= 8:
             shot_done = True; J(pg, "()=>{ G.cam.target.set(0,0,1); }"); shot(pg, 'run_desktop', True)
-    R = J(pg, "()=>G.dgResult"); st = J(pg, "()=>({wave:G.dg.wave, kills:G.stats.kills, hp:G.heroes.map(h=>Math.round(h.hp)+'/'+Math.round(h.max)), skills:G.dgAiSkills})")
-    print('floor1', R, st, flush=True)
-    ok('floor1_clear', R and R['win'] and R['alive'] >= 2, (R, st))
+    st = J(pg, "()=>({floor:G.dg.floor, bless:G.dg.blessing, res:G.dgResult, wave:G.dg.wave, kills:G.stats.kills, hp:G.heroes.map(h=>Math.round(h.hp)+'/'+Math.round(h.max)), alive:G.heroes.filter(h=>h.dead<=0).length, ult:G.heroes.map(h=>Math.round(h.ult||0)), skills:G.dgAiSkills, t:Math.round(G.dg.t)})")
+    print('floor1', st, flush=True)
+    ok('floor1_clear', st['bless'] and not st['res'] and st['alive'] >= 2 and st['floor'] == 0, st)
     ok('ai_used_skills', st['skills'] >= 3, st)
-    ok('result_screen', not hidden(pg, 'stageClear') and '돌파' in pg.inner_text('#stageClear') and '영혼석' in pg.inner_text('#stageClear'))
-    ok('reward_granted', J(pg, "()=>G.gear.Acc.load().souls") == 50 + 20, J(pg, "()=>G.gear.Acc.load().souls"))
+    ok('ult_charged', all(u > 20 for u in st['ult']), st['ult'])
+    # ===== 축복 3택1 =====
+    cards = J(pg, BLESS_OK); ok('bless_panel', cards and len(cards) == 3 and len({c[0] for c in cards}) == 3 and all(c[1] >= 44 and c[2] >= 44 and c[3] for c in cards), cards)
+    ok('bless_text', '돌파' in pg.inner_text('#dgBless') and '2층' in pg.inner_text('#dgBless'))
+    shot(pg, 'bless_desktop', True)
+    J(pg, "()=>G.sim(3)"); ok('bless_waits', J(pg, "()=>G.dg.floor===0 && !!G.dg.blessing && !G.enemies.some(e=>!e.dead)"))
+    rate0 = J(pg, "()=>G.withHero(G.heroes[1], ()=>G.heroStat.rate())") if J(pg, "()=>!!G.heroStat") else None
+    b1 = pick_bless(pg)
+    ok('bless_next_floor', J(pg, "()=>G.dg.floor===1 && !G.dg.blessing && G.dg.bless[%r]===1 && document.getElementById('dgBless').classList.contains('hidden')" % b1) and '2층' in pg.inner_text('#dgTop'), b1)
+    if b1 == 'haste' and rate0: ok('bless_haste_applies', abs(J(pg, "()=>G.withHero(G.heroes[1], ()=>G.heroStat.rate())") / rate0 - 1.15) < 1e-6)
+    ok('bless_icon_top', J(pg, "()=>document.querySelectorAll('#dgBl i').length") == 1)
+    # ===== 쓰러진 영웅: 이 층은 쉬고 다음 층에 30% 로 복귀 =====
+    J(pg, "()=>{ G.heroDamage(1e9, G.heroes[1]); G.sim(.2); }")
+    ok('down_sits_out', J(pg, "()=>G.heroes[1].dead>0 && G.heroes[1].hp===0"))
+    r = J(pg, SKIP); ok('floor2_clear_bless', r[1] and r[0] == 1, r)
+    ok('down_still_down_in_bless', J(pg, "()=>G.heroes[1].dead>0"))
+    b2 = pick_bless(pg)
+    rv = J(pg, "()=>{ const h=G.heroes[1]; return [h.dead, Math.round(h.hp), Math.round(h.max*.3), h.hb ? 1 : 0, G.dg.floor]; }")
+    ok('down_returns_30pct', rv[0] <= 0 and rv[1] == rv[2] and rv[4] == 2, (rv, b2))
+    # ===== 3층 =====
+    J(pg, "()=>G.sim(7)"); ok('floor3_running', J(pg, "()=>G.dg.floor===2 && G.enemies.some(e=>!e.dead)") and '3층' in pg.inner_text('#dgTop'))
+    J(pg, "()=>{ G.cam.target.set(0,0,1); }"); shot(pg, 'floor3_desktop', True)
+    # ===== 합동 공격 =====
+    J(pg, "()=>{ G.heroes.forEach(h=>{ h.ult=60; }); G.sim(.2); }")
+    nr = J(pg, "()=>{ const n0=G.dg.joints; document.getElementById('dgJoint').click(); return [n0===G.dg.joints, document.getElementById('dgJoint').disabled, document.getElementById('dgJoint').classList.contains('ready')]; }")
+    ok('joint_not_ready', nr[0] and nr[1] and not nr[2], nr)
+    J(pg, "()=>{ G.heroes.forEach(h=>{ h.ult=100; h.skillCd=0; }); G.heroes[3] && (G.heroes[3].ult=40, G.heroDamage(1e9, G.heroes[3])); G.sim(.2); }")  # 쓰러진 로즈는 조건에서 빠짐
+    ok('joint_ready', J(pg, "()=>{ const b=document.getElementById('dgJoint'); return !b.disabled && b.classList.contains('ready'); }"))
+    J(pg, "()=>{ G.cam.target.set(0,0,1); }"); shot(pg, 'joint_ready_desktop', True)
+    J(pg, """()=>{ for (let i=0;i<6;i++) { const e=G.spawnEnemy('grunt', 1); e.state='walk'; } G.sim(1.5); }""")
+    pre = J(pg, "()=>G.enemies.filter(e=>!e.dead&&e.dying===undefined).map(e=>{ e._pre=1; return e.hp; })")
+    pg.tap('#dgJoint'); J(pg, "()=>G.sim(.2)")
+    jr = J(pg, "()=>({n:G.dg.joints, ult:G.heroes.filter(h=>h.dead<=0).map(h=>h.ult), cd:G.heroes.filter(h=>h.dead<=0).map(h=>h.skillCd>0)})")
+    ok('joint_casts_all', jr['n'] == 1 and all(u == 0 for u in jr['ult']) and all(jr['cd']), jr)
+    J(pg, "()=>{ G.pauseRender=false; }"); pg.wait_for_timeout(250); shot(pg, 'joint_desktop', True); J(pg, "()=>{ G.pauseRender=true; }")
+    J(pg, "()=>G.sim(.8)"); hits = J(pg, "()=>G.dgJointHits||0"); ok('joint_screen_aoe', hits >= min(6, len(pre)) and len(pre) >= 6, (hits, len(pre)))
+    ok('joint_kills_grunts', J(pg, "()=>G.enemies.filter(e=>e._pre&&e.type==='grunt'&&!e.dead).length") == 0)
+    # 4층 → 5층(보스 방) → 완주
+    r = J(pg, SKIP); ok('floor3_clear', r[1] and r[0] == 2, r); pick_bless(pg)
+    r = J(pg, SKIP); ok('floor4_clear', r[1] and r[0] == 3, r); pick_bless(pg)
+    ok('floor5_boss_room', J(pg, "()=>G.dg.floor===4") and '5층' in pg.inner_text('#dgTop'))
+    J(pg, "async()=>{ const D=G.dg; D.q=[]; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9); G.sim(6); }")
+    ok('floor5_boss_spawns', J(pg, "()=>G.dg.wave===1 && (G.dg.q.includes('boss') || G.enemies.some(e=>e.type==='boss'))"), J(pg, "()=>[G.dg.wave, G.dg.q.slice(0,5)]"))
+    r = J(pg, SKIP); R = J(pg, "()=>G.dgResult"); print('result', R, flush=True)
+    ok('all_floors_clear', R and R['win'] and R['cleared'] == 5 and R['got'] == 80 and R['joints'] == 1 and len(R['bless']) >= 1, R)
+    ok('result_screen', not hidden(pg, 'stageClear') and '완주' in pg.inner_text('#stageClear') and '영혼석' in pg.inner_text('#stageClear') and J(pg, "()=>document.querySelectorAll('.dgFloors span.ok').length") == 5)
+    ok('reward_granted', J(pg, "()=>G.gear.Acc.load().souls") == 50 + 80, J(pg, "()=>G.gear.Acc.load().souls"))
     shot(pg, 'result_desktop', True)
     pg.click('#dgTown'); pg.wait_for_function("()=>window.G&&G.screen==='town'", timeout=300000); ok('back_to_town', 'dungeon' not in pg.url and 'town=1' in pg.url, pg.url)
     # 전멸 → 실패 화면
     J(pg, "()=>G.openDungeon()"); pg.wait_for_function("()=>document.querySelectorAll('.dgCard[data-cls=\"gunner\"]').length===1", timeout=20000); start_run(pg)
+    r = J(pg, SKIP); pick_bless(pg)
     J(pg, "()=>{ for (const h of G.heroes) G.heroDamage(1e9, h); G.sim(.3); }")
-    ok('wipe_fail_screen', J(pg, "()=>G.dgResult && !G.dgResult.win") and '원정 실패' in pg.inner_text('#stageClear'))
+    R = J(pg, "()=>G.dgResult"); ok('wipe_fail_screen', R and not R['win'] and R['cleared'] == 1 and R['got'] == 10 and '원정 실패' in pg.inner_text('#stageClear') and '1층 돌파' in pg.inner_text('#stageClear'), R)
+    ok('wipe_reward_floors', J(pg, "()=>G.gear.Acc.load().souls") == 50 + 80 + 10)
     shot(pg, 'fail_desktop', True)
     c.close()
     # ===== 태블릿 가로 1024x600 =====
@@ -118,6 +173,12 @@ with sync_playwright() as pw:
     ok('tablet_layout_no_overlap', all(ov), ov)
     pg.tap('#dgBar .dgP[data-i="2"]'); J(pg, "()=>G.sim(.05)"); ok('tablet_portrait_tap', J(pg, "()=>G.hero.cls") == 'mage')
     J(pg, "()=>G.sim(14)"); shot(pg, 'run_tablet', True)
+    r = J(pg, SKIP); cards = J(pg, BLESS_OK); ok('tablet_bless_fits', r[1] and cards and len(cards) == 3 and all(c[1] >= 44 and c[2] >= 44 and c[3] for c in cards), cards)
+    shot(pg, 'bless_tablet', True); pick_bless(pg, tap=True); ok('tablet_bless_tap', J(pg, "()=>G.dg.floor===1 && !G.dg.blessing"))
+    J(pg, "()=>{ G.heroes.forEach(h=>{ h.ult=100; }); G.sim(2); }"); sz = J(pg, SIZES)
+    jo = J(pg, "()=>{ const a=document.getElementById('dgJoint').getBoundingClientRect(), b=document.getElementById('dgBar').getBoundingClientRect(), s=document.getElementById('skillBtn').getBoundingClientRect(); return [a.bottom<=b.top, a.right<=s.left, a.top>=0, Math.round(a.width), Math.round(a.height)]; }")
+    ok('tablet_joint_layout', all(jo[:3]) and jo[3] >= 44 and jo[4] >= 44, jo); shot(pg, 'joint_tablet', True)
+    pg.tap('#dgJoint'); J(pg, "()=>G.sim(.2)"); ok('tablet_joint_tap', J(pg, "()=>G.dg.joints===1"))
     J(pg, "async()=>{ (await import('./src/dungeon/run.js')).dgFinish(true); }"); shot(pg, 'result_tablet', True)
     c.close()
     # ===== 일반 판: 파티 1명 (기존 동작) =====
