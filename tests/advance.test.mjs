@@ -2,8 +2,9 @@
 import * as A from '../src/data/advance.js';
 import { CLASSES, VISIBLE_HEROES, HERO_KEYS, isHidden } from '../src/data/heroes.js';
 import assert from 'node:assert/strict';
-// 보이는 영웅은 모두 분기 2개 (칭호·아이콘·설명·Q 스킬·타워 보너스), 숨긴 영웅(버들)은 예약만
-for (const h of VISIBLE_HEROES) { const bs = A.branchesOf(h); assert.equal(bs.length, 2, h); assert.ok(A.ADV_HEROES.includes(h));
+// 보이는 영웅은 분기 2개 (칭호·아이콘·설명·Q 스킬·타워 보너스) 또는 전직 없음(서윤: 전직 '준비 중'), 숨긴 영웅(버들)은 예약만
+const NO_ADV = ['fighter']; for (const h of NO_ADV) { assert.ok(!A.ADV[h] && A.branchesOf(h).length === 0 && !A.ADV_HEROES.includes(h), h); assert.equal(A.advOf(h, { b: 'x' }), null); assert.equal(A.advBlock({}, h), '전직할 수 없는 영웅'); }
+for (const h of VISIBLE_HEROES.filter(h => !NO_ADV.includes(h))) { const bs = A.branchesOf(h); assert.equal(bs.length, 2, h); assert.ok(A.ADV_HEROES.includes(h));
   for (const b of bs) { const X = A.ADV[h][b]; assert.ok(X.n && X.icon && X.d && X.skill && X.sk && X.td && Number.isInteger(X.col) && /^#/.test(X.c), h + b); assert.ok(!X.reserved); assert.equal(X.h, h); assert.equal(X.k, b); } }
 for (const h of HERO_KEYS.filter(isHidden)) { assert.ok(!A.ADV_HEROES.includes(h)); assert.equal(A.advOf(h, { b: A.branchesOf(h)[0] }), null); assert.equal(A.branchesOf(h).length, 2); assert.ok(A.branchesOf(h).every(b => A.ADV[h][b].reserved)); }
 // applyAdv: 배수 (기본 → 전직), 원본 불변, 없으면 같은 객체

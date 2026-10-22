@@ -21,6 +21,7 @@ export const GEAR_NAMES = {
   warrior: [['녹슨 장검', '병사의 검'], ['기사의 장검', '강철 대검'], ['푸른 서약의 검', '사자심장 대검'], ['용살자의 대검', '폭군의 검'], ['성검 엑스칼리온', '파멸의 대검 라그나']],
   gunner: [['낡은 부싯돌 쌍권총', '견습 총사의 쌍권총'], ['은탄 쌍권총', '장미 문양 쌍권총'], ['황혼의 쌍권총', '가시덤불 쌍권총'], ['붉은 달 쌍권총', '폭풍의 쌍권총'], ['장미여왕의 쌍권총 로제아', '심홍의 쌍권총 블러디로즈']],
   mechanic: [['낡은 렌치 건틀릿', '견습 정비공의 건틀릿'], ['강철 드릴 건틀릿', '증기 해머 건틀릿'], ['초록불 파일벙커', '덩굴 드릴암'], ['광산왕의 굴착기', '천둥 해머 암'], ['버들의 개조암 그린기어', '대지분쇄 드릴 타이탄']],
+  fighter: [['낡은 손붕대', '견습 격투가의 손붕대'], ['강철 너클 붕대', '고양이 발 손붕대'], ['맹호 손붕대', '바람가르기 너클'], ['천둥 고양이 너클', '진각의 손붕대'], ['서윤의 냥냥 너클 캣츠포', '맹묘권 타이거팡']],
   armor: [['천 갑옷', '가죽 조끼'], ['사슬 갑옷', '수호자의 가죽갑옷'], ['미스릴 흉갑', '은빛 판금'], ['용비늘 갑옷', '성기사의 판금'], ['여신의 가호 갑주', '불사조 깃털 망토']],
   acc: [['구리 반지', '나무 부적'], ['은 반지', '행운의 부적'], ['사파이어 목걸이', '마력의 귀걸이'], ['용의 눈 펜던트', '시간의 모래시계'], ['여신의 눈물', '영원의 성배 목걸이']],
 };
@@ -37,13 +38,15 @@ export const LSK = {
   rosebarrage: { h: 'gunner', type: 'active', n: '장미 탄막', cd: 11, mul: 1.5, d: '[E] 목표 방향 부채꼴로 장미 탄환 3연속 일제 사격(각 150% 피해·3명 관통) → 끝에서 장미 폭발 (300% 피해) · 재사용 11초' },
   overdrill: { h: 'mechanic', type: 'proc', n: '과부하 드릴', chance: .2, icd: 1.6, mul: .45, d: '공격 시 20% 확률로 드릴이 과열 — 앞쪽 부채꼴을 6번 연속 갈아버림 (각 45% 피해) + 40% 둔화' },
   gigahammer: { h: 'mechanic', type: 'active', n: '기가 해머 낙하', cd: 13, mul: 4, d: '[E] 목표 지점에 거대한 해머를 떨어뜨림 — 주변 적 400% 피해 · 밀쳐내기 · 1초 기절 · 재사용 13초' },
+  pawstorm: { h: 'fighter', type: 'proc', n: '냥냥 난타', chance: .2, icd: 1.5, mul: .45, hits: 6, d: '공격 시 20% 확률로 고양이 발 잔상 6연타 — 앞쪽 부채꼴 적에게 각 45% 피해' },
+  tigerdash: { h: 'fighter', type: 'active', n: '맹호 돌진', cd: 10, mul: 3, d: '[E] 목표 방향으로 질풍처럼 돌진하며 지나가는 모든 적에게 300% 피해 + 밀쳐내기 · 재사용 10초' },
   // 고유 무기 전용 [E] (uq: true — LPOOL 에 없으므로 일반 전설 무기에는 나오지 않음, data/items.js UQ[k].sk)
   rootshot: { h: 'archer', type: 'active', uq: true, n: '뿌리 감옥 화살', cd: 10, mul: 2.6, root: 1.2, rootBoss: .4, d: '[E] 일직선 관통 260% 피해 + 맞은 지상 적 1.2초 속박(보스 0.4초) · 재사용 10초' },
   zeroabs: { h: 'mage', type: 'active', uq: true, n: '절대영도', cd: 14, mul: 3, r: 4.5, frz: 1.5, frzBoss: .5, d: '[E] 목표 지점 반경 4.5 — 300% 피해 + 1.5초 빙결(보스 0.5초) + 이후 3초 50% 둔화 · 재사용 14초' },
   eruption: { h: 'warrior', type: 'active', uq: true, n: '분화 일격', cd: 14, mul: 4, pool: 4, poolR: 3, poolMul: .3, d: '[E] 도약해 내려찍기(400% + 띄우기) + 착지점 반경 3에 4초 용암 장판(0.5초마다 공격력 30%) · 재사용 14초' },
   execution: { h: 'gunner', type: 'active', uq: true, n: '왕가의 처형', cd: 12, mul: 2, shots: 6, d: '[E] 체력이 가장 높은 적(보스 우선)에게 6연사(각 200%) · 처치 시 재사용 50% 반환 · 재사용 12초' },
 };
-export const LPOOL = { archer: ['multishot', 'pierce'], mage: ['frostorb', 'meteorstorm'], warrior: ['boomerang', 'quake'], gunner: ['ricochet', 'rosebarrage'], mechanic: ['overdrill', 'gigahammer'] };
+export const LPOOL = { archer: ['multishot', 'pierce'], mage: ['frostorb', 'meteorstorm'], warrior: ['boomerang', 'quake'], gunner: ['ricochet', 'rosebarrage'], mechanic: ['overdrill', 'gigahammer'], fighter: ['pawstorm', 'tigerdash'] };
 const hashId = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 // 무기의 고유 스킬 키 (전설 무기가 아니면 null). 저장값이 없거나 잘못됐으면 id에서 결정적으로 배정 → 구 세이브 호환
 export function legendKey(it) { if (it && it.uq) { const U = UQ[it.uq]; return U && U.sk && LSK[U.sk] ? U.sk : null; } if (!it || it.s !== 'weapon' || it.g !== 4 || !LPOOL[it.h]) return null; const P = LPOOL[it.h]; return P.includes(it.u) ? it.u : P[hashId(it.id) % P.length]; }
@@ -168,7 +171,7 @@ export function unequip(save, hero, slot) { if (save.eq[hero]) delete save.eq[he
 // ---------- 저장 정리/병합 ----------
 const fin = (v, lo, hi, d = lo) => { v = Math.floor(+v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
 // 무기 영웅 키 별칭 (직접 입력한 세이브 호환): 총/권총/로즈 → gunner 등
-export const HERO_ALIAS = { gun: 'gunner', guns: 'gunner', pistol: 'gunner', rose: 'gunner', '총사': 'gunner', '로즈': 'gunner', bow: 'archer', '궁수': 'archer', staff: 'mage', '마법사': 'mage', sword: 'warrior', '전사': 'warrior', mech: 'mechanic', mecha: 'mechanic', robot: 'mechanic', drill: 'mechanic', wrench: 'mechanic', gauntlet: 'mechanic', budeul: 'mechanic', '메카닉': 'mechanic', '버들': 'mechanic', '정비공': 'mechanic' };
+export const HERO_ALIAS = { gun: 'gunner', guns: 'gunner', pistol: 'gunner', rose: 'gunner', '총사': 'gunner', '로즈': 'gunner', bow: 'archer', '궁수': 'archer', staff: 'mage', '마법사': 'mage', sword: 'warrior', '전사': 'warrior', mech: 'mechanic', mecha: 'mechanic', robot: 'mechanic', drill: 'mechanic', wrench: 'mechanic', gauntlet: 'mechanic', budeul: 'mechanic', '메카닉': 'mechanic', '버들': 'mechanic', '정비공': 'mechanic', fighter: 'fighter', fist: 'fighter', brawler: 'fighter', seoyun: 'fighter', '격투가': 'fighter', '서윤': 'fighter', '진서윤': 'fighter' };
 export const heroKey = h => { if (typeof h !== 'string') return h; const k = h.trim().toLowerCase(); return HERO_ALIAS[k] || k; }; // 대소문자·공백 무시
 export function cleanItem(x, heroes) {
   if (x && typeof x === 'object' && (x.uq || (typeof x.id === 'string' && x.id.startsWith('u_')))) { // 고유: 표에서 재구성 (모르는 키는 버림 — 일반 전설로 강등하지 않음)

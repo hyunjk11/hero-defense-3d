@@ -18,6 +18,7 @@ import { mouseGround } from '../ui/input.js';
 import { hero, heroTip, passAt, stat } from './hero.js';
 import { ricochet, rosebarrage, updGun, gunFlash } from './gunner.js';
 import { gigahammer, overdrill, updMechFx } from './mechanic.js';
+import { pawstorm, tigerdash } from './fighter.js';
 import { updUnique, uniqueHero } from './unique.js';
 import { awakeMul, awakeCd } from '../data/items.js';
 
@@ -50,7 +51,7 @@ function aim(maxD) {
 export function legendProc(t) {
   const s = legendSkill(); if (!s || s.type !== 'proc' || hero.licd > 0 || !t || t.dead) return;
   if (LR() >= (G.legendForce ? 1 : s.chance)) return; hero.licd = s.icd; count(hero.lsk);
-  ({ multishot, frostorb, boomerang, ricochet, overdrill })[hero.lsk](t, s);
+  ({ multishot, frostorb, boomerang, ricochet, overdrill, pawstorm })[hero.lsk](t, s);
 }
 // 멀티샷: 황금 화살 5발 부채꼴
 function multishot(t, s) {
@@ -98,9 +99,9 @@ function boomerang(t, s) {
 
 // ---------- active ([E]) ----------
 export function castLegend() {
-  const s = legendActive(); if (!s || !hero || hero.dead > 0 || hero.lcd > 0 || hero.leap || (hero.mech && hero.mech.busy > 0) || (G.phase !== 'build' && G.phase !== 'wave')) { if (s && hero && hero.lcd > 0) Snd.play('error'); return false; }
+  const s = legendActive(); if (!s || !hero || hero.dead > 0 || hero.lcd > 0 || hero.leap || (hero.ft && hero.ft.leap) || (hero.mech && hero.mech.busy > 0) || (G.phase !== 'build' && G.phase !== 'wave')) { if (s && hero && hero.lcd > 0) Snd.play('error'); return false; }
   if (hero.warpT > 0) return false; hero.lcd = legendCd(); hero.spinT = 0; hero.roseT = 0; if (hero.swirl) hero.swirl.visible = false; count(hero.lsk);
-  if (hero.lsk === 'rosebarrage') rosebarrage(s, aim(14)); else if (hero.lsk === 'gigahammer') gigahammer(s, aim(12)); else ({ pierce, meteorstorm, quake, rootshot: pierce, zeroabs, eruption: quake, execution })[hero.lsk](s); return true;
+  if (hero.lsk === 'rosebarrage') rosebarrage(s, aim(14)); else if (hero.lsk === 'gigahammer') gigahammer(s, aim(12)); else if (hero.lsk === 'tigerdash') tigerdash(s, aim(9)); else ({ pierce, meteorstorm, quake, rootshot: pierce, zeroabs, eruption: quake, execution })[hero.lsk](s); return true;
 }
 // 관통샷: 충전 → 일직선 모든 적 관통하는 황금 화살 + 큰 잔상
 function pierce(s) {

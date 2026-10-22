@@ -9,7 +9,7 @@ import * as E from '../src/account/equip.js';
 import { SHOP } from '../src/config/shop.js';
 const R = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
-assert.deepEqual([...HERO_KEYS], ['archer', 'mage', 'warrior', 'gunner', 'mechanic']);
+assert.deepEqual([...HERO_KEYS], ['archer', 'mage', 'warrior', 'gunner', 'mechanic', 'fighter']);
 assert.equal(P.HEROES, HERO_KEYS, 'progress.HEROES = data/heroes.js 단일 기준');
 const chars = R('src/render/characters.js'), ASSETS = JSON.parse(chars.match(/const ALL_ASSETS = (\[[^\]]*\])/)[1].replace(/'/g, '"')); // 숨긴 영웅 모델도 목록에는 남김 (실제 로딩에서만 제외)
 let seed = 3; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
