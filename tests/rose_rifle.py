@@ -67,8 +67,8 @@ with sync_playwright() as pw:
     if SHOTS:  # 인게임 대기/공격/관통 저격 (1440x860, 1024x600)
         for vw, vh in ((1440, 860), (1024, 600)):
             c, pg = H.run(b, 'gunner', 'thorn', vw, vh); J(pg, "()=>{ G.hero.skillCd=99; const p=G.hero.g.position, f=G.hero.face; p.x+=Math.sin(f)*6; p.z+=Math.cos(f)*6; G.sim(1); }")  # 코어(성) 앞 빈 곳으로
-            CAM = "()=>{ const p=G.hero.g.position, f=G.hero.face; G.cam.target.set(p.x+Math.sin(f)*1.8, 1.1, p.z+Math.cos(f)*1.8); G.cam.r=10; G.cam.phi=1.08; G.cam.theta=f+1.45; G.sim(.05); }"
-            J(pg, CAM); H.shot(pg, f'{OUT}/rose_rifle_idle_{vw}x{vh}.png')
+            CAM = "()=>{ const p=G.hero.g.position, f=G.hero.face; G.cam.target.set(p.x+Math.sin(f)*1.8, 1.1, p.z+Math.cos(f)*1.8); G.cam.r=8.5; G.cam.phi=1.12; G.cam.theta=f+2.0; G.sim(.05); }"  # 견착 자세는 몸이 옆으로 → 앞옆에서
+            J(pg, CAM.replace('f+2.0', 'f+.7').replace('*1.8', '*.6')); H.shot(pg, f'{OUT}/rose_rifle_idle_{vw}x{vh}.png')
             J(pg, H.LINE, [4, 5]); J(pg, "()=>{ G.mouseGround.set(G.__aim[0],0,G.__aim[1]); G.sim(1.3); }"); J(pg, "()=>{ G.sim(Math.max(0.01, (G.hero.cd>0? G.hero.cd: 0)) - 0.02); }")
             J(pg, CAM.replace('G.sim(.05)', 'G.sim(.04)')); H.shot(pg, f'{OUT}/rose_rifle_attack_{vw}x{vh}.png')
             H.cast(pg, .62, aim=False); J(pg, CAM.replace('G.sim(.05)', 'G.sim(.01)')); H.shot(pg, f'{OUT}/rose_rifle_skill_{vw}x{vh}.png')
@@ -77,9 +77,31 @@ with sync_playwright() as pw:
         for vw, vh in ((1440, 860), (1024, 600)):
             c, pg = H.town(b, 'gunner', 'duel', vw, vh)
             J(pg, "()=>{ G.openBlessing(); G.blessTab('adv'); }"); pg.wait_for_timeout(400)
-            pg.click('#twAdv .advCard[data-b="thorn"] h4'); pg.wait_for_function("()=>{ const s=G.townHero(); return true; }"); pg.wait_for_timeout(2500)
+            ok(f'town_pistols_{vw}', J(pg, "()=>G.townHero().key==='gunner_meshy'"))
+            pg.click('#twAdv .advCard[data-b="thorn"] h4'); pg.wait_for_function("()=>G.townHero().key==='rose_rifle_meshy'", timeout=60000); pg.wait_for_timeout(600)
+            ok(f'town_preview_rifle_{vw}', J(pg, "()=>G.townHero().key==='rose_rifle_meshy'"))
             J(pg, "()=>document.querySelector('#twAdv .advCard[data-b=\"thorn\"]').scrollIntoView()"); pg.wait_for_timeout(300)
-            H.shot(pg, f'{OUT}/rose_rifle_tab_{vw}x{vh}.png'); c.close()
+            H.shot(pg, f'{OUT}/rose_rifle_tab_{vw}x{vh}.png')
+            J(pg, "()=>G.closeBlessing()"); pg.wait_for_timeout(300); ok(f'town_preview_end_{vw}', J(pg, "()=>G.townHero().key==='gunner_meshy'")); c.close()
+    # ---------- 저장 호환: 옛 가시 장미 포격수 저장 {b:'thorn', n:2} → 장미 저격수 (비용·손실 없음) ----------
+    c, pg = H.town(b, 'gunner', 'thorn')
+    J(pg, "()=>{ G.gear.Acc.update(d=>{ d.adv={gunner:{b:'thorn',n:2}}; d.souls=777; return d; }); }"); pg.wait_for_function("()=>G.townHero() && G.townHero().key==='rose_rifle_meshy'", timeout=60000)
+    sv = J(pg, "()=>{ const s=G.gear.Acc.load(); return { adv: s.adv.gunner, souls: s.souls, key: G.townHero().key }; }")
+    ok('old_thorn_save', sv['adv'] == {'b': 'thorn', 'n': 2} and sv['souls'] == 777 and sv['key'] == 'rose_rifle_meshy', sv)
+    pg.click('#twGo'); pg.wait_for_timeout(300); pg.click('.chtab[data-c="0"]'); J(pg, "()=>document.getElementById('stChalGo').click()"); pg.wait_for_function("()=>G.phase==='build'&&G.hero", timeout=60000)
+    sv2 = J(pg, "()=>({ n: G.hero.adv && G.hero.adv.n, skill: G.hero.C.skill, key: G.hero.ch.key, souls: G.gear.Acc.load().souls, adv: G.gear.Acc.load().adv.gunner })")
+    ok('old_thorn_run', sv2['n'] == '장미 저격수' and sv2['skill'] == '관통 저격' and sv2['key'] == 'rose_rifle_meshy' and sv2['souls'] == 777 and sv2['adv'] == {'b': 'thorn', 'n': 2}, sv2); c.close()
+    # ---------- 소총 모델 로드 실패 → 쌍권총 모델로 출전 (판은 정상, 능력치·관통은 그대로) ----------
+    ne = len(H.errs)
+    c, pg = H.page(b, login=False); H.own_gunner(pg)
+    pg.route('**/models/rose_rifle_*.glb', lambda r: r.fulfill(status=404, body='nope'))
+    J(pg, "()=>{ G.gear.Acc.update(d=>{ d.souls=999; d.hero='gunner'; d.stats={runs:1,kills:1,waves:1,souls:1}; d.eq.gunner={}; d.adv={gunner:{b:'thorn',n:1}}; return d; }); }")
+    pg.click('#mnCont'); pg.wait_for_function("()=>G.screen==='town' && G.shop.Sh.heroOwned('gunner')", timeout=30000); pg.wait_for_timeout(1500)
+    pg.click('#twGo'); pg.wait_for_timeout(300); pg.click('.chtab[data-c="0"]'); J(pg, "()=>document.getElementById('stChalGo').click()"); pg.wait_for_function("()=>G.phase==='build'&&G.hero", timeout=60000); pg.wait_for_timeout(400)
+    J(pg, "()=>{ G.manual=true; G.gold=0; G.advN={}; }"); J(pg, H.LINE, [3, 4]); J(pg, "()=>{ G.mouseGround.set(G.__aim[0],0,G.__aim[1]); G.sim(1.2); }")
+    fb = J(pg, "()=>({ key: G.hero.ch.key, rifle: !!G.hero.ch.rifle, fail: !!G.advModelFail, town: G.townHero && G.townHero() && G.townHero().key, n: G.advN, rate: G.hero.C.rate })")
+    ok('fallback_pistols', fb['key'] == 'gunner_meshy' and not fb['rifle'] and fb['fail'] and fb['n'].get('rifle', 0) >= 1 and abs(fb['rate'] - 4.2 * .45) < 1e-6, fb)
+    H.errs[ne:] = [e for e in H.errs[ne:] if '404' not in e and 'Failed to load resource' not in e]; c.close()
     # ---------- 결투가: 쌍권총 모델 그대로 ----------
     c, pg = H.run(b, 'gunner', 'duel')
     ok('duel_pistols', J(pg, "()=>G.hero.ch.key==='gunner_meshy' && !G.hero.ch.rifle && Math.abs(G.hero.C.rate-4.2*1.2)<1e-6"), J(pg, "()=>G.hero.ch.key")); c.close()

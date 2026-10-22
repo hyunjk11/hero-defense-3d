@@ -113,7 +113,7 @@ G.blessTab = setBlessTab;
 function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeShopUI(); closeSmith(true); closeInv(); closeStageSel(true); closeLab(true); $('twBless').classList.remove('hidden'); refreshTown(); }
 function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); closeAdvConfirm(); resetAdvPreview(); endPv(); }
 G.openBlessing = openBless; G.closeBlessing = closeBless;
-G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z, cls: th.cls };
+G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z, cls: th.cls, key: th.key };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
 G.townGoal = (x, z) => { if (th) th.goal = new THREE.Vector3(x, 0, z); };
 G.townLab = () => { const f = labFront(); return [LAB.x, LAB.y, f.x, f.z]; }; G.closeLab = closeLab;

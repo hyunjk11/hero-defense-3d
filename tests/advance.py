@@ -52,14 +52,14 @@ EXP = {  # 분기 → (스탯 확인 JS, 기대)
   ('archer', 'wind'): "Math.abs(G.hero.C.rate-2.5)<1e-6", ('archer', 'hawk'): "Math.abs(G.hero.C.range-14.3)<1e-6 && Math.abs(G.hero.C.dmg-24*1.7)<1e-6",
   ('mage', 'flame'): "G.hero.C.aoe===3", ('mage', 'frost'): "Math.abs(G.hero.C.rate-.95*1.1)<1e-6",
   ('warrior', 'paladin'): "G.hero.C.hp===1250 && G.hero.C.armor===.55", ('warrior', 'berserk'): "G.hero.C.armor===.25 && Math.abs(G.hero.C.rate-1.69)<1e-6",
-  ('gunner', 'duel'): "Math.abs(G.hero.C.rate-4.2*1.2)<1e-6", ('gunner', 'thorn'): "Math.abs(G.hero.C.dmg-26)<1e-6 && Math.abs(G.hero.C.rate-4.2*.6)<1e-6",
+  ('gunner', 'duel'): "Math.abs(G.hero.C.rate-4.2*1.2)<1e-6", ('gunner', 'thorn'): "Math.abs(G.hero.C.dmg-13*2.5)<1e-6 && Math.abs(G.hero.C.rate-4.2*.45)<1e-6 && Math.abs(G.hero.C.range-8.5*1.4)<1e-6 && G.hero.ch.key==='rose_rifle_meshy'",
 }
 ATK = { 'wind': "G.advN.multi>0", 'hawk': "G.advN.ap>0", 'flame': "G.advN.burn>0 && G.advN.burnTick>0", 'frost': "G.advN.freeze>0",
-  'paladin': "true", 'berserk': "G.advN.leech>0", 'duel': "G.advN.rico>0 && G.advN.ricoHit>0", 'thorn': "G.advN.splash>0 && G.advN.splashHit>0" }
+  'paladin': "true", 'berserk': "G.advN.leech>0", 'duel': "G.advN.rico>0 && G.advN.ricoHit>0", 'thorn': "G.advN.rifle>0 && G.advN.pierceHit>0" }  # 장미 저격수(2026-10-22): 소총 관통
 SKL = { 'wind': (1.6, "G.advN.skill_storm===1 && G.enemies.some(e=>!e.dead&&e.slowT>0)"), 'hawk': (.6, "G.advN.skill_snipe===1 && G.advN.snipeHit>=2"),
   'flame': (1.8, "G.advN.skill_meteors===1 && G.enemies.filter(e=>!e.dead&&e.hp<1e6).length>=3"), 'frost': (1.15, "G.advN.glacierFreeze>=3 && G.advN.comet===12 && G.enemies.some(e=>!e.dead&&e.frozen&&e.stunT>1.5)"),
   'paladin': (1.2, "G.advN.sanctHit>0 && G.hero.sanctT>2 && G.enemies.some(e=>!e.dead&&e.slowT>0)"), 'berserk': (.5, "G.hero.spinT>3 && G.hero.spinR>4.3 && G.hero.spinSpd===1.3"),
-  'duel': (2.0, "G.hero.roseT>0 && Math.abs(G.hero.roseDur-2.6875*1.4)<1e-3"), 'thorn': (1.4, "G.advN.shell===3") }
+  'duel': (2.0, "G.hero.roseT>0 && Math.abs(G.hero.roseDur-2.6875*1.4)<1e-3"), 'thorn': (1.4, "G.advN.skill_pierceshot===1 && G.advN.pierceshot===1 && G.advN.snipeN>=2") }
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     if ONLY != 'game':
@@ -114,7 +114,7 @@ with sync_playwright() as pw:
                 J(pg, PACK, [4, 4]); J(pg, "()=>{ const L=G.enemies.filter(e=>!e.dead); const far=L[L.length-1]; far.hp=far.max=5e6; G.boss0=far; }"); J(pg, "()=>G.sim(1.2)")
                 ok('hawk_prio', J(pg, "()=>G.boss0.hp<5e6 && G.advN.ap>0"), J(pg, "()=>[G.boss0.hp, G.advN]")); J(pg, CLEAR)
             if br == 'paladin': J(pg, "()=>{ G.advForceStun=true; }")
-            if br == 'thorn': J(pg, TIGHT, [6, 5])  # 소폭발(반경 1.2) 검사용 밀집 무리
+            if br == 'thorn': J(pg, TIGHT, [6, 5])  # 관통(폭 0.75) 검사용 밀집 무리
             auto(pg, 6 if h != 'warrior' else 4, d=5 if h != 'warrior' else 2)
             if br == 'paladin':
                 J(pg, "()=>{ G.hero.advStunCd=0; G.heroDamage(5); G.advForceStun=false; }"); ok('paladin_stun', J(pg, "()=>G.advN.stun===1 && G.advN.stunHit>0 && G.enemies.some(e=>!e.dead&&e.stunT>0)"), J(pg, "()=>G.advN"))
