@@ -13,6 +13,7 @@ import { hero, passAt, stat } from './hero.js';
 import { knock } from './mechanic.js';
 import { legendProc } from './legend.js';
 import { FT, comboMul, isKick, isRangedFoe, jpLevel, jpMul } from '../data/fighter.js';
+import { awakeMul } from '../data/items.js';
 
 const FX = heroFx();
 G.ftN = { jab: 0, kick: 0, kickHits: 0, jpWeak: 0, jpFull: 0, jpHits: 0, jpCancel: 0, charge: 0, q: 0, qHits: 0, qStun: 0, paw: 0, dash: 0 }; // 테스트용 카운터
@@ -170,3 +171,31 @@ export function tigerdash(s, tg) { const h = hero, from = h.g.position.clone(); 
   banner('맹호 돌진!', '#ffb06a', 900); if (h.ch.acts.SpinK) play(h.ch, 'SpinK', { once: true, force: true, speed: 1.8 }); Snd.whoosh(from, .4, 300, 2600, .55); Snd.play('stomp', { pos: from, rate: 1.5 }); }
 function dashHits(L) { const c = hero.g.position, dmg = stat.dmg() * L.s.mul; lsk = true;
   try { for (const e of alive()) if (!L.hit.has(e) && d2(e, c.x, c.z) < 2.2 * 2.2) { L.hit.add(e); hurt(e, dmg, '#ffb07a', true, { x: c.x, z: c.z, kind: 'melee' }); if (!e.dead) knock(e, c.x, c.z, 1.6, .6); emit(P, e.g.position.x, 1.3, e.g.position.z, 12, ORANGE, 5, .3); } } finally { lsk = false; } }
+
+// ---------- 고유 무기 [E] 묘신 냥발 장풍 (data/items.js UQ.d_fist · LSK.catpaw) ----------
+// 거대한 고양이 발 기파: 직선 len(14) · 폭 w(2.4) 관통 — 비행 포함 모든 적 360% + 밀쳐내기 + vulnT초 받는 피해 +vuln (enemy.js vulnT/vulnAmt)
+// ★3: 끝에서 냥발 도장 폭발 (반경 boomR · boomMul · 기절 1초, 보스 0.3초). 각성 위력 = awakeMul(hero.uqA)
+export function catpaw(s, tg) { const h = hero; ftStop(); const p = h.g.position; let dir = new THREE.Vector3(tg.x - p.x, 0, tg.z - p.z); if (dir.lengthSq() < .01) dir = fwd(); dir.normalize();
+  h.face = Math.atan2(dir.x, dir.z); h.path = []; h.ft.idle = 0; G.ftN.catpaw = (G.ftN.catpaw || 0) + 1; banner('묘신 냥발 장풍!', '#ffd27a', 1000);
+  const spd = 1.5; if (h.ch.acts.PalmS) play(h.ch, 'PalmS', { once: true, force: true, speed: spd }); h.atkT = HIT.PalmS / spd + .25; glow(true, 1);
+  Snd.play('magic', { pos: p, rate: 1.2, force: true }); emit(P, p.x, 1.2, p.z, 30, GOLD, 3, .4, 0, 1.2); ringFx(p, 1.8, GOLD, .35);
+  later(HIT.PalmS / spd, () => { glow(false); if (!hero || hero.dead > 0) return; const from = hero.g.position.clone().addScaledVector(dir, 1).setY(hero.g.position.y + 1.2); pawWave(from, dir, s); }); }
+function pawPaw(col) { const g = new THREE.Group(), pad = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), ADD(col, .85)); pad.scale.set(1.15, .9, .45); g.add(pad);
+  for (let i = 0; i < 4; i++) { const a = (i - 1.5) * .55, b = new THREE.Mesh(new THREE.SphereGeometry(.42, 14, 10), ADD(0xfff0d0, .9)); b.position.set(Math.sin(a) * 1.35, Math.cos(a) * 1.25 + .1, .05); b.scale.set(1, 1.15, .5); g.add(b); }
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(1.9, 18, 12), ADD(ORANGE, .3)); halo.scale.set(1, .9, .5); g.add(halo); return g; }
+function pawWave(from, dir, s) {
+  const A = awakeMul(hero.uqA), a3 = (hero.uqA || 0) >= 3, dmg = stat.dmg() * s.mul * A * stat.skillMul(), hit = new Set(), g = pawPaw(GOLD); let dist = 0;
+  g.position.copy(from); g.rotation.y = Math.atan2(dir.x, dir.z); g.scale.setScalar(.5); scene.add(g);
+  Snd.play('boom', { pos: from, vol: .7, rate: 1.2, force: true }); Snd.whoosh(from, .6, 250, 3200, .6); G.shake = Math.max(G.shake || 0, .45); pawMark(from, 1.3, .4, GOLD);
+  FX.push(dt => { const st = 30 * dt, px = g.position.x, pz = g.position.z; g.position.addScaledVector(dir, st); dist += st; g.scale.setScalar(Math.min(1.25, .5 + dist * .12)); const p = g.position;
+    emit(PB, p.x, p.y, p.z, 3, 0xffc84a, 1, .4, 0, .8); emit(P, p.x, p.y, p.z, 6, 0xffe0a0, 2, .45, 0, 1);
+    const seg = e => { const ex = e.g.position.x - px, ez = e.g.position.z - pz, t = Math.max(0, Math.min(st, ex * dir.x + ez * dir.z)), qx = ex - dir.x * t, qz = ez - dir.z * t; return qx * qx + qz * qz; };
+    lsk = true; try { for (const e of alive()) if (!hit.has(e) && seg(e) < s.w * s.w) { hit.add(e); G.ftN.catpawHits = (G.ftN.catpawHits || 0) + 1; hurt(e, dmg, '#ffe08a', true);
+      if (!e.dead) { e.vulnT = G.t + s.vulnT; e.vulnAmt = Math.max(e.vulnAmt || 0, s.vuln); knock(e, e.g.position.x - dir.x, e.g.position.z - dir.z, 1.8, .5); } emit(P, e.g.position.x, 1.4, e.g.position.z, 20, GOLD, 6, .45); } } finally { lsk = false; }
+    if (dist < s.len) return true; scene.remove(g); g.traverse(o => { if (o.geometry) { o.geometry.dispose(); o.material.dispose(); } });
+    emit(P, p.x, p.y, p.z, 40, ORANGE, 8, .5); if (a3) pawBoom(new THREE.Vector3(p.x, 0, p.z), s, A); return false; });
+}
+function pawBoom(c, s, A) { const R = s.boomR, gy = groundY(c.x, c.z), dmg = stat.dmg() * s.boomMul * A * stat.skillMul(); G.ftN.catpawBoom = (G.ftN.catpawBoom || 0) + 1; G.shake = Math.max(G.shake || 0, .7);
+  lsk = true; try { for (const e of alive()) if (d2(e, c.x, c.z) <= R * R) { hurt(e, dmg, '#ffd27a', true); if (!e.dead) { const st = e.E.boss ? .3 : 1; e.stunT = Math.max(e.stunT || 0, st); e.frozen = false; } } } finally { lsk = false; }
+  pawMark(new THREE.Vector3(c.x, gy + .3, c.z), R * .8, .9, GOLD, true); ringFx(c, R + .5, GOLD, .5); ringFx(c, R * .6, 0xfff0d0, .4);
+  emit(PB, c.x, .5, c.z, 24, 0xffb84a, 8, .8, -4, 2.5); emit(P, c.x, .5, c.z, 90, 0xffe0a0, 11, .8, -10, 2.5); Snd.play('boom', { pos: c, force: true }); Snd.play('stomp', { pos: c, rate: .9, force: true }); }

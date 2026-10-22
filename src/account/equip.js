@@ -44,6 +44,7 @@ export const LSK = {
   rootshot: { h: 'archer', type: 'active', uq: true, n: '뿌리 감옥 화살', cd: 10, mul: 2.6, root: 1.2, rootBoss: .4, d: '[E] 일직선 관통 260% 피해 + 맞은 지상 적 1.2초 속박(보스 0.4초) · 재사용 10초' },
   zeroabs: { h: 'mage', type: 'active', uq: true, n: '절대영도', cd: 14, mul: 3, r: 4.5, frz: 1.5, frzBoss: .5, d: '[E] 목표 지점 반경 4.5 — 300% 피해 + 1.5초 빙결(보스 0.5초) + 이후 3초 50% 둔화 · 재사용 14초' },
   eruption: { h: 'warrior', type: 'active', uq: true, n: '분화 일격', cd: 14, mul: 4, pool: 4, poolR: 3, poolMul: .3, d: '[E] 도약해 내려찍기(400% + 띄우기) + 착지점 반경 3에 4초 용암 장판(0.5초마다 공격력 30%) · 재사용 14초' },
+  catpaw: { h: 'fighter', type: 'active', uq: true, n: '묘신 냥발 장풍', cd: 11, mul: 3.6, len: 14, w: 2.4, vuln: .2, vulnT: 3, boomR: 3.5, boomMul: 2, d: '[E] 거대한 고양이 발 장풍 — 직선 14 · 폭 2.4 관통(비행 포함) 360% 피해 + 밀쳐내기 + 3초간 받는 피해 +20% · 재사용 11초' },
   execution: { h: 'gunner', type: 'active', uq: true, n: '왕가의 처형', cd: 12, mul: 2, shots: 6, d: '[E] 체력이 가장 높은 적(보스 우선)에게 6연사(각 200%) · 처치 시 재사용 50% 반환 · 재사용 12초' },
 };
 export const LPOOL = { archer: ['multishot', 'pierce'], mage: ['frostorb', 'meteorstorm'], warrior: ['boomerang', 'quake'], gunner: ['ricochet', 'rosebarrage'], mechanic: ['overdrill', 'gigahammer'], fighter: ['pawstorm', 'tigerdash'] };

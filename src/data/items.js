@@ -48,7 +48,7 @@ export const CH_KEYS = Object.keys(CHSET).map(Number); // [1,2,3,4]
 export const chOdds = (odds, ch) => (ch >= 3 ? [0, ...odds.slice(1)] : odds);
 
 // ---------- 고유 아이템 (계정당 1개, id = 'u_' + 키) ----------
-// s: 슬롯, h: 무기 영웅, ch: 챕터(0 = 도전 모드), src: 획득 조건 { boss: 스테이지 } | { stars: 챕터 } | { drop: 챕터 } | { wave: N }
+// s: 슬롯, h: 무기 영웅, ch: 챕터(0 = 도전 모드, 'dg' = 던전 원정), src: 획득 조건 { boss: 스테이지 } | { stars: 챕터 } | { drop: 챕터 } | { wave: N } | { dungeon: 보스 종류 } (서버 판정 — UQ_DG)
 // m/sub: 고정 옵션(저장값 무시, cleanItem 이 매번 여기서 다시 채움). 무기 sk = LSK 키([E] 액티브), 방어구/장신구 tr = 자동 발동 방식 + p = 파라미터, a3 = 각성 ★3 효과
 export const UQ = {
   f_bow: { s: 'weapon', h: 'archer', ch: 1, src: { boss: '1-6' }, n: '세계수 심장활 실바누스', m: ['atk', 22], sub: [['spd', 10], ['rng', 8], ['crit', 6]], sk: 'rootshot',
@@ -81,9 +81,15 @@ export const UQ = {
     un: '심연 적응', d: '판 안에서 10웨이브를 버틸 때마다 공격력 +3% 누적 (최대 +24%)', a3: '+4%씩' },
   c_ring: { s: 'acc', ch: 0, src: { wave: 60 }, ic: '♾️', n: '무한의 고리 우로보로스', m: ['crit', 11], sub: [['critD', 24], ['spd', 8]], tr: 'onKill', p: { n: 40 },
     un: '끝없는 순환', d: '처치 40회마다 Q 재사용 대기 50% 감소 + 전설/고유 [E] 재사용 초기화', a3: '30회' },
+  // 던전 원정 (2026-10-23): 모르비아 처치 드롭(서버 판정) 또는 던전 상점 — 유료 영웅 진서윤 전용, 다른 고유보다 조금 강함 (전투력 680)
+  d_fist: { s: 'weapon', h: 'fighter', ch: 'dg', src: { dungeon: 'dg_lich' }, n: '묘신 너클 호랑냥이', m: ['atk', 24], sub: [['crit', 8], ['critD', 18], ['spd', 10]], sk: 'catpaw',
+    un: '묘신 냥발 장풍', d: '[E] 거대한 고양이 발 장풍 — 직선 14 · 폭 2.4 관통(비행 포함) 360% 피해 + 밀쳐내기 + 3초간 받는 피해 +20% · 재사용 11초', a3: '끝에서 냥발 도장 폭발 (반경 3.5 · 200% · 기절 1초, 보스 0.3초)' },
 };
 export const UQ_KEYS = Object.keys(UQ);
-export const UQ_RESERVED = ['m_gauntlet']; // 숨긴 버들 전용 고유 무기 (숨김 해제 때 추가) — 지금은 데이터 없음
+export const UQ_RESERVED = ['m_gauntlet']; // 숨긴 버들 전용 고유 무기 (숨김 해제 때 추가) — 지금은 데이터 없음. 서윤(fighter) 고유는 d_fist 로 추가됨 (2026-10-23)
+// 던전 고유 (서버 supabase/schema.sql hd3d_dungeon_finish/buy 가 판정 — 여기 값은 표시·테스트용, tests/dungeon.test.mjs 가 schema.sql 과 비교)
+// 모르비아 처치(메달 원정 완주)마다 5%, 천장 40회(40번째 처치 확정) · 던전 상점 450 메달 · 계정당 1개 (서버 지갑 uniques)
+export const UQ_DG = { key: 'd_fist', drop: .05, pity: 40, price: 450, shop: 'dg_uq_fist' };
 export const UQ_COLOR = '#3ae8d0';
 export const UQ_DUP = { essence: 5, crystal: 6, souls: 150 }; // 중복 획득 → 고유 정수·마력석·영혼석
 export const UQ_DROP = .015, UQ_PITY = 60; // ③ 숨은 보물: 보스 처치마다 1.5%, 천장 60회
