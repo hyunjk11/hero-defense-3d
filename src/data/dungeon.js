@@ -30,9 +30,9 @@ export function dungeonLayout(GW = DG_GW, GH = DG_GH) {
 }
 
 // 층: waves = [[종류, 수], …] 웨이브마다. hpMul = 몬스터 체력 배수, gap = 웨이브 사이 쉬는 시간(초), every = 출현 간격(초)
-// 1층 균형(2026-10-22): 강화 없는 기본 3영웅 파티로 ~90초 안팎, 세라가 앞에서 버티면 전멸 없음 (tests/dungeon.py 시뮬레이션 검사)
+// 1층 균형(2026-10-22 시뮬레이션, AI 자동 전투·조작 영웅 가만히): 강화·장비 없는 기본 3영웅 ~70초 클리어, 최저 체력 23~78% (hpMul 3.0/dmg 1.6 은 전멸 발생 → 너무 어려움). 로즈 포함 4명 ~62초
 export const FLOORS = [
-  { n: '1층 · 해골 동굴', hpMul: 1.6, dmgMul: 1, gap: 4, every: .55,
+  { n: '1층 · 해골 동굴', hpMul: 2.4, dmgMul: 1.4, gap: 4, every: .55,
     waves: [[['imp', 6], ['grunt', 4]], [['grunt', 8], ['imp', 6]], [['golem', 2], ['grunt', 8], ['imp', 6]]] },
 ];
 export const floorCount = () => FLOORS.length;

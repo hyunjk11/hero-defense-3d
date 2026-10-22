@@ -68,7 +68,7 @@ function drawRoute() {
 const rv = new THREE.Vector3(), rt = new THREE.Vector3();
 const digAt = (R, u) => R.dig[Math.min(R.dig.length - 1, Math.round(u * (R.dig.length - 1)))];
 function updRoute() {
-  const live = (G.phase === 'build' || G.phase === 'wave'), build = G.phase === 'build';
+  const live = !G.dungeon && (G.phase === 'build' || G.phase === 'wave'), build = G.phase === 'build'; // 던전 원정: 몬스터가 영웅을 쫓으므로 코어 경로 표시 없음
   let n = 0, m = 0; edgeMat.opacity = .75 + Math.sin(G.t * 3) * .15; floorMat.opacity = .2 + G.night * .22 + Math.sin(G.t * 2.2) * .05;
   for (const R of routes) { const show = live && R.curve; R.ribbon.visible = R.ribbonOL.visible = !!show; R.nDash = R.nChev = 0; if (!show) continue; const L = R.len, n0 = n, m0 = m;
     // 점선: 건설 단계에선 선명하게, 전투 중엔 은은하게. 천천히 코어 쪽으로 흐름
