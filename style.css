@@ -626,3 +626,25 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .rwPrev{font-size:12px;color:#d8c8a0;background:rgba(80,140,80,.12);border-radius:6px;padding:5px 8px}.rwPrev ul,.bcItems{margin:3px 0 0 16px;padding:0}.rwPrev .dim{color:#a89878}
 .bcItems{font-size:12px;text-align:left}
 .rwRes .dim{font-size:12px;color:#a89878}
+/* ===== 던전 원정 (src/dungeon/run.js · src/ui/dungeon.js) ===== */
+body.dungeonRun #build,body.dungeonRun #ups,body.dungeonRun #wavePrev,body.dungeonRun #tinfo,body.dungeonRun #top .pill.gold,body.dungeonRun #top .pill.core,body.dungeonRun #top>.pill:nth-child(2),body.dungeonRun #phase,body.dungeonRun #warpBtn,body.dungeonRun #tip,body.dungeonRun #help,body.dungeonRun #hardPill,body.dungeonRun #heroBox,body.dungeonRun #modeInd{display:none!important}
+.dgTop{gap:8px;align-items:center;border-color:#b07aff!important}.dgTop .lbl{color:#d8b8ff}.dgTop b{color:#fff3d6}
+.dgGiveUp{min-height:44px;min-width:44px;margin-left:4px;padding:0 10px;border-radius:8px;border:1px solid #8a6aa8;background:#241a38;color:#e8d8ff;font:inherit;font-size:13px;cursor:pointer}
+#dgBar{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:6px;z-index:5}
+.dgP{position:relative;width:66px;height:70px;min-width:44px;min-height:44px;border-radius:12px;border:2px solid var(--hc);background:linear-gradient(#2a2244,#120e20);color:#fff;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 3px;box-shadow:0 0 8px #0008;touch-action:manipulation}
+.dgP *{pointer-events:none}.dgP .dgIc{font-size:24px;line-height:1}.dgP .dgNm{font-size:11px;font-weight:bold;white-space:nowrap}.dgP .dgNm i{font-style:normal;margin-left:1px}
+.dgP .dgHp{width:54px;height:5px;border-radius:3px;background:#3a2030;overflow:hidden}.dgP .dgHp u{display:block;height:100%;width:100%;background:linear-gradient(90deg,#3aff6a,#a8ff7a);text-decoration:none}
+.dgP .dgSk{position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:50%;background:#4a4058}.dgP .dgSk.ready{background:#ffd23a;box-shadow:0 0 6px #ffd23a}
+.dgP .dgKey{position:absolute;top:2px;left:5px;font-size:10px;color:#a898c0}
+.dgP.ctl{transform:translateY(-6px);box-shadow:0 0 16px var(--hc),0 0 4px #fff inset;background:linear-gradient(#4a3a78,#1e1638)}.dgP.ctl::after{content:'조작';position:absolute;bottom:-15px;font-size:10px;color:#ffe066;font-weight:bold}
+.dgP.down{filter:grayscale(1) brightness(.55)}.dgP.down .dgIc::after{content:'💀';position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:20px}
+#dgPanel{border-color:#b07aff;box-shadow:0 0 30px #9a5aff55,inset 0 0 24px #9a5aff18;background:linear-gradient(#221a3cf4,#0e0a1cf4)}#dgPanel .gtitle{color:#e8d0ff;text-shadow:0 0 12px #b07aff}
+.dgParty{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.dgCard{width:180px;border:2px solid var(--hc,#6a5a8a);border-radius:12px;background:#120e22;padding:10px;font-size:12.5px;color:#e8e0f8;display:flex;flex-direction:column;gap:5px}
+.dgCard.lock{opacity:.6;border-style:dashed;--hc:#6a5a8a;justify-content:center;text-align:center}.dgCH{font-size:15px}.dgCH .dgIc{font-size:20px;margin-right:4px}.dgCH small{color:#a898c0}
+.dgRole{color:#c8b0ff;font-size:12px}.dgAdv{font-weight:bold}.dgEq{color:#ffe9b0}.dgSt{color:#bfe8ff;line-height:1.45;min-height:54px}.dgLv{color:#a898c0;font-size:11.5px}.dim{color:#7a7090}
+.dgInfo{text-align:center;color:#d8d0e8;font-size:13px;line-height:1.6}.dgInfo small{color:#a898c0}.dgGo{display:flex;justify-content:center;margin-top:10px}.dgGo .gbtn{min-height:48px;min-width:200px;font-size:17px}
+.dgResParty{display:flex;gap:10px;justify-content:center;margin:10px 0;font-size:15px}.dgResParty .down{filter:grayscale(1);opacity:.5;text-decoration:line-through}.dgRes.lose .scT{color:#ff8a9a}.dgRes small{color:#a898c0}
+.tlabel.dungeon{border-color:#b07aff;box-shadow:0 0 12px #9a5aff;color:#f0e0ff}.tlabel.dungeon small{color:#d0b0ff}
+@media (max-width:1100px),(max-height:800px){.dgCard{width:150px;font-size:11.5px;padding:8px}.dgSt{min-height:44px}.dgParty{margin:8px 0;gap:8px}}
+@media (max-height:680px){.dgCard{width:140px;gap:3px}.dgLv{display:none}.dgInfo{font-size:12px;line-height:1.4}}

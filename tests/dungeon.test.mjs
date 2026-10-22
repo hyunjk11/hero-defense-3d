@@ -1,0 +1,30 @@
+// 던전 순수 로직 단위 테스트: 파티 구성(로즈는 서버 소유만, 버들 제외) · 맵 · 웨이브 · 흐름장 · 어그로 · 역할 AI
+import assert from 'node:assert/strict';
+import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH } from '../src/data/dungeon.js';
+import { bfsField, downhill, aggroHero, bestCluster, rolePlan } from '../src/dungeon/logic.js';
+let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
+const H = (cls, x, z, dead = 0) => ({ cls, dead, g: { position: { x, z } } });
+t('파티: 무료 3명 고정', () => assert.deepEqual(dungeonParty(() => false), ['warrior', 'archer', 'mage']));
+t('파티: 로즈는 소유(true)일 때만', () => { assert.deepEqual(dungeonParty(c => c === 'gunner'), ['warrior', 'archer', 'mage', 'gunner']); assert.deepEqual(dungeonParty(c => 'yes'), ['warrior', 'archer', 'mage']); assert.deepEqual(dungeonParty(), ['warrior', 'archer', 'mage']); });
+t('파티: 버들(숨김)은 소유해도 제외', () => assert.ok(!dungeonParty(() => true).includes('mechanic')));
+t('역할', () => { assert.equal(ROLE.warrior, 'tank'); assert.equal(ROLE.archer, 'ranged'); assert.equal(ROLE.gunner, 'ranged'); assert.equal(ROLE.mage, 'caster'); });
+t('맵: 테두리 벽 + 입구 4곳 + 모든 바닥 연결', () => { const g = dungeonLayout(); assert.equal(g.length, DG_GW); assert.equal(g[0].length, DG_GH);
+  for (const [c, r] of ENTRANCES) assert.equal(g[c][r], 'S'); assert.equal(g[0][0], 'W'); assert.equal(g[23][15], 'W');
+  const pass = (c, r) => g[c][r] !== 'W' && g[c][r] !== 'P', F = bfsField(DG_GW, DG_GH, pass, [[12, 8]]);
+  for (let c = 0; c < DG_GW; c++) for (let r = 0; r < DG_GH; r++) if (pass(c, r)) assert.ok(F[c * DG_GH + r] < 65535, `칸 ${c},${r} 닿지 않음`);
+  for (const [c, r] of ENTRANCES) assert.ok(F[c * DG_GH + r] < 40); });
+t('웨이브: 수·섞임', () => { const L = waveList(0, 0); assert.equal(L.length, 10); assert.deepEqual(L.slice(0, 4), ['imp', 'grunt', 'imp', 'grunt']); assert.equal(waveList(0, 9).length, 0); assert.equal(waveList(5, 0).length, 0);
+  assert.ok(FLOORS[0].waves.flat().every(([k]) => ['imp', 'grunt', 'golem'].includes(k))); });
+t('흐름장: 벽 돌아가기 + 내리막', () => { const GW = 5, GH = 3, wall = new Set(['2,0', '2,1']), pass = (c, r) => !wall.has(c + ',' + r), F = bfsField(GW, GH, pass, [[4, 0]]);
+  assert.equal(F[0 * GH + 0], 8); assert.equal(F[2 * GH + 0], 65535); let p = [0, 0], n = 0; while (F[p[0] * GH + p[1]] > 0 && n < 20) { p = downhill(F, GW, GH, p[0], p[1]); n++; } assert.deepEqual(p, [4, 0]); assert.equal(n, 8); assert.equal(downhill(F, GW, GH, 4, 0), null); });
+t('어그로: 가까운 영웅, 탱커 보정', () => { const s = H('warrior', 6, 0), a = H('archer', 3, 0); assert.equal(aggroHero([s, a], 0, 0), s); /* 6-4=2 < 3 */
+  const far = H('warrior', 12, 0); assert.equal(aggroHero([far, a], 0, 0), a); /* 범위 밖이면 보정 없음 */ assert.equal(aggroHero([H('warrior', 1, 0, 5), a], 0, 0), a); assert.equal(aggroHero([], 0, 0), null); });
+t('밀집 지점', () => { const E = [{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 0, z: 1 }, { x: 10, z: 10 }]; const c = bestCluster(E, 2); assert.equal(c.n, 3); assert.ok(Math.abs(c.x - 1 / 3) < 1e-9); assert.equal(bestCluster([], 2), null); });
+t('역할 AI: 탱커는 후방에 가까운 적에게', () => { const p = rolePlan('tank', { x: 0, z: 0, range: 2.8, skillReady: false }, { enemies: [{ x: 10, z: 0 }, { x: -6, z: 0 }], backs: [{ x: -3, z: 0 }] }); assert.equal(p.focus, 1); assert.deepEqual(p.move, { x: -6, z: 0 }); });
+t('역할 AI: 탱커 회오리 (3명 이상 근접)', () => { const p = rolePlan('tank', { x: 0, z: 0, range: 2.8, skillReady: true }, { enemies: [{ x: 1, z: 0 }, { x: 0, z: 1 }, { x: -1, z: 0 }] }); assert.ok(p.skill); assert.equal(p.move, null); });
+t('역할 AI: 원거리는 가까운 적에게서 물러남', () => { const p = rolePlan('ranged', { x: 0, z: 0, range: 11, skillReady: false }, { enemies: [{ x: 2, z: 0 }] }); assert.ok(p.move.x < -3); });
+t('역할 AI: 원거리는 사거리 밖이면 다가감 (사거리 75% 지점)', () => { const p = rolePlan('ranged', { x: 0, z: 0, range: 10, skillReady: false }, { enemies: [{ x: 20, z: 0 }] }); assert.ok(Math.abs(p.move.x - 12.5) < 1e-9); });
+t('역할 AI: 원거리 사거리 안이면 제자리', () => assert.equal(rolePlan('ranged', { x: 0, z: 0, range: 10, skillReady: false }, { enemies: [{ x: 7, z: 0 }] }).move, null));
+t('역할 AI: 마법사는 밀집 지점을 노리고 3명 이상이면 스킬', () => { const E = [{ x: 7, z: 0 }, { x: 0, z: 8 }, { x: .5, z: 8.5 }, { x: -.5, z: 8 }]; const p = rolePlan('caster', { x: 0, z: 0, range: 9, skillReady: true }, { enemies: E }); assert.ok(p.focus >= 1); assert.ok(p.skill && p.skill.z > 7); });
+t('역할 AI: 적 없으면 조작 영웅 따라감', () => { const p = rolePlan('ranged', { x: 0, z: 0, range: 10 }, { lead: { x: 10, z: 0 } }); assert.ok(p.move.x > 6); assert.equal(rolePlan('ranged', { x: 0, z: 0, range: 10 }, { lead: { x: 2, z: 0 } }).move, null); });
+console.log(`dungeon: ${ok} ok`);

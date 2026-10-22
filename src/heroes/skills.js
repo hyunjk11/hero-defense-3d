@@ -16,12 +16,12 @@ import { uqOnSkill } from './unique.js';
 import { advSkill } from './advfx.js';
 
 // ================= 스킬 =================
-function castSkill() {
+function castSkill(at) { // at: 목표 지점(Vector3, 던전 AI). 없으면(키·버튼) 마우스 지점
   if (!hero || hero.dead > 0 || hero.skillCd > 0 || G.phase === 'select' || G.phase === 'over') return;
   const mul = stat.skillMul(), base = stat.dmg();
   if (hero.cls === 'mechanic') { if (mechTransform(mul, base)) { hero.skillCd = stat.skillCd(); if (hero.uqs) uqOnSkill(hero.g.position); } return; } // 메카닉: 변신 (이미 로봇이면 무시)
   hero.skillCd = stat.skillCd();
-  const tgt = mouseGround.clone(); const hp = hero.g.position; if (hp.distanceTo(tgt) > 16) tgt.sub(hp).setLength(16).add(hp);
+  const tgt = (at && at.isVector3 ? at : mouseGround).clone(); const hp = hero.g.position; if (hp.distanceTo(tgt) > 16) tgt.sub(hp).setLength(16).add(hp);
   if (hero.cls !== 'warrior') hero.face = Math.atan2(tgt.x - hp.x, tgt.z - hp.z);
   if (hero.adv && advSkill(tgt, mul, base)) { if (hero.uqs) uqOnSkill(tgt); return; } // 전직 Q 변형 (advfx.js)
   if (hero.cls === 'archer') {

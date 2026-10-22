@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
-import { STAGE, CORE, DIRS, GH, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+import { STAGE, CORE, DIRS, GH, GW, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 const ICE = !!(STAGE && STAGE.ch === 2);
 import { BLK } from '../data/terrain.js';
 import { G } from '../core/state.js';
@@ -14,6 +14,7 @@ import { reachCore, removeEnemy } from './enemy.js';
 import { damageTower } from '../world/towers.js';
 import { hero, heroDamage } from '../heroes/hero.js';
 import { nearestHero, heroesWithin } from '../core/party.js';
+import { aggroHero, bfsField, downhill } from '../dungeon/logic.js';
 import { abilityTick, updAbilities } from './abilities.js';
 
 function groundY(x, z) { const [c, r] = toTile(x, z); return inGrid(c, r) && tileAt(c, r).t === T.CARVED ? -.46 : 0; }
@@ -61,6 +62,7 @@ function updEnemies(dt) {
     const th = G.heroes.length > 1 ? nearestHero(G.heroes, g.position.x, g.position.z) : hero; // 파티: 가장 가까운 살아있는 영웅 (1명이면 기존 그대로)
     const hd = th && th.dead <= 0 ? Math.hypot(th.g.position.x - g.position.x, th.g.position.z - g.position.z) : 99;
     if (hd < 1.25 + E.h * .2) { faceTo(g, th.g.position.x, th.g.position.z, dt, 14); play(e.m, E.dig, { speed: 1.2 }); e.atkCd -= dt; if (e.atkCd <= 0) { e.atkCd = .85; heroDamage(E.dps * .85, th); } continue; }
+    if (G.dungeon) { chase(e, dt, spd); continue; } // 던전 원정: 경로 대신 영웅 추적 (타워·코어 없음)
     if (e.ai !== 'basic') { const r = special(e, dt, slowK); if (r === true) continue; }
     if (e.next && enterCost(tileAt(e.next[0], e.next[1])) === Infinity) e.next = null;
     if (!e.next) e.next = e.profile === 'default' ? nextStep(e.tile[0], e.tile[1]) : nextStep(e.tile[0], e.tile[1], e.profile);
@@ -90,6 +92,21 @@ function updEnemies(dt) {
       if (e.ckT > 1.5) { if (Math.hypot(g.position.x - e.ckP[0], g.position.z - e.ckP[1]) < .3 && spd > .2) { if (wedged(e)) nudge(e); else if (!G.classic && jammedInNext(e)) { e.tile = e.next; e.next = null; G.unjamN = (G.unjamN || 0) + 1; } } e.ckP = [g.position.x, g.position.z]; e.ckT = 0; } }
   }
 }
+// ================= 던전 원정: 영웅 추적 =================
+// 영웅별 거리장(BFS, 0.3초마다/영웅 칸이 바뀌면 다시) 을 따라 내려가고, 3 이내면 곧장 다가감. 대상 = aggroHero (세라 어그로 보정), 0.5초마다 다시 고름
+const dgF = new Map(); const dgPass = (c, r) => { const t = tileAt(c, r); return !isBlock(t.t) && t.t !== T.BEDROCK; };
+function fieldFor(h) { const p = h.g.position, [c, r] = toTile(p.x, p.z), o = dgF.get(h);
+  if (o && o.c === c && o.r === r && G.t - o.t < .3) return o.F; const F = bfsField(GW, GH, dgPass, [[c, r]]); dgF.set(h, { F, c, r, t: G.t }); return F; }
+function chase(e, dt, spd) { const g = e.g, E = e.E; e.digging = false;
+  e.chT = (e.chT || 0) - dt; if (e.chT <= 0 || !e.tgt || e.tgt.dead > 0) { e.tgt = aggroHero(G.heroes, g.position.x, g.position.z); e.chT = .5; }
+  const h = e.tgt; if (!h) { play(e.m, 'Idle', { fade: .3 }); return; } // 전멸: 제자리
+  const hp = h.g.position, d = Math.hypot(hp.x - g.position.x, hp.z - g.position.z), [c, r] = toTile(g.position.x, g.position.z); let tx = hp.x, tz = hp.z;
+  if (d > 3 && inGrid(c, r)) { const st = downhill(fieldFor(h), GW, GH, c, r); if (st) { tx = tileX(st[0]) + e.off[0] * .6; tz = tileZ(st[1]) + e.off[1] * .6; } }
+  const dx = tx - g.position.x, dz = tz - g.position.z, L = Math.hypot(dx, dz);
+  if (L > .05) { const mv = Math.min(L, spd * dt), mx = dx / L * mv, mz = dz / L * mv; if (enemyWalk(g.position.x + mx, g.position.z)) g.position.x += mx; if (enemyWalk(g.position.x, g.position.z + mz)) g.position.z += mz; }
+  faceTo(g, tx, tz, dt); play(e.m, E.walk, { speed: spd * E.ws });
+  const [c2, r2] = toTile(g.position.x, g.position.z); if (inGrid(c2, r2)) e.tile = [c2, r2];
+  g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8); }
 // 진짜 끼임만: 몸이 통과 불가 칸에 있거나, 현재 칸/다음 칸 어디에도 속하지 않음 (단순 정체 행렬은 제외)
 function wedged(e) { const p = e.g.position, [c, r] = toTile(p.x, p.z); if (!enemyWalk(p.x, p.z)) return true; const on = (a) => a && a[0] === c && a[1] === r; return !on(e.tile) && !on(e.next); }
 // (classic 기준선에서는 끔 → regress.py 기준선 불변) 혼잡 정체: 몸은 이미 다음 칸 안인데 서로 밀려 칸 목표점(오프셋)에 닿지 못한 채 1.5초 → 그 칸에 도착한 것으로 처리 (큰 몬스터 여럿이 한 칸 참호에 몰릴 때)

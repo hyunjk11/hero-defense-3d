@@ -225,6 +225,9 @@ function gate() {
 }
 // ---------- 호수광장 + 여신탑 ----------
 export const tower = new THREE.Group(); export let smith = null; export const SMITH = new THREE.Vector2(-9, -12);
+// 던전 원정 건물 (마을 로컬). 정문은 마을 중심을 향함 (house 회전) → 정문 앞 = 중심 방향으로 4.2
+export let dungeon = null; export const DUNGEON_P = new THREE.Vector2(-15, -5);
+export const dungeonFront = () => { const L = DUNGEON_P.length(); return new THREE.Vector3(DUNGEON_P.x - DUNGEON_P.x / L * 4.2, 0, DUNGEON_P.y - DUNGEON_P.y / L * 4.2); };
 export let shop = null; export const SHOP_P = new THREE.Vector2(9, -10); // 상점 (마을 로컬)
 export const shopFront = () => { const L = SHOP_P.length(); return new THREE.Vector3(SHOP_P.x - SHOP_P.x / L * 3.6, 0, SHOP_P.y - SHOP_P.y / L * 3.6); };
 export let lab = null; export const LAB = new THREE.Vector2(-9.5, 16.5), LAB_ROT = .45, labFx = { t: 0 }; // 정문이 남남동(기본 카메라 쪽)을 향함
@@ -368,7 +371,7 @@ function ambient() {
 // ---------- 생성 / 갱신 ----------
 export function buildTown(parent) {
   T = parent; ground(); cobbles(); fountain(waterMat(2.05)); gate();
-  house({ x: -15, z: -5, w: 4.6, d: 4, h: 3.2, wall: 0x8a7a9a, roof: 0x3a2a5a, trim: 0x2a2236, shutter: 0x5a3a8a, sign: '던전', signBg: '#3a2a5a', smoke: 0x9a8ab0, label: '⚔ 던전<small>준비 중</small>',
+  dungeon = house({ x: DUNGEON_P.x, z: DUNGEON_P.y, w: 4.6, d: 4, h: 3.2, wall: 0x8a7a9a, roof: 0x3a2a5a, trim: 0x2a2236, shutter: 0x5a3a8a, sign: '던전', signBg: '#3a2a5a', smoke: 0x9a8ab0, label: '⚔ 던전 원정<small>파티 던전 · 1층</small>', cls: 'dungeon',
     extra: (g, w, d) => { mk(Cyl(1, 1.2, 7, 10), toon(0x5a4a6a), w / 2 + .6, 3.5, -d / 2 + .2, g, .04); mk(new THREE.ConeGeometry(1.45, 2.4, 10), toon(0x2a1a4a), w / 2 + .6, 8.2, -d / 2 + .2, g, .04); const f = mk(new THREE.OctahedronGeometry(.3), glow(0xb07aff, 2.5), w / 2 + .6, 9.9, -d / 2 + .2, g, 0); anims.push(t => f.rotation.y = t * 2);
       for (const s of [-1, 1]) { mk(Cyl(.06, .08, 1.4, 6), toon(0x2a2a34), s * 1.1, 1.1, d / 2 + .5, g, .01); mk(new THREE.SphereGeometry(.16, 8, 6), glow(0xb07aff, 2.5), s * 1.1, 1.9, d / 2 + .5, g, 0); } } });
   shop = house({ x: 9, z: -10, w: 4.4, d: 3.6, wall: 0xf4e4c0, roof: 0xd04a3a, shutter: 0x3a7ac0, sign: '상점', signBg: '#8a2a22', label: '💰 상점<small>✨ 유료 영웅 로즈 · 버들</small>', cls: 'shop',

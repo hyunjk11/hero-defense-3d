@@ -20,7 +20,8 @@ import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
 import { initStageSel, openStageSel, closeStageSel } from './stagesel.js';
 import * as ST from '../data/stages.js';
-import { STAGE, HARDQ } from '../core/grid.js';
+import { STAGE, HARDQ, DUNGEON } from '../core/grid.js';
+import { startDungeonRun } from '../dungeon/run.js';
 import { initLab, openLab, closeLab, renderLab } from './lab.js';
 import { lab, LAB, labFront } from '../world/town.js';
 let labNear = false;
@@ -28,6 +29,9 @@ import * as Sh from '../account/shop.js';
 import { initShop, openShop, closeShop, closeMail, closeAdmin, updShop } from './shop.js';
 import { initNotice, showNotices } from './notice.js';
 import { shop as shopBld, SHOP_P, shopFront } from '../world/town.js';
+import { dungeon as dungeonBld, DUNGEON_P, dungeonFront } from '../world/town.js';
+import { initDungeonUI, openDungeon, closeDungeon } from './dungeon.js';
+let dgNear = false;
 let shopNear = false; const closeShopUI = () => { closeShop(true); closeMail(true); };
 
 const TOWN_Z = -150, TOWN = new THREE.Vector3(0, 0, TOWN_Z), esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -67,6 +71,7 @@ export function startFlow() {
   const save0 = Snd.save.bind(Snd); Snd.save = () => { save0(); Acc.update(d => ({ ...d, settings: { ...d.settings, audio: { ...Snd.cfg } } })); };
   G.onRunEnd = onRunEnd; Acc.onChange(() => { refreshMenu(); refreshTown(); refreshLogin(); });
   bindUI();
+  if (DUNGEON && QS.has('run')) { startDungeonRun(); return; } // 던전 원정 (마을 던전 건물에서 새로고침으로 진입)
   if (STAGE && QS.has('run')) { startStageRun(); return; } // 스테이지 출정 (원정 지도에서 새로고침으로 진입)
   if (QS.has('town')) { resume(); return; } // 출정 후 귀환: 바로 마을
   showSelect(); $('select').classList.add('hidden'); show('intro'); // 인트로: 세 영웅이 포즈를 취하는 3D 무대 재사용
@@ -133,7 +138,7 @@ function spawnTownHero() {
   if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc, null, alt); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null; heroRingColor();
 }
 export function enterTown() {
-  hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);
+  hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); dgNear = false; closeDungeon(true);
   cam.target.set(0, 1, TOWN_Z - 2); cam.r = 34; cam.phi = .78; cam.theta = 0; G.nightTarget = 0; refreshTown(); if (Acc.A.user) Sh.refresh().catch(() => {}); showNotices().catch(() => {}); // 마을 입장 시 우편·소유권·공지 갱신
   const lr = sessionStorage.getItem('hd3d_lastRun'); if (lr) { sessionStorage.removeItem('hd3d_lastRun'); const r = JSON.parse(lr), show2 = () => popup(`<h3>${r.reason === 'clear' ? `${r.hard ? '<span class="hardTag">하드</span> ' : ''}스테이지 ${ST.stageNo(r.stage)} 클리어! <span class="popStars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</span>` : r.reason === 'retreat' ? '무사히 귀환했습니다' : r.stage ? `${r.hard ? '하드 ' : ''}스테이지 ${ST.stageNo(r.stage)} 실패 · 코어가 파괴되었습니다` : '코어가 파괴되었습니다'}</h3>도달 웨이브 <b>${r.wave}</b> · 처치 <b>${r.kills}</b><br>획득 영혼석 <b class="soul">+${r.got}</b>${r.best ? '<br><span class="newbest">★ 최고 기록 갱신!</span>' : ''}${lootLines(r.loot || [])}`); if (chestCount()) setTimeout(() => openChestUI(show2), 600); else show2(); }
 }
@@ -176,7 +181,7 @@ function onRunEnd(reason) {
   const btn = $('overTown'); if (btn) { btn.classList.remove('hidden'); $('overReward').innerHTML = `획득 영혼석 <b>+${got}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}`; }
   if (reason === 'retreat') goTown();
 }
-export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('stage'); q.delete('run'); q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
+export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('stage'); q.delete('run'); q.delete('hard'); q.delete('dungeon'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
 
 // ---------- UI 바인딩 ----------
 function bindUI() {
@@ -190,7 +195,7 @@ function bindUI() {
   for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn', 'stBgMute']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; C.bgMute = $('stBgMute').checked; Snd.apply(); Snd.bgSync(); Snd.save(); });
   $('mnNickSave').onclick = async () => { Snd.play('ui'); await Acc.saveNick($('mnNick').value); refreshMenu(); };
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
-  $('twGo').onclick = () => { closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); };
+  $('twGo').onclick = () => { closeDungeon(true); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); };
   initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!confirm('지금까지의 보상을 가지고 마을로 귀환할까요?')) return; onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
@@ -198,12 +203,14 @@ function bindUI() {
   renderer.domElement.addEventListener('pointerdown', e => { if (G.screen !== 'town' || e.button !== 0 || !th) return; const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), rc = new THREE.Raycaster(); rc.setFromCamera(m, camera);
     if (revealing()) return; if (shopBld && rc.intersectObject(shopBld, true).length > 0) { th.goals = null; th.goal = shopFront(); if (Math.hypot(th.g.position.x - SHOP_P.x, th.g.position.z - SHOP_P.y) < 4.4) doOpenShop(); return; }
     if (lab && rc.intersectObject(lab, true).length > 0) { th.goals = null; th.goal = labFront(); if (Math.hypot(th.g.position.x - LAB.x, th.g.position.z - LAB.y) < 4.6) doOpenLab(); return; }
+    if (dungeonBld && rc.intersectObject(dungeonBld, true).length > 0) { th.goals = null; th.goal = dungeonFront(); if (Math.hypot(th.g.position.x - DUNGEON_P.x, th.g.position.z - DUNGEON_P.y) < 4.6) openDungeon(); return; } // 던전 원정 건물
     const smithHit = smith && rc.intersectObject(smith, true).length > 0; if (smithHit) { th.goals = null; th.goal = new THREE.Vector3(SMITH.x + .6 * 3.4, 0, SMITH.y + .8 * 3.4); if (Math.hypot(th.g.position.x - SMITH.x, th.g.position.z - SMITH.y) < 4.1) openSmith(); return; }
     const towerHit = rc.intersectObject(tower, true).length > 0; // 여신탑 클릭 → 섬으로 걸어가서 축복 창
     const p = new THREE.Vector3(); if (!rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return; p.sub(TOWN).setY(0);
     if (towerHit || Math.hypot(p.x - LAKE.x, p.z - LAKE.y) < LR + .3) { routeToTower(); if (Math.hypot(th.g.position.x - LAKE.x, th.g.position.z - LAKE.y) < 3.4) openBless(); }
     else { th.goal = p; th.goals = null; } });
   $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeShopUI(); closeStageSel(true); closeLab(true); openInv(); }; $('twChest').onclick = () => { if (revealing()) return; closeShopUI(); closeStageSel(true); closeLab(true); closeBless(); openChestUI(); };
+  initDungeonUI({ closeOthers: () => { closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); } });
   initNotice();
   initShop({ onChange: () => refreshTown(), closeOthers: k => { closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (k !== 'shop') closeShop(true); if (k !== 'mail') closeMail(true); }, cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   Sh.onShop(() => { if (th && G.screen === 'town' && th.cls !== Sh.usableHero(Acc.load().hero)) spawnTownHero(); refreshTown(); refreshMenu(); }); // 서버 소유권 갱신 → 마을 영웅 모델도 맞춤
@@ -236,6 +243,7 @@ export function updFlow(dt) {
   const dl = Math.hypot(p.x - LAKE.x, p.z - LAKE.y); // 여신탑 접근 → 여신의 축복 창
   if (dl < 3.4 && !blessNear) { blessNear = true; openBless(); } else if (dl > 4.4 && blessNear) { blessNear = false; closeBless(); }
   const dsh = Math.hypot(p.x - SHOP_P.x, p.z - SHOP_P.y); if (dsh < 4.2 && !shopNear) { shopNear = true; doOpenShop(); } else if (dsh > 5.2 && shopNear) { shopNear = false; closeShop(); }
+  const dd = Math.hypot(p.x - DUNGEON_P.x, p.z - DUNGEON_P.y); if (dd < 4.6 && !dgNear) { dgNear = true; openDungeon(); } else if (dd > 5.6 && dgNear) { dgNear = false; closeDungeon(); } // 던전 원정 입장 화면
   const ds = Math.hypot(p.x - SMITH.x, p.z - SMITH.y); if (ds < 4.0 && !smithNear) { smithNear = true; closeShopUI(); closeStageSel(true); openSmith(); } else if (ds > 4.8 && smithNear) { smithNear = false; closeSmith(); }
   const dlab = Math.hypot(p.x - LAB.x, p.z - LAB.y); if (dlab < 4.6 && !labNear) { labNear = true; doOpenLab(); } else if (dlab > 5.4 && labNear) { labNear = false; closeLab(); }
   const nearPortal = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) < 2.2; $('twHint').classList.toggle('go', nearPortal); if (nearPortal && !portalNear && !departing) { portalNear = true; closeBless(); closeLab(true); closeSmith(true); closeInv(); openStageSel(); } else if (!nearPortal && portalNear && Math.hypot(p.x - PORTAL.x, p.z - PORTAL.y + 1) > 3.2) { portalNear = false; closeStageSel(); }

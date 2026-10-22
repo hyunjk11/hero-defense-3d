@@ -49,6 +49,9 @@ import { ROSTERS } from './data/monsters.js';
 import * as ROSTER from './core/roster.js';
 import { updVolcano } from './render/volcano.js';
 import { updRuins } from './render/ruins.js';
+import { updDungeon } from './dungeon/run.js';
+import { DUNGEON } from './core/grid.js';
+import { DG_BASE, DG_PAID } from './data/dungeon.js';
 
 Object.assign(G, { Q, STAGE_CFG: STAGE, ROSTERS, ROSTER, towerRateK, pendingSpawns, towerXp, chooseBranch, GROW, castLegend, SPAWNS, startWarp, renderer, carve, damageTile, refreshTile, computeDist, damageTower, repairTower, repairAll, field, fieldInfo, pathStats, makeEnemyModel, play, scene, THREE, nextStep, SPAWN, CORE, choose, startWave, castSkill, mouseGround, select, upgradeTower, sellTower, T, tileAt, cam, TOWERS, enterCost, spawnEnemy, GL, BARS, hurt, ETYPES, CLASSES, BLK, heroDamage, toTile, GW, GH });
 G.build = (c, r, tool) => { setTool(tool); const ok = build(c, r); setTool('move'); return ok; };
@@ -74,7 +77,8 @@ function step(dt) {
   G.t += dt;
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); runTimer(tm); } }
   if (G.phase === 'select') updSelect(dt);
-  if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); const t0 = G.spawnQ.shift(), el = G.spawnE ? G.spawnE.shift() : false; spawnEnemy(t0, G.hpMul, undefined, el); if (ETYPES[t0].pack && G.spawnQ[0] === t0) G.spawnT = .22; /* 무리는 붙어서 */ } } else if (!G.enemies.length && !pendingSpawns()) endWave(); }
+  if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); const t0 = G.spawnQ.shift(), el = G.spawnE ? G.spawnE.shift() : false; spawnEnemy(t0, G.hpMul, undefined, el); if (ETYPES[t0].pack && G.spawnQ[0] === t0) G.spawnT = .22; /* 무리는 붙어서 */ } } else if (!G.enemies.length && !pendingSpawns() && !G.dungeon) endWave(); }
+  if (G.dungeon) updDungeon(dt); // 던전 원정: 층·웨이브·결과 (src/dungeon/run.js)
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
     if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
       tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); updLegend(dt); }
@@ -97,6 +101,7 @@ function bootPlan() {
   if ((QS.has('test') || QS.has('skipintro')) && !QS.has('lazy')) return { first: ASSETS, bg: [] };
   let h = 'mage'; try { const s = accLoad(); if (CLASSES[s.hero] && !isHidden(s.hero)) h = s.hero; } catch (e) {}
   const heroes = CLASSES[h].paid ? [h, 'mage'] : [h], uniq = a => [...new Set(a)];
+  if (DUNGEON && QS.has('run')) return { first: uniq([...MON_ASSETS, ...[...DG_BASE, ...DG_PAID].flatMap(c => heroAssets(c, true))]), bg: [] }; // 던전 원정: 몬스터 + 파티 (로즈는 소유 확인 전이라 같이 받음)
   if (STAGE && QS.has('run')) return { first: uniq([...MON_ASSETS, ...heroes.flatMap(c => heroAssets(c, true))]), bg: [] };
   const first = uniq(heroes.flatMap(c => heroAssets(c))), order = [...MON_ASSETS, ...(h === 'mechanic' ? ['mech_robot_meshy'] : []), ...VISIBLE_HEROES.filter(c => !CLASSES[c].paid).flatMap(c => heroAssets(c)), ...VISIBLE_HEROES.filter(c => CLASSES[c].paid).flatMap(c => heroAssets(c, true))];
   return { first, bg: uniq(order).filter(k => !first.includes(k)) };

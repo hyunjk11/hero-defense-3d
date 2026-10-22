@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { $, rnd } from '../core/util.js';
 import { G } from '../core/state.js';
-import { STAGE } from '../core/grid.js';
+import { STAGE, DUNGEON } from '../core/grid.js'; // DUNGEON: 던전 원정 = 폐허 테마(회색 석판 · 유령불 횃불)
 import { Q } from './quality.js';
 
 // ================= 렌더러/씬 =================
@@ -22,7 +22,7 @@ const THEMES = {
   // 폐허(4장): 해 질 녘 보랏빛 하늘 + 회색 석판. 유령불(보라/청록) 횃불이 블룸 문턱을 살짝 넘음. 밤에도 70%만 어두워짐(판이 너무 어둡지 않게), 안개는 판 바깥에만
   ruins: { sun: .9, hemi: .95, bloomTh: 1.0, exposure: 1.06, sunH: .08, fog: [82, 185], day: [0x3a3060, 0x9a88b8, 0x6c6088], night: [0x07061a, 0x281c48, 0x1a1430], hemiC: [0xe8e0ff, 0x3a4a3a], bloomK: .9, nightK: .7 }, // 밤(웨이브)에도 용암 빛으로 판이 보이게: 조명은 55%만 어두워짐
 };
-const THEME_KEY = STAGE ? ({ 2: 'snow', 3: 'volcano', 4: 'ruins' })[STAGE.ch] || 'default' : 'default', TH = THEMES[THEME_KEY];
+const THEME_KEY = STAGE ? ({ 2: 'snow', 3: 'volcano', 4: 'ruins' })[STAGE.ch] || 'default' : DUNGEON ? 'ruins' : 'default', TH = THEMES[THEME_KEY];
 const SNOW = THEME_KEY === 'snow', VOLCANO = THEME_KEY === 'volcano', RUINS = THEME_KEY === 'ruins', LIGHT = { sun: TH.sun, hemi: TH.hemi, bloomTh: TH.bloomTh, sunH: TH.sunH, bloomK: TH.bloomK || 1, nightK: TH.nightK ?? 1 };
 renderer.toneMappingExposure = TH.exposure;
 $('app').appendChild(renderer.domElement);

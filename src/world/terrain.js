@@ -2,7 +2,8 @@ import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mulberry32, rnd } from '../core/util.js';
-import { CORE, GH, GW, NT, S, SPAWN, SPAWNS, STAGE, T, isBlock, tileX, tileZ } from '../core/grid.js';
+import { CORE, DUNGEON, GH, GW, NT, S, SPAWN, SPAWNS, STAGE, T, isBlock, tileX, tileZ } from '../core/grid.js';
+import { dungeonLayout } from '../data/dungeon.js';
 import { BLK } from '../data/terrain.js';
 import { G } from '../core/state.js';
 import { scene, VOLCANO, RUINS } from '../render/scene.js';
@@ -23,6 +24,7 @@ export const WALL_HP = 1.6;
 // // 화산: 용암 강 칸 (건널 수 없음 = BEDROCK 규칙, t.lava 로 따로 그림)
 if (STAGE && STAGE.ch === 1) { BLK[T.DIRT].hp = 105; BLK[T.FOREST].hp = 180; } // 숲: 부드러운 흙
 function genMap() {
+  if (DUNGEON) return genDungeon();
   const R = mulberry32(seed), L = Array.from({ length: 64 }, () => Array.from({ length: 64 }, R)), sm = t => t * t * (3 - 2 * t);
   const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = sm(x - xi), yf = sm(y - yi), a = L[xi & 63][yi & 63], b = L[(xi + 1) & 63][yi & 63], c = L[xi & 63][(yi + 1) & 63], d = L[(xi + 1) & 63][(yi + 1) & 63]; return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf; };
   const V = []; for (let c = 0; c < GW; c++) { V[c] = []; for (let r = 0; r < GH; r++) V[c][r] = vn(c * .3 + 5.3, r * .3 + 2.1) * .6 + vn(c * .75 + 9.7, r * .75 + 4.4) * .4; }
@@ -40,6 +42,9 @@ function genMap() {
   for (const k of WALLS) { const [c, r] = k.split(',').map(Number), t = G.tiles[c][r]; t.t = T.ROCK; t.hp = t.max = Math.round(BLK[T.ROCK].hp * WALL_HP); t.wall = true; }
   for (const s of SPAWNS) G.tiles[s[0]][s[1]].t = T.SPAWN; G.tiles[CORE[0]][CORE[1]].t = T.CORE;
 }
+// 던전 원정 동굴 방 (data/dungeon.js dungeonLayout): 벽 = 바위(몬스터도 파지 않음 — 추적 AI), 기둥 = 암반, 입구 = SPAWN, 중앙 = CORE(숨김)
+function genDungeon() { const R = mulberry32(4242), L = dungeonLayout(GW, GH), TT = { W: T.ROCK, P: T.BEDROCK, S: T.SPAWN, C: T.CORE, '.': T.GRASS };
+  for (let c = 0; c < GW; c++) { G.tiles[c] = []; for (let r = 0; r < GH; r++) { const t = TT[L[c][r]], hp = BLK[t] ? BLK[t].hp : 0; G.tiles[c][r] = { c, r, t, hp, max: hp, tower: null, bar: null, s: R(), s2: R(), s3: R(), shk: 0, ck: (c + r) % 2 ? .03 : 0, dwall: L[c][r] === 'W' }; } } }
 const tileAt = (c, r) => G.tiles[c][r];
 const groundIM = IM(new RoundedBoxGeometry(S * .97, .8, S * .97, 2, .12), toon(0xffffff), NT, .02);
 const dirtIM = IM(new RoundedBoxGeometry(1.84, 1, 1.84, 3, .3), toon(0xffffff), NT, .035);

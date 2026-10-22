@@ -64,7 +64,7 @@ cvs.addEventListener('pointerdown', e => {
 });
 addEventListener('pointerup', e => { if (rdrag && e.button === 2 && Math.hypot(e.clientX - rdrag.x0, e.clientY - rdrag.y0) < 6 && G.tool !== 'move') setTool('move'); rdrag = null; });
 cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e.deltaY * .03)); }, { passive: true });
-addEventListener('keydown', e => { if (G.paused) return; const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat) startWarp(); if (k === 'e' && !e.repeat) castLegend(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
+addEventListener('keydown', e => { if (G.paused) return; const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat && !G.dungeon) startWarp(); if (k === 'e' && !e.repeat) castLegend(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 $('rotL').onclick = () => { cam.theta += Math.PI / 4; Snd.play('ui'); }; $('rotR').onclick = () => { cam.theta -= Math.PI / 4; Snd.play('ui'); };
 function occupied(c, r) {
@@ -101,6 +101,7 @@ function canBuild(c, r) {
   return false;
 }
 function build(c, r) {
+  if (G.dungeon) return false; // 던전 원정: 타워·바리케이드 없음
   if (!canBuild(c, r)) { Snd.play('error'); const why = buildReason(c, r); if (why) banner(why === '경로 차단' ? '경로 차단: 길을 완전히 막을 수 없습니다' : why, '#ff8a9a', 900); return false; }
   const t = tileAt(c, r), p = new THREE.Vector3(tileX(c), .5, tileZ(r));
   if (TOWERS[G.tool]) { G.gold -= TOWERS[G.tool].cost; placeTower(t, G.tool); emit(P, p.x, .5, p.z, 30, 0xffe066, 5, .6, -6, 2); debris(p.x, .3, p.z, 8, [0xe0dacb, 0x9e98ae], 4); ringFx(p, 2, 0xffe066, .4); }
@@ -108,7 +109,7 @@ function build(c, r) {
   else if (G.tool === 'clear') { const B = BLK[t.t]; G.gold -= clearCost(t); t.wall = false; debris(p.x, .8, p.z, 16, B.deb, 6); emit(P, p.x, .8, p.z, 24, 0x8ad05a, 4, .7); t.t = T.GRASS; t.hp = t.max = 0; refreshTile(t); }
   if (!TOWERS[G.tool]) Snd.play(G.tool === 'barricade' ? 'build' : 'breakDirt', { pos: { x: tileX(c), z: tileZ(r) }, force: true }); computeDist(); refreshHud(); return true;
 }
-function setTool(t) { if (G.tool !== t) Snd.play('ui'); G.tool = t; const mi = $('modeInd');
+function setTool(t) { if (G.dungeon) t = 'move'; /* 던전 원정: 건설 없음 */ if (G.tool !== t) Snd.play('ui'); G.tool = t; const mi = $('modeInd');
   if (mi) { mi.classList.toggle('hidden', t === 'move'); mi.classList.toggle('clear', t === 'clear'); if (t !== 'move') mi.innerHTML = `${t === 'clear' ? '⛏ 개간 모드' : t === 'barricade' ? '🧱 바리케이드 설치' : '🏰 건설 모드: ' + TOWERS[t].n} <small>Esc / 우클릭: 취소</small>`; }
   if (t === 'move') { hidePreview(); rangeRing.visible = false; } document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
 document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.dataset.tool));
