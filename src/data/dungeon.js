@@ -64,6 +64,25 @@ export function waveList(floor, w) { const F = FLOORS[floor], W = F && F.waves[w
 // 임시 보상 (5단계에서 던전 메달·하루 3회 서버 강제로 교체): 돌파한 층마다 영혼석 + 5층까지 완주 보너스
 export const DG_REWARD = { perFloor: 10, clearBonus: 30 };
 export const dungeonReward = (cleared, all = FLOORS.length) => cleared <= 0 ? 0 : cleared * DG_REWARD.perFloor + (cleared >= all ? DG_REWARD.clearBonus : 0);
+// ---------- 5단계 (2026-10-23): 던전 메달 · 하루 3회 · 던전 상점 — 실제 판정은 서버(supabase/schema.sql hd3d_dungeon_*), 여기 값은 표시·테스트용 (tests/dungeon.test.mjs 가 schema.sql 과 비교)
+// 메달 = 돌파 층 × 2 + 완주(보스 처치) 5 → 판당 최대 15 · 하루 3회 (한국 시간 0시 초기화) · 서버는 시작 후 경과 시간(층당 20초)으로 층 수 상한
+// 위 dungeonReward(영혼석)는 '연습 원정'(게스트 · 오프라인 · schema.sql 다시 실행 전) 때만 주는 임시 보상
+export const DG_MEDAL = { perFloor: 2, clearBonus: 5, daily: 3, minSecPerFloor: 20 };
+export const dungeonMedals = (cleared, win, all = FLOORS.length) => { const f = Math.max(0, Math.min(all, Math.floor(+cleared || 0))); return f * DG_MEDAL.perFloor + (win && f >= all ? DG_MEDAL.clearBonus : 0); };
+export const DG_TITLES = { lich_hunter: '👑 망령 사냥꾼' };
+export const DG_SHOP = [
+  { id: 'dg_steel', price: 5, n: '강철 꾸러미', icon: '⛓', reward: { steel: 40 }, desc: '장비 강화·제작 재료 강철 40' },
+  { id: 'dg_souls', price: 6, n: '영혼석 주머니', icon: '🔮', reward: { souls: 400 }, desc: '여신 강화·전직에 쓰는 영혼석 400' },
+  { id: 'dg_crystal', price: 8, n: '마력석 꾸러미', icon: '💎', reward: { crystal: 10 }, desc: '고급 강화·전직 재료 마력석 10' },
+  { id: 'dg_essence', price: 15, n: '고유 정수', icon: '◆', reward: { essence: 3 }, desc: '고유 장비 각성 재료 고유 정수 3' },
+  { id: 'dg_title', price: 60, n: '칭호 · 망령 사냥꾼', icon: '👑', title: 'lich_hunter', desc: '던전 입장 화면과 결과 화면에 칭호 「망령 사냥꾼」 표시 (한 번만)' },
+];
+export const DG_SHOP_BY = Object.fromEntries(DG_SHOP.map(x => [x.id, x]));
+// 상점 버튼 상태: 'own'(이미 산 칭호) · 'lack'(메달 부족) · 'ok'
+export const shopState = (it, medals, titles = []) => it.title && titles.includes(it.title) ? 'own' : (+medals || 0) < it.price ? 'lack' : 'ok';
+// 서버 사유 → 한국어
+export const DG_REASON = { daily_limit: '오늘 입장 횟수(하루 3회)를 모두 썼어요. 한국 시간 0시에 초기화돼요.', not_enough: '던전 메달이 부족해요.', already: '이미 가진 칭호예요.', bad_item: '알 수 없는 상품이에요.',
+  bad_token: '이 원정은 서버에 등록되지 않아 메달을 받을 수 없어요.', used: '이미 정산된 원정이에요.', expired: '원정 시간이 너무 오래 지나 메달을 받을 수 없어요.' };
 
 // ---------- 쓰러진 영웅 복귀 · 층 사이 휴식 ----------
 export const REVIVE_HP = .3; // 쓰러진 영웅: 이 층은 쉬고 다음 층 시작 때 최대 체력의 30% 로 복귀

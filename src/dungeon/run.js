@@ -7,6 +7,7 @@ import { $ } from '../core/util.js';
 import { G } from '../core/state.js';
 import { CORE, tileX, tileZ } from '../core/grid.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
+import { DG_TITLES } from '../data/dungeon.js';
 import { FLOORS, ROLE, BLESS_BY, ULT_MAX, DG_PICK_KEY, dungeonParty, pickParty, waveList, dungeonReward, nextFloorHp, blessChoices, blessMods, ultGain, jointReady, jointDamage } from '../data/dungeon.js';
 import { FT, isRangedFoe } from '../data/fighter.js';
 import { later } from '../core/state.js';
@@ -16,6 +17,7 @@ import * as AD from '../data/advance.js';
 import * as E from '../account/equip.js';
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
+import * as DS from '../account/dungeon.js';
 import { partyWiped } from '../core/party.js';
 import { rolePlan } from './logic.js';
 import { cam } from '../render/scene.js';
@@ -38,6 +40,7 @@ export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), l
 export const loadPick = () => { try { const a = JSON.parse(localStorage.getItem(DG_PICK_KEY) || 'null'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 8) : null; } catch (e) { return null; } };
 export async function startDungeonRun() {
   $('loadTxt').textContent = '파티 확인 중…'; $('loading').classList.remove('hidden');
+  D.entry = DS.takeEntry(); G.dgEntryMode = D.entry.mode; // 5단계: 출발 때 서버가 준 1회용 입장 token (없으면 연습 원정 — 메달 없음)
   await Sh.verifyOwned(); // 로즈: 서버 소유 기록(hd3d_owned)만 믿음 — 저장 데이터의 영웅 값은 쓰지 않음
   const s = Acc.load(), party = pickParty(dungeonParty(c => Sh.heroOwned(c)), loadPick()), L = Object.fromEntries(party.map(c => [c, loadoutOf(s, c)]));
   const need = [...MON_ASSETS, ...party.flatMap(c => heroAssets(c, true))], opt = party.flatMap(c => AD.advModels(L[c].adv));
@@ -52,7 +55,7 @@ export async function startDungeonRun() {
   setControlled(G.heroes[0]); D.party = party; G.partyAI = partyAI; G.onHeroDown = () => { D.swap = true; };
   G.heroes.forEach(h => { h.ult = 0; }); setMods(); D.k0 = killCount();
   G.phase = 'wave'; G.nightTarget = .55; G.wave = 0; cam.target.set(0, 0, 1); cam.r = 50; cam.phi = .95; cam.theta = 0;
-  buildHud(); startFloor(0);
+  buildHud(); startFloor(0); if (D.entry.mode === 'ranked') DS.dgStatus().catch(() => {}); // 칭호 표시용
 }
 // 축복 배수 (역할별로 미리 계산) → hero.js stat 이 G.dgM(영웅) 으로 읽음. 던전 밖에서는 G.dgM 이 없어 일반 판과 동일
 function setMods() { const M = {}; for (const r of ['tank', 'ranged', 'caster', 'bruiser', null]) M[r] = blessMods(D.bless, r); D.mods = M; G.dgM = h => G.dungeon ? M[ROLE[h.cls] || null] || M[null] : null; }
@@ -128,7 +131,7 @@ function partyAI(h, dt) {
 // ---------- HUD: 층 표시 + 초상화 바 ----------
 function buildHud() {
   let top = $('dgTop'); if (!top) { top = document.createElement('div'); top.id = 'dgTop'; $('top').appendChild(top); }
-  top.className = 'pill dgTop'; top.innerHTML = `<span class="lbl">⚔ 던전</span><b id="dgFloor"></b><span id="dgBl" class="dgBl"></span><button id="dgGiveUp" class="dgGiveUp" title="원정 포기">🏳 포기</button>`;
+  top.className = 'pill dgTop'; top.innerHTML = `<span class="lbl">⚔ 던전${D.entry && D.entry.mode === 'practice' ? ' <i class="dgPrTag">연습</i>' : ''}</span><b id="dgFloor"></b><span id="dgBl" class="dgBl"></span><button id="dgGiveUp" class="dgGiveUp" title="원정 포기">🏳 포기</button>`;
   $('dgGiveUp').onclick = e => { e.stopPropagation(); if (D.over) return; if (!confirm('원정을 포기하고 마을로 돌아갈까요? (보상 없음)')) return; D.over = true; goTownD(); };
   let bar = $('dgBar'); if (!bar) { bar = document.createElement('div'); bar.id = 'dgBar'; $('hud').appendChild(bar); }
   bar.innerHTML = G.heroes.map((h, i) => { const C = CLASSES[h.cls], A = h.adv; return `<button class="dgP" data-i="${i}" style="--hc:#${C.color.toString(16).padStart(6, '0')}" title="${esc(heroLabel(h.cls))} (${i + 1})"><span class="dgIc">${C.icon}</span><span class="dgNm">${esc(C.nm)}${A ? `<i style="color:${A.c}">${A.icon}</i>` : ''}</span><span class="dgHp"><u></u></span><span class="dgUlt"><u></u></span><span class="dgSk"></span><span class="dgKey">${i + 1}</span></button>`; }).join('');
@@ -153,7 +156,10 @@ function refreshBar() { const F = FLOORS[D.floor], fl = $('dgFloor'); if (fl) fl
 
 // ---------- 결과 ----------
 function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase = 'over'; G.paused = false; const el0 = $('dgBless'); if (el0) el0.className = 'dgBless hidden';
-  const N = FLOORS.length, cleared = win ? N : D.cleared, got = dungeonReward(cleared, N);
+  const N = FLOORS.length, cleared = win ? N : D.cleared, E0 = D.entry || { mode: 'practice', why: 'reload' }, ranked = E0.mode === 'ranked';
+  // 메달 원정: 영혼석 대신 서버 정산(던전 메달) · 연습 원정: 임시 영혼석 (판 중 새로고침한 원정은 보상 없음)
+  const got = ranked || E0.why === 'reload' ? 0 : dungeonReward(cleared, N);
+  const PR = { guest: '게스트 연습 원정 — 로그인하면 던전 메달을 받아요', missing: '⚠ 서버 업데이트 필요 — 지금은 던전 메달 대신 임시 보상(영혼석)', error: '서버에 연결할 수 없어 연습 원정으로 진행했어요 (메달 없음)', reload: '새로고침·직접 입장한 원정은 연습이라 보상이 없어요' }, prNote = PR[E0.why] || PR.error;
   if (got > 0) { Acc.update(d => ({ ...d, souls: (d.souls || 0) + got })); Acc.flush(); }
   Snd.setMusic('none'); if (win) Snd.play('victory', { force: true, exact: true }); else Snd.play('error', { force: true });
   const sec = Math.round(D.t), el = $('stageClear'), alive = G.heroes.filter(h => h.dead <= 0).length;
@@ -162,8 +168,13 @@ function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase
   el.innerHTML = `<div class="scBox dgRes ${win ? 'win' : 'lose'}"><div class="scT">${win ? `⚔ 던전 ${N}층 완주!` : cleared ? `💀 원정 실패 · ${cleared}층 돌파` : '💀 원정 실패'}</div><div class="scS">${win ? `생존 ${alive}/${G.heroes.length}` : `${esc(FLOORS[D.floor].n)}에서 파티 전멸`} · ${Math.floor(sec / 60)}분 ${sec % 60}초${D.joints ? ` · 합동 공격 ${D.joints}회` : ''}</div>
     <div class="dgFloors">${dots}</div>
     <div class="dgResParty">${G.heroes.map(h => `<span class="${h.dead > 0 ? 'down' : ''}">${CLASSES[h.cls].icon} ${esc(CLASSES[h.cls].nm)}</span>`).join('')}</div>${bl ? `<div class="dgResBl">${bl}</div>` : ''}
-    <div class="scRw">${got ? `돌파 ${cleared}/${N}층 · 보상: 영혼석 <b>+${got}</b>${win ? ' (완주 보너스 포함)' : ''}<br><small>던전 메달·던전 상점은 준비 중이에요 (임시 보상)</small>` : '다시 도전해 보세요! 세라가 앞에서 버티는 동안 뒤에서 공격하세요.'}</div><button class="gbtn main" id="dgTown">🏠 마을로 귀환</button></div>`;
-  el.classList.remove('hidden'); $('dgTown').onclick = () => { Snd.play('confirm'); goTownD(); }; G.dgResult = { win, got, sec, alive, cleared, floor: D.floor, joints: D.joints, bless: { ...D.bless } };
+    <div class="scRw">${ranked ? `<div id="dgMedalRes" class="dgMedalRes">🏅 던전 메달 정산 중…</div>${cleared ? '' : '<small>다시 도전해 보세요! 세라가 앞에서 버티는 동안 뒤에서 공격하세요.</small>'}`
+      : got ? `돌파 ${cleared}/${N}층 · 보상: 영혼석 <b>+${got}</b>${win ? ' (완주 보너스 포함)' : ''}<br><small class="dgPrNote">${esc(prNote)}</small>` : `${cleared ? `돌파 ${cleared}/${N}층` : '다시 도전해 보세요! 세라가 앞에서 버티는 동안 뒤에서 공격하세요.'}<br><small class="dgPrNote">${esc(prNote)}</small>`}</div><button class="gbtn main" id="dgTown">🏠 마을로 귀환</button></div>`;
+  el.classList.remove('hidden'); $('dgTown').onclick = () => { Snd.play('confirm'); goTownD(); }; G.dgResult = { win, got, sec, alive, cleared, floor: D.floor, joints: D.joints, bless: { ...D.bless }, mode: E0.mode, why: E0.why || null, medals: null };
+  if (ranked) { const tok = E0.token; D.entry = { mode: 'done' }; DS.dgFinish(tok, cleared, win).then(r => { G.dgResult.medals = r; const m = $('dgMedalRes'); if (!m) return;
+    const tt = DS.DGS.titles.map(t => DG_TITLES[t]).filter(Boolean).join(' ');
+    m.innerHTML = r.ok ? `돌파 ${r.floors}/${N}층 · 🏅 던전 메달 <b>+${r.medals}</b>${r.win ? ' (완주 보너스 포함)' : ''} <span class="dgMedTot">보유 ${r.total}</span>${r.capped ? '<br><small>너무 빨리 끝나 일부 층만 인정됐어요</small>' : ''}<br><small>🏪 던전 상점(마을 던전 건물)에서 재료로 바꿀 수 있어요${tt ? ' · ' + esc(tt) : ''}</small>` : `<span class="dgUpd">⚠ ${esc(r.msg)}</span>`;
+    if (r.ok && r.medals > 0) Snd.play('coin', { force: true }); }); }
 }
 function goTownD() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('dungeon'); q.delete('run'); q.delete('stage'); q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
 export { finish as dgFinish };

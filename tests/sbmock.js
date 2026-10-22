@@ -1,5 +1,6 @@
 // Fake supabase-js createClient for tests/account.py (hero-defense-3d) (no network, no emails). Server state lives in localStorage '__mockdb'
-// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, noAdmin2: 2026-10-22 관리자 확장 SQL 미실행(새 RPC/테이블 없음), oldSchema: 격투가 서윤(hero_fighter) 추가 전 schema.sql (상품·보상 검사에 fighter 없음), confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실}). Installed as window.__hd3dSupabaseMock.
+// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, noAdmin2: 2026-10-22 관리자 확장 SQL 미실행(새 RPC/테이블 없음), oldSchema: 격투가 서윤(hero_fighter) 추가 전 schema.sql (상품·보상 검사에 fighter 없음), confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실, noDungeon: 던전 5단계(2026-10-23) SQL 미실행 — hd3d_dungeon_* 함수 없음 · 보상 medals 거부}). Installed as window.__hd3dSupabaseMock.
+// 던전 5단계(hd3d_dungeon_status/start/finish/buy · 하루 3회(KST) · token 1회 · 층당 20초 상한 · 메달 우편)도 흉내 — 판 시작 시각은 __mockdb.dg_runs[token].started (테스트가 앞당길 수 있음).
 // 관리자 확장(supabase/schema.sql 2026-10-22)도 흉내: hd3d_admins(owner)·hd3d_bans·hd3d_notices·hd3d_admin_log·hd3d_broadcasts + 권한 검사(관리자/owner/정지) 그대로.
 (() => {
   const db = () => JSON.parse(localStorage.getItem('__mockdb') || '{"users":{},"hd3d_profiles":{},"hd3d_progress":{},"hd3d_records":{},"calls":[]}');
@@ -52,7 +53,7 @@
     const INT = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
     const VITEM = x => !!x && typeof x === 'object' && !Array.isArray(x) && (x.k === 'uq' ? Object.keys(x).every(k => k === 'k' || k === 'u') && UQK.includes(x.u)
       : x.k === 'gear' && Object.keys(x).every(k => ['k', 's', 'h', 'g', 'c'].includes(k)) && ['weapon', 'armor', 'acc'].includes(x.s) && INT(x.g, 0, 4) && (x.s === 'weapon' ? HKF().includes(x.h) : !('h' in x)) && (!('c' in x) || INT(x.c, 1, 4)));
-    const VALID = r => r == null || (typeof r === 'object' && !Array.isArray(r) && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.essence == null || INT(r.essence, 0, 10000)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic' || (r.hero === 'fighter' && !flags().oldSchema))
+    const VALID = r => r == null || (typeof r === 'object' && !Array.isArray(r) && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items', ...(flags().noDungeon ? [] : ['medals'])].includes(k)) && (r.medals == null || INT(r.medals, 0, 10000)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.essence == null || INT(r.essence, 0, 10000)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic' || (r.hero === 'fighter' && !flags().oldSchema))
       && (r.items === undefined || (Array.isArray(r.items) && r.items.length >= 1 && r.items.length <= 10 && r.items.every(VITEM))));
     const REW = { hero_gunner: { hero: 'gunner' }, hero_mechanic: { hero: 'mechanic' }, hero_fighter: { hero: 'fighter' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈', hero_mechanic: '유료 영웅 · 메카닉 버들', hero_fighter: '유료 영웅 · 격투가 서윤' };
     const ITEMOK = it => it === 'hero_gunner' || it === 'hero_mechanic' || (it === 'hero_fighter' && !flags().oldSchema); // owned·orders check 제약
@@ -138,7 +139,8 @@
           const f = Object.keys(d.users).filter(id => isGameUser(d, id) && (!q || like(q, d.users[id].email, (d.hd3d_profiles[id] || {}).nickname) || id === q)).sort((x, y) => (act(y) > act(x) ? 1 : act(y) < act(x) ? -1 : x < y ? -1 : 1));
           return { data: { ok: true, total: f.length, offset: off, limit: lim, rows: f.slice(off, off + lim).map(id => card(d, id)) }, error: null }; }
         case 'hd3d_admin_user': { const c = card(d, a.p_user); if (!c) return NO('no_user'); const by = (o, n) => Object.values(o).filter(x => (x.user_id || x.target_user) === a.p_user).sort((x, y) => (x.created_at < y.created_at ? 1 : -1)).slice(0, n);
-          return { data: { ok: true, user: c, orders: by(d.hd3d_orders, 30), mail: by(d.hd3d_mail, 30).map(m => ({ id: m.id, title: m.title, reward: m.reward, claimed: m.claimed, revoked: !!m.revoked, created_at: m.created_at })), log: Object.values(d.hd3d_admin_log).filter(l => l.target_user === a.p_user).sort((x, y) => y.id - x.id).slice(0, 20) }, error: null }; }
+          return { data: { ok: true, user: c, orders: by(d.hd3d_orders, 30), mail: by(d.hd3d_mail, 30).map(m => ({ id: m.id, title: m.title, reward: m.reward, claimed: m.claimed, revoked: !!m.revoked, created_at: m.created_at })), log: Object.values(d.hd3d_admin_log).filter(l => l.target_user === a.p_user).sort((x, y) => y.id - x.id).slice(0, 20),
+            ...(flags().noDungeon ? {} : { dungeon: (() => { const w = (d.dg_wallet || {})[a.p_user] || { medals: 0, earned: 0, spent: 0 }, rs = Object.values(d.dg_runs || {}).filter(r => r.user_id === a.p_user); return { medals: w.medals, earned: w.earned, spent: w.spent, today: rs.filter(r => r.day === kstDay()).length, runs: rs.length }; })() }) }, error: null }; }
         case 'hd3d_admin_grant_hero': case 'hd3d_admin_revoke_hero': { if (!ITEMOK(a.p_item)) return NO('bad_item'); const r = reason(a.p_reason); if (!r) return NO('bad_reason'); const k = a.p_user + ':' + a.p_item;
           if (fn === 'hd3d_admin_grant_hero') { if (!d.users[a.p_user]) return NO('no_user'); if (d.hd3d_owned[k]) return NO('already'); d.hd3d_owned[k] = { user_id: a.p_user, item: a.p_item, source_mail: null, created_at: now() }; L('hero_grant', a.p_user, { item: a.p_item, reason: r }); return R({ ok: true }); }
           if (!d.hd3d_owned[k]) return NO('not_owned'); delete d.hd3d_owned[k]; let n = 0; for (const m of Object.values(d.hd3d_mail)) if (m.user_id === a.p_user && !m.claimed && !m.revoked && m.reward && 'hero_' + m.reward.hero === a.p_item) { m.revoked = true; n++; }
@@ -169,8 +171,38 @@
       }
       return { data: null, error: { code: 'PGRST202', message: 'unknown ' + fn } };
     }
+    // ---------- 던전 5단계 (schema.sql 2026-10-23 흉내) ----------
+    const DGF = ['hd3d_dungeon_status', 'hd3d_dungeon_start', 'hd3d_dungeon_finish', 'hd3d_dungeon_buy'];
+    const DGITEM = { dg_steel: { price: 5, name: '강철 꾸러미', reward: { steel: 40 } }, dg_souls: { price: 6, name: '영혼석 주머니', reward: { souls: 400 } }, dg_crystal: { price: 8, name: '마력석 꾸러미', reward: { crystal: 10 } },
+      dg_essence: { price: 15, name: '고유 정수', reward: { essence: 3 } }, dg_title: { price: 60, name: '칭호 · 망령 사냥꾼', title: 'lich_hunter' } };
+    const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    function dg(fn, a) {
+      if (flags().noDungeon) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };
+      const me = uid(); if (!me) return { data: null, error: { code: '42501', message: 'not authenticated' } };
+      const d = db(); d.dg_runs = d.dg_runs || {}; d.dg_wallet = d.dg_wallet || {}; d.dg_buys = d.dg_buys || []; d.hd3d_mail = d.hd3d_mail || {};
+      const R = data => { put(d); return { data, error: null }; }, mine = Object.values(d.dg_runs).filter(r => r.user_id === me), w = d.dg_wallet[me];
+      if (fn === 'hd3d_dungeon_status') { const used = mine.filter(r => r.day === kstDay()).length; return { data: { ok: true, day: kstDay(), limit: 3, used, left: Math.max(0, 3 - used), medals: w ? w.medals : 0, titles: w ? w.titles : [], banned: banned() }, error: null }; }
+      if (banned()) return { data: null, error: { code: '42501', message: 'banned', hint: 'banned' } };
+      if (fn === 'hd3d_dungeon_start') { const used = mine.filter(r => r.day === kstDay()).length; if (used >= 3) return { data: { ok: false, reason: 'daily_limit', limit: 3, used, left: 0 }, error: null };
+        for (const r of mine) if (r.status === 'active') Object.assign(r, { status: 'abandoned', floors: 0, win: false, finished: Date.now() });
+        const token = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ Math.random() * 16 >> c / 4).toString(16)); d.dg_runs[token] = { token, user_id: me, day: kstDay(), status: 'active', started: Date.now(), floors: null, win: null, medals: 0 };
+        return R({ ok: true, token, limit: 3, used: used + 1, left: 2 - used }); }
+      if (fn === 'hd3d_dungeon_finish') { const r = d.dg_runs[a.p_token]; if (!r || r.user_id !== me) return { data: { ok: false, reason: 'bad_token' }, error: null };
+        if (r.status !== 'active') return { data: { ok: false, reason: 'used', status: r.status, medals: r.medals }, error: null };
+        const sec = (Date.now() - r.started) / 1000; if (sec > 3 * 3600) { Object.assign(r, { status: 'abandoned', floors: 0, win: false }); return R({ ok: false, reason: 'expired' }); }
+        const want = Math.min(Math.max(Math.floor(+a.p_floors || 0), 0), 5), fl = Math.min(want, Math.floor(sec / 20)), win = !!a.p_win && fl === 5, m = fl * 2 + (win ? 5 : 0);
+        Object.assign(r, { status: 'done', floors: fl, win, medals: m, finished: Date.now() }); const W = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; W.medals = Math.min(1e6, W.medals + m); W.earned += m;
+        return R({ ok: true, medals: m, total: W.medals, floors: fl, win, capped: fl < want }); }
+      if (fn === 'hd3d_dungeon_buy') { const it = DGITEM[a.p_item]; if (!it) return { data: { ok: false, reason: 'bad_item' }, error: null };
+        if (it.title && w && w.titles.includes(it.title)) return { data: { ok: false, reason: 'already', medals: w.medals }, error: null };
+        if (!w || w.medals < it.price) return { data: { ok: false, reason: 'not_enough', medals: w ? w.medals : 0, price: it.price }, error: null };
+        w.medals -= it.price; w.spent += it.price; if (it.title) w.titles.push(it.title); let mid = null;
+        if (it.reward) mid = mail(d, me, '🏪 던전 상점 구매품', `${it.name} — 던전 메달 ${it.price}개로 구매했습니다. '받기'를 눌러 수령하세요.`, { ...it.reward });
+        d.dg_buys.push({ user_id: me, item: a.p_item, price: it.price, mail_id: mid }); return R({ ok: true, item: a.p_item, price: it.price, medals: w.medals, mail: mid, titles: w.titles.slice() }); }
+    }
     async function rpc(fn, a) {
       log('rpc:' + fn); if (flags().offline) return { data: null, error: { message: 'TypeError: Failed to fetch' } };
+      if (DGF.includes(fn)) { if (flags().noTables) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } }; return dg(fn, a || {}); }
       const SHOPF = ['hd3d_claim_mail', 'hd3d_admin_approve', 'hd3d_admin_reject', 'hd3d_admin_send_mail', 'hd3d_is_admin', 'hd3d_is_owner'];
       if (flags().noTables || (flags().noShop && (SHOPF.includes(fn) || ADM2F.includes(fn))) || (flags().noAdmin2 && (ADM2F.includes(fn) || fn === 'hd3d_is_owner'))) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };
       if (ADM2F.includes(fn) && !uid()) return { data: null, error: { code: '42501', message: 'permission denied for function ' + fn } };
@@ -182,7 +214,8 @@
           const m = d.hd3d_mail[a.p_mail_id]; if (!m || m.user_id !== me) return { data: null, error: { code: 'P0002', message: 'mail not found' } };
           if (m.revoked && !m.claimed) return { data: null, error: { code: 'P0002', message: 'mail revoked', hint: 'revoked' } };
           if (m.claimed) return { data: { ok: true, already: true, id: m.id, reward: m.reward }, error: null }; // schema.sql: already 일 때도 reward 반환 (장부 복구용)
-          m.claimed = true; m.claimed_at = now(); if (m.reward && m.reward.hero) { const k = me + ':hero_' + m.reward.hero; d.hd3d_owned[k] = d.hd3d_owned[k] || { user_id: me, item: 'hero_' + m.reward.hero, source_mail: m.id, created_at: now() }; }
+          m.claimed = true; m.claimed_at = now(); if (m.reward && m.reward.medals > 0) { d.dg_wallet = d.dg_wallet || {}; const w = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; w.medals = Math.min(1e6, w.medals + m.reward.medals); w.earned += m.reward.medals; }
+          if (m.reward && m.reward.hero) { const k = me + ':hero_' + m.reward.hero; d.hd3d_owned[k] = d.hd3d_owned[k] || { user_id: me, item: 'hero_' + m.reward.hero, source_mail: m.id, created_at: now() }; }
           if (flags().loseClaim) { put(d); return netErr(); } // 서버에선 성공했지만 응답 유실
           return R({ ok: true, already: false, id: m.id, reward: m.reward }); }
         if (fn === 'hd3d_is_owner') return { data: isOwner(), error: null };

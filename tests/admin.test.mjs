@@ -52,4 +52,8 @@ const [s1b, okb] = applyMail(s1, 11, { essence: 7, items: [G] }); ok('claim_once
 const [s2, ok2, res2] = applyMail(s1, 12, { items: [U] }); ok('unique_dup_converted', ok2 && s2.chests.filter(c => c.it.uq === 'f_bow').length === 1 && res2[0].dup && s2.mat.essence === 12 && s2.mat.crystal === 6, [s2.mat, res2]);
 const [s3, , res3] = applyMail(empty(), 13, { items: [G] }), [s4] = applyMail(empty(), 13, { items: [G] }); ok('gear_deterministic', JSON.stringify(s3.chests[0].it) === JSON.stringify(s4.chests[0].it) && res3.length === 1, [s3.chests, s4.chests, res3.length]);
 const [s5] = applyMail(empty(), 14, { essence: 1e9, items: [{ k: 'uq', u: 'nope' }, { k: 'gear', s: 'weapon', h: 'mechanic', g: 2 }] }); ok('claim_clamp_hidden', s5.mat.essence === 10000 && s5.chests.length === 1 && s5.chests[0].it.h === 'archer', s5.chests);
+// 던전 메달 우편 (2026-10-23): 0~10,000 정수 · 서버 hd3d_valid_reward 와 같은 규칙 · 세이브에는 더하지 않음 (서버 지갑)
+ok('reward_medals', JSON.stringify(L.buildReward({ medals: '30' })) === '{"medals":30}' && L.buildReward({ medals: 99999 }).medals === 10000 && !('medals' in L.buildReward({ medals: -3 })) && L.validReward({ medals: 10000 }) && !L.validReward({ medals: 10001 }) && !L.validReward({ medals: 1.5 }) && !L.validReward({ medals: '5' }));
+ok('reward_medals_sql', SQL.includes("'items', 'medals'") && SQL.includes("(r ->> 'medals')::int <= 10000") && SQL.includes('public.hd3d_dungeon_wallet.medals + excluded.medals') && MOCK.includes("['medals']"));
+{ const [s6, ok6] = applyMail(empty(), 15, { medals: 50, souls: 5 }); ok('claim_medals_not_in_save', ok6 && s6.souls === 5 && !JSON.stringify(s6).includes('medal'), s6.souls); }
 console.log(`${n - f}/${n}`, f ? 'FAIL' : 'ALL OK'); process.exit(f ? 1 : 0);

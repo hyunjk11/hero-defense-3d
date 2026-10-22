@@ -43,7 +43,7 @@ export const sameItem = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // 받기 미리보기 문장 (고유 중복 변환 안내 포함)
 export function previewLines(rw, owns = () => false) {
   const o = [], f = n => (+n || 0).toLocaleString('ko-KR'); if (!rw) return o;
-  for (const [k, n] of [['souls', '영혼석'], ['steel', '강철'], ['crystal', '마력석'], ['essence', '고유 정수(조각)']]) if (+rw[k]) o.push(`${n} +${f(rw[k])}`);
+  for (const [k, n] of [['souls', '영혼석'], ['steel', '강철'], ['crystal', '마력석'], ['essence', '고유 정수(조각)'], ['medals', '🏅 던전 메달']]) if (+rw[k]) o.push(`${n} +${f(rw[k])}`);
   if (rw.hero && CLASSES[rw.hero]) o.push(`유료 영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n} 해금`);
   for (const x of cleanItems(rw.items)) o.push(x.k === 'uq' ? `${itemLabel(x)} → 🎁 상자${owns(x.u) ? ' (이미 보유 시 고유 정수 5·마력석 6·영혼석 150 으로 변환)' : ' (이미 있으면 고유 정수 5·마력석 6·영혼석 150 으로 변환)'}` : `${itemLabel(x)} → 🎁 상자`);
   return o;

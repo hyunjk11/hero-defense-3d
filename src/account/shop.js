@@ -111,7 +111,7 @@ export async function recoverClaims() { if (recovering || !A.user) return 0; rec
   try { for (const id of pendList()) { const r = await claim(id, { quiet: true }); if (r.recovered || (r.ok && !r.already)) n++; } } finally { recovering = false; } return n; }
 // 영혼석·재료는 저장 데이터에 더하고 장부에 id 기록 (한 번만). 영웅은 서버 hd3d_owned 로 해금 → refresh
 function applyReward(id, rw) { const [s, ok, res] = applyMail(accLoad(), id, rw); if (ok) accStore(s); return [ok, res || []]; }
-export function rewardText(rw) { if (!rw) return ''; const o = []; if (rw.hero && CLASSES[rw.hero]) o.push(`영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n}`); if (+rw.souls) o.push(`영혼석 ${+rw.souls}`); if (+rw.steel) o.push(`강철 ${+rw.steel}`); if (+rw.crystal) o.push(`마력석 ${+rw.crystal}`); if (+rw.essence) o.push(`고유 정수 ${+rw.essence}`); const it = itemsText(rw.items); if (it) o.push(it); return o.join(' · '); }
+export function rewardText(rw) { if (!rw) return ''; const o = []; if (rw.hero && CLASSES[rw.hero]) o.push(`영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n}`); if (+rw.souls) o.push(`영혼석 ${+rw.souls}`); if (+rw.steel) o.push(`강철 ${+rw.steel}`); if (+rw.crystal) o.push(`마력석 ${+rw.crystal}`); if (+rw.essence) o.push(`고유 정수 ${+rw.essence}`); if (+rw.medals) o.push(`던전 메달 ${+rw.medals}`); const it = itemsText(rw.items); if (it) o.push(it); return o.join(' · '); }
 
 // ---------- 관리자 (서버가 hd3d_is_admin()으로 다시 검사) ----------
 export async function adminOrders() {
@@ -119,7 +119,7 @@ export async function adminOrders() {
   if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : error.message }; S.adminOrders = data || []; emit(); return { ok: true, list: S.adminOrders };
 }
 async function adminRpc(fn, args) { const c = await sb(), { data, error } = await q(c.rpc(fn, args)); if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : /forbidden|42501/.test(error.message + error.code) ? '관리자 권한이 없습니다.' : error.message };
-  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: (args && args.p_reward && args.p_reward.hero === 'fighter') ? '서버 업데이트 필요: schema.sql 을 다시 실행해 주세요 (격투가 서윤)' : '보상 값이 올바르지 않습니다.', bad_title: '제목을 확인해 주세요.' }[data.reason] || '실패' }; return { ok: true, data }; }
+  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: (args && args.p_reward && args.p_reward.hero === 'fighter') ? '서버 업데이트 필요: schema.sql 을 다시 실행해 주세요 (격투가 서윤)' : (args && args.p_reward && args.p_reward.medals) ? '서버 업데이트 필요: schema.sql 을 다시 실행해 주세요 (던전 메달)' : '보상 값이 올바르지 않습니다.', bad_title: '제목을 확인해 주세요.' }[data.reason] || '실패' }; return { ok: true, data }; }
 export const approve = id => adminRpc('hd3d_admin_approve', { p_order_id: id });
 export const reject = (id, reason) => adminRpc('hd3d_admin_reject', { p_order_id: id, p_reason: reason || null });
 export const sendMail = (email, title, body, reward) => adminRpc('hd3d_admin_send_mail', { p_email: email, p_title: title, p_body: body || '', p_reward: reward && Object.keys(reward).length ? reward : null });

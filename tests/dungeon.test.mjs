@@ -1,6 +1,8 @@
 // 던전 순수 로직 단위 테스트: 파티 구성(로즈는 서버 소유만, 버들 제외) · 맵 · 웨이브 · 흐름장 · 어그로 · 역할 AI
 import assert from 'node:assert/strict';
 import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K, DG_BOSS, DG_BOSS_TYPE, lanceTarget, segDist, lanceVictim, interceptPoint, circleSpots, inCircle, dodgePoint, summonDue } from '../src/data/dungeon.js';
+import { DG_MEDAL, dungeonMedals, DG_SHOP, DG_SHOP_BY, DG_TITLES, shopState, DG_REASON } from '../src/data/dungeon.js';
+import { readFileSync } from 'node:fs';
 import { ETYPES } from '../src/data/monsters.js';
 import { bfsField, downhill, aggroHero, bestCluster, rolePlan } from '../src/dungeon/logic.js';
 let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
@@ -83,4 +85,16 @@ t('보스 원: 영웅 발밑 먼저 · 남는 수는 주변 · 방 안', () => {
   assert.equal(circleSpots([], 3).length, 0); assert.ok(inCircle({ x: 0, z: 0 }, { x: 1, z: 1 }, 2) && !inCircle({ x: 0, z: 0 }, { x: 2, z: 2 }, 2));
   const d = dodgePoint({ x: 0, z: 0 }, { x: 1, z: 0 }, 2); assert.ok(d.x > 2 && !inCircle({ x: 0, z: 0 }, d, 2.3)); assert.ok(!inCircle({ x: 0, z: 0 }, dodgePoint({ x: 0, z: 0 }, { x: 0, z: 0 }, 2), 2)); });
 t('보스 소환: 75%·40% 한 번씩', () => { assert.deepEqual(summonDue(.9), []); assert.deepEqual(summonDue(.7), [0]); assert.deepEqual(summonDue(.7, [0]), []); assert.deepEqual(summonDue(.3, [0]), [1]); assert.deepEqual(summonDue(.3), [0, 1]); });
+// ---------- 5단계: 던전 메달 · 상점 (표시용 값이 서버 schema.sql 상수와 같은지) ----------
+const SQL = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+t('메달: 층당 2 + 완주 5, 범위 밖 값은 자름', () => { assert.equal(dungeonMedals(0, false), 0); assert.equal(dungeonMedals(3, false), 6); assert.equal(dungeonMedals(5, true), 15); assert.equal(dungeonMedals(5, false), 10);
+  assert.equal(dungeonMedals(4, true), 8); assert.equal(dungeonMedals(99, true), 15); assert.equal(dungeonMedals(-2, true), 0); assert.equal(dungeonMedals('x', false), 0); });
+t('메달 상수 = schema.sql', () => { assert.ok(SQL.includes(`v_m := v_fl * ${DG_MEDAL.perFloor} + case when v_win then ${DG_MEDAL.clearBonus} else 0 end`)); assert.ok(SQL.includes(`floor(v_sec / ${DG_MEDAL.minSecPerFloor})`));
+  assert.ok(SQL.includes(`if v_used >= ${DG_MEDAL.daily} then`)); assert.ok(SQL.includes(`least(greatest(coalesce(p_floors, 0), 0), ${FLOORS.length})`)); assert.ok(SQL.includes("at time zone 'Asia/Seoul'")); });
+t('상점 가격표 = schema.sql hd3d_dungeon_item', () => { const fn = SQL.slice(SQL.indexOf('function public.hd3d_dungeon_item'), SQL.indexOf('function public.hd3d_kst_day'));
+  const rows = [...fn.matchAll(/when '(\w+)'\s+then '(\{.*?\})'::jsonb/g)].map(m => [m[1], JSON.parse(m[2])]); assert.equal(rows.length, DG_SHOP.length);
+  for (const [id, j] of rows) { const it = DG_SHOP_BY[id]; assert.ok(it, id); assert.equal(it.price, j.price, id); assert.equal(it.n, j.name, id); assert.deepEqual(it.reward || null, j.reward || null, id); assert.equal(it.title || null, j.title || null, id); if (it.title) assert.ok(DG_TITLES[it.title]); }
+  assert.ok(DG_SHOP.every(x => x.price > 0 && x.price <= 100 && x.desc)); });
+t('상점 버튼 상태', () => { const T = DG_SHOP_BY.dg_title, S = DG_SHOP_BY.dg_steel; assert.equal(shopState(S, 5), 'ok'); assert.equal(shopState(S, 4), 'lack'); assert.equal(shopState(T, 999, ['lich_hunter']), 'own'); assert.equal(shopState(T, 59, []), 'lack'); assert.equal(shopState(S, undefined), 'lack'); });
+t('서버 사유 문구', () => { for (const r of ['daily_limit', 'not_enough', 'already', 'bad_item', 'bad_token', 'used', 'expired']) assert.ok(DG_REASON[r] && /[가-힣]/.test(DG_REASON[r]), r); });
 console.log(`dungeon: ${ok} ok`);
