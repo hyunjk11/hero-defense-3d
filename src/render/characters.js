@@ -300,7 +300,7 @@ function makeBat() {
 const SHARED_BODY = {};
 // Meshy 보스 몸 (E.mesh 가 불러와졌을 때만). 해골 몬스터용 이름으로 부르는 동작(걷기·공격·죽음·출현)을 전용 클립에 연결
 const LICH_ALIAS = { Walking_D_Skeletons: 'Walk', Unarmed_Melee_Attack_Punch_A: 'Attack', Death_A: 'Death', Spawn_Ground_Skeletons: 'Scream', Hit_A: 'Hit', Idle_Combat: 'Idle' };
-function makeLich(E) { const ch = makeChar(E.mesh, E.h, GL[E.mesh].animations, .05); for (const [a, b] of Object.entries(LICH_ALIAS)) if (ch.acts[b] && !ch.acts[a]) ch.acts[a] = ch.acts[b]; ch.lich = true; return ch; }
+function makeLich(E) { const ch = makeChar(E.mesh, E.h, GL[E.mesh].animations, .05); for (const [a, b] of Object.entries(LICH_ALIAS)) if (ch.acts[b] && !ch.acts[a]) ch.acts[a] = ch.acts[b]; ch.lich = true; for (const m of ch.mats) m.emissiveIntensity = .3; /* 피격 플래시를 약하게 (영웅 4명이 계속 때려도 하얗게 뜨지 않게) */ return ch; }
 function makeEnemyModel(type) {
   const E = ETYPES[type]; if (E.mesh && GL[E.mesh]) return makeLich(E); if (E.proc === 'wisp') return makeWisp(E); if (E.proc === 'wolf') return makeWolf(E); if (E.proc === 'slime') return makeSlime(E); if (E.fly) return makeBat();
   // 몸 머티리얼은 종류별로 한 벌만 (첫 개체가 색조·눈 발광을 정한 뒤 공유) → 개체마다 clone 하던 머티리얼 수·GPU 유니폼 업로드 감소. 소품 머티리얼(버섯 갓·얼음 등 개체별 변화)은 그대로 개체별

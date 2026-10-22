@@ -80,8 +80,8 @@ def boss_checks(pg, tag):
         ok('boss_circles', nc == 3 and lc['circles'] == 1 and lc['hp'][2] < lc['max'][2] and 1 <= lc['circleHits'] < alive, (nc, lc))
         # 소환 75% · 분노 50% (원 5개 · 창 2연속) · 소환 40%
         J(pg, "()=>{ const b=%s; b.hp=b.max*.7; b.bz.lanceT=99; b.bz.circT=99; G.sim(.2); }" % BOSS)
-        sm = J(pg, "()=>[G.dgB.log.summons, G.enemies.filter(e=>e.summoned&&!e.dead).length, G.dgB.log.phase2]")
-        ok('boss_summon_75', sm[0] == 1 and sm[1] >= 3 and not sm[2], sm)
+        sm = J(pg, "()=>[G.dgB.log.summons, G.dgB.log.summoned, G.dgB.log.phase2, G.enemies.filter(e=>e.summoned).length]")
+        ok('boss_summon_75', sm[0] == 1 and sm[1] == 3 and sm[3] >= 1 and not sm[2], sm)
         J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); const b=%s; b.hp=b.max*.45; b.bz.hold=0; G.sim(.2); }" % BOSS)
         ph = J(pg, "()=>{ const b=%s; return [G.dgB.log.phase2, b.spdK, document.getElementById('banner').innerText]; }" % BOSS)
         ok('boss_phase2', ph[0] and ph[1] > 1, ph)
@@ -94,7 +94,7 @@ def boss_checks(pg, tag):
         J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); G.heroes.forEach(h=>{ h.dead=0; h.hp=h.max; }); G.sim(2.5); }")
     # 스크린샷: 창 + 원 예고 동시에
     place(pg, [[0, 5, 1], [1, 11, 0], [2, 8, 5], [3, 7, -5]])
-    J(pg, "()=>{ const b=%s; b.bz.hold=0; b.bz.lanceT=0; b.bz.circT=99; G.sim(.1); b.bz.hold=0; b.bz.circT=0; b.bz.lanceT=99; G.sim(.6); G.cam.target.set(b.g.position.x+5,0,b.g.position.z); }" % BOSS)
+    J(pg, "()=>{ const b=%s; b.bz.hold=0; b.bz.lanceT=0; b.bz.circT=99; G.sim(.1); b.bz.hold=0; b.bz.circT=0; b.bz.lanceT=99; G.sim(.6); G.cam.target.set(b.g.position.x+5,0,b.g.position.z); b.flash=0; }" % BOSS)
     shot(pg, f'boss_{tag}', True)
     J(pg, "()=>G.sim(2)")
 def login(pg, email, owned=False):

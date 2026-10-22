@@ -73,7 +73,7 @@ function fireLance(f) {
 function startCircles(e, z) {
   const n = z.phase === 2 ? B.circles.n2 : B.circles.n, spots = circleSpots(hs(), n, G.dgRnd || Math.random); if (!spots.length) return;
   z.hold = Math.max(z.hold, B.circles.windup * .7); play(e.m, ANIM(e.m).circ, { once: true, force: true, speed: .9 }); S.log.circles++;
-  for (const c of spots) { const grp = new THREE.Group(), r = B.circles.r, ring = new THREE.Mesh(new THREE.RingGeometry(r * .9, r, 48), glowMat(0xb04aff, .75)), fill = new THREE.Mesh(new THREE.CircleGeometry(r, 40), glowMat(0x8a3aff, .35));
+  for (const c of spots) { const grp = new THREE.Group(), r = B.circles.r, ring = new THREE.Mesh(new THREE.RingGeometry(r * .86, r, 48), glowMat(0xc05aff, .95)), fill = new THREE.Mesh(new THREE.CircleGeometry(r, 40), glowMat(0x9a4aff, .45));
     ring.rotation.x = fill.rotation.x = -Math.PI / 2; fill.scale.setScalar(.05); grp.add(ring, fill); grp.position.set(c.x, .15, c.z); scene.add(grp);
     S.fx.push({ k: 'circ', t: B.circles.windup, T: B.circles.windup, c, grp, fill, r }); }
   Snd.play('meteorCast', { pos: e.g.position, rate: .55 }); banner('🔮 망령의 원! 원 밖으로 피하세요', '#c8a0ff', 1200);
@@ -101,7 +101,7 @@ export function updBossFx(dt) {
     if (f.fired) { f.life -= dt; const o = Math.max(0, f.life / .3); f.grp.traverse(m => { if (m.material) m.material.opacity *= o > 0 ? .85 : 0; }); if (f.life <= 0) { killFx(f); S.fx.splice(i, 1); } continue; }
     const q = 1 - Math.max(0, f.t / f.T);
     if (f.k === 'lance') { f.fill.scale.y = Math.max(.01, q); f.fill.position.z = f.len * q / 2; f.fill.material.opacity = .35 + .4 * q; }
-    else { f.fill.scale.setScalar(Math.max(.05, q)); f.fill.material.opacity = .25 + .35 * q; }
+    else { f.fill.scale.setScalar(Math.max(.05, q)); f.fill.material.opacity = .3 + .4 * q; }
     if (f.t <= 0) { f.fired = true; f.life = .3; if (f.k === 'lance') fireLance(f); else due.push(f); } }
   if (due.length) burstCircles(due);
 }
