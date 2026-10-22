@@ -16,7 +16,7 @@
 - [x] 테스트: 브라우저 rose_rifle(14 ok) → advance(54 ok) → items_ui(55/55) → tablet(198 ok) → regress(DIFF 1 = boot.models 에 rose_rifle_* 추가, 예상된 차이 · 허용 4 이내, 콘솔 오류 0) (하나씩)
 - [x] 스크린샷 shots/advance/rose_rifle_*.png (턴어라운드 · 인게임 1440x860/1024x600 · 전직 탭 카드) 직접 확인
 - [x] CHANGELOG
-- [ ] push + GitHub Pages built + 라이브 200
+- [x] push + GitHub Pages built + 라이브 200 (models/rose_rifle_meshy.glb · rose_rifle_gun.glb 200)
 
 ## 저장 호환
 분기 키 `thorn` 을 그대로 쓰고 내용만 바꿈 → 기존 `{adv:{gunner:{b:'thorn',n}}}` 저장은 비용 없이 자동으로 장미 저격수가 됨 (cleanAdv 는 키만 확인).
