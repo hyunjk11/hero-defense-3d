@@ -86,7 +86,7 @@ function killEnemy(e) {
   if (e.E.boss) { G.shake = 1.1; emit(PB, p.x, p.y, p.z, 60, 0xff8a3a, 12, 1.2, -3, 3); banner(`${e.E.n} 처치!`, '#ffd23a'); Snd.play('boom', { pos: p, force: true }); later(.6, () => Snd.play('victory', { force: true, exact: true })); }
   if (e.E.elite) G.eliteKills = (G.eliteKills || 0) + 1; // 하드 정예 처치 → 클리어 보너스 영혼석
   if (e.E.boss && G.perm) (G.runBossKills ||= []).push(G.wave); // 고유 ③ 숨은 보물 / 도전 모드 정수 판정용 (판 종료 applyRun)
-  if (e.E.boss && G.perm && G.hero && (G.forceDrop || Math.random() < BOSS_DROP)) { const it = randomItem(G.hero.cls, bossOdds(G.wave + (G.hard && STAGE ? 5 * HARD.tierUp : 0)), Math.random, undefined, G.dropCh); /* 스테이지 = 그 챕터 세트, 도전 모드 = 열린 챕터 무작위 */ (G.runDrops ||= []).push(it); lootFx(p, it.g); // 보스 장비 드롭 (마을 출정 때만)
+  if (e.E.boss && G.perm && G.hero && !G.dungeon && (G.forceDrop || Math.random() < BOSS_DROP)) { const it = randomItem(G.hero.cls, bossOdds(G.wave + (G.hard && STAGE ? 5 * HARD.tierUp : 0)), Math.random, undefined, G.dropCh); /* 스테이지 = 그 챕터 세트, 도전 모드 = 열린 챕터 무작위 */ (G.runDrops ||= []).push(it); lootFx(p, it.g); // 보스 장비 드롭 (마을 출정 때만 · 던전 원정 제외: 던전 보상은 5단계 던전 메달)
     later(1.2, () => { banner(`✦ ${GRADES[it.g].n} 장비 획득: ${it.n} ✦`, GRADES[it.g].c, 2600); Snd.play('levelUp', { force: true }); Snd.play('coins', { force: true }); }); }
   G.gold += e.E.gold; G.stats.goldEarned += e.E.gold; G.stats.kills[e.type] = (G.stats.kills[e.type] || 0) + 1; popCoins(p, Math.ceil(e.E.gold / 2)); Snd.play(e.E.fly ? 'poof' : 'bones', { pos: p, rate: e.E.boss ? .6 : 1, force: e.E.boss }); e.dying = e.E.fly ? .7 : 1.6;
   if (!e.E.fly) play(e.m, 'Death_A', { once: true, fade: .1 });

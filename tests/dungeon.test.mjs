@@ -1,6 +1,7 @@
 // 던전 순수 로직 단위 테스트: 파티 구성(로즈는 서버 소유만, 버들 제외) · 맵 · 웨이브 · 흐름장 · 어그로 · 역할 AI
 import assert from 'node:assert/strict';
-import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick } from '../src/data/dungeon.js';
+import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K } from '../src/data/dungeon.js';
+import { ETYPES } from '../src/data/monsters.js';
 import { bfsField, downhill, aggroHero, bestCluster, rolePlan } from '../src/dungeon/logic.js';
 let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
 const H = (cls, x, z, dead = 0) => ({ cls, dead, g: { position: { x, z } } });
@@ -27,6 +28,25 @@ t('역할 AI: 원거리는 사거리 밖이면 다가감 (사거리 75% 지점)'
 t('역할 AI: 원거리 사거리 안이면 제자리', () => assert.equal(rolePlan('ranged', { x: 0, z: 0, range: 10, skillReady: false }, { enemies: [{ x: 7, z: 0 }] }).move, null));
 t('역할 AI: 마법사는 밀집 지점을 노리고 3명 이상이면 스킬', () => { const E = [{ x: 7, z: 0 }, { x: 0, z: 8 }, { x: .5, z: 8.5 }, { x: -.5, z: 8 }]; const p = rolePlan('caster', { x: 0, z: 0, range: 9, skillReady: true }, { enemies: E }); assert.ok(p.focus >= 1); assert.ok(p.skill && p.skill.z > 7); });
 t('역할 AI: 적 없으면 조작 영웅 따라감', () => { const p = rolePlan('ranged', { x: 0, z: 0, range: 10 }, { lead: { x: 10, z: 0 } }); assert.ok(p.move.x > 6); assert.equal(rolePlan('ranged', { x: 0, z: 0, range: 10 }, { lead: { x: 2, z: 0 } }).move, null); });
+t('5개 층 · 5층 보스 방 · 몬스터 종류 존재 · 층마다 더 강해짐', () => { assert.equal(FLOORS.length, 5); assert.ok(FLOORS[4].boss && FLOORS[4].waves.flat().some(([k]) => k === 'boss'));
+  for (const F of FLOORS) for (const [k] of F.waves.flat()) assert.ok(ETYPES[k], k); for (let i = 1; i < 4; i++) assert.ok(FLOORS[i].hpMul >= FLOORS[i - 1].hpMul && FLOORS[i].dmgMul >= FLOORS[i - 1].dmgMul);
+  for (let f = 0; f < 5; f++) assert.ok(waveList(f, 0).length > 0); });
+t('쓰러진 영웅: 다음 층 체력 30% · 생존 영웅 +15% (최대 초과 없음)', () => { assert.equal(REVIVE_HP, .3); assert.equal(nextFloorHp(0, 1000, true), 300); assert.equal(nextFloorHp(500, 1000, false), 650); assert.equal(nextFloorHp(990, 1000, false), 1000); });
+t('보상: 돌파한 층 × 10 + 완주 30', () => { assert.equal(dungeonReward(0), 0); assert.equal(dungeonReward(1), 10); assert.equal(dungeonReward(3), 30); assert.equal(dungeonReward(5), 80); });
+t('축복 후보: 3개 · 중복 없음 · 없는 역할 제외 · 최대 횟수 제외', () => { let q = 7; const r = () => (q = (q * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 50; i++) { const c = blessChoices({}, ['tank', 'caster'], r); assert.equal(c.length, 3); assert.equal(new Set(c).size, 3); assert.ok(!c.includes('ranged')); c.forEach(id => assert.ok(BLESS_BY[id])); }
+  const full = Object.fromEntries(BLESS.map(b => [b.id, b.max])); assert.deepEqual(blessChoices(full, ['tank', 'ranged', 'caster'], r), []);
+  const left = { ...full, haste: 0 }; assert.deepEqual(blessChoices(left, ['tank'], r), ['haste']); assert.equal(blessChoices({}, ['tank', 'ranged', 'caster'], () => .999).length, 3); });
+t('축복 효과: 공통 + 역할 한정', () => { const N = blessMods({}); assert.deepEqual([N.rate, N.dmg, N.crit, N.critD, N.ult, N.taken, N.range, N.cd, N.regen], [1, 1, 0, 0, 1, 1, 1, 1, 0]);
+  const B = { haste: 2, might: 1, crit: 1, tank: 1, ranged: 1, caster: 1, ult: 1, regen: 1 };
+  const T = blessMods(B, 'tank'), Rr = blessMods(B, 'ranged'), C = blessMods(B, 'caster');
+  assert.ok(Math.abs(T.rate - 1.3) < 1e-9 && Math.abs(T.dmg - 1.12) < 1e-9 && T.crit === 12 && T.critD === 25 && T.taken === .75 && T.range === 1 && T.cd === 1);
+  assert.ok(Math.abs(Rr.dmg - 1.12 * 1.15) < 1e-9 && Math.abs(Rr.range - 1.15) < 1e-9 && Rr.taken === 1); assert.ok(C.cd === .75 && C.range === 1 && Math.abs(C.ult - 1.4) < 1e-9 && C.regen === .01);
+  const F = blessMods({ bruiser: 1 }, 'bruiser'); assert.ok(Math.abs(F.dmg - 1.2) < 1e-9 && F.taken === .85); assert.equal(blessMods({ bruiser: 1 }, 'tank').dmg, 1); assert.ok(!blessChoices({}, ['tank'], () => 0, 20).includes('bruiser')); });
+t('궁극기 게이지: 전투 중 시간 + 처치, 배수', () => { assert.equal(ultGain(1, 0, false), 0); assert.equal(ultGain(2, 0, true), 2); assert.equal(ultGain(0, 4, false), 6); assert.ok(Math.abs(ultGain(1, 2, true, 1.4) - 5.6) < 1e-9); });
+t('합동 공격: 살아있는 영웅 전원 가득일 때만 · 피해 = 공격력 합 × K', () => { const h = (ult, dead = 0) => ({ ult, dead });
+  assert.ok(jointReady([h(100), h(100), h(100)])); assert.ok(!jointReady([h(100), h(99.9), h(100)])); assert.ok(jointReady([h(100), h(0, 1e9), h(100)])); /* 쓰러진 영웅은 제외 */
+  assert.ok(!jointReady([h(100, 1e9)])); assert.ok(!jointReady([])); assert.equal(ULT_MAX, 100); assert.equal(jointDamage([50, 24, 34]), 108 * JOINT_K); });
 t('파티 후보: 서윤도 소유(true)일 때만', () => { assert.deepEqual(dungeonParty(c => c === 'fighter'), ['warrior', 'archer', 'mage', 'fighter']); assert.deepEqual(dungeonParty(() => true), ['warrior', 'archer', 'mage', 'gunner', 'fighter']); assert.equal(ROLE.fighter, 'bruiser'); });
 t('파티 고르기: 기본 = 후보 앞 4명 · 후보 순서 · 최대 4 · 소유 안 한 영웅 제외', () => { const all = ['warrior', 'archer', 'mage', 'gunner', 'fighter'];
   assert.equal(DG_MAX, 4); assert.deepEqual(pickParty(all, null), all.slice(0, 4)); assert.deepEqual(pickParty(all, []), all.slice(0, 4)); assert.deepEqual(pickParty(all, ['fighter', 'mage']), ['mage', 'fighter']);
