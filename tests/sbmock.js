@@ -47,7 +47,13 @@
     const nid = d => (d.seq = (d.seq || 0) + 1), now = () => new Date(Date.now() + (db().seq || 0)).toISOString();
     const ts = d => { d.lastTs = Math.max(Date.now(), (d.lastTs || 0) + 1); return new Date(d.lastTs).toISOString(); }; // 저장 행 updated_at: 쓸 때마다 증가 (낙관적 동시성 검사용)
     const missing = t => flags().noTables || (flags().noShop && SHOPT.includes(t)) || (flags().noAdmin2 && ADM2T.includes(t));
-    const VALID = r => r == null || (typeof r === 'object' && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic'));
+    // hd3d_valid_reward / hd3d_valid_item 과 같은 규칙 (2026-10-22: essence 0~10000, items 1~10개 — 장비 {k:'gear',s,h?,g,c?} · 고유 {k:'uq',u})
+    const UQK = ['f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring'], HK = ['archer', 'mage', 'warrior', 'gunner', 'mechanic'];
+    const INT = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+    const VITEM = x => !!x && typeof x === 'object' && !Array.isArray(x) && (x.k === 'uq' ? Object.keys(x).every(k => k === 'k' || k === 'u') && UQK.includes(x.u)
+      : x.k === 'gear' && Object.keys(x).every(k => ['k', 's', 'h', 'g', 'c'].includes(k)) && ['weapon', 'armor', 'acc'].includes(x.s) && INT(x.g, 0, 4) && (x.s === 'weapon' ? HK.includes(x.h) : !('h' in x)) && (!('c' in x) || INT(x.c, 1, 4)));
+    const VALID = r => r == null || (typeof r === 'object' && !Array.isArray(r) && Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= 1e6)) && (r.essence == null || INT(r.essence, 0, 10000)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic')
+      && (r.items === undefined || (Array.isArray(r.items) && r.items.length >= 1 && r.items.length <= 10 && r.items.every(VITEM))));
     const REW = { hero_gunner: { hero: 'gunner' }, hero_mechanic: { hero: 'mechanic' } }, NM = { hero_gunner: '유료 영웅 · 총사 로즈', hero_mechanic: '유료 영웅 · 메카닉 버들' };
     const mail = (d, user_id, title, body, reward, order_id) => { const id = nid(d); d.hd3d_mail[id] = { id, user_id, title, body, reward: reward || null, order_id: order_id || null, claimed: false, claimed_at: null, created_at: now() }; return id; };
     function from(t) {

@@ -3,6 +3,7 @@
 import { A, ensureClient, load as accLoad, store as accStore, onChange as accOnChange, setBanned, onDenied } from './account.js';
 import { isBannedErr } from './adminlogic.js';
 import { applyMail } from './progress.js';
+import { itemsText } from './rewarditems.js';
 import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
 import { CLASSES, DEFAULT_HERO, isHidden } from '../data/heroes.js';
 
@@ -95,11 +96,13 @@ export async function claim(id, { quiet = false } = {}) {
       if (/revoked/i.test(error.message || '') || error.hint === 'revoked') { await refresh(); return { ok: false, msg: '회수된 우편이라 받을 수 없습니다.' }; }
       return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') }; }
     if (uid() !== u) return { ok: false, msg: '계정이 바뀌었습니다.' };
-    const r = data || {}; let applied = false;
-    if (r.reward && (!r.already || wasPending)) applied = applyReward(id, r.reward);
+    const r = data || {}; let applied = false, got = [];
+    if (r.reward && (!r.already || wasPending)) [applied, got] = applyReward(id, r.reward);
     pendSet(id, false); if (!quiet) markRead(id); await refresh();
     const recovered = !!(r.already && applied);
-    return { ok: true, already: !!r.already && !recovered, recovered, reward: r.reward || null, msg: recovered ? '지난번에 받지 못한 보상을 받았습니다!' : r.already ? '이미 받은 우편이에요.' : '보상을 받았습니다!' };
+    const dup = got.filter(x => x && x.dup).length, box = got.filter(x => x && !x.dup && !x.auto).length, auto = got.filter(x => x && x.auto).length;
+    const extra = (box ? ` 장비·고유 ${box}개는 🎁 보상 상자에 있어요.` : '') + (dup ? ` 이미 가진 고유 ${dup}개는 고유 정수·마력석·영혼석으로 바뀌었어요.` : '') + (auto ? ` 상자가 가득 차 ${auto}개는 재료로 분해됐어요.` : '');
+    return { ok: true, already: !!r.already && !recovered, recovered, reward: r.reward || null, got, msg: (recovered ? '지난번에 받지 못한 보상을 받았습니다!' : r.already ? '이미 받은 우편이에요.' : '보상을 받았습니다!') + (applied ? extra : '') };
   } finally { claiming.delete(id); }
 }
 // 응답이 끊겨 '받는 중'으로 남은 우편을 다시 처리 (로그인 후 refresh 때 자동)
@@ -107,8 +110,8 @@ let recovering = false;
 export async function recoverClaims() { if (recovering || !A.user) return 0; recovering = true; let n = 0;
   try { for (const id of pendList()) { const r = await claim(id, { quiet: true }); if (r.recovered || (r.ok && !r.already)) n++; } } finally { recovering = false; } return n; }
 // 영혼석·재료는 저장 데이터에 더하고 장부에 id 기록 (한 번만). 영웅은 서버 hd3d_owned 로 해금 → refresh
-function applyReward(id, rw) { const [s, ok] = applyMail(accLoad(), id, rw); if (ok) accStore(s); return ok; }
-export function rewardText(rw) { if (!rw) return ''; const o = []; if (rw.hero && CLASSES[rw.hero]) o.push(`영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n}`); if (+rw.souls) o.push(`영혼석 ${+rw.souls}`); if (+rw.steel) o.push(`강철 ${+rw.steel}`); if (+rw.crystal) o.push(`마력석 ${+rw.crystal}`); return o.join(' · '); }
+function applyReward(id, rw) { const [s, ok, res] = applyMail(accLoad(), id, rw); if (ok) accStore(s); return [ok, res || []]; }
+export function rewardText(rw) { if (!rw) return ''; const o = []; if (rw.hero && CLASSES[rw.hero]) o.push(`영웅 ${CLASSES[rw.hero].nm || ''} · ${CLASSES[rw.hero].n}`); if (+rw.souls) o.push(`영혼석 ${+rw.souls}`); if (+rw.steel) o.push(`강철 ${+rw.steel}`); if (+rw.crystal) o.push(`마력석 ${+rw.crystal}`); if (+rw.essence) o.push(`고유 정수 ${+rw.essence}`); const it = itemsText(rw.items); if (it) o.push(it); return o.join(' · '); }
 
 // ---------- 관리자 (서버가 hd3d_is_admin()으로 다시 검사) ----------
 export async function adminOrders() {

@@ -15,7 +15,7 @@ const SUBV = { atk: 4, hp: 5, spd: 4, rng: 3, crit: 3, critD: 10, skill: 6, cdr:
 export const SUBN = [0, 1, 1, 2, 2];
 export const CAP = 40, MAXE = 10;
 const ACC_MAIN = ['crit', 'spd', 'skill', 'cdr'];
-const NAMES = {
+export const GEAR_NAMES = {
   archer: [['낡은 사냥 활', '참나무 활'], ['숲지기의 장궁', '바람결 활'], ['은월의 활', '매의 눈 장궁'], ['폭풍추적자', '별빛 사수의 활'], ['세계수의 활 이그드라', '태양궁 아폴리아']],
   mage: [['견습생 지팡이', '참나무 지팡이'], ['수정 지팡이', '불씨 지팡이'], ['비전의 홀', '서리꽃 지팡이'], ['심연의 지팡이', '성운의 홀'], ['대현자의 지팡이 아르카나', '별을 삼킨 홀']],
   warrior: [['녹슨 장검', '병사의 검'], ['기사의 장검', '강철 대검'], ['푸른 서약의 검', '사자심장 대검'], ['용살자의 대검', '폭군의 검'], ['성검 엑스칼리온', '파멸의 대검 라그나']],
@@ -60,9 +60,9 @@ export function rollGrade(w, r = Math.random) { const t = w.reduce((a, b) => a +
 export function makeItem(slot, hero, g, r = Math.random, ch) {
   const C = ch && CHSET[ch] ? CHSET[ch] : null, cn = k => C && C.names[k] && C.names[k][g];
   const s = SLOT_KEYS.includes(slot) ? slot : 'armor'; const it = { id: rid(r), s, g, e: 0, sub: [] };
-  if (s === 'weapon') { it.h = hero; it.m = ['atk', MAIN.atk[g]]; it.n = cn(hero) || pick(NAMES[hero][g], r); }
-  else if (s === 'armor') { it.m = ['hp', MAIN.hp[g]]; it.n = cn('armor') || pick(NAMES.armor[g], r); }
-  else { const k = C ? wpick(ACC_MAIN, C.accW, r) : pick(ACC_MAIN, r); it.m = [k, MAIN[k][g]]; it.n = cn('acc') || pick(NAMES.acc[g], r); }
+  if (s === 'weapon') { it.h = hero; it.m = ['atk', MAIN.atk[g]]; it.n = cn(hero) || pick(GEAR_NAMES[hero][g], r); }
+  else if (s === 'armor') { it.m = ['hp', MAIN.hp[g]]; it.n = cn('armor') || pick(GEAR_NAMES.armor[g], r); }
+  else { const k = C ? wpick(ACC_MAIN, C.accW, r) : pick(ACC_MAIN, r); it.m = [k, MAIN[k][g]]; it.n = cn('acc') || pick(GEAR_NAMES.acc[g], r); }
   const pool = Object.keys(SUBV).filter(k => k !== it.m[0]);
   for (let i = 0; i < SUBN[g]; i++) { const k = C ? pool.splice(pool.indexOf(wpick(pool, C.subW, r)), 1)[0] : pool.splice(Math.floor(r() * pool.length), 1)[0]; it.sub.push([k, Math.round(SUBV[k] * (1 + .4 * g) * (.7 + r() * .6))]); }
   const u = legendKey(it); if (u) it.u = u; // 난수 소비 없음 (기존 시드 결과 유지)

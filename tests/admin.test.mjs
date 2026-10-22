@@ -25,4 +25,31 @@ ok('local_iso', L.localToIso('') === null && L.localToIso('zz') === null && L.is
 ok('log_detail', L.logDetail({ detail: { item: 'hero_gunner', reason: '오지급' } }) === '로즈 · 사유: 오지급' && L.logDetail({ detail: { title: 't', recipients: 3, reward: { souls: 1 } } }, () => '영혼석 1') === '「t」 · 영혼석 1 · 3명' && L.logDetail({}) === '');
 ok('action_names', ['order_approve', 'order_reject', 'order_refund', 'mail_send', 'broadcast', 'hero_grant', 'hero_revoke', 'ban', 'unban', 'notice_create', 'notice_update', 'notice_deactivate', 'admin_add', 'admin_remove'].every(k => L.ACTION_N[k]));
 ok('broadcast_text', L.broadcastConfirmText(12, '영혼석 300').includes('12명') && L.broadcastConfirmText(3, '').indexOf('보상') < 0);
+// ---- 아이템 · 조각(고유 정수) 지급 (src/account/rewarditems.js + progress.applyMail) ----
+import * as RI from '../src/account/rewarditems.js';
+import { applyMail, empty } from '../src/account/progress.js';
+import { UQ } from '../src/data/items.js';
+import { HERO_KEYS } from '../src/data/heroes.js';
+import { readFileSync } from 'node:fs';
+const SQL = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'), MOCK = readFileSync(new URL('./sbmock.js', import.meta.url), 'utf8');
+const vi = SQL.slice(SQL.indexOf('function public.hd3d_valid_item'), SQL.indexOf('function public.hd3d_valid_reward'));
+ok('sql_uq_keys_match', Object.keys(UQ).every(k => vi.includes(`'${k}'`)) && (vi.match(/'[a-z]_[a-z]+'/g) || []).length === Object.keys(UQ).length, Object.keys(UQ));
+ok('sql_hero_keys_match', HERO_KEYS.every(h => vi.includes(`'${h}'`)));
+ok('mock_uq_keys_match', Object.keys(UQ).every(k => MOCK.includes(`'${k}'`)) && HERO_KEYS.every(h => MOCK.includes(`'${h}'`)));
+const G = { k: 'gear', s: 'weapon', h: 'gunner', g: 4, c: 4 }, U = { k: 'uq', u: 'f_bow' };
+ok('item_valid', RI.validItem(G) && RI.validItem(U) && RI.validItem({ k: 'gear', s: 'armor', g: 0 }) && RI.validItem({ k: 'gear', s: 'acc', g: 2, c: 1 }));
+ok('item_invalid', ![null, [], 1, { k: 'uq', u: 'zz' }, { k: 'gear', s: 'weapon', g: 1 }, { k: 'gear', s: 'armor', h: 'mage', g: 1 }, { k: 'gear', s: 'armor', g: 5 }, { k: 'gear', s: 'armor', g: '1' }, { k: 'gear', s: 'armor', g: 1, c: 5 }, { k: 'gear', s: 'armor', g: 1, x: 1 }, { k: 'gem' }, { k: 'uq', u: 'f_bow', g: 4 }].some(RI.validItem));
+ok('reward_items_valid', L.validReward({ essence: 10000, items: [G, U] }) && !L.validReward({ essence: 10001 }) && !L.validReward({ essence: 1.5 }) && !L.validReward({ items: [] }) && !L.validReward({ items: Array(11).fill(U) }) && !L.validReward({ items: [{ k: 'uq', u: 'x' }] }) && !L.validReward({ items: U }));
+ok('reward_build_items', JSON.stringify(L.buildReward({ essence: 20000, items: [G, { k: 'bad' }, U] })) === JSON.stringify({ essence: 10000, items: [G, U] }) && L.buildReward({ items: Array(15).fill(U) }).items.length === 10);
+ok('item_label', RI.itemLabel(G).includes('전설') && RI.itemLabel(G).includes('총사') && RI.itemLabel(U).includes('세계수') && RI.itemLabel({ k: 'gear', s: 'armor', g: 0 }).includes('일반 방어구'));
+const cat = RI.catalog(); ok('catalog', cat.length === 15 + 5 * 5 * (4 + 2) && cat.every(e => RI.validItem(e.spec)), cat.length);
+ok('search', RI.searchCatalog('세계수')[0].spec.u === 'f_bow' && RI.searchCatalog('전설 방어구', 50).every(e => e.spec.s === 'armor' && e.spec.g === 4) && RI.searchCatalog('').length === 0);
+ok('preview', RI.previewLines({ souls: 10, essence: 3, items: [G, U] }).length === 4 && RI.previewLines({ essence: 3 })[0].includes('고유 정수'));
+// grant → claim → 보관함/고유 정수
+let s0 = empty(), [s1, ok1, res1] = applyMail(s0, 11, { essence: 7, steel: 2, items: [G, { k: 'gear', s: 'armor', g: 1 }, U] });
+ok('claim_items', ok1 && s1.mat.essence === 7 && s1.mat.steel === 2 && s1.chests.length === 3 && s1.chests.some(c => c.id === 'cm11_0' && c.it.g === 4 && c.it.h === 'gunner' && c.it.c === 4) && s1.chests.some(c => c.it.uq === 'f_bow') && s1.uqLog.f_bow === 1 && res1.length === 3, s1.chests);
+const [s1b, okb] = applyMail(s1, 11, { essence: 7, items: [G] }); ok('claim_once', !okb && s1b.mat.essence === 7 && s1b.chests.length === 3);
+const [s2, ok2, res2] = applyMail(s1, 12, { items: [U] }); ok('unique_dup_converted', ok2 && s2.chests.filter(c => c.it.uq === 'f_bow').length === 1 && res2[0].dup && s2.mat.essence === 12 && s2.mat.crystal === 6, [s2.mat, res2]);
+const [s3, , res3] = applyMail(empty(), 13, { items: [G] }), [s4] = applyMail(empty(), 13, { items: [G] }); ok('gear_deterministic', JSON.stringify(s3.chests[0].it) === JSON.stringify(s4.chests[0].it) && res3.length === 1, [s3.chests, s4.chests, res3.length]);
+const [s5] = applyMail(empty(), 14, { essence: 1e9, items: [{ k: 'uq', u: 'nope' }, { k: 'gear', s: 'weapon', h: 'mechanic', g: 2 }] }); ok('claim_clamp_hidden', s5.mat.essence === 10000 && s5.chests.length === 1 && s5.chests[0].it.h === 'archer', s5.chests);
 console.log(`${n - f}/${n}`, f ? 'FAIL' : 'ALL OK'); process.exit(f ? 1 : 0);

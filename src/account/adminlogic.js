@@ -1,16 +1,20 @@
 // 관리자 · 공지 · 정지 안내의 순수 로직 (DOM·네트워크 없음, node 테스트: tests/admin.test.mjs).
 // 서버(supabase/schema.sql)가 모든 값을 다시 검사합니다. 여기 검사는 UI 안내용.
+import { MAX_ESSENCE, cleanItems, validItems } from './rewarditems.js';
 export const MAX_RW = 1000000;
 export const UPDATE_MSG = '서버 업데이트 필요: schema.sql 을 다시 실행해 주세요';
 // 폼 값 → 보상 객체 (0 은 빼고, 0~1,000,000 정수). hero 는 판매 영웅 키만
-export function buildReward({ souls, steel, crystal, hero } = {}, heroes = ['gunner', 'mechanic']) {
-  const n = v => Math.max(0, Math.min(MAX_RW, Math.floor(+v || 0))), r = {};
-  if (n(souls)) r.souls = n(souls); if (n(steel)) r.steel = n(steel); if (n(crystal)) r.crystal = n(crystal); if (hero && heroes.includes(hero)) r.hero = hero; return r;
+// items: 보상 아이템 줄 목록 (rewarditems.validItem 으로 거른 뒤 최대 10개), essence = 고유 정수(조각) 0~10,000
+export function buildReward({ souls, steel, crystal, essence, hero, items } = {}, heroes = ['gunner', 'mechanic']) {
+  const n = (v, cap = MAX_RW) => Math.max(0, Math.min(cap, Math.floor(+v || 0))), r = {};
+  if (n(souls)) r.souls = n(souls); if (n(steel)) r.steel = n(steel); if (n(crystal)) r.crystal = n(crystal); if (n(essence, MAX_ESSENCE)) r.essence = n(essence, MAX_ESSENCE);
+  if (hero && heroes.includes(hero)) r.hero = hero; const L = cleanItems(items); if (L.length) r.items = L.map(x => ({ ...x })); return r;
 }
 // hd3d_valid_reward 와 같은 규칙
 export function validReward(r) {
   if (r == null) return true; if (typeof r !== 'object' || Array.isArray(r)) return false;
-  return Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= MAX_RW)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic');
+  return Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= MAX_RW))
+    && (r.essence == null || (Number.isInteger(r.essence) && r.essence >= 0 && r.essence <= MAX_ESSENCE)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic') && validItems(r.items);
 }
 // 사유: 앞뒤 공백 제거, 1~200자 아니면 null (서버 hd3d_reason 과 같음)
 export const cleanReason = s => { const t = String(s == null ? '' : s).trim(); return t.length >= 1 && t.length <= 200 ? t : null; };

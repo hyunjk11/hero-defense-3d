@@ -4,6 +4,7 @@ import * as ST from '../data/stages.js';
 import * as GR from '../data/growth.js';
 import { HERO_KEYS, DEFAULT_HERO, VISIBLE_HEROES, isHidden } from '../data/heroes.js';
 import * as AD from '../data/advance.js';
+import * as RI from './rewarditems.js';
 import { CHSET, CH_KEYS, chOdds, UQ, uqOfChapter, CHAL_UQ, UQ_DROP, UQ_PITY, CHAL_ESS, CODEX_RW } from '../data/items.js';
 // save = { inv[], chests[], eq{cls:{weapon,armor,acc}}, mat{steel,crystal}, v, hero, souls, bestWave, heroLv{cls:{hp,atk}}, stats{runs,kills,waves,souls}, settings{audio{}}, nick }
 export const HEROES = HERO_KEYS; // gunner·mechanic = 유료 영웅 (소유 여부는 서버 hd3d_owned, account/shop.js)
@@ -37,8 +38,14 @@ export const MAIL_LOG_MAX = 300;
 export function cleanMailLog(v) { const ids = [...new Set((Array.isArray(v) ? v : []).map(Number).filter(n => Number.isSafeInteger(n) && n > 0))]; ids.sort((x, y) => x - y); return ids.slice(-MAIL_LOG_MAX); }
 // 우편 보상을 세이브에 반영 + 장부 기록 (이미 장부에 있으면 그대로). 반환 [save, 적용 여부]
 export function applyMail(save, id, rw) { const s = clean(save); id = Number(id); if (!Number.isSafeInteger(id) || id <= 0 || s.mailLog.includes(id)) return [s, false];
-  const n = k => Math.max(0, Math.min(1e6, Math.floor(+(rw && rw[k]) || 0)));
-  s.souls += n('souls'); s.mat.steel += n('steel'); s.mat.crystal += n('crystal'); s.mailLog = cleanMailLog([...s.mailLog, id]); return [s, true]; }
+  const n = (k, cap = 1e6) => Math.max(0, Math.min(cap, Math.floor(+(rw && rw[k]) || 0)));
+  s.souls += n('souls'); s.mat.steel += n('steel'); s.mat.crystal += n('crystal'); s.mat.essence = (s.mat.essence || 0) + n('essence', RI.MAX_ESSENCE);
+  // 아이템 (2026-10-22 관리자 지급): 장비 → 🎁 보상 상자(id 'm<우편>_<순번>' 고정 · 상자 가득이면 자동 분해), 고유 → grantUnique(이미 있으면 고유 정수 5·마력석 6·영혼석 150)
+  const res = []; RI.cleanItems(rw && rw.items).forEach((x, i) => {
+    if (x.k === 'uq') { const g = E.grantUnique(s, x.u); if (g) res.push(g); return; }
+    const it = E.makeItem(x.s, x.s === 'weapon' ? (isHidden(x.h) ? DEFAULT_HERO : x.h) : undefined, x.g, RI.seeded(`${id}:${i}`), x.c); it.id = `m${id}_${i}`; delete it.u; const u = E.legendKey(it); if (u) it.u = u; // 전설 스킬도 고정 id 기준
+    res.push(...E.addChests(s, [{ it, src: 'chest' }])); });
+  s.mailLog = cleanMailLog([...s.mailLog, id]); return [s, true, res]; }
 export const permCost = (k, lv) => Math.round(PERM[k].base * Math.pow(1.5, lv));
 // 판 종료 보상: 도달 웨이브 × 8 + 처치 수 / 3 (반올림 내림)
 export function reward(wave, kills) { return Math.max(0, Math.floor(wave * 8 + kills / 3)); }
