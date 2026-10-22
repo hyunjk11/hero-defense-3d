@@ -119,6 +119,14 @@ with sync_playwright() as pw:
     bad = [J(pg, "(rw)=>G.shop.Sh.sendMail('p1@test.kr', 'x', '', rw)", rw) for rw in ({'items': [{'k': 'uq', 'u': 'zzz'}]}, {'essence': 10001}, {'items': [{'k': 'gear', 's': 'weapon', 'g': 1}]}, {'items': [{'k': 'uq', 'u': 'f_bow'}] * 11}, {'gems': 5})]
     ok('invalid_reward_rejected', all(not r['ok'] and '보상 값' in r['msg'] for r in bad), bad)
     ok('item_grant_logged', any(l['action'] == 'mail_send' and (l.get('detail') or {}).get('reward', {}) and 'items' in (l['detail']['reward'] or {}) for l in db(pg)['hd3d_admin_log'].values()))
+    # ---- 던전 메달 우편 (2026-10-23): 폼 '🏅 던전 메달' → 미리보기 → 보내기 · 유저 상세 던전 카드 · schema 다시 실행 전이면 '서버 업데이트 필요'
+    pg.fill('#udMed', '30'); pg.wait_for_timeout(200); ok('medal_preview', '던전 메달 +30' in pg.inner_text('#udPrev'), pg.inner_text('#udPrev'))
+    pg.fill('#udTitle', '메달 선물'); pg.click('#admBody [data-act="umail"]'); wait_msg(pg, '우편을 보냈어요')
+    ok('medal_mail_sent', any(m['title'] == '메달 선물' and m['reward'] == {'medals': 30} for m in db(pg)['hd3d_mail'].values()))
+    pg.wait_for_function("()=>!!document.getElementById('udDungeon')", timeout=10000); t = pg.inner_text('#udDungeon'); ok('user_detail_dungeon', '던전 메달' in t and '오늘 입장' in t and '0 / 3' in t, t)
+    J(pg, "()=>localStorage.setItem('__mockflags', JSON.stringify({noDungeon:true}))")
+    r = J(pg, "()=>G.shop.Sh.sendMail('p1@test.kr', '메달', '', {medals: 5})"); ok('medal_mail_old_schema', not r['ok'] and '서버 업데이트 필요' in r['msg'], r)
+    J(pg, "()=>localStorage.removeItem('__mockflags')")
     # 정지: p2 (확인 창 취소 → 그대로, 사유 → 정지)
     pg.click('#admBody [data-act="uback"]'); pg.wait_for_function("()=>document.querySelectorAll('#admBody .auRow').length>=1", timeout=10000)
     pg.fill('#auQ', 'p2@'); pg.press('#auQ', 'Enter'); pg.wait_for_function("()=>document.querySelectorAll('#admBody .auRow').length===1 && document.querySelector('#admBody .auRow').innerText.includes('p2@')", timeout=10000)
