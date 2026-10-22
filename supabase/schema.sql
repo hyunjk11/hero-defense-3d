@@ -196,12 +196,29 @@ create policy hd3d_mail_select on public.hd3d_mail for select to authenticated u
 drop policy if exists hd3d_mail_insert_admin on public.hd3d_mail; -- 2026-10-22: 직접 insert 경로 제거 → 우편은 기록이 남는 관리자 RPC 로만
 -- 사용자 update/delete 정책 없음: '받기'는 hd3d_claim_mail RPC 로만 (보상 수정 불가)
 
--- 보상 검증: souls/steel/crystal 0~1,000,000 정수, hero 는 판매 영웅만
+-- 보상 아이템 1개 검증 (2026-10-22 아이템 지급). 장비 { k:'gear', s, h(무기만, 영웅 키), g 0~4, c? 챕터 세트 1~4 } 또는 고유 { k:'uq', u: 고유 키 }
+-- 고유 키 목록은 src/data/items.js 의 UQ 와 같아야 함 (tests/admin.test.mjs 가 비교). 고유는 계정당 1개: 이미 있으면 받을 때 고유 정수 등으로 변환(클라이언트 grantUnique)
+create or replace function public.hd3d_valid_item(x jsonb) returns boolean
+language sql immutable set search_path = '' as $$
+  select coalesce(jsonb_typeof(x) = 'object' and case x ->> 'k'
+    when 'gear' then not exists (select 1 from jsonb_object_keys(x) k where k not in ('k', 's', 'h', 'g', 'c'))
+      and x ->> 's' in ('weapon', 'armor', 'acc')
+      and jsonb_typeof(x -> 'g') = 'number' and x ->> 'g' in ('0', '1', '2', '3', '4')
+      and case when x ->> 's' = 'weapon' then x ->> 'h' in ('archer', 'mage', 'warrior', 'gunner', 'mechanic') else not (x ? 'h') end
+      and (not (x ? 'c') or (jsonb_typeof(x -> 'c') = 'number' and x ->> 'c' in ('1', '2', '3', '4')))
+    when 'uq' then not exists (select 1 from jsonb_object_keys(x) k where k not in ('k', 'u'))
+      and x ->> 'u' in ('f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring')
+    else false end, false);
+$$;
+-- 보상 검증: souls/steel/crystal 0~1,000,000 정수, essence(고유 정수 = 조각) 0~10,000, hero 는 판매 영웅만, items 는 1~10개 (위 hd3d_valid_item)
 create or replace function public.hd3d_valid_reward(r jsonb) returns boolean
 language sql immutable set search_path = '' as $$
   select r is null or (
     jsonb_typeof(r) = 'object'
-    and not exists (select 1 from jsonb_object_keys(r) k where k not in ('souls', 'steel', 'crystal', 'hero'))
+    and not exists (select 1 from jsonb_object_keys(r) k where k not in ('souls', 'steel', 'crystal', 'hero', 'essence', 'items'))
+    and (not (r ? 'essence') or coalesce(case when (r ->> 'essence') ~ '^[0-9]{1,5}$' then (r ->> 'essence')::int <= 10000 else false end, false))
+    and (not (r ? 'items') or (jsonb_typeof(r -> 'items') = 'array' and jsonb_array_length(r -> 'items') between 1 and 10
+         and not exists (select 1 from jsonb_array_elements(r -> 'items') x where not public.hd3d_valid_item(x))))
     and coalesce((r ->> 'souls') ~ '^[0-9]{1,7}$', true) and coalesce((r ->> 'souls')::bigint <= 1000000, true)
     and coalesce((r ->> 'steel') ~ '^[0-9]{1,7}$', true) and coalesce((r ->> 'steel')::bigint <= 1000000, true)
     and coalesce((r ->> 'crystal') ~ '^[0-9]{1,7}$', true) and coalesce((r ->> 'crystal')::bigint <= 1000000, true)

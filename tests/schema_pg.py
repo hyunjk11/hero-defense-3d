@@ -204,6 +204,19 @@ try:
     ok('log_all_actions', need <= acts, need - acts)
     ok('log_fields', all(x['admin_email'] for x in j['rows']) and any(x['action'] == 'ban' and x['target_email'] == 'u2@test.kr' and x['detail']['reason'] == '부정 행위' for x in j['rows']))
     j = json.loads(A("select public.hd3d_admin_log_list('ban', 0, 1)", ADM)[1]); ok('log_filter_page', j['total'] == 2 and len(j['rows']) == 1, j['total'])
+    # 아이템 · 조각(고유 정수) 지급 보상 검증
+    VG = lambda j: psql("select public.hd3d_valid_reward('" + j + "')")[1]
+    good = ['{"essence": 10}', '{"items": [{"k":"gear","s":"weapon","h":"gunner","g":4,"c":4}]}', '{"items": [{"k":"gear","s":"armor","g":0}, {"k":"uq","u":"f_bow"}], "souls": 5, "essence": 10000}']
+    badr = ['{"essence": 10001}', '{"essence": "x"}', '{"items": []}', '{"items": {"k":"uq","u":"f_bow"}}', '{"items": [{"k":"uq","u":"nope"}]}', '{"items": [{"k":"gear","s":"weapon","g":4}]}',
+            '{"items": [{"k":"gear","s":"armor","h":"mage","g":1}]}', '{"items": [{"k":"gear","s":"armor","g":5}]}', '{"items": [{"k":"gear","s":"armor","g":"1"}]}', '{"items": [{"k":"gear","s":"armor","g":1,"c":9}]}',
+            '{"items": [{"k":"gear","s":"armor","g":1,"x":1}]}', '{"items": [{"k":"gem"}]}', '{"items": [1]}', '{"items": [' + ','.join(['{"k":"uq","u":"f_bow"}'] * 11) + ']}']
+    ok('reward_items_valid', all(VG(j) == 't' for j in good), [j for j in good if VG(j) != 't'])
+    ok('reward_items_invalid', all(VG(j) == 'f' for j in badr), [(j, VG(j)) for j in badr if VG(j) != 'f'])
+    r = A("""select public.hd3d_admin_send_mail('u1@test.kr', '장비 선물', '', '{"essence": 7, "items": [{"k":"gear","s":"weapon","h":"mage","g":3,"c":2}, {"k":"uq","u":"c_ring"}]}')""", ADM); ok('send_items_mail', '"ok": true' in r[1], r)
+    ok('send_items_logged', 'c_ring' in psql("select detail::text from public.hd3d_admin_log where action = 'mail_send' order by id desc limit 1")[1])
+    ok('send_items_bad', '"bad_reward"' in A("""select public.hd3d_admin_send_mail('u1@test.kr', 'x', '', '{"items": [{"k":"uq","u":"zzz"}]}')""", ADM)[1])
+    ok('send_items_user_denied', not A("""select public.hd3d_admin_send_mail('u1@test.kr', 'x', '', '{"essence": 5}')""", U1)[0])
+    ok('user_cannot_insert_items_mail', not A(f"""insert into public.hd3d_mail (user_id, title, reward) values ('{U1['sub']}', 'x', '{{"essence": 5}}')""", U1)[0])
     r3 = psql(sql); ok('schema_run3_after_data', r3[0], r3[2][-300:])
     ok('owner_kept_after_rerun', A('select public.hd3d_is_owner()', ADM)[1] == 't' and psql('select count(*) from public.hd3d_admins')[1] == '1')
 finally:
