@@ -59,14 +59,16 @@ function closeOv() { st.ov = false; clearInterval(st.timer); st.timer = 0; const
 export function toggleOv() { if (st.ov) closeOv(); else openOv(); Snd.play('ui'); }
 export const statsOpen = () => st.ov;
 
-export function initStats({ beforeOpen } = {}) {
-  $('twStats').onclick = () => { if (beforeOpen) beforeOpen(); openStats(); };
-  $('statClose').onclick = () => { Snd.play('ui'); closeStats(); };
-  $('statTabs').onclick = e => { const b = e.target.closest('[data-h]'); if (!b || b.dataset.h === st.cls) return; Snd.play('select'); st.cls = b.dataset.h; renderTown(); };
+// 전투 쪽 (버튼·C 키·탭)은 모듈을 불러오면 바로 연결 (?test=1 처럼 마을 흐름 없이 시작해도 동작) · 마을 버튼은 initStats (flow.js 가 다른 창 닫기를 넘김)
+function bindBattle() {
   $('statBtn').onclick = () => toggleOv(); $('ovClose').onclick = () => { Snd.play('ui'); closeOv(); };
   $('ovTabs').onclick = e => { const b = e.target.closest('[data-i]'); if (!b) return; st.idx = +b.dataset.i; Snd.play('select'); document.querySelectorAll('#ovTabs .ftab').forEach(x => x.classList.toggle('on', x === b)); renderOv(); };
+  $('statClose').onclick = () => { Snd.play('ui'); closeStats(); };
+  $('statTabs').onclick = e => { const b = e.target.closest('[data-h]'); if (!b || b.dataset.h === st.cls) return; Snd.play('select'); st.cls = b.dataset.h; renderTown(); };
   addEventListener('keydown', e => { const tag = document.activeElement && document.activeElement.tagName; if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.key === 'Escape') { closeStats(); if (st.ov) closeOv(); return; }
-    if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !$('hud').classList.contains('hidden') && G.phase !== 'select') toggleOv(); });
+    if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && !$('hud').classList.contains('hidden') && G.phase !== 'select') toggleOv(); });
   G.statsUI = { townData, liveStats, openStats, closeStats, toggleOv, isOpen: () => st.ov, townOpen: () => st.town };
 }
+if (typeof document !== 'undefined' && document.getElementById('statBtn')) bindBattle();
+export function initStats({ beforeOpen } = {}) { $('twStats').onclick = () => { if (beforeOpen) beforeOpen(); openStats(); }; }
