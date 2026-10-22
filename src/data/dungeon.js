@@ -51,10 +51,10 @@ export const FLOORS = [
     waves: [[['goblin', 6], ['imp', 6]], [['grunt', 8], ['goblin', 6]], [['golem', 3], ['grunt', 6], ['mushroom', 2]]] },
   { n: '3층 · 버섯 늪', hpMul: 2.6, dmgMul: 1.5, gap: 4, every: .55,
     waves: [[['mushroom', 3], ['grunt', 8], ['imp', 6]], [['goblin', 8], ['golem', 2], ['imp', 6]], [['golem', 3], ['mushroom', 3], ['grunt', 8], ['goblin', 4]]] },
-  { n: '4층 · 기사의 회랑', hpMul: 2.7, dmgMul: 1.55, gap: 4, every: .55,
-    waves: [[['golem', 3], ['grunt', 8], ['goblin', 6]], [['golem', 4], ['mushroom', 3], ['imp', 8]], [['golem', 5], ['grunt', 10], ['goblin', 6]]] },
-  { n: '5층 · 군주의 방', hpMul: 1.6, dmgMul: 1.4, gap: 4, every: .6, boss: true,
-    waves: [[['grunt', 6], ['imp', 6]], [['boss', 1], ['grunt', 6], ['imp', 4]]] },
+  { n: '4층 · 기사의 회랑', hpMul: 2.65, dmgMul: 1.5, gap: 4.5, every: .6,
+    waves: [[['golem', 2], ['grunt', 8], ['goblin', 6]], [['golem', 3], ['mushroom', 2], ['imp', 8]], [['golem', 3], ['grunt', 8], ['goblin', 6]]] },
+  { n: '5층 · 군주의 방', hpMul: 1.4, dmgMul: 1.2, gap: 5, every: .7, boss: true,
+    waves: [[['grunt', 6], ['imp', 6]], [['boss', 1], ['grunt', 4], ['imp', 4]]] },
 ];
 export const floorCount = () => FLOORS.length;
 export function waveList(floor, w) { const F = FLOORS[floor], W = F && F.waves[w]; if (!W) return []; const out = []; let left = W.map(([t, n]) => [t, n]);
