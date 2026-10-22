@@ -124,6 +124,7 @@ with sync_playwright() as pw:
     c = b.new_context(viewport={'width': 1280, 'height': 800}); pg = c.new_page(); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     pg.goto(url + '?seed=12345&rng=777&test=1'); pg.wait_for_function('()=>window.G&&G.ready', timeout=240000); J(pg, "()=>G.choose('mage')"); pg.wait_for_function("()=>G.phase==='build'", timeout=60000)
     ok('normal_party_1', J(pg, "()=>G.heroes.length===1 && G.heroes[0]===G.hero && !G.dungeon && G.hero.cls==='mage'"))
+    ok('gate_dgtest_only', J(pg, "async()=>{ const m=await import('./src/data/dungeon.js'); return m.DG_LIVE || !m.DG_OPEN; }"))  # 공개 전에는 ?dgtest=1 없이는 꺼짐
     c.close(); b.close()
 print('console errors:', errs[:5])
 fails = [k for k, v in res.items() if not v]; print(f'{len(res) - len(fails)}/{len(res)} ok', 'FAILED: ' + ', '.join(fails) if fails else 'ALL OK')
