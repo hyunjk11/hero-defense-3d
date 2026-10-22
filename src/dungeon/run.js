@@ -8,6 +8,7 @@ import { G } from '../core/state.js';
 import { CORE, tileX, tileZ } from '../core/grid.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { DG_TITLES } from '../data/dungeon.js';
+import { UQ } from '../data/items.js';
 import { FLOORS, ROLE, BLESS_BY, ULT_MAX, DG_PICK_KEY, dungeonParty, pickParty, waveList, dungeonReward, nextFloorHp, blessChoices, blessMods, ultGain, jointReady, jointDamage } from '../data/dungeon.js';
 import { FT, isRangedFoe } from '../data/fighter.js';
 import { later } from '../core/state.js';
@@ -174,6 +175,7 @@ function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase
   if (ranked) { const tok = E0.token; D.entry = { mode: 'done' }; DS.dgFinish(tok, cleared, win).then(r => { G.dgResult.medals = r; const m = $('dgMedalRes'); if (!m) return;
     const tt = DS.DGS.titles.map(t => DG_TITLES[t]).filter(Boolean).join(' ');
     m.innerHTML = r.ok ? `돌파 ${r.floors}/${N}층 · 🏅 던전 메달 <b>+${r.medals}</b>${r.win ? ' (완주 보너스 포함)' : ''} <span class="dgMedTot">보유 ${r.total}</span>${r.capped ? '<br><small>너무 빨리 끝나 일부 층만 인정됐어요</small>' : ''}<br><small>🏪 던전 상점(마을 던전 건물)에서 재료로 바꿀 수 있어요${tt ? ' · ' + esc(tt) : ''}</small>` : `<span class="dgUpd">⚠ ${esc(r.msg)}</span>`;
+    if (r.ok && r.uq) { m.innerHTML += `<div class="dgUqDrop" id="dgUqDrop">🐾 모르비아가 <b>${esc((UQ[r.uq] || {}).n || r.uq)}</b> 을(를) 떨어뜨렸어요! <small>📮 우편함에서 받기</small></div>`; Snd.play('levelUp', { force: true }); Sh.refresh().catch(() => {}); }
     if (r.ok && r.medals > 0) Snd.play('coin', { force: true }); }); }
 }
 function goTownD() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('dungeon'); q.delete('run'); q.delete('stage'); q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }

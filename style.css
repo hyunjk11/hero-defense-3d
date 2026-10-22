@@ -681,6 +681,8 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .dgShopIt{width:168px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:14px;background:#2a2040;border:2px solid #4a3a6a;text-align:center}
 .dgShopIt b{color:#fff3d0;font-size:14px}.dgShopIt small{color:#b8a8d0;font-size:12px;line-height:1.35;min-height:32px}.dgSIc{font-size:28px;line-height:1.1}
 .dgShopIt .gbtn{min-height:44px;min-width:110px;font-size:15px}.dgShopIt.lack .gbtn,.dgShopIt.off .gbtn{opacity:.55}.dgShopIt.own{border-color:#8a6ad0}.dgShopIt.own .gbtn{color:#9affb0}
+.dgShopIt.uq{border-color:#ff9a3a;background:linear-gradient(160deg,#3a2440,#2a2040 60%);box-shadow:0 0 10px #ff9a3a55}.dgShopIt.uq b{color:#ffcf7a}
+.dgUqDrop{margin-top:8px;padding:8px 10px;border-radius:12px;background:#3a2440;border:2px solid #ff9a3a;color:#ffe3b0;box-shadow:0 0 12px #ff9a3a66}
 .dgMedalRes{font-size:15px}.dgMedalRes b{color:#ffe08a;font-size:18px}.dgMedTot{color:#d8c8ff;font-size:13px;margin-left:4px}.dgPrNote{color:#a898c0}
 .dgPrTag{font-style:normal;font-size:11px;background:#5a4a7a;color:#e8d8ff;border-radius:6px;padding:1px 5px;margin-left:2px}
 @media (max-height:680px){.dgDay{font-size:12px;margin-top:4px}.dgDay small{display:none}.dgShop{gap:6px;margin:6px 0 2px}.dgShopIt{width:150px;padding:6px}.dgShopIt small{min-height:0;font-size:11px}.dgSIc{font-size:22px}}

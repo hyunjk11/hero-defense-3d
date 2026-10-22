@@ -1,6 +1,7 @@
 // ================= 던전 원정 (파티 던전) 데이터 · 순수 함수 (DOM/three 없음 → node 테스트) =================
 // 단계 계획: docs/DUNGEON_2026-10-22.md. 2단계 = 1층만. FLOORS 에 층을 추가하면 3단계(5층·축복)로 확장, 보스(4단계)는 마지막 층 웨이브에 넣음
 import { CLASSES, isHidden } from './heroes.js';
+import { UQ, UQ_DG } from './items.js';
 
 // 공개 스위치: false 면 마을 건물은 '준비 중'(입장 불가) · ?dungeon=1 도 무시. 테스트/개발은 ?dgtest=1 로 켬
 export const DG_LIVE = true;
@@ -76,12 +77,14 @@ export const DG_SHOP = [
   { id: 'dg_crystal', price: 8, n: '마력석 꾸러미', icon: '💎', reward: { crystal: 10 }, desc: '고급 강화·전직 재료 마력석 10' },
   { id: 'dg_essence', price: 15, n: '고유 정수', icon: '◆', reward: { essence: 3 }, desc: '고유 장비 각성 재료 고유 정수 3' },
   { id: 'dg_title', price: 60, n: '칭호 · 망령 사냥꾼', icon: '👑', title: 'lich_hunter', desc: '던전 입장 화면과 결과 화면에 칭호 「망령 사냥꾼」 표시 (한 번만)' },
+  // 고유 무기 (2026-10-23): 계정당 1개 — 서버 지갑 uniques 로 강제, 모르비아 드롭으로 얻어도 '보유 중'. 우편(items uq)으로 배달
+  { id: UQ_DG.shop, price: UQ_DG.price, n: UQ[UQ_DG.key].n, icon: CLASSES.fighter.icon, uq: UQ_DG.key, desc: `${CLASSES.fighter.nm} 전용 고유 무기 · [E] ${UQ[UQ_DG.key].un} (계정당 1개 · 모르비아 처치 ${Math.round(UQ_DG.drop * 100)}% 드롭으로도 획득)` },
 ];
 export const DG_SHOP_BY = Object.fromEntries(DG_SHOP.map(x => [x.id, x]));
-// 상점 버튼 상태: 'own'(이미 산 칭호) · 'lack'(메달 부족) · 'ok'
-export const shopState = (it, medals, titles = []) => it.title && titles.includes(it.title) ? 'own' : (+medals || 0) < it.price ? 'lack' : 'ok';
+// 상점 버튼 상태: 'own'(이미 산 칭호 · 이미 가진 고유) · 'lack'(메달 부족) · 'ok'. uniques = 서버 지갑 uniques (+ 세이브에 이미 있는 고유)
+export const shopState = (it, medals, titles = [], uniques = []) => (it.title && titles.includes(it.title)) || (it.uq && uniques.includes(it.uq)) ? 'own' : (+medals || 0) < it.price ? 'lack' : 'ok';
 // 서버 사유 → 한국어
-export const DG_REASON = { daily_limit: '오늘 입장 횟수(하루 3회)를 모두 썼어요. 한국 시간 0시에 초기화돼요.', not_enough: '던전 메달이 부족해요.', already: '이미 가진 칭호예요.', bad_item: '알 수 없는 상품이에요.',
+export const DG_REASON = { daily_limit: '오늘 입장 횟수(하루 3회)를 모두 썼어요. 한국 시간 0시에 초기화돼요.', not_enough: '던전 메달이 부족해요.', already: '이미 가진 칭호예요.', owned: '이미 가진 고유 장비예요 (계정당 1개).', bad_item: '알 수 없는 상품이에요.',
   bad_token: '이 원정은 서버에 등록되지 않아 메달을 받을 수 없어요.', used: '이미 정산된 원정이에요.', expired: '원정 시간이 너무 오래 지나 메달을 받을 수 없어요.' };
 
 // ---------- 쓰러진 영웅 복귀 · 층 사이 휴식 ----------

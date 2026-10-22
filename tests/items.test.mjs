@@ -5,7 +5,7 @@ import * as E from '../src/account/equip.js';
 import * as P from '../src/account/progress.js';
 import * as ST from '../src/data/stages.js';
 import { HERO_KEYS, VISIBLE_HEROES } from '../src/data/heroes.js';
-import { CHSET, CH_KEYS, UQ, UQ_KEYS, uqOfChapter, CHAL_UQ, chOdds } from '../src/data/items.js';
+import { CHSET, CH_KEYS, UQ, UQ_KEYS, uqOfChapter, CHAL_UQ, chOdds, UQ_DG } from '../src/data/items.js';
 const R = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 // ---------- I-1 데이터 ----------
 assert.deepEqual(CH_KEYS, ST.CHAPTERS.map(c => c.id), '챕터마다 세트 1개');
@@ -15,7 +15,13 @@ for (const ch of CH_KEYS) { const C = CHSET[ch], SC = ST.CHAPTERS.find(c => c.id
     for (const n of L) { assert.ok(typeof n === 'string' && n.length > 0 && n.length <= 20, `${ch} ${row} 이름 길이 ${n}`); assert.ok(!allNames.has(n), `이름 중복 ${n}`); allNames.add(n); } }
   for (const W of [C.subW, C.accW]) for (const k in W) assert.ok(k in E.STAT, `${ch} 가중치 키 ${k}`);
   for (const k in C.accW) assert.ok(['crit', 'spd', 'skill', 'cdr'].includes(k), `${ch} accW ${k}`); }
-assert.equal(UQ_KEYS.length, 15, '고유 15개 (챕터 4×3 + 도전 3)');
+assert.equal(UQ_KEYS.length, 16, '고유 16개 (챕터 4×3 + 도전 3 + 던전 1)');
+// 던전 고유: 서윤(fighter) 전용 무기 · 모르비아 드롭 + 던전 상점 · 다른 고유보다 살짝 강함
+{ const U = UQ[UQ_DG.key]; assert.equal(UQ_DG.key, 'd_fist'); assert.equal(U.s, 'weapon'); assert.equal(U.h, 'fighter'); assert.equal(U.ch, 'dg'); assert.equal(U.src.dungeon, 'dg_lich');
+  assert.ok(UQ_DG.drop > 0 && UQ_DG.drop <= .08 && UQ_DG.pity >= 20 && UQ_DG.price >= 300, 'UQ_DG 범위');
+  const pw = E.power(E.makeUnique('d_fist')), rest = UQ_KEYS.filter(k => k !== 'd_fist').map(k => E.power(E.makeUnique(k)));
+  assert.ok(pw > Math.max(...rest) && pw <= Math.max(...rest) * 1.08, `d_fist power ${pw} 살짝 위 (${Math.max(...rest)})`);
+  assert.ok(UQ_KEYS.filter(k => UQ[k].h === 'fighter').length === 1, '서윤 고유 무기 1개'); assert.equal(E.LSK[U.sk].h, 'fighter'); }
 for (const k of UQ_KEYS) { const U = UQ[k], it = E.makeUnique(k);
   assert.equal(it.id, 'u_' + k); assert.equal(it.g, 4); assert.equal(it.uq, k); assert.ok(U.n.length <= 20, k + ' name');
   assert.ok(U.m[0] in E.STAT && U.sub.every(([s]) => s in E.STAT), k + ' 스탯 키'); assert.ok(U.sub.length >= 2 && U.sub.length <= 3, k + ' 서브 2~3개');

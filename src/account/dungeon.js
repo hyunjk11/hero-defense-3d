@@ -5,22 +5,23 @@ import { A, ensureClient } from './account.js';
 import { isBannedErr, isMissingErr } from './adminlogic.js';
 import { DG_REASON } from '../data/dungeon.js';
 
-export const DGS = { st: 'idle', uid: null, left: null, used: 0, limit: 3, medals: 0, titles: [], banned: false, msg: '' }; // st: idle | guest | loading | ok | missing | error
+export const DGS = { st: 'idle', uid: null, left: null, used: 0, limit: 3, medals: 0, titles: [], uniques: [], uqPity: 0, banned: false, msg: '' }; // uniques: 서버가 아는 던전 고유(d_fist) 보유 · uqPity: 모르비아 처치 천장 카운트 · st: idle | guest | loading | ok | missing | error
 export const UPDATE_NEEDED = '서버 업데이트 필요';
 const TOK = 'hd3d_dgtok'; // 출발 → 새로고침(?dungeon=1&run=1) 사이에 token 을 넘기는 곳 (sessionStorage: 이 탭만)
 const ss = { get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }, del: k => { try { sessionStorage.removeItem(k); } catch (e) {} } };
 const uid = () => (A.user && A.user.id) || null;
 async function rpc(fn, args) { try { const c = A.sb || await ensureClient(); const r = await c.rpc(fn, args); return r || { data: null, error: { message: 'no response' } }; } catch (e) { return { data: null, error: { message: String(e && e.message || e) } }; } }
+const strs = a => Array.isArray(a) ? a.filter(x => typeof x === 'string') : [];
 const offline = e => !!e && (e.status === 0 || /fetch|network|no response/i.test(e.message || ''));
 function setErr(e) { DGS.st = isMissingErr(e) ? 'missing' : 'error'; DGS.msg = DGS.st === 'missing' ? UPDATE_NEEDED : offline(e) ? '서버에 연결할 수 없어요' : (e.message || '서버 오류'); }
 
 // 오늘 남은 입장 · 메달 · 칭호 (서버)
 export async function dgStatus() {
-  const u = uid(); if (!u) { Object.assign(DGS, { st: 'guest', uid: null, left: null, used: 0, medals: 0, titles: [], banned: false, msg: '' }); return DGS; }
-  if (DGS.uid !== u) Object.assign(DGS, { uid: u, left: null, used: 0, medals: 0, titles: [] }); DGS.st = DGS.st === 'ok' ? 'ok' : 'loading';
+  const u = uid(); if (!u) { Object.assign(DGS, { st: 'guest', uid: null, left: null, used: 0, medals: 0, titles: [], uniques: [], uqPity: 0, banned: false, msg: '' }); return DGS; }
+  if (DGS.uid !== u) Object.assign(DGS, { uid: u, left: null, used: 0, medals: 0, titles: [], uniques: [], uqPity: 0 }); DGS.st = DGS.st === 'ok' ? 'ok' : 'loading';
   const { data, error } = await rpc('hd3d_dungeon_status'); if (uid() !== u) return DGS;
   if (error || !data) { setErr(error || {}); return DGS; }
-  Object.assign(DGS, { st: 'ok', left: Math.max(0, +data.left || 0), used: +data.used || 0, limit: +data.limit || 3, medals: Math.max(0, +data.medals || 0), titles: Array.isArray(data.titles) ? data.titles.filter(x => typeof x === 'string') : [], banned: !!data.banned, msg: '' });
+  Object.assign(DGS, { st: 'ok', left: Math.max(0, +data.left || 0), used: +data.used || 0, limit: +data.limit || 3, medals: Math.max(0, +data.medals || 0), titles: Array.isArray(data.titles) ? data.titles.filter(x => typeof x === 'string') : [], uniques: strs(data.uniques), uqPity: Math.max(0, +data.uq_pity || 0), banned: !!data.banned, msg: '' });
   return DGS;
 }
 // 출발: 서버 입장 등록. → { mode: 'ranked', token } | { mode: 'practice', why: 'guest'|'missing'|'error' } | { blocked: true, msg }
@@ -46,14 +47,15 @@ export async function dgFinish(token, floors, win) {
   let r = null; for (let i = 0; i < 3; i++) { r = await rpc('hd3d_dungeon_finish', { p_token: token, p_floors: Math.max(0, Math.floor(+floors || 0)), p_win: !!win }); if (!r.error || !offline(r.error)) break; await new Promise(f => setTimeout(f, 1500 * (i + 1))); }
   const { data, error } = r; if (error) return { ok: false, msg: isMissingErr(error) ? UPDATE_NEEDED : isBannedErr(error) ? '계정이 정지되어 메달을 받을 수 없어요.' : offline(error) ? '서버에 연결할 수 없어 메달을 받지 못했어요.' : '정산 실패: ' + (error.message || '') };
   if (!data || data.ok === false) return { ok: false, msg: DG_REASON[data && data.reason] || '정산 실패' };
-  DGS.medals = Math.max(0, +data.total || 0); return { ok: true, medals: +data.medals || 0, total: DGS.medals, floors: +data.floors || 0, win: !!data.win, capped: !!data.capped };
+  DGS.medals = Math.max(0, +data.total || 0); if (Array.isArray(data.uniques)) DGS.uniques = strs(data.uniques); if (data.uq_pity != null) DGS.uqPity = Math.max(0, +data.uq_pity || 0);
+  return { ok: true, medals: +data.medals || 0, total: DGS.medals, floors: +data.floors || 0, win: !!data.win, capped: !!data.capped, uq: typeof data.uq === 'string' ? data.uq : null, mail: data.mail || null }; // uq: 모르비아 드롭(서버 롤) → 우편
 }
 // 던전 상점 구매 (가격은 서버 상수). 재료는 우편으로 → { ok, msg, mail }
 export async function dgBuy(item) {
   if (!uid()) return { ok: false, msg: '로그인한 계정만 던전 상점을 쓸 수 있어요.' };
   const { data, error } = await rpc('hd3d_dungeon_buy', { p_item: String(item) });
   if (error) return { ok: false, msg: isMissingErr(error) ? UPDATE_NEEDED + ' — 관리자가 schema.sql 을 다시 실행하면 열려요.' : isBannedErr(error) ? '계정이 정지되어 구매할 수 없어요.' : offline(error) ? '서버에 연결할 수 없어요.' : '구매 실패: ' + (error.message || '') };
-  if (!data || data.ok === false) { if (data && data.medals != null) DGS.medals = Math.max(0, +data.medals || 0); return { ok: false, msg: DG_REASON[data && data.reason] || '구매 실패' }; }
-  DGS.medals = Math.max(0, +data.medals || 0); if (Array.isArray(data.titles)) DGS.titles = data.titles.filter(x => typeof x === 'string');
+  if (!data || data.ok === false) { if (data && data.medals != null) DGS.medals = Math.max(0, +data.medals || 0); if (data && Array.isArray(data.uniques)) DGS.uniques = strs(data.uniques); return { ok: false, msg: DG_REASON[data && data.reason] || '구매 실패' }; }
+  DGS.medals = Math.max(0, +data.medals || 0); if (Array.isArray(data.titles)) DGS.titles = data.titles.filter(x => typeof x === 'string'); if (Array.isArray(data.uniques)) DGS.uniques = strs(data.uniques);
   return { ok: true, mail: data.mail || null, msg: data.mail ? '구매 완료! 우편함에서 받기를 눌러 주세요.' : '구매 완료!' };
 }

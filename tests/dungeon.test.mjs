@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K, DG_BOSS, DG_BOSS_TYPE, lanceTarget, segDist, lanceVictim, interceptPoint, circleSpots, inCircle, dodgePoint, summonDue } from '../src/data/dungeon.js';
 import { DG_MEDAL, dungeonMedals, DG_SHOP, DG_SHOP_BY, DG_TITLES, shopState, DG_REASON } from '../src/data/dungeon.js';
+import { UQ, UQ_DG } from '../src/data/items.js';
 import { readFileSync } from 'node:fs';
 import { ETYPES } from '../src/data/monsters.js';
 import { bfsField, downhill, aggroHero, bestCluster, rolePlan } from '../src/dungeon/logic.js';
@@ -94,7 +95,15 @@ t('메달 상수 = schema.sql', () => { assert.ok(SQL.includes(`v_m := v_fl * ${
 t('상점 가격표 = schema.sql hd3d_dungeon_item', () => { const fn = SQL.slice(SQL.indexOf('function public.hd3d_dungeon_item'), SQL.indexOf('function public.hd3d_kst_day'));
   const rows = [...fn.matchAll(/when '(\w+)'\s+then '(\{.*?\})'::jsonb/g)].map(m => [m[1], JSON.parse(m[2])]); assert.equal(rows.length, DG_SHOP.length);
   for (const [id, j] of rows) { const it = DG_SHOP_BY[id]; assert.ok(it, id); assert.equal(it.price, j.price, id); assert.equal(it.n, j.name, id); assert.deepEqual(it.reward || null, j.reward || null, id); assert.equal(it.title || null, j.title || null, id); if (it.title) assert.ok(DG_TITLES[it.title]); }
-  assert.ok(DG_SHOP.every(x => x.price > 0 && x.price <= 100 && x.desc)); });
+  assert.ok(DG_SHOP.every(x => x.price > 0 && x.price <= (x.uq ? 600 : 100) && x.desc));
+  for (const [id, j] of rows) assert.equal(DG_SHOP_BY[id].uq || null, j.uq || null, id + ' uq'); });
+t('던전 고유 d_fist: 상점 · 드롭 상수 = schema.sql', () => { const it = DG_SHOP.find(x => x.uq); assert.equal(it.id, UQ_DG.shop); assert.equal(it.uq, UQ_DG.key); assert.equal(it.price, UQ_DG.price); assert.equal(it.n, UQ[UQ_DG.key].n);
+  assert.ok(SQL.includes(`coalesce(p_pity, 0) + 1 >= ${UQ_DG.pity} or coalesce(p_r, 1) < ${UQ_DG.drop}`), 'roll 상수');
+  assert.equal(shopState(it, 9999, [], ['d_fist']), 'own'); assert.equal(shopState(it, UQ_DG.price, [], []), 'ok'); assert.equal(shopState(it, UQ_DG.price - 1), 'lack'); assert.ok(/[가-힣]/.test(DG_REASON.owned));
+  // 3회/일 · 회당 최대 15 → 450 = 완주만 10일, 평균 12개면 약 2주 미만
+  const perDay = DG_MEDAL.daily * dungeonMedals(FLOORS.length, true); assert.ok(UQ_DG.price / perDay >= 7 && UQ_DG.price / perDay <= 14, '1~2주');
+  // 드롭 기대 횟수 (5% + 천장 40) — 하루 3회면 2주 안
+  let e = 0, surv = 1; for (let n = 1; n <= UQ_DG.pity; n++) { const p = n === UQ_DG.pity ? 1 : UQ_DG.drop; e += n * surv * p; surv *= 1 - p; } assert.ok(e > 10 && e < 25, 'drop 기대 ' + e); });
 t('상점 버튼 상태', () => { const T = DG_SHOP_BY.dg_title, S = DG_SHOP_BY.dg_steel; assert.equal(shopState(S, 5), 'ok'); assert.equal(shopState(S, 4), 'lack'); assert.equal(shopState(T, 999, ['lich_hunter']), 'own'); assert.equal(shopState(T, 59, []), 'lack'); assert.equal(shopState(S, undefined), 'lack'); });
 t('서버 사유 문구', () => { for (const r of ['daily_limit', 'not_enough', 'already', 'bad_item', 'bad_token', 'used', 'expired']) assert.ok(DG_REASON[r] && /[가-힣]/.test(DG_REASON[r]), r); });
 console.log(`dungeon: ${ok} ok`);

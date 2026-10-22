@@ -7,7 +7,8 @@ import * as E from '../account/equip.js';
 import { closeLab } from './lab.js';
 import * as P from '../account/progress.js';
 import * as ST from '../data/stages.js';
-import { UQ, UQ_COLOR, UQ_DUP, AWAKE_MAX, CHSET, CH_KEYS, UQ_PITY, CODEX_RW, awakeMul, awakeCd, chOdds } from '../data/items.js';
+import { DGS, dgStatus } from '../account/dungeon.js';
+import { UQ, UQ_COLOR, UQ_DUP, UQ_DG, AWAKE_MAX, CHSET, CH_KEYS, UQ_PITY, CODEX_RW, awakeMul, awakeCd, chOdds } from '../data/items.js';
 
 const ICON = { ...Object.fromEntries(HERO_KEYS.map(k => [k, CLASSES[k].icon])), armor: '🛡️', acc: '💍' }; // 영웅 무기 아이콘은 data/heroes.js 의 icon (빠진 영웅이 없도록 한 곳에서)
 const FALLBACK = { weapon: '⚔️', any: '📦' }; // 모르는 영웅/슬롯 키 → 'undefined' 대신 일반 아이콘
@@ -20,7 +21,8 @@ const GCi = it => (it && it.uq ? UQ_COLOR : GC(it.g));
 const awStars = a => '★'.repeat(a || 0) + '☆'.repeat(AWAKE_MAX - (a || 0));
 const TR_N = { onSkill: '자동 · Q 사용 시', every: '자동 · 주기', lowHp: '자동 · 체력 위기', onHit: '자동 · 피격 시', shield: '자동 · 무피격 대기', onDeath: '자동 · 쓰러질 때', wave: '자동 · 웨이브 누적', onKill: '자동 · 처치 누적' };
 export function uqSrcText(k) { const U = UQ[k], s = U.src; if (s.boss) return `${ST.stageNo(s.boss)} ${ST.STAGES[s.boss].n} 첫 처치`; if (s.stars) { const C = ST.CHAPTERS.find(c => c.id === s.stars); return `${C.short} 별 만점 (★${C.stages.length * 3})`; }
-  if (s.drop) return `${ST.CHAPTERS.find(c => c.id === s.drop).short} 스테이지 보스 처치 1.5% (천장 ${UQ_PITY}회)`; return `도전 모드 최고 ${s.wave}웨이브`; }
+  if (s.drop) return `${ST.CHAPTERS.find(c => c.id === s.drop).short} 스테이지 보스 처치 1.5% (천장 ${UQ_PITY}회)`;
+  if (s.dungeon) return `던전 원정 모르비아 처치 ${Math.round(UQ_DG.drop * 100)}% (천장 ${UQ_DG.pity}회) · 던전 상점 🏅${UQ_DG.price}`; return `도전 모드 최고 ${s.wave}웨이브`; }
 const clsN = h => (CLASSES[h] || {}).n || '알 수 없는 영웅';
 const pct = (k, v) => `${E.STAT[k]} +${v}%`;
 const GC = g => E.GRADES[g].c;
@@ -257,8 +259,9 @@ function renderCodex(s) {
         + `<div class="cxRw">${r.got ? '✓' : r.done ? `<button class="gbtn sm main cxGet" data-k="${r.key}">받기</button>` : `${r.n}/${r.max}`}</div>`).join('') + '</div>'
       + `<div class="cxFoot"><span>${SC.n} · 본 장비 <b>${C.seen}/${C.total}</b>${un ? '' : ' · 🔒 아직 열리지 않은 챕터'}</span><span class="cxAllRw">행 완성 ${rwTxt(CODEX_RW.row)} · 전부 완성 ${rwTxt(CODEX_RW.all)}</span>${C.all.got ? '<b class="cxDone">✓ 완성 보상 받음</b>' : C.all.done ? `<button class="gbtn main cxGet" data-k="${C.all.key}">🏆 완성 보상 받기</button>` : ''}</div>`;
   } else {
+    if (DGS.st === 'idle' && Acc.A.user) dgStatus().then(() => { if (ui.inv && ui.cxTab === 0 && DGS.st === 'ok') renderInv(); }).catch(() => {}); // 던전 고유 천장·메달 (서버 값)
     h += `<div class="uqGrid">${Object.keys(UQ).map(k => { const U = UQ[k], have = E.ownsUnique(s, k), it = s.inv.find(x => x.uq === k), src = U.src;
-      const prog = have ? `<b class="uqSt">${awStars(it ? it.a : 0)}</b>` : src.boss ? (ST.stars(s, src.boss) ? '✓' : '미처치') : src.stars ? `★ ${ST.chapterStars(s, src.stars)}/${P.chapterMax(src.stars)}` : src.drop ? `천장 ${(s.uqPity || {})[k] || 0}/${UQ_PITY}` : `최고 ${s.bestWave}/${src.wave}웨이브`;
+      const prog = have ? `<b class="uqSt">${awStars(it ? it.a : 0)}</b>` : src.boss ? (ST.stars(s, src.boss) ? '✓' : '미처치') : src.stars ? `★ ${ST.chapterStars(s, src.stars)}/${P.chapterMax(src.stars)}` : src.drop ? `천장 ${(s.uqPity || {})[k] || 0}/${UQ_PITY}` : src.dungeon ? (DGS.st === 'ok' ? `천장 ${DGS.uqPity}/${UQ_DG.pity} · 🏅 ${DGS.medals}/${UQ_DG.price}` : '던전 원정 (로그인)') : `최고 ${s.bestWave}/${src.wave}웨이브`;
       return `<button class="uqCell ${have ? 'have' : ''}" data-k="${k}"><span class="ic">${have ? icon(E.makeUnique(k)) : '?'}</span><span class="un">${have ? esc(U.n) : '???'}</span><small>${esc(uqSrcText(k))}</small><small class="pg">${prog}</small></button>`; }).join('')}</div>`;
   }
   $('codexBody').innerHTML = h;

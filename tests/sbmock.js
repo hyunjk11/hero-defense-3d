@@ -49,7 +49,7 @@
     const ts = d => { d.lastTs = Math.max(Date.now(), (d.lastTs || 0) + 1); return new Date(d.lastTs).toISOString(); }; // 저장 행 updated_at: 쓸 때마다 증가 (낙관적 동시성 검사용)
     const missing = t => flags().noTables || (flags().noShop && SHOPT.includes(t)) || (flags().noAdmin2 && ADM2T.includes(t));
     // hd3d_valid_reward / hd3d_valid_item 과 같은 규칙 (2026-10-22: essence 0~10000, items 1~10개 — 장비 {k:'gear',s,h?,g,c?} · 고유 {k:'uq',u})
-    const UQK = ['f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring'], HK0 = ['archer', 'mage', 'warrior', 'gunner', 'mechanic', 'fighter'], HKF = () => (flags().oldSchema ? HK0.filter(h => h !== 'fighter') : HK0); // oldSchema: fighter 추가 전 서버
+    const UQK = ['f_bow', 'f_acc', 'f_arm', 's_staff', 's_arm', 's_acc', 'v_sword', 'v_acc', 'v_arm', 'r_guns', 'r_acc', 'r_arm', 'c_acc', 'c_arm', 'c_ring', 'd_fist'], HK0 = ['archer', 'mage', 'warrior', 'gunner', 'mechanic', 'fighter'], HKF = () => (flags().oldSchema ? HK0.filter(h => h !== 'fighter') : HK0); // oldSchema: fighter 추가 전 서버
     const INT = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
     const VITEM = x => !!x && typeof x === 'object' && !Array.isArray(x) && (x.k === 'uq' ? Object.keys(x).every(k => k === 'k' || k === 'u') && UQK.includes(x.u)
       : x.k === 'gear' && Object.keys(x).every(k => ['k', 's', 'h', 'g', 'c'].includes(k)) && ['weapon', 'armor', 'acc'].includes(x.s) && INT(x.g, 0, 4) && (x.s === 'weapon' ? HKF().includes(x.h) : !('h' in x)) && (!('c' in x) || INT(x.c, 1, 4)));
@@ -140,7 +140,7 @@
           return { data: { ok: true, total: f.length, offset: off, limit: lim, rows: f.slice(off, off + lim).map(id => card(d, id)) }, error: null }; }
         case 'hd3d_admin_user': { const c = card(d, a.p_user); if (!c) return NO('no_user'); const by = (o, n) => Object.values(o).filter(x => (x.user_id || x.target_user) === a.p_user).sort((x, y) => (x.created_at < y.created_at ? 1 : -1)).slice(0, n);
           return { data: { ok: true, user: c, orders: by(d.hd3d_orders, 30), mail: by(d.hd3d_mail, 30).map(m => ({ id: m.id, title: m.title, reward: m.reward, claimed: m.claimed, revoked: !!m.revoked, created_at: m.created_at })), log: Object.values(d.hd3d_admin_log).filter(l => l.target_user === a.p_user).sort((x, y) => y.id - x.id).slice(0, 20),
-            ...(flags().noDungeon ? {} : { dungeon: (() => { const w = (d.dg_wallet || {})[a.p_user] || { medals: 0, earned: 0, spent: 0 }, rs = Object.values(d.dg_runs || {}).filter(r => r.user_id === a.p_user); return { medals: w.medals, earned: w.earned, spent: w.spent, today: rs.filter(r => r.day === kstDay()).length, runs: rs.length }; })() }) }, error: null }; }
+            ...(flags().noDungeon ? {} : { dungeon: (() => { const w = (d.dg_wallet || {})[a.p_user] || { medals: 0, earned: 0, spent: 0 }, rs = Object.values(d.dg_runs || {}).filter(r => r.user_id === a.p_user); return { medals: w.medals, earned: w.earned, spent: w.spent, uniques: w.uniques || [], uq_pity: w.uq_pity || 0, today: rs.filter(r => r.day === kstDay()).length, runs: rs.length }; })() }) }, error: null }; }
         case 'hd3d_admin_grant_hero': case 'hd3d_admin_revoke_hero': { if (!ITEMOK(a.p_item)) return NO('bad_item'); const r = reason(a.p_reason); if (!r) return NO('bad_reason'); const k = a.p_user + ':' + a.p_item;
           if (fn === 'hd3d_admin_grant_hero') { if (!d.users[a.p_user]) return NO('no_user'); if (d.hd3d_owned[k]) return NO('already'); d.hd3d_owned[k] = { user_id: a.p_user, item: a.p_item, source_mail: null, created_at: now() }; L('hero_grant', a.p_user, { item: a.p_item, reason: r }); return R({ ok: true }); }
           if (!d.hd3d_owned[k]) return NO('not_owned'); delete d.hd3d_owned[k]; let n = 0; for (const m of Object.values(d.hd3d_mail)) if (m.user_id === a.p_user && !m.claimed && !m.revoked && m.reward && 'hero_' + m.reward.hero === a.p_item) { m.revoked = true; n++; }
@@ -174,14 +174,17 @@
     // ---------- 던전 5단계 (schema.sql 2026-10-23 흉내) ----------
     const DGF = ['hd3d_dungeon_status', 'hd3d_dungeon_start', 'hd3d_dungeon_finish', 'hd3d_dungeon_buy'];
     const DGITEM = { dg_steel: { price: 5, name: '강철 꾸러미', reward: { steel: 40 } }, dg_souls: { price: 6, name: '영혼석 주머니', reward: { souls: 400 } }, dg_crystal: { price: 8, name: '마력석 꾸러미', reward: { crystal: 10 } },
-      dg_essence: { price: 15, name: '고유 정수', reward: { essence: 3 } }, dg_title: { price: 60, name: '칭호 · 망령 사냥꾼', title: 'lich_hunter' } };
+      dg_essence: { price: 15, name: '고유 정수', reward: { essence: 3 } }, dg_title: { price: 60, name: '칭호 · 망령 사냥꾼', title: 'lich_hunter' },
+      dg_uq_fist: { price: 450, name: '묘신 너클 호랑냥이', uq: 'd_fist' } };
+    // 던전 고유(d_fist): 서버는 모르비아 처치 때 5% (천장 40). 목은 결정적으로 — flags.dgUqRoll === true 면 드롭, 아니면 천장(40번째)만 드롭
+    const UQW = W => { W.uniques = W.uniques || []; W.uq_pity = W.uq_pity || 0; return W; };
     const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
     function dg(fn, a) {
       if (flags().noDungeon) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };
       const me = uid(); if (!me) return { data: null, error: { code: '42501', message: 'not authenticated' } };
       const d = db(); d.dg_runs = d.dg_runs || {}; d.dg_wallet = d.dg_wallet || {}; d.dg_buys = d.dg_buys || []; d.hd3d_mail = d.hd3d_mail || {};
       const R = data => { put(d); return { data, error: null }; }, mine = Object.values(d.dg_runs).filter(r => r.user_id === me), w = d.dg_wallet[me];
-      if (fn === 'hd3d_dungeon_status') { const used = mine.filter(r => r.day === kstDay()).length; return { data: { ok: true, day: kstDay(), limit: 3, used, left: Math.max(0, 3 - used), medals: w ? w.medals : 0, titles: w ? w.titles : [], banned: banned() }, error: null }; }
+      if (fn === 'hd3d_dungeon_status') { const used = mine.filter(r => r.day === kstDay()).length; return { data: { ok: true, day: kstDay(), limit: 3, used, left: Math.max(0, 3 - used), medals: w ? w.medals : 0, titles: w ? w.titles : [], uniques: w ? UQW(w).uniques.slice() : [], uq_pity: w ? UQW(w).uq_pity : 0, banned: banned() }, error: null }; }
       if (banned()) return { data: null, error: { code: '42501', message: 'banned', hint: 'banned' } };
       if (fn === 'hd3d_dungeon_start') { const used = mine.filter(r => r.day === kstDay()).length; if (used >= 3) return { data: { ok: false, reason: 'daily_limit', limit: 3, used, left: 0 }, error: null };
         for (const r of mine) if (r.status === 'active') Object.assign(r, { status: 'abandoned', floors: 0, win: false, finished: Date.now() });
@@ -192,13 +195,18 @@
         const sec = (Date.now() - r.started) / 1000; if (sec > 3 * 3600) { Object.assign(r, { status: 'abandoned', floors: 0, win: false }); return R({ ok: false, reason: 'expired' }); }
         const want = Math.min(Math.max(Math.floor(+a.p_floors || 0), 0), 5), fl = Math.min(want, Math.floor(sec / 20)), win = !!a.p_win && fl === 5, m = fl * 2 + (win ? 5 : 0);
         Object.assign(r, { status: 'done', floors: fl, win, medals: m, finished: Date.now() }); const W = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; W.medals = Math.min(1e6, W.medals + m); W.earned += m;
-        return R({ ok: true, medals: m, total: W.medals, floors: fl, win, capped: fl < want }); }
+        UQW(W); let uq = null, umid = null;
+        if (win && !W.uniques.includes('d_fist')) { if (flags().dgUqRoll === true || W.uq_pity + 1 >= 40) { uq = 'd_fist'; W.uniques.push(uq); W.uq_pity = 0; r.uq = uq;
+          umid = mail(d, me, '🐾 망령 여왕의 전리품', "모르비아가 떨어뜨린 고유 무기 '묘신 너클 호랑냥이'예요. '받기'를 눌러 수령하세요.", { items: [{ k: 'uq', u: 'd_fist' }] }); } else W.uq_pity += 1; }
+        return R({ ok: true, medals: m, total: W.medals, floors: fl, win, capped: fl < want, uq, mail: umid, uq_pity: W.uq_pity, uniques: W.uniques.slice() }); }
       if (fn === 'hd3d_dungeon_buy') { const it = DGITEM[a.p_item]; if (!it) return { data: { ok: false, reason: 'bad_item' }, error: null };
         if (it.title && w && w.titles.includes(it.title)) return { data: { ok: false, reason: 'already', medals: w.medals }, error: null };
+        if (it.uq && w && UQW(w).uniques.includes(it.uq)) return { data: { ok: false, reason: 'owned', medals: w.medals, uniques: w.uniques.slice() }, error: null };
         if (!w || w.medals < it.price) return { data: { ok: false, reason: 'not_enough', medals: w ? w.medals : 0, price: it.price }, error: null };
         w.medals -= it.price; w.spent += it.price; if (it.title) w.titles.push(it.title); let mid = null;
-        if (it.reward) mid = mail(d, me, '🏪 던전 상점 구매품', `${it.name} — 던전 메달 ${it.price}개로 구매했습니다. '받기'를 눌러 수령하세요.`, { ...it.reward });
-        d.dg_buys.push({ user_id: me, item: a.p_item, price: it.price, mail_id: mid }); return R({ ok: true, item: a.p_item, price: it.price, medals: w.medals, mail: mid, titles: w.titles.slice() }); }
+        if (it.uq) UQW(w).uniques.push(it.uq);
+        if (it.reward || it.uq) mid = mail(d, me, '🏪 던전 상점 구매품', `${it.name} — 던전 메달 ${it.price}개로 구매했습니다. '받기'를 눌러 수령하세요.`, it.uq ? { items: [{ k: 'uq', u: it.uq }] } : { ...it.reward });
+        d.dg_buys.push({ user_id: me, item: a.p_item, price: it.price, mail_id: mid }); return R({ ok: true, item: a.p_item, price: it.price, medals: w.medals, mail: mid, titles: w.titles.slice(), uniques: UQW(w).uniques.slice() }); }
     }
     async function rpc(fn, a) {
       log('rpc:' + fn); if (flags().offline) return { data: null, error: { message: 'TypeError: Failed to fetch' } };
@@ -215,6 +223,7 @@
           if (m.revoked && !m.claimed) return { data: null, error: { code: 'P0002', message: 'mail revoked', hint: 'revoked' } };
           if (m.claimed) return { data: { ok: true, already: true, id: m.id, reward: m.reward }, error: null }; // schema.sql: already 일 때도 reward 반환 (장부 복구용)
           m.claimed = true; m.claimed_at = now(); if (m.reward && m.reward.medals > 0) { d.dg_wallet = d.dg_wallet || {}; const w = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; w.medals = Math.min(1e6, w.medals + m.reward.medals); w.earned += m.reward.medals; }
+          if (m.reward && Array.isArray(m.reward.items) && m.reward.items.some(x => x && x.k === 'uq' && x.u === 'd_fist')) { d.dg_wallet = d.dg_wallet || {}; const w = UQW(d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }); if (!w.uniques.includes('d_fist')) w.uniques.push('d_fist'); }
           if (m.reward && m.reward.hero) { const k = me + ':hero_' + m.reward.hero; d.hd3d_owned[k] = d.hd3d_owned[k] || { user_id: me, item: 'hero_' + m.reward.hero, source_mail: m.id, created_at: now() }; }
           if (flags().loseClaim) { put(d); return netErr(); } // 서버에선 성공했지만 응답 유실
           return R({ ok: true, already: false, id: m.id, reward: m.reward }); }

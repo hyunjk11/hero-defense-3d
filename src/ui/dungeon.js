@@ -39,19 +39,21 @@ function dayHtml() { const D = DS.DGS;
 function paintDay() { const d = $('dgDay'); if (d) d.innerHTML = dayHtml(); const b = $('dgStart'); if (b && !departing) { const none = DS.DGS.st === 'ok' && DS.DGS.left === 0; b.disabled = none; b.textContent = none ? '오늘 입장 끝 (0시 초기화)' : '⚔ 원정 출발'; }
   const m = $('dgShopMedals'); if (m) m.textContent = DS.DGS.medals; }
 function refreshDay() { DS.dgStatus().then(() => { if (open) { if (view === 'shop') renderShop(); else paintDay(); } }).catch(() => {}); }
+// 던전 고유(계정당 1개): 서버 지갑 기록 ∪ 이 세이브에 이미 있는 고유 → '보유 중'
+const ownedUq = () => { const s = Acc.load(); return [...new Set([...DS.DGS.uniques, ...DG_SHOP.filter(it => it.uq && E.ownsUnique(s, it.uq)).map(it => it.uq)])]; };
 // ---------- 던전 상점 (메달 → 재료는 우편으로, 칭호는 서버 지갑에) ----------
 function renderShop() { const p = $('dgPanel'); if (!p) return; const D = DS.DGS, on = D.st === 'ok' && !!Acc.A.user;
   const note = !Acc.A.user ? '로그인한 계정만 던전 상점을 쓸 수 있어요.' : D.st === 'missing' ? '⚠ 서버 업데이트 필요 — 관리자가 schema.sql 을 다시 실행하면 열려요.' : D.st !== 'ok' ? '서버에 연결할 수 없어요.' : '산 재료는 📮 우편함으로 와요 (받기를 눌러 수령). 가격은 서버가 정해요.';
   p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn">✕</button><div class="gtitle">🏪 던전 상점</div><div class="labSub">던전 원정에서 모은 던전 메달로 재료를 사요</div>
     <div class="dgDay">🏅 던전 메달 <b id="dgShopMedals">${on ? D.medals : '-'}</b>${titleTxt() ? ` · <span class="dgTitle">${esc(titleTxt())}</span>` : ''}</div>
-    <div class="dgShop">${DG_SHOP.map(it => { const stt = on ? shopState(it, D.medals, D.titles) : 'off'; return `<div class="dgShopIt ${stt}" data-id="${it.id}"><span class="dgSIc">${it.icon}</span><b>${esc(it.n)}</b><small>${esc(it.desc)}</small>
+    <div class="dgShop">${DG_SHOP.map(it => { const stt = on ? shopState(it, D.medals, D.titles, ownedUq()) : 'off'; return `<div class="dgShopIt ${stt}${it.uq ? ' uq' : ''}" data-id="${it.id}"><span class="dgSIc">${it.icon}</span><b>${esc(it.n)}</b><small>${esc(it.desc)}</small>
       <button class="gbtn sm dgBuy" data-buy="${it.id}" ${stt === 'ok' && !buying ? '' : 'disabled'}>${stt === 'own' ? '✔ 보유 중' : `🏅 ${it.price}`}</button></div>`; }).join('')}</div>
     <div class="dgInfo"><small>${esc(note)}</small></div><div class="dgGo"><button id="dgBack" class="gbtn">← 원정 준비</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgBack').onclick = () => { Snd.play('ui'); view = 'party'; render(); };
   p.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buy(b.dataset.buy)); }
 async function buy(id) { const it = DG_SHOP_BY[id]; if (!it || buying) return; if (!confirm(`${it.n} 을(를) 던전 메달 ${it.price}개로 살까요?`)) return;
   buying = true; renderShop(); const r = await DS.dgBuy(id); buying = false; Snd.play(r.ok ? 'confirm' : 'error'); banner(r.msg, r.ok ? '#9affb0' : '#ffb06a', 2200); G.dgLastBuy = r;
-  if (r.ok && r.mail) Sh.refresh().catch(() => {}); if (open && view === 'shop') renderShop(); }
+  if (r.ok && r.mail) Sh.refresh().catch(() => {}); if (!r.ok && DS.DGS.st === 'ok') refreshDay(); if (open && view === 'shop') renderShop(); }
 function render() { if (view === 'shop') return renderShop(); const p = $('dgPanel'); if (!p) return; const s = Acc.load(), cands = dungeonParty(c => Sh.heroOwned(c)), party = pickParty(cands, loadPick()), F = FLOORS[0];
   const paidNote = DG_PAID.filter(c => !cands.includes(c) && CLASSES[c] && !CLASSES[c].hidden).map(c => `<div class="dgCard lock"><div class="dgCH"><span class="dgIc">${CLASSES[c].icon}</span><b>${esc(CLASSES[c].nm)}</b> <small>· ${esc(CLASSES[c].n)}</small></div><div class="dgRole">${checking ? '소유 확인 중…' : '🔒 상점에서 영입하면<br>함께 출전해요'}</div></div>`).join('');
   p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn">✕</button><div class="gtitle">⚔ 던전 원정</div><div class="labSub">카드를 눌러 출전할 영웅을 고르세요 (최대 ${DG_MAX}명) · 전투 중 초상화를 눌러 조작할 영웅을 바꾸고, 나머지는 역할대로 자동 전투해요</div>

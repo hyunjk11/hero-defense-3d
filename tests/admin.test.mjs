@@ -42,7 +42,7 @@ ok('item_invalid', ![null, [], 1, { k: 'uq', u: 'zz' }, { k: 'gear', s: 'weapon'
 ok('reward_items_valid', L.validReward({ essence: 10000, items: [G, U] }) && !L.validReward({ essence: 10001 }) && !L.validReward({ essence: 1.5 }) && !L.validReward({ items: [] }) && !L.validReward({ items: Array(11).fill(U) }) && !L.validReward({ items: [{ k: 'uq', u: 'x' }] }) && !L.validReward({ items: U }));
 ok('reward_build_items', JSON.stringify(L.buildReward({ essence: 20000, items: [G, { k: 'bad' }, U] })) === JSON.stringify({ essence: 10000, items: [G, U] }) && L.buildReward({ items: Array(15).fill(U) }).items.length === 10);
 ok('item_label', RI.itemLabel(G).includes('전설') && RI.itemLabel(G).includes('총사') && RI.itemLabel(U).includes('세계수') && RI.itemLabel({ k: 'gear', s: 'armor', g: 0 }).includes('일반 방어구'));
-const cat = RI.catalog(); ok('catalog', cat.length === 15 + 5 * 5 * (VISIBLE_HEROES.length + 2) && cat.every(e => RI.validItem(e.spec)), cat.length);
+const cat = RI.catalog(); ok('catalog', cat.length === 16 + 5 * 5 * (VISIBLE_HEROES.length + 2) && cat.every(e => RI.validItem(e.spec)), cat.length);
 ok('search', RI.searchCatalog('세계수')[0].spec.u === 'f_bow' && RI.searchCatalog('전설 방어구', 50).every(e => e.spec.s === 'armor' && e.spec.g === 4) && RI.searchCatalog('').length === 0);
 ok('preview', RI.previewLines({ souls: 10, essence: 3, items: [G, U] }).length === 4 && RI.previewLines({ essence: 3 })[0].includes('고유 정수'));
 // grant → claim → 보관함/고유 정수
