@@ -14,7 +14,22 @@ assert.ok(Math.abs(k.range - 11 * 1.3) < 1e-9 && Math.abs(k.dmg - 24 * 1.7) < 1e
 const pal = A.applyAdv(CLASSES.warrior, A.ADV.warrior.paladin), ber = A.applyAdv(CLASSES.warrior, A.ADV.warrior.berserk);
 assert.equal(pal.hp, 1250); assert.equal(pal.armor, .55); assert.equal(ber.armor, .25); assert.ok(Math.abs(ber.rate - 1.3 * 1.3) < 1e-9);
 assert.equal(A.applyAdv(CLASSES.mage, A.ADV.mage.flame).aoe, 3); assert.equal(A.applyAdv(CLASSES.mage, A.ADV.mage.frost).aoe, 2);
-const th = A.applyAdv(CLASSES.gunner, A.ADV.gunner.thorn); assert.ok(Math.abs(th.dmg - 26) < 1e-9 && Math.abs(th.range - 8.5 * 1.1) < 1e-9);
+// 로즈 2차 = 장미 저격수 (2026-10-22, 키 thorn 유지): 느리지만 강한 소총 — 공속 ×0.45 · 피해 ×2.5 · 사거리 ×1.4 · 관통 3명 100/70/50 · 치명 +15% · 보스/정예 +20%
+const th = A.applyAdv(CLASSES.gunner, A.ADV.gunner.thorn), RT = A.ADV.gunner.thorn;
+assert.ok(Math.abs(th.dmg - 13 * 2.5) < 1e-9 && Math.abs(th.rate - 4.2 * .45) < 1e-9 && Math.abs(th.range - 8.5 * 1.4) < 1e-9 && th.skill === '관통 저격' && th.title === '장미 저격수');
+assert.equal(RT.n, '장미 저격수'); assert.equal(RT.icon, '🎯'); assert.equal(RT.skill, 'pierceshot'); assert.deepEqual(RT.atk.pierce, [1, .7, .5]); assert.equal(RT.atk.crit, 15); assert.equal(RT.atk.bossK, 1.2);
+assert.ok(!RT.atk.splashR && !RT.atk.splashK, '소폭발 제거'); assert.equal(RT.ws, 1); assert.deepEqual(A.advModels(RT), ['rose_rifle_meshy', 'rose_rifle_gun']); assert.deepEqual(A.advModels(A.ADV.gunner.duel), []);
+assert.equal(A.advTowerMods(RT, 'arrow').rng, 1.08); assert.equal(A.advTowerMods(RT, 'cannon').br.blast, undefined); assert.match(RT.td, /화살 타워 사거리 \+8%/);
+// 장미 결투가는 그대로
+const DU = A.ADV.gunner.duel; assert.deepEqual([DU.n, DU.icon, DU.mod, DU.atk, DU.skill, DU.td], ['장미 결투가', '🌹', { rate: 1.2 }, { ricoEvery: 6, ricoN: 3, ricoK: .5 }, 'rose+', '화살 타워 공속 +5%']);
+// DPS: 단일 대상 = 옛 가시 장미 포격수(13×2 × 4.2×0.6 = 65.52) 이상·결투가와 ±10%, 한 발 피해는 결투가의 2.5배 이상(느리지만 강하게), 부채꼴 무리는 결투가보다 낮게 (브라우저 실측 tests/rose_rifle.py --dps)
+const dR = A.advDps('gunner', 'thorn'), dD = A.advDps('gunner', 'duel'), OLD_THORN = 13 * 2 * 4.2 * .6;
+assert.ok(dR >= OLD_THORN && dR <= OLD_THORN * 1.08, `rifle ${dR} vs old thorn ${OLD_THORN}`); assert.ok(Math.abs(dR - dD) / Math.max(dR, dD) <= .1); assert.ok(th.dmg >= 2.5 * 13 && th.rate < 2);
+assert.ok(A.advSwarmDps('gunner', 'thorn') < A.advSwarmDps('gunner', 'duel'), `swarm rifle ${A.advSwarmDps('gunner', 'thorn')} vs duel ${A.advSwarmDps('gunner', 'duel')}`);
+assert.ok(A.advSwarmDps('gunner', 'thorn', 6, 1) > A.advSwarmDps('gunner', 'duel', 6, 1) * 1.5, '한 줄 행렬에서는 관통이 결투가보다 강함'); assert.equal(A.advSwarmDps('gunner', 'thorn', 1), dR);
+// 저장 호환: 옛 가시 장미 포격수 저장 {b:'thorn'} → 비용·변환 없이 장미 저격수
+{ const P = await import('../src/account/progress.js'); const s0 = P.clean({ hero: 'gunner', adv: { gunner: { b: 'thorn', n: 2 } }, souls: 7 }); assert.deepEqual(s0.adv.gunner, { b: 'thorn', n: 2 }); assert.equal(s0.souls, 7);
+  assert.equal(A.advOf('gunner', s0.adv.gunner), RT); assert.equal(A.advTitle('gunner', s0.adv.gunner), '로즈 · 장미 저격수'); assert.equal(A.permMax(s0, 'gunner'), 15); assert.equal(A.advBlock(s0, 'gunner', 'thorn'), '현재 분기'); }
 // 밸런스: 두 분기 기본 DPS 차이 10% 이내, 기본 대비 -10%~+25%
 for (const h of A.ADV_HEROES) { const [a, b] = A.branchesOf(h).map(x => A.advDps(h, x)), base = A.advDps(h);
   assert.ok(Math.abs(a - b) / Math.max(a, b) <= .10, `${h} ${a} ${b}`); for (const v of [a, b]) assert.ok(v >= base * .9 && v <= base * 1.25, `${h} ${v} vs ${base}`); }

@@ -7,7 +7,8 @@ import { G } from '../core/state.js';
 import { cam, scene } from '../render/scene.js';
 import { mk, toon } from '../render/toon.js';
 import { SFX } from '../audio/sfx.js';
-import { MON_ASSETS, ensureModels, heroAssets, makeHeroModel, modelsReady, whenModels, play } from '../render/characters.js';
+import { MON_ASSETS, ensureModels, heroAssets, loadModel, makeHeroModel, modelsReady, whenModels, play } from '../render/characters.js';
+import { advModels } from '../data/advance.js';
 import { computeDist } from '../world/pathfinding.js';
 import { spawnHero } from '../heroes/hero.js';
 import { banner, refreshHud, setPhaseUI } from './hud.js';
@@ -36,7 +37,8 @@ function updSelect(dt) {
 function choose(cls) {
   if (isHidden(cls) || !CLASSES[cls]) cls = DEFAULT_HERO; // 숨긴 영웅은 고를 수 없음 (data/heroes.js hidden)
   const need = [...MON_ASSETS, ...heroAssets(cls, true)]; // 지연 로딩: 판에 필요한 모델이 아직이면 받은 뒤 시작
-  if (!modelsReady(need)) { G.chooseWait = cls; $('loading').classList.remove('hidden'); $('loadTxt').textContent = '모델 불러오는 중…'; ensureModels(need).then(() => { $('loading').classList.add('hidden'); if (G.chooseWait === cls) { G.chooseWait = null; choose(cls); } }).catch(e => { console.warn(e); banner('모델을 불러오지 못했습니다. 새로고침 해주세요.', '#ff8a8a', 4000); }); return; }
+  const opt = G.adv && G.adv.h === cls ? advModels(G.adv).filter(k => !G.advModelFail) : []; // 전직 전용 모델(소총 로즈): 이 분기일 때만 받음 · 실패하면 기본 모델로 출전 (판은 막지 않음)
+  if (!modelsReady(need) || !modelsReady(opt)) { G.chooseWait = cls; $('loading').classList.remove('hidden'); $('loadTxt').textContent = '모델 불러오는 중…'; Promise.all([ensureModels(need), ...opt.map(k => loadModel(k).catch(e => { console.warn('adv model', k, e); G.advModelFail = true; }))]).then(() => { $('loading').classList.add('hidden'); if (G.chooseWait === cls) { G.chooseWait = null; choose(cls); } }).catch(e => { console.warn(e); banner('모델을 불러오지 못했습니다. 새로고침 해주세요.', '#ff8a8a', 4000); }); return; }
   G.chooseWait = null;
   preview.forEach(p => p.mixer.stopAllAction()); preview.length = 0; scene.remove(podium); $('select').classList.add('hidden'); $('hud').classList.remove('hidden');
   spawnHero(cls); G.phase = 'build'; cam.target.set(0, 0, 1); cam.r = 58; cam.phi = .9; cam.theta = .22;

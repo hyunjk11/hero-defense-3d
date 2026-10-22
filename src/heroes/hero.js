@@ -25,7 +25,7 @@ import { uqInit, uqPreHit, uqPostHit, uqOnDeath, uqRate } from './unique.js';
 // ================= 영웅 =================
 let hero = null;
 const stat = {
-  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk) * (hero.uqAtk || 1) * (hero.adv ? advAtkMul() : 1), q = hero.eq; return q && q.crit && Math.random() * 100 < q.crit ? b * (1.5 + (q.critD || 0) / 100) : b; }, // 치명타는 장비가 있을 때만
+  dmg: () => { const b = hero.C.dmg * (1 + .15 * G.ups.atk) * (hero.uqAtk || 1) * (hero.adv ? advAtkMul() : 1), q = hero.eq, cc = ((q && q.crit) || 0) + ((hero.adv && hero.adv.atk.crit) || 0); stat.crit = cc > 0 && Math.random() * 100 < cc; return stat.crit ? b * (1.5 + ((q && q.critD) || 0) / 100) : b; }, // 치명타 = 장비 + 전직(장미 저격수 +15%). stat.crit = 마지막 계산이 치명타였는지
   rate: () => hero.C.rate * (1 + .1 * G.ups.spd) * uqRate(), range: () => hero.C.range * (1 + .08 * G.ups.rng) * (hero.robo ? 1.45 : 1), // 메카닉 로봇: 사거리 +45%
   skillMul: () => (1 + .25 * G.ups.skill) * (1 + ((hero.eq && hero.eq.skill) || 0) / 100), skillCd: () => hero.C.cd * Math.pow(.92, G.ups.skill) * (1 - Math.min(40, (hero.eq && hero.eq.cdr) || 0) / 100),
 };
@@ -33,7 +33,7 @@ function spawnHero(cls) {
   let C = CLASSES[cls]; if (G.perm) C = { ...C, hp: Math.round(C.hp * (1 + .06 * (G.perm.hp || 0))), dmg: C.dmg * (1 + .05 * (G.perm.atk || 0)) }; // 마을 영구 강화
   if (G.perm && G.adv && G.adv.h === cls) C = applyAdv(C, G.adv); // 전직 (마을 출정 때만): 기본 → 여신탑 → 전직 → 장비
   const q = G.perm && G.equip ? G.equip : null; if (q) C = { ...C, hp: Math.round(C.hp * (1 + (q.hp || 0) / 100)), dmg: C.dmg * (1 + (q.atk || 0) / 100), rate: C.rate * (1 + (q.spd || 0) / 100), range: C.range * (1 + (q.rng || 0) / 100) }; // 장비
-  const ch = makeHeroModel(cls); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
+  const ch = makeHeroModel(cls, null, C.adv && C.adv.model); ch.g.position.set(tileX(CORE[0] - 1), 0, tileZ(CORE[1])); ch.g.rotation.y = -Math.PI / 2; scene.add(ch.g);
   hero = G.hero = { adv: C.adv || null, advHits: 0, advStunCd: 0, warpT: 0, warpCd: 0, stuckT: 0, stuckD: 1e9, unstuckN: 0, cls, C, eq: q, ch, g: ch.g, hp: C.hp, max: C.hp, cd: 0, skillCd: 0, atkT: 0, path: [], dead: 0, spinT: 0, flash: 0, face: -Math.PI / 2 };
   if (G.perm && G.legend) Object.assign(hero, { lsk: G.legend, lcd: 0, licd: 0, leap: null }); // 전설 무기 고유 스킬 (마을 출정 때만)
   advInit(hero); // 전직: 오라 링 · 무기 스케일 (전직 없으면 카운터만 초기화)
@@ -44,7 +44,7 @@ function spawnHero(cls) {
 function heroDamage(d) {
   if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.uqs) uqPostHit(hp0); if (hero.adv && hero.hp > 0) advOnHurt(); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
   if (hero.hp <= 0 && hero.uqs && uqOnDeath()) return; // 불사조 부활
-  if (hero.hp <= 0) { if (hero.mech) mechRevert(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
+  if (hero.hp <= 0) { if (hero.mech) mechRevert(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; hero.snipeT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }
 }
 const heroPass = (c, r) => { if (!inGrid(c, r)) return false; const t = tileAt(c, r); return (t.t === T.GRASS || t.t === T.CARVED || t.t === T.SPAWN || t.t === T.CORE) && !t.tower && !t.bar; };
 function passAt(x, z) { for (const [ox, oz] of [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]]) { const [c, r] = toTile(x + ox, z + oz); if (!heroPass(c, r)) return false; } return true; }
@@ -65,7 +65,7 @@ const WARP_CH = 1, WARP_CD = 10;
 function warpTarget() { return freeTileNear(CORE[0] - 1, CORE[1]); }
 function startWarp() { const h = hero; if (!h || h.dead > 0 || G.phase === 'select' || G.phase === 'over' || (h.mech && h.mech.busy > 0)) return false;
   if (h.warpT > 0) return false; if (h.warpCd > 0) { Snd.play('error'); banner(`워프 재사용 대기 ${Math.ceil(h.warpCd)}초`, '#9ae8ff', 800); return false; }
-  h.path = []; h.spinT = 0; h.roseT = 0; h.gunT = 0; if (h.swirl) h.swirl.visible = false; h.warpT = WARP_CH; play(h.ch, 'Cheer');
+  h.path = []; h.spinT = 0; h.roseT = 0; h.gunT = 0; h.snipeT = 0; if (h.swirl) h.swirl.visible = false; h.warpT = WARP_CH; play(h.ch, 'Cheer');
   if (!h.warpFx) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, 6, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x7ad8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); m.position.y = 3; h.warpFx = m; h.g.add(m); }
   h.warpFx.visible = true; ringFx(h.g.position, 2.2, 0x7ad8ff, WARP_CH); Snd.play('magic', { pos: h.g.position, rate: .6, force: true }); Snd.whoosh(h.g.position, WARP_CH, 200, 2400, .4); return true; }
 function warpChannelFx(dt) { const h = hero, k = 1 - h.warpT / WARP_CH; h.warpFx.material.opacity = .15 + k * .5; h.warpFx.scale.set(1 - k * .5, 1, 1 - k * .5); h.warpFx.rotation.y += dt * 6;
@@ -127,8 +127,9 @@ function updHero(dt) {
   if (tgt && h.adv && h.adv.atk.prio === 'hp') tgt = advPick(rng) || tgt; // 전직 저격수: 체력 높은 적(보스) 우선
   h.cd -= dt; h.atkT -= dt; if (h.gunT > 0) h.gunT -= dt;
   if (h.roseT > 0) updRose(dt); // 로즈 피니시 중: 일반 사격 대신 난사
+  else if (h.snipeT > 0) { h.snipeT -= dt; h.face = h.snipeA; } // 장미 저격수 관통 저격 조준 중: 일반 사격 없음, 방향 고정
   else if (h.cls === 'gunner' && tgt) { h.face = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); // 총사: 이동 중에도 목표를 겨누며 연사
-    if (h.cd <= 0) { h.cd = 1 / stat.rate(); h.gunT = .45; const t0 = tgt; later(.02, () => { if (!t0.dead && hero.dead <= 0) { gunAttack(t0); if (hero.lsk) legendProc(t0); } }); } }
+    if (h.cd <= 0) { h.cd = 1 / stat.rate(); h.gunT = Math.max(.45, h.cd + .15); /* 소총(느린 연사): 다음 발까지 조준 유지 */ const t0 = tgt; later(.02, () => { if (!t0.dead && hero.dead <= 0) { gunAttack(t0); if (hero.lsk) legendProc(t0); } }); } }
   else if (h.cls === 'mechanic' && tgt) { const want = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); if (!moving || h.robo) h.face = want; // 메카닉: 드릴/해머 교대 (로봇: 펀치·드릴 돌진·해머)
     if (h.cd <= 0) { h.cd = 1 / stat.rate() * (h.robo ? 1.1 : 1); mechSwing(tgt, moving, hero.lsk ? legendProc : null); } }
   else if (tgt && h.spinT <= 0) { const want = Math.atan2(tgt.g.position.x - h.g.position.x, tgt.g.position.z - h.g.position.z); if (!moving) h.face = want;

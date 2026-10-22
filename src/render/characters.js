@@ -9,7 +9,7 @@ import { addOutline, glow, grad, mk, shareGeo, toon } from './toon.js';
 import { makeWolf, makeSlime, makeWisp, extraProp } from './monsters3d.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ALL_ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b'];
+const GL = {}; const ALL_ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b', 'rose_rifle_meshy', 'rose_rifle_gun'];
 // 지연 로딩 (P-2): 모델은 키마다 한 번만 불러옴(LOADING 에 promise 캐시). 필요한 것만 먼저(loadAssets(keys)) → 나머지는 loadBackground 로 하나씩 (판 중 버벅임 방지)
 // 몬스터: 모든 챕터가 같은 해골 모델 4개 + 무기 4개(약 1.9MB)를 공유 → '현재 챕터 몬스터' = MON_ASSETS 전체
 const MON_ASSETS = [...new Set(Object.values(ETYPES).flatMap(E => [E.model, E.w, E.sh]).filter(k => k && ALL_ASSETS.includes(k)))];
@@ -51,6 +51,10 @@ function extraClips(list, M) {
   for (const [n, up, lo] of M.mix || []) { const u = by(up), l = by(lo); if (!u || !l) continue; const k = u.duration / l.duration, bone = t => t.name.split('.')[0];
     const tr = [...u.tracks.filter(t => !LEG_RE.test(bone(t))).map(t => t.clone()), ...l.tracks.filter(t => LEG_RE.test(bone(t))).map(t => { const c = t.clone(); c.times = c.times.map(x => x * k); return c; })];
     list.push(new THREE.AnimationClip(n, u.duration, tr)); }
+  // graft = [이름, 바탕 클립, 자세 클립, 뼈 정규식]: 바탕 클립을 복제하고 정규식에 맞는 뼈의 회전을 자세 클립 첫 프레임 값으로 고정 (소총 로즈: 숨쉬는 대기/달리기 몸 + 소총 든 팔)
+  for (const [n, base, src, re] of M.graft || []) { const b = by(base), sc = by(src); if (!b || !sc) continue; const R = new RegExp(re);
+    list.push(new THREE.AnimationClip(n, b.duration, b.tracks.map(t => { const bn = t.name.split('.')[0]; if (!R.test(bn) || !/quaternion$/.test(t.name)) return t.clone(); const st = sc.tracks.find(x => x.name === t.name); if (!st) return t.clone();
+      const v = st.values.slice(0, 4); return new THREE.QuaternionKeyframeTrack(t.name, [0, b.duration], [...v, ...v]); }))); }
   // calm: 지정 클립의 지정 뼈 회전을 기준 자세(ref 클립 첫 프레임, 없으면 자기 첫 프레임) 쪽으로 k만큼 당김
   for (const C of M.calm || []) { const q = new THREE.Quaternion(), q0 = new THREE.Quaternion(), K = C.k, R = C.ref && by(C.ref);
     for (const c of list) { if (!C.clips.includes(c.name)) continue; c.tracks = c.tracks.map(t => { const bn = t.name.split('.')[0]; if (!C.bones.includes(bn) || !/quaternion$/.test(t.name)) return t;
@@ -84,6 +88,12 @@ const MESHY = {
     // 로봇 원본 클립은 몸통이 옆으로 최대 120° 돌고(Idle −86°, Drill −119°, Hit −60°) 해머는 80° 앞으로 접힘 → 엉덩이·척추·목·머리를 정면 자세(FistPump 첫 프레임) 쪽으로 강하게 당김 (팔·다리 동작은 그대로)
     // 메시는 정점마다 가장 큰 영향 뼈 하나에 묶음(rigidskin.mjs) + 스케일/위치(Hips 제외) 트랙 제거 → 장갑 부품이 늘어나지 않고 강체로 움직임
     calm: [{ clips: ['Idle', 'Drill', 'Hammer', 'Rocket', 'StompS', 'Uppercut', 'Hit'], bones: ['Hips', 'Spine', 'Spine01', 'Spine02', 'neck', 'Head'], k: .85, ref: 'FistPump' }, { clips: ['Run', 'Walk'], bones: ['Spine01', 'Spine02', 'neck', 'Head'], k: .5, ref: 'FistPump' }] },
+  // 로즈 2차 전직 '장미 저격수' 전용 몸 (총 없는 로즈 + Meshy 소총 동작). 소총은 별도 강체 모델 rose_rifle_gun → 오른손 손바닥에 손잡이, 총열은 왼손 손바닥을 지나게 매 프레임 배치 (늘어남 없음)
+  // Ready = 소총을 허리 높이로 겨눈 팔 자세(Rifle_Turn_Left 한 프레임) → 대기/피격 팔에 고정, Aim = 어깨 견착 조준(Gun_Hold_Left_Turn 0–1.3초), AimRun = 달리기 다리 + 견착 팔·상체
+  rose_rifle_meshy: { alias: { Idle: 'IdleR', Running_A: 'Run', Death_A: 'Death', Cheer: 'Flourish', Melee_Show: 'Flourish', ShootStand: 'Aim', ShootWalk: 'AimRun', ShootLoop: 'Aim', ShootCharged: 'Aim', IdleLookAround: 'IdleR', Walk: 'Run' },
+    graft: [['IdleR', 'IdleBase', 'Ready', '(Shoulder|Arm|ForeArm|Hand)$'], ['AimRun', 'Run', 'Aim', '^(Spine|Spine01|Spine02|neck|Head|.*(Shoulder|Arm|ForeArm|Hand))$']],
+    calm: [{ clips: ['Hit'], bones: ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'], k: .85, ref: 'Ready' }],
+    rifle: { s: .85, grip: [.44, -.01, 0], fore: [-.28, .06, 0], muz: [-.95, .085, .008], aim: ['Aim', 'AimRun'], one: ['Death', 'Flourish'], pitch: .05 } },
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
@@ -116,18 +126,21 @@ function flashCh(ch, on, col = 0xffffff) {
   for (let i = 0; i < M.length; i++) M[i].material = on ? flashVar(ch.shBase[i], col) : ch.shBase[i];
 }
 const heroClips = () => GL.warrior_meshy.animations, skClips = () => GL.sk_minion.animations;
-function makeHeroModel(cls, key0) {
-  const key = key0 || CLASSES[cls].model, M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
+// alt = 전직 전용 몸 모델 (로즈 장미 저격수 소총 몸). 모델이 아직 없거나 소품이 없으면 기본 모델 (안정성 우선)
+const altOk = alt => !!(alt && GL[alt] && MESHY[alt] && (!MESHY[alt].rifle || GL.rose_rifle_gun));
+function makeHeroModel(cls, key0, alt) {
+  const key = key0 || (altOk(alt) ? alt : CLASSES[cls].model), M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
   if (M) { for (const [a, b] of Object.entries(M.alias)) if (ch.acts[b]) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
     ch.hitAt = M.hitAt || 0; ch.root.updateMatrixWorld(true);
     if (M.aim) { ch.aim = M.aim; ch.yawT = 0; const up = ch.mixer.update.bind(ch.mixer); ch.mixer.update = dt => { ch.root.rotation.y += (ch.yawT - ch.root.rotation.y) * Math.min(1, dt * 16); return up(dt); }; }
     if (key === 'mage_meshy') { const hand = ch.root.getObjectByName('RightHand'); if (hand) { const hp = hand.getWorldPosition(new THREE.Vector3()), tip = new THREE.Object3D();
       tip.position.copy(hand.worldToLocal(staffTop(ch, hp))); hand.add(tip); ch.tip = tip; } } // 지팡이 수정 위치
     else if (key === 'gunner_meshy') gunMuzzles(ch);
+    else if (M.rifle) rifleRig(ch, M.rifle);
     else if (M.gear) mechGear(ch, M);
     else if (M.arms) mechArms(ch, M);
     else if (key === 'archer_meshy') { const hand = ch.root.getObjectByName('LeftHand'); if (hand) { const tip = new THREE.Object3D(); tip.position.copy(hand.worldToLocal(bowGrip(ch, hand.getWorldPosition(new THREE.Vector3())))); hand.add(tip); ch.tip = tip; } } } // 활 손잡이(왼손에 스킨된 활) = 화살 발사 지점
-  if (key0) return ch; // 변신 로봇: 링/색은 본체 것을 사용
+  ch.key = key; if (key0) return ch; // 변신 로봇: 링/색은 본체 것을 사용
   const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
   return ch;
 }
@@ -210,6 +223,49 @@ function gunMuzzles(ch) {
     for (const r of [0, Math.PI / 2]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(.55, .55), mat); p.rotation.y = r; p.position.y = .12; f.add(p); }
     const disk = new THREE.Mesh(new THREE.PlaneGeometry(.42, .42), mat); disk.rotation.x = Math.PI / 2; f.add(disk); f.scale.setScalar(1 / ws); f.visible = false; m.add(f); ch.flashes.push({ g: f, t: 0, s: 1 / ws, mat }); }
 }
+// ---- 소총 (장미 저격수): 강체 소총을 ch.g 안에 두고 매 프레임 '오른손 손바닥 = 손잡이(grip)', '총열 방향 = 오른손→왼손 손바닥' 으로 배치 (위쪽 = 월드 위)
+// 조준 클립(aim)에서는 ① 모델을 돌려 총열이 정면(목표)을 향하게 ② 가슴(Spine)을 숙여 총열 기울기를 pitch 로 ③ 사격 반동(ch.recoil) 을 더함. one = 한 손 클립(쓰러짐·환호): 직전 자세 기준 오른손에 고정
+function palmOf(ch, hn) { const hb = ch.root.getObjectByName(hn); let sm = null; ch.root.traverse(o => { if (o.isSkinnedMesh && !o.userData.ol && !sm) sm = o; }); if (!hb || !sm) return null;
+  const B = sm.skeleton.bones, set = new Set(); B.forEach((b, i) => { for (let q = b; q; q = q.parent) if (q === hb) { set.add(i); break; } });
+  const g = sm.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, v = new THREE.Vector3(), c = new THREE.Vector3(); let n = 0; ch.root.updateMatrixWorld(true);
+  for (let i = 0; i < g.attributes.position.count; i++) { let w = 0; for (let j = 0; j < 4; j++) if (set.has(si.getComponent(i, j))) w += sw.getComponent(i, j); if (w < .5) continue; sm.getVertexPosition(i, v); v.applyMatrix4(sm.matrixWorld); c.add(v); n++; }
+  const o = new THREE.Object3D(); o.position.copy(hb.worldToLocal(n ? c.divideScalar(n) : hb.getWorldPosition(c))); hb.add(o); return o; }
+const _ra = new THREE.Vector3(), _rb = new THREE.Vector3(), _rc = new THREE.Vector3(), _rm = new THREE.Matrix4(), _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
+function rifleRig(ch, R) {
+  const src = GL.rose_rifle_gun && GL.rose_rifle_gun.scene; if (!src) return; const gun = new THREE.Group(), body = src.clone(true); body.scale.setScalar(R.s); gun.add(body); ch.g.add(gun);
+  const mats = []; body.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.e = o.material.emissive.clone(); mats.push(o.material); ch.mats.push(o.material); o.castShadow = true; o.frustumCulled = false; } });
+  ch.g.updateMatrixWorld(true); body.traverse(o => { if (o.isMesh && !o.userData.ol) addOutline(o, .028 / o.getWorldScale(wsV).x); });
+  const grip = new THREE.Vector3(...R.grip).multiplyScalar(R.s), fore = new THREE.Vector3(...R.fore).multiplyScalar(R.s), la = fore.clone().sub(grip).normalize(), lb = UP.clone().addScaledVector(la, -la.y).normalize();
+  const L0 = new THREE.Matrix4().makeBasis(la, lb, new THREE.Vector3().crossVectors(la, lb)).invert();
+  const pR = palmOf(ch, 'RightHand'), pL = palmOf(ch, 'LeftHand'), hand = ch.root.getObjectByName('RightHand'), spine = ch.root.getObjectByName('Spine');
+  // 총구 + 섬광 (총열 = 소총 로컬 -X → 섬광 그룹 +Y 를 -X 로)
+  const m = new THREE.Object3D(); m.position.fromArray(R.muz).multiplyScalar(R.s); gun.add(m);
+  const mat = new THREE.MeshBasicMaterial({ map: starTex(), color: 0xffd8a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }), f = new THREE.Group();
+  for (const r of [0, Math.PI / 2]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(.7, .9), mat); p.rotation.y = r; p.position.y = .2; f.add(p); }
+  const disk = new THREE.Mesh(new THREE.PlaneGeometry(.55, .55), mat); disk.rotation.x = Math.PI / 2; f.add(disk); f.visible = false; const fo = new THREE.Group(); fo.rotation.z = Math.PI / 2; fo.add(f); m.add(fo); // flash() 는 f.rotation.y(총열 축)만 돌림
+  ch.muz = [m, m]; const fl = { g: f, t: 0, s: 1, mat }; ch.flashes = [fl, fl];
+  const st = { gun, R, dir: new THREE.Vector3(0, 0, 1), rel: null, one: false, yaw: 0, recoil: 0 }; ch.rifle = st; ch.recoil = 0;
+  const inv = new THREE.Matrix4();
+  const place = () => { // 두 손 배치 (ch.g 로컬)
+    ch.g.updateMatrixWorld(true); inv.copy(ch.g.matrixWorld).invert(); const a = pR.getWorldPosition(_ra).applyMatrix4(inv), b = pL.getWorldPosition(_rb).applyMatrix4(inv), d = _rc.subVectors(b, a);
+    if (d.length() > .08) st.dir.copy(d).normalize(); const A = st.dir, B = UP.clone().addScaledVector(A, -A.y); if (B.lengthSq() < 1e-4) B.set(0, 0, 1); B.normalize();
+    _rm.makeBasis(A, B, new THREE.Vector3().crossVectors(A, B)).multiply(L0); gun.quaternion.setFromRotationMatrix(_rm); gun.position.copy(a).sub(grip.clone().applyQuaternion(gun.quaternion)); };
+  const up = ch.mixer.update.bind(ch.mixer);
+  ch.mixer.update = dt => { const r = up(dt), cn = ch.cur ? ch.cur.getClip().name : '', aim = R.aim.includes(cn), one = R.one.includes(cn);
+    st.recoil = Math.max(0, (ch.recoil || 0) - dt * 5); ch.recoil = st.recoil;
+    if (one) { if (!st.one) { ch.root.updateMatrixWorld(true); gun.updateMatrixWorld(true); st.rel = hand.matrixWorld.clone().invert().multiply(gun.matrixWorld); st.one = true; }
+      ch.root.updateMatrixWorld(true); _rm.copy(ch.g.matrixWorld).invert().multiply(hand.matrixWorld).multiply(st.rel); _rm.decompose(gun.position, gun.quaternion, _ra); }
+    else { st.one = false;
+      // 조준: 모델 회전으로 총열 수평 방향을 정면(+Z)에, 가슴 숙임으로 기울기를 pitch 로 (반동 = 위로 튐)
+      const yawT = aim ? st.yaw : 0; ch.root.rotation.y += (yawT - ch.root.rotation.y) * Math.min(1, dt * 14 + (dt === 0 ? 1 : 0));
+      place();
+      if (aim && spine) { const A = st.dir, err = Math.atan2(A.x, A.z), w = ch.root.rotation.y - err; st.yaw += Math.atan2(Math.sin(w - st.yaw), Math.cos(w - st.yaw)) * Math.min(1, dt * 12 + (dt === 0 ? 1 : 0)); // 목표 = 지금 회전 - 오차 (클립 고유 각도의 반대)
+        const pitch = Math.asin(Math.max(-1, Math.min(1, A.y))), want = R.pitch + st.recoil * .35, dp = Math.max(-.6, Math.min(.6, pitch - want));
+        if (Math.abs(dp) > .01) { ch.g.updateMatrixWorld(true); const ax = new THREE.Vector3().crossVectors(A, UP).normalize().transformDirection(ch.g.matrixWorld);
+          spine.parent.getWorldQuaternion(_rq); _rq2.setFromAxisAngle(ax, -dp); spine.quaternion.premultiply(_rq.clone().invert().multiply(_rq2).multiply(_rq)); ch.root.updateMatrixWorld(true); place(); } } }
+    return r; };
+  ch.mixer.update(0);
+}
 // 귀여운 유령 박쥐 (절차적 모델)
 function makeBat() {
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner); inner.position.y = 3; const mats = [];
@@ -288,4 +344,4 @@ function addProp(ch, kind, E) {
     attachProp(ch, 'chest', g, [0, -.15 * s, .55 * s]); g.scale.multiplyScalar(s * .75); ch.ram = g; }
 }
 
-export { GL, MESHY, ASSETS, MON_ASSETS, heroAssets, loadAssets, loadModel, loadBackground, ensureModels, modelsReady, whenModels, play, flashMats, flashCh, makeHeroModel, makeEnemyModel };
+export { altOk, GL, MESHY, ASSETS, MON_ASSETS, heroAssets, loadAssets, loadModel, loadBackground, ensureModels, modelsReady, whenModels, play, flashMats, flashCh, makeHeroModel, makeEnemyModel };

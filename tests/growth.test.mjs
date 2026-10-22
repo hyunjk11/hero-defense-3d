@@ -45,5 +45,6 @@ console.log('growth.test ok');
   const k = GR.resMods(r, 'arrow', A.advTowerMods(A.ADV.archer.hawk, 'arrow')); assert.ok(Math.abs(GR.towerStats('arrow', 3, 3, 'snipe', k).dmg - GR.towerStats('arrow', 3, 3, 'snipe', GR.resMods(r, 'arrow')).dmg * 1.1) < 1e-9);
   const fl = GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.mage.flame, 'cannon')); assert.ok(Math.abs(GR.towerStats('cannon', 2, 1, null, fl).splash - 2.5 * 1.08) < 1e-9);
   const fr = GR.resMods(r, 'magic', A.advTowerMods(A.ADV.mage.frost, 'magic')); assert.ok(Math.abs(GR.towerStats('magic', 1, 1, null, fr).slow - .45) < 1e-9); assert.equal(GR.branchFor('magic', 'frost', fr).freezeEvery, 3);
-  assert.equal(GR.branchFor('cannon', 'blast', GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.gunner.thorn, 'cannon'))).cluster, 4);
+  assert.equal(GR.branchFor('cannon', 'blast', GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.gunner.thorn, 'cannon'))).cluster, 3); // 장미 저격수(2026-10-22): 대포 집속탄 보너스 없음
+  assert.ok(Math.abs(GR.towerStats('arrow', 3, 3, null, GR.resMods(r, 'arrow', A.advTowerMods(A.ADV.gunner.thorn, 'arrow'))).range - GR.towerStats('arrow', 3, 3, null, GR.resMods(r, 'arrow')).range * 1.08) < 1e-9); // 화살 타워 사거리 +8%
   assert.ok(Math.abs(GR.resMods(r, 'cannon', A.advTowerMods(A.ADV.warrior.berserk, 'cannon')).dmg - 1.12 * 1.05) < 1e-9); console.log('adv tower mods ok'); }

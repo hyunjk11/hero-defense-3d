@@ -5,7 +5,7 @@ import { $, QS } from '../core/util.js';
 import { CLASSES, VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
 import { cam, camera, scene, renderer } from '../render/scene.js';
-import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
+import { altOk, ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
 import { showSelect, choose } from './select.js';
 import * as Acc from '../account/account.js';
 import * as P from '../account/progress.js';
@@ -108,10 +108,10 @@ function routeToTower() { const V = (x, z) => new THREE.Vector3(x, 0, z), p = th
 // ---------- 여신의 축복 (여신탑 영구 강화 창) ----------
 let blessOpen = false, blessNear = false, blessTab = 'perm';
 const heroRingColor = () => { if (!th || !th.ring) return; const s = Acc.load(), A = AD.advOf(th.cls, s.adv[th.cls]); th.ring.material.color.setHex(A ? A.col : CLASSES[th.cls].color); }; // 전직 칭호 색 (마을 단상 영웅 발밑 링)
-function setBlessTab(t) { blessTab = t === 'adv' ? 'adv' : 'perm'; document.querySelectorAll('#blessTabs .ftab').forEach(b => b.classList.toggle('on', b.dataset.bt === blessTab)); $('twPerm').classList.toggle('hidden', blessTab !== 'perm'); $('twAdv').classList.toggle('hidden', blessTab !== 'adv'); $('twBless').classList.toggle('advMode', blessTab === 'adv'); if (blessTab !== 'adv') { resetAdvPreview(); heroRingColor(); } refreshTown(); }
+function setBlessTab(t) { blessTab = t === 'adv' ? 'adv' : 'perm'; document.querySelectorAll('#blessTabs .ftab').forEach(b => b.classList.toggle('on', b.dataset.bt === blessTab)); $('twPerm').classList.toggle('hidden', blessTab !== 'perm'); $('twAdv').classList.toggle('hidden', blessTab !== 'adv'); $('twBless').classList.toggle('advMode', blessTab === 'adv'); if (blessTab !== 'adv') { resetAdvPreview(); endPv(); } refreshTown(); }
 G.blessTab = setBlessTab;
 function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeShopUI(); closeSmith(true); closeInv(); closeStageSel(true); closeLab(true); $('twBless').classList.remove('hidden'); refreshTown(); }
-function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); closeAdvConfirm(); resetAdvPreview(); heroRingColor(); }
+function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); closeAdvConfirm(); resetAdvPreview(); endPv(); }
 G.openBlessing = openBless; G.closeBlessing = closeBless;
 G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z, cls: th.cls };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
@@ -120,10 +120,16 @@ G.townLab = () => { const f = labFront(); return [LAB.x, LAB.y, f.x, f.z]; }; G.
 G.townTower = () => [LAKE.x, LAKE.y]; G.townSmith = () => [SMITH.x, SMITH.y]; G.townShop = () => { const f = shopFront(); return [SHOP_P.x, SHOP_P.y, f.x, f.z]; };
 G.stageSel = { openStageSel, departStage, ST };
 G.gear = { E, Acc, P, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal, openChestUI, chestCount, lastChestBatch };
+// 마을 단상 영웅: 전직 전용 몸(소총 로즈)이 있으면 그 모델 (지연 로딩 → 도착하면 교체, 실패하면 기본 모델 유지). pvA = 전직 탭에서 미리 보는 분기
+let pvA = null;
+function endPv() { const had = pvA; pvA = null; if (had && town && town.visible && th) spawnTownHero(); heroRingColor(); } // 미리보기 끝: 저장된 분기 모델·링 색으로
+const townAlt = (hc, s) => { const A = pvA && pvA.h === hc ? pvA : AD.advOf(hc, s.adv[hc]); return A && A.model ? A : null; };
 function spawnTownHero() {
-  const s = Acc.load(), hc = Sh.usableHero(s.hero);
+  const s = Acc.load(), hc = Sh.usableHero(s.hero), A = townAlt(hc, s), alt = A && altOk(A.model) ? A.model : null;
   if (!modelsReady(heroAssets(hc))) { ensureModels(heroAssets(hc)).then(() => { if (town && town.visible && Sh.usableHero(Acc.load().hero) === hc && (!th || th.cls !== hc)) spawnTownHero(); }).catch(e => console.warn(e)); return; } // 지연 로딩: 도착하면 교체 (그 사이엔 이전 영웅 유지)
-  if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null; heroRingColor();
+  if (A && !alt && !G.advModelFail) ensureModels(AD.advModels(A)).then(() => { if (town && town.visible && th && th.cls === hc && th.key !== A.model && townAlt(hc, Acc.load()) === A) spawnTownHero(); }).catch(e => { console.warn('adv model', e); G.advModelFail = true; });
+  if (th && th.cls === hc && th.key === (alt || CLASSES[hc].model)) { heroRingColor(); return; } // 같은 모델이면 그대로
+  if (th) { town.remove(th.g); th.mixer.stopAllAction(); } th = makeHeroModel(hc, null, alt); th.cls = hc; th.g.position.set(0, 0, 4); th.g.rotation.y = Math.PI; town.add(th.g); play(th, 'Idle'); th.goal = null; heroRingColor();
 }
 export function enterTown() {
   hideAll(); $('select').classList.add('hidden'); if (!town) buildTown(); town.visible = true; spawnTownHero(); show('town'); G.phase = 'town'; departing = false; blessNear = false; closeBless(); smithNear = false; portalNear = false; labNear = false; shopNear = false; closeShopUI(); closeAdmin(true); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true);
@@ -200,7 +206,7 @@ function bindUI() {
   initShop({ onChange: () => refreshTown(), closeOthers: k => { closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); if (k !== 'shop') closeShop(true); if (k !== 'mail') closeMail(true); }, cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   Sh.onShop(() => { if (th && G.screen === 'town' && th.cls !== Sh.usableHero(Acc.load().hero)) spawnTownHero(); refreshTown(); refreshMenu(); }); // 서버 소유권 갱신 → 마을 영웅 모델도 맞춤
   document.querySelectorAll('#blessTabs .ftab').forEach(b => b.onclick = () => { if (b.dataset.bt === blessTab) return; Snd.play('ui'); setBlessTab(b.dataset.bt); });
-  initAdv({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } }, preview: A => { if (th && th.ring) th.ring.material.color.setHex(A.col); } });
+  initAdv({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } }, preview: A => { pvA = A; if (th && th.ring) th.ring.material.color.setHex(A.col); spawnTownHero(); if (th && th.ring) th.ring.material.color.setHex(A.col); } }); // 미리보기: 링 색 + (소총 로즈) 모델
   initLab({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   addEventListener('keydown', e => { if (e.key === 'Escape' && blessOpen) closeBless(); });

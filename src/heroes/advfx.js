@@ -13,7 +13,7 @@ import { makeArrow, shoot } from '../combat/projectiles.js';
 import { hurt } from '../monsters/enemy.js';
 import { banner } from '../ui/hud.js';
 import { hero, stat } from './hero.js';
-import { gunSkill, ricochet, bloom, muzzle, flash } from './gunner.js';
+import { gunSkill, ricochet, bloom, muzzle, flash, petals, tracer } from './gunner.js';
 
 const FX = [];
 G.advN = {}; G.advDmg = 0;
@@ -25,7 +25,7 @@ const hit = (e, d, col, big) => { if (e.dead) return; G.advDmg += d; hurt(e, d, 
 const ADD = (c, o = .8) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
 const css = c => '#' + c.toString(16).padStart(6, '0');
 // 무기 스케일: 무기가 스킨된 손 뼈 (Meshy 모델은 무기가 몸 메시에 붙어 있어 손 뼈 크기로 키움 — 새 모델 없음)
-const WBONE = { archer: ['LeftHand'], mage: ['RightHand'], warrior: ['RightHand'], gunner: ['LeftHand', 'RightHand'] };
+const WBONE = { archer: ['LeftHand'], mage: ['RightHand'], warrior: ['RightHand'], gunner: ['LeftHand', 'RightHand'] }; // 소총 몸(장미 저격수)은 ws 1 → 손 뼈 크기 그대로
 
 // ---------- 출정 시 초기화: 발밑 오라 링 (성능 모드 1메시) + 무기 스케일 ----------
 export function advInit(h) {
@@ -73,12 +73,42 @@ export const advAtkMul = () => { const a = hero.adv && hero.adv.atk; return a &&
 export function advOnHurt() { const a = hero.adv.atk; if (!a.stunCh || hero.advStunCd > 0 || hero.dead > 0 || !(G.advForceStun || Math.random() < a.stunCh)) return; hero.advStunCd = a.stunCd; const p = hero.g.position;
   for (const e of near(p.x, p.z, a.stunR)) { if (e.E.fly) continue; e.stunT = Math.max(e.stunT || 0, e.E.boss ? a.stunT * .5 : a.stunT); e.frozen = false; cnt('stunHit'); }
   cnt('stun'); ringFx(p, a.stunR, 0xffe9a0, .35); emit(P, p.x, 1.2, p.z, 24, 0xfff0b0, 5, .4, 0, 1); Snd.play('block', { pos: p, rate: .8 }); }
-// 로즈: 탄 색 + 결투가(6번째 탄 도탄 3명 50%) / 포격수(착탄 반경 1.2 소폭발 60%)
+// 로즈: 탄 색 + 결투가(6번째 탄 도탄 3명 50%). 장미 저격수는 rifleShot (gunAttack 에서 분기)
 export function advBullet(t) { const A = hero.adv, a = A.atk, o = { col: A.col };
   if (a.ricoEvery) { if (++hero.advHits % a.ricoEvery === 0) { cnt('rico'); o.onHit = (tp, tg) => tg && ricochet(tg, { mul: a.ricoK }, a.ricoN, false); } }
-  else if (a.splashR) { const dmg = stat.dmg() * a.splashK; o.onHit = (tp, tg) => { cnt('splash'); for (const e of near(tp.x, tp.z, a.splashR)) if (e !== tg) { hit(e, dmg, '#ff6a8a'); cnt('splashHit'); }
-    ringFx(tp, a.splashR, 0xd0204a, .22); emit(P, tp.x, tp.y, tp.z, 10, 0xff4a7a, 4, .3, -3, .4); Snd.play('boom', { pos: tp, vol: .18, rate: 1.8 }); }; }
   return o; }
+
+// 로즈 장미 저격수: 소총 관통탄 (즉발 직선) — 목표 방향으로 사거리+1 까지, 폭 pierceW 안의 적을 가까운 순으로 최대 3명 (100/70/50%), 공중 포함
+// 치명타(stat.crit) = 큰 숫자, 보스/정예 bossK. 피해는 G.advDmg 에도 합산(뒤 대상만 = 관통 추가분)
+const bossy = e => !!(e.E.boss || e.elite);
+export function rifleLine(from, dir, len, w, n) { const L = []; for (const e of alive()) { if (e.immT > G.t) continue; const dx = e.g.position.x - from.x, dz = e.g.position.z - from.z, along = dx * dir.x + dz * dir.z; if (along < -.4 || along > len) continue;
+    const side = Math.abs(dx * dir.z - dz * dir.x); if (side <= w + (e.E.boss ? .5 : 0)) L.push([along, e]); } L.sort((a, b) => a[0] - b[0]); return n ? L.slice(0, n).map(x => x[1]) : L.map(x => x[1]); }
+export function rifleShot(t) { const A = hero.adv, a = A.atk, from = muzzle(0), tp = t.g.position, hp = hero.g.position, dir = new THREE.Vector3(tp.x - hp.x, 0, tp.z - hp.z); if (dir.lengthSq() < 1e-4) return; dir.normalize();
+  const base = stat.dmg(), crit = stat.crit, len = stat.range() + 1, L = rifleLine(hp, dir, len, a.pierceW, 0); if (!L.includes(t)) L.unshift(t); else { L.splice(L.indexOf(t), 1); L.unshift(t); } // 조준한 적이 항상 첫 번째(100%)
+  const hits = L.slice(0, a.pierce.length); flash(0, 1.7); hero.ch.recoil = 1; G.advN.rifle = (G.advN.rifle || 0) + 1; if (crit) cnt('rifleCrit');
+  hits.forEach((e, i) => { const d = base * a.pierce[i] * (bossy(e) ? a.bossK : 1), q = e.g.position; if (i) { G.advDmg += d; cnt('pierceHit'); } if (bossy(e)) cnt('bossHit');
+    hurt(e, d, crit ? '#ffe08a' : i ? '#ff9ab8' : '#ffd0e4', crit, { x: hp.x, z: hp.z, kind: 'ranged' }); emit(P, q.x, 1.1, q.z, i ? 4 : 7, i ? 0xff6a9a : 0xffe0c0, 3.5, .25); });
+  const last = hits[hits.length - 1].g.position, end = new THREE.Vector3(last.x, 1.1, last.z).addScaledVector(dir, hits.length > 1 ? .6 : .2), f2 = from.clone();
+  tracer(f2, end, 0xfff0f4, .09); tracer(f2, end, A.col, .2); emit(P, from.x, from.y, from.z, 6, 0xffe0b0, 3, .2); emit(P, from.x, from.y, from.z, 3, 0xff6a9a, 1.5, .5, 1, .2);
+  Snd.gun(from, { rate: .62, vol: 1.25, big: true }); if (crit) Snd.gun(from, { rate: 1.5, vol: .35, ping: true }); }
+// 관통 저격 (Q): 0.6초 조준(레이저 조준선) → 직선 위 모든 적 600% (보스 포함, 감쇠 없음) — 굵은 장미빛 빔 + 총구 섬광 + 꽃잎
+const SNIPE_AIM = .6, SNIPE_LEN = 32;
+function pierceShot(tgt, mul, base) { const A = hero.adv, hp = hero.g.position, dir = new THREE.Vector3(tgt.x - hp.x, 0, tgt.z - hp.z); if (dir.lengthSq() < .01) dir.set(Math.sin(hero.face), 0, Math.cos(hero.face)); dir.normalize();
+  const ang = hero.face = Math.atan2(dir.x, dir.z), id = (hero.snipeId || 0) + 1; hero.snipeId = id; hero.snipeA = ang; hero.snipeT = SNIPE_AIM + .3; hero.gunT = SNIPE_AIM + .35; hero.path = []; G.gunN.skill++;
+  banner('관통 저격!', A.c, 1000); play(hero.ch, 'ShootStand', { force: true }); ringFx(hp, 1.8, A.col, SNIPE_AIM); Snd.play('draw', { pos: hp, rate: .8, force: true }); Snd.whoosh(hp, SNIPE_AIM, 200, 1800, .3);
+  // 조준선: 총구에서 앞으로 가는 가는 붉은 선 (깜빡이며 굵어짐)
+  const sight = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1, 5).rotateX(Math.PI / 2).translate(0, 0, .5), ADD(0xff2a5a, .5)); scene.add(sight); let t = 0;
+  FX.push(dt => { t += dt; if (!hero || hero.dead > 0 || hero.snipeId !== id || t >= SNIPE_AIM) { scene.remove(sight); sight.geometry.dispose(); sight.material.dispose(); return false; }
+    const f = muzzle(0); sight.position.copy(f); sight.lookAt(f.clone().addScaledVector(dir, 10)); sight.scale.set(1 + t * 3, 1 + t * 3, SNIPE_LEN * .6); sight.material.opacity = .25 + .35 * (t / SNIPE_AIM) + Math.sin(t * 40) * .1; return true; });
+  later(SNIPE_AIM, () => { if (!hero || hero.dead > 0 || hero.snipeId !== id || !(hero.snipeT > 0)) return; hero.face = ang; const from = muzzle(0), d = base * 6 * mul;
+    let n = 0; for (const e of rifleLine(hero.g.position, dir, SNIPE_LEN, 1.1, 0)) { hit(e, d, '#ffe08a', true); n++; cnt('snipeHit'); const q = e.g.position; emit(P, q.x, 1.2, q.z, 12, 0xff6a9a, 5, .4, -3, .6); }
+    const end = from.clone().addScaledVector(dir, SNIPE_LEN); end.y = from.y; flash(0, 3); hero.ch.recoil = 1.6; G.shake = Math.max(G.shake || 0, .45); cnt('pierceshot');
+    tracer(from, end, 0xffffff, .16); tracer(from, end, A.col, .4); beam(from, end, A.col); ringFx(from, 2.4, A.col, .35); emit(PB, from.x, from.y, from.z, 18, A.col, 6, .45, 0, .6);
+    for (let i = 0; i < 6; i++) petals(from.clone().addScaledVector(dir, 3 + i * 4.5).setY(.3), 5, 2.5); petals(from.clone().setY(.2), 10, 3);
+    Snd.gun(from, { rate: .45, vol: 1.6, big: true }); Snd.play('boom', { pos: from, vol: .35, rate: 1.7 }); Snd.whoosh(from, .5, 600, 4200, .6); G.advN.snipeN = n; });
+  return true; }
+function beam(a, b, col) { const L = a.distanceTo(b), m = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 1, 10, 1, true).rotateX(Math.PI / 2).translate(0, 0, .5), ADD(col, .85)); m.position.copy(a); m.lookAt(b); m.scale.set(1, 1, L); scene.add(m); let t = 0;
+  FX.push(dt => { t += dt; const k = t / .45; m.scale.set(1 + k * 1.5, 1 + k * 1.5, L); m.material.opacity = .85 * (1 - k); if (k < 1) return true; scene.remove(m); m.geometry.dispose(); m.material.dispose(); return false; }); }
 
 // ---------- J-5 Q 스킬 (castSkill 에서 목표 계산 후 호출, true 면 기본 스킬 대신) ----------
 export function advSkill(tgt, mul, base) { const A = hero.adv, k = A && A.skill; if (!k) return false; const hp = hero.g.position; cnt('skill_' + k);
@@ -113,18 +143,12 @@ export function advSkill(tgt, mul, base) { const A = hero.adv, k = A && A.skill;
     if (!hero.swirl) { hero.swirl = new THREE.Mesh(new THREE.TorusGeometry(2.8, .25, 8, 40), ADD(0xff2a3a, .6)); hero.swirl.rotation.x = Math.PI / 2; hero.swirl.position.y = 1.2; hero.swirl.scale.setScalar(1.2); hero.g.add(hero.swirl); }
     hero.swirl.visible = true; hero.spinTick = 0; Snd.whoosh(hp, .6, 300, 1400, .6); for (let j = 0; j < 6; j++) Snd.play('sword', { pos: hp, delay: j * .3, force: true, rate: 1.2 }); return true; }
   if (k === 'rose+') { gunSkill(mul, base, 1.4, 1.4 / 1.3); banner('로즈 피니시+!', A.c, 1000); return true; } // 지속 +40% · 탄 수 +30%
-  if (k === 'roseshell') { // 장미 포탄: 목표 지점 3연속 장미 폭발
-    hero.path = []; banner('장미 포탄!', A.c, 1000); play(hero.ch, 'ShootStand', { force: true, speed: 1.6 }); hero.atkT = 1.1; hero.gunT = 1.1; G.gunN.skill++;
-    for (let i = 0; i < 3; i++) later(.1 + i * .32, () => { if (!hero || hero.dead > 0) return; const kk = i & 1, from = muzzle(kk); flash(kk, 2.2); shell(from, tgt.clone().add(new THREE.Vector3((i - 1) * .9, 0, (i % 2 ? .8 : -.5))), at => { bloom(at, { mul: 2.5 }, false); cnt('shell'); }); Snd.gun(from, { rate: .7, vol: 1.3, big: true }); });
-    return true; }
+  if (k === 'pierceshot') return pierceShot(tgt, mul, base); // 관통 저격: 0.6초 조준 → 직선 600% 관통
   return false;
 }
 function comet(d, dmg) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.55, 0), glow(0x9ae8ff, 4)); const s = new THREE.Vector3(d.x - 5, 20, d.z - 3); m.position.copy(s); scene.add(m); let t = 0;
   FX.push(dt => { t += dt; const k = Math.min(1, t / .55); m.position.lerpVectors(s, d, k); m.rotation.x += dt * 9; if (Math.random() < .7) emit(P, m.position.x, m.position.y, m.position.z, 2, 0xcff6ff, 1.5, .4, 2, .4);
     if (k < 1) return true; scene.remove(m); m.geometry.dispose(); for (const e of near(d.x, d.z, 1.7)) hit(e, dmg, '#bff4ff', false); cnt('comet'); emit(P, d.x, .4, d.z, 24, 0xbff4ff, 5, .5, -6, 1); ringFx(d, 1.7, 0x8ae8ff, .3); Snd.play('glass', { pos: d, vol: .35, rate: 1.3 }); return false; }); }
-function shell(from, dest, done) { const m = new THREE.Mesh(new THREE.SphereGeometry(.28, 10, 8), glow(0xd0204a, 3)), s = from.clone(); m.position.copy(s); scene.add(m); let t = 0;
-  FX.push(dt => { t += dt; const k = Math.min(1, t / .38); m.position.lerpVectors(s, dest, k); m.position.y = s.y + (0 - s.y) * k + Math.sin(k * Math.PI) * 2.6; if (Math.random() < .8) emit(P, m.position.x, m.position.y, m.position.z, 1, 0xff4a7a, .5, .3, 0, 0);
-    if (k < 1) return true; scene.remove(m); m.geometry.dispose(); done(dest); return false; }); }
 function updSanct(dt) { const h = hero, p = h.g.position; h.sanctT -= dt; h.sanctTick -= dt; h.hp = Math.min(h.max, h.hp + h.max * .03 * dt); G.advHeal = (G.advHeal || 0) + h.max * .03 * dt;
   if (h.sanctTick <= 0) { h.sanctTick = .5; for (const e of near(p.x, p.z, 3.5)) { e.slowT = Math.max(e.slowT, .6); e.slowAmt = Math.max(e.slowAmt || 0, .4); hit(e, stat.dmg() * .5 * (h.sanctMul || 1), '#fff0b0'); cnt('sanctHit'); } emit(P, p.x, .3, p.z, 10, 0xfff0b0, 3, .6, 3, 3); }
   if (h.sanct) { h.sanct.rotation.y += dt; h.sanct.children[1].material.opacity = .6 + Math.sin(G.t * 8) * .2; }

@@ -25,8 +25,10 @@ export const ADV = {
   gunner: {
     duel: { n: '장미 결투가', icon: '🌹', c: '#ff9ad0', col: 0xff9ad0, d: '공격속도 ×1.2 · 6번째 탄마다 도탄(3명, 각 50%) 확정 — 지속 화력', mod: { rate: 1.2 }, atk: { ricoEvery: 6, ricoN: 3, ricoK: .5 },
       skill: 'rose+', sk: '로즈 피니시+', sd: '지속 +40% · 탄 수 +30%', tower: { arrow: { rate: 1.05 } }, td: '화살 타워 공속 +5%', ws: 1 },
-    thorn: { n: '가시 장미 포격수', icon: '🥀', c: '#d0204a', col: 0xd0204a, d: '공격속도 ×0.6 · 피해 ×2 · 사거리 ×1.1 · 착탄 반경 1.2 소폭발(60%)', mod: { rate: .6, dmg: 2, range: 1.1 }, atk: { splashR: 1.2, splashK: .6 },
-      skill: 'roseshell', sk: '장미 포탄', sd: '목표 지점 3연속 장미 폭발', tower: { cannon: { br: { blast: { cluster: 1 } } } }, td: '대포 타워 집속탄 +1', ws: 1.15 },
+    // 2026-10-22 교체: 가시 장미 포격수(🥀 소폭발·장미 포탄) → 장미 저격수. 키 'thorn' 유지 = 기존 저장의 2차 전직이 비용 없이 그대로 새 분기가 됨
+    // 느리지만 강한 소총: 관통(3명 100/70/50%) · 치명 +15% · 보스/정예 +20%. model/prop = 이 분기일 때만 지연 로딩하는 소총 모델(실패하면 쌍권총 모델)
+    thorn: { n: '장미 저격수', icon: '🎯', c: '#c8174a', col: 0xc8174a, d: '공격속도 ×0.45 · 피해 ×2.5 · 사거리 ×1.4 · 소총 탄이 일직선 3명 관통(100/70/50%) · 치명타 확률 +15% · 보스/정예 피해 +20%', mod: { rate: .45, dmg: 2.5, range: 1.4 }, atk: { pierce: [1, .7, .5], pierceW: .75, crit: 15, bossK: 1.2 },
+      skill: 'pierceshot', sk: '관통 저격', sd: '0.6초 조준 → 직선 위 모든 적(보스 포함)에게 600% 관통 저격', tower: { arrow: { rng: 1.08 } }, td: '화살 타워 사거리 +8%', ws: 1, model: 'rose_rifle_meshy', prop: 'rose_rifle_gun' },
   },
   // 버들(숨김): 분기 예약만 — 숨김 해제 때 수치·스킬 확정 (reserved → 전직 탭·해금·적용 모두 제외)
   mechanic: {
@@ -49,9 +51,19 @@ export function applyAdv(C, A) {
   const o = { ...C, hp: Math.round(C.hp * (m.hp || 1)), dmg: C.dmg * (m.dmg || 1), rate: C.rate * (m.rate || 1), range: C.range * (m.range || 1), adv: A, title: A.n, color: A.col };
   if (m.armor !== undefined) o.armor = m.armor; if (m.aoe !== undefined) o.aoe = m.aoe; if (A.sk) o.skill = A.sk; return o;
 }
-// 기본 DPS 감각 = 적 1명에게 내는 초당 피해 (그 적에게 남는 불꽃 포함 · 두 번째 대상/도탄/소폭발/방어 무시/저체력 같은 상황 효과 제외)
+// 기본 DPS 감각 = 적 1명에게 내는 초당 피해 (그 적에게 남는 불꽃 · 전직 치명타 기대값(×1.5) 포함 · 두 번째 대상/도탄/관통/방어 무시/저체력/보스 추가 피해 같은 상황 효과 제외)
+export const ADV_CRIT_X = 1.5;
 export function advDps(h, b) { const C = b ? applyAdv(CLASSES[h], ADV[h][b]) : CLASSES[h], a = (b && ADV[h][b].atk) || {};
-  let k = 1; if (a.burn) k += a.burn.t * a.burn.k; return C.dmg * C.rate * k; }
+  let k = 1; if (a.burn) k += a.burn.t * a.burn.k; if (a.crit) k *= 1 + a.crit / 100 * (ADV_CRIT_X - 1); return C.dmg * C.rate * k; }
+// 무리 DPS 감각 (적 n명이 영웅 앞에 모여 있을 때 초당 총피해): 도탄 = ricoEvery 발마다 (n-1)명까지 ricoK · 관통 = 뒤 대상이 사선(폭 0.75) 안에 들어오는 비율 line 만큼 추가
+// line 기본 0.1 = 부채꼴 무리 실측(tests/rose_rifle.py --dps: 9명 부채꼴에서 관통 추가분 ≈ 0) · line 1 = 한 줄로 늘어선 행렬(관통이 빛나는 상황)
+export function advSwarmDps(h, b, n = 6, line = .1) { const d = advDps(h, b), a = (b && ADV[h][b].atk) || {};
+  if (a.ricoEvery) return d * (1 + Math.min(a.ricoN, n - 1) * a.ricoK / a.ricoEvery);
+  if (a.pierce) return d * (1 + line * a.pierce.slice(1, n).reduce((x, y) => x + y, 0));
+  if (a.targets) return d * (1 + Math.min(a.targets - 1, n - 1) * a.k2);
+  return d; }
+// 전직 전용 모델 (로즈 장미 저격수 = 소총 몸 + 소총 소품). 없으면 []
+export const advModels = A => (A && A.model ? [A.model, ...(A.prop ? [A.prop] : [])] : []);
 // 타워 보너스 (연구 resMods 결과에 곱). 출정 영웅의 분기만 — A 없으면 모두 1/0
 export function advTowerMods(A, type) { const t = (A && A.tower && A.tower[type]) || {}; return { dmg: t.dmg || 1, rate: t.rate || 1, rng: t.rng || 1, splash: t.splash || 1, slowAdd: t.slowAdd || 0, br: t.br || {} }; }
 export const advBarMul = A => (A && A.tower && A.tower.bar) || 1;
