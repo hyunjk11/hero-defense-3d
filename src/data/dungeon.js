@@ -3,7 +3,7 @@
 import { CLASSES, isHidden } from './heroes.js';
 
 // 공개 스위치: false 면 마을 건물은 '준비 중'(입장 불가) · ?dungeon=1 도 무시. 테스트/개발은 ?dgtest=1 로 켬
-export const DG_LIVE = false;
+export const DG_LIVE = true;
 export const DG_OPEN = DG_LIVE || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('dgtest'));
 
 // 파티: 무료 3영웅 고정 + 유료 영웅은 '서버 소유 확인'(account/shop.js heroOwned — hd3d_owned) 이 참일 때만. 숨긴 영웅(버들)은 소유해도 제외
