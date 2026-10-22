@@ -99,7 +99,7 @@ with sync_playwright() as pw:
             c1 = J(pg, "()=>G.gear.Acc.load().mat.crystal"); ok('codex_claim_reward', c1 == c0 + 5 and pg.locator('#codexBody .cxGet').count() == 0, (c0, c1))
             J(pg, "()=>G.gear.Acc.update(d=>d)"); c2 = J(pg, "()=>{ const {Acc,P}=G.gear; let r; Acc.update(d=>{ const o=P.claimCodex(d,'1:archer'); r=o[1]; return o[0]; }); return [r, Acc.load().mat.crystal]; }")
             ok('codex_claim_once', not c2[0] and c2[1] == c1, c2)
-            pg.click('#codexBody .cxTabs .ftab[data-c="0"]'); pg.wait_for_timeout(200); ok('codex_unique_tab', pg.locator('#codexBody .uqCell').count() == 15 and pg.locator('#codexBody .uqCell.have').count() == 2, pg.locator('#codexBody .uqCell.have').count())
+            pg.click('#codexBody .cxTabs .ftab[data-c="0"]'); pg.wait_for_timeout(200); ok('codex_unique_tab', pg.locator('#codexBody .uqCell').count() == J(pg, "()=>import('./src/data/items.js').then(m=>m.UQ_KEYS.length)") and pg.locator('#codexBody .uqCell.have').count() == 2, pg.locator('#codexBody .uqCell.have').count())
             shot(pg, f'{OUT}/codex_unique.png', '#invPanel')
             # 3장(화산): 일반 등급은 정상 경로로 안 나옴 → 행 4칸·챕터 (보이는 영웅+2)×4칸, 일반 칸은 '—'(na). 고급~전설 4개면 행 완성 · 관리자 우편식 일반 등록은 extra 로 유지
             J(pg, "()=>{ const {Acc,E}=G.gear; Acc.update(d=>{ let q=9; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; for (let g=1; g<5; g++) d.inv.push(E.makeItem('weapon','archer',g,r,3)); d.codex[3]={...(d.codex[3]||{}), armor:1}; return d; }); }")
