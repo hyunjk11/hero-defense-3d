@@ -27,6 +27,7 @@ import { P, PB, debris, dmgText, emit, ringFx } from '../render/vfx.js';
 import { play } from '../render/characters.js';
 import { glow, mk, shareGeo, toon } from '../render/toon.js';
 import { damageTower } from '../world/towers.js';
+import { towerRateK as rateK } from '../combat/towerstatus.js';
 import { spawnEnemy } from './enemy.js';
 import { ETYPES } from '../data/monsters.js';
 import { banner } from '../ui/hud.js';
@@ -229,7 +230,7 @@ function towerFx(tw) { if (tw.dfx) return tw.dfx; const g = new THREE.Group(); t
   const cring = new THREE.Mesh(tm('cRingG', () => new THREE.RingGeometry(1.2, 1.45, 40)), new THREE.MeshBasicMaterial({ color: DARK, transparent: true, opacity: .6, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); cring.rotation.x = -Math.PI / 2; cring.position.y = .17;
   g.add(roots, ice, warn, pool, curse, cring); roots.visible = ice.visible = flake.visible = warn.visible = pool.visible = curse.visible = cring.visible = false; return (tw.dfx = { g, roots, ice, flake, warn, pool, curse, cring }); }
 // 타워 공격 속도 배수 (속박 = 0). 디버프가 한 번도 없던 타워는 항상 정확히 1
-function towerRateK(tw) { if (tw.rootT > 0 || tw.meltT > 0 || tw.curseT > 0) return 0; let k = 1; if (tw.frostT > 0) k *= tw.frostK; if (tw.chillT > G.t) k *= tw.chillK; return k; }
+const towerRateK = tw => rateK(tw, G.t); // 디버그·테스트용 (G.towerRateK) — 기준은 combat/towerstatus.js
 function updTowerFx(dt) { for (const tw of G.towers) { if (!(tw.rootT > 0 || tw.frostT > 0 || tw.warnT > 0 || tw.chillT > G.t || tw.meltT > 0 || tw.curseT > 0 || tw.dfx)) continue;
   if (tw.curseT > 0) tw.curseT -= dt;
   if (tw.meltT > 0) { tw.meltT -= dt; tw.meltAcc += dt; if (tw.meltAcc >= .5) { tw.meltAcc -= .5; damageTower(tw, tw.meltDps * .5, { kind: 'lava' }); } if (tw.dead) continue; }
