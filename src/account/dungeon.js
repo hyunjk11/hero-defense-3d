@@ -38,7 +38,7 @@ export const markPractice = why => ss.set(TOK, JSON.stringify({ practice: String
 export function takeEntry() { let o = null; try { o = JSON.parse(ss.get(TOK) || 'null'); } catch (e) {} ss.del(TOK);
   if (!o || typeof o !== 'object' || Date.now() - (+o.at || 0) > 10 * 60 * 1000) return { mode: 'practice', why: uid() ? 'reload' : 'guest' };
   if (o.practice) return { mode: 'practice', why: String(o.practice) };
-  if (typeof o.t === 'string' && /^[0-9a-f-]{36}$/i.test(o.t) && o.u && o.u === uid()) return { mode: 'ranked', token: o.t };
+  if (typeof o.t === 'string' && /^[0-9a-f-]{36}$/i.test(o.t) && o.u && (!uid() || o.u === uid())) return { mode: 'ranked', token: o.t }; // 로그인 복원이 늦어도 token 유지 (서버가 정산 때 계정을 다시 확인)
   return { mode: 'practice', why: 'reload' }; }
 // 정산: 서버가 층 수·시간을 다시 검사해 메달 지급 (token 당 한 번). → { ok, medals, total, floors, capped } | { ok:false, msg }
 export async function dgFinish(token, floors, win) {
