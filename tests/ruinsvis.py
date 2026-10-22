@@ -30,7 +30,7 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1024, 'height': 633})
     pg.on('console', lambda m: m.type == 'error' and errs.append(m.text[:200])); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     for st in ['4-1', '4-2', '4-3', '4-5', '4-6', '4-4']:  # 4-5·4-6 = 2026-10-21 새 스테이지 (보스 4-4 앞)
-        pg.goto(url + Q + '&stage=' + st); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
+        pg.goto(url + Q + '&stage=' + st, timeout=120000); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
         pg.evaluate("()=>{ G.manual=true; G.sim(.5); }"); pg.wait_for_timeout(3200)
         m = metrics[st + '_build'] = shot(pg, f'_{st}_build'); ok(f'{st}_build_readable', good(m), m)
         ok(f'{st}_walls', pg.evaluate("()=>G.tiles.flat().filter(t=>t.wall).length") >= 12 and pg.evaluate("()=>G.SPAWNS.length") == len(STAGE_SP[st]))
@@ -61,7 +61,7 @@ with sync_playwright() as pw:
     ok('ghostfire_shader_finite', fl and all(x[4] and x[2] >= -1e-6 and x[3] <= 1.3001 for x in fl), (fl or [])[:3])
     # 1-6 / 2-4 / 3-4 / 4-4 최종 웨이브: 챕터 보스 1마리만 (해골 군주 X), 보스 HP 바 이름 = 챕터 보스 이름
     for st, bt, nm in [('1-6', 'boss_forest', '숲의 군주'), ('2-4', 'boss_snow', '빙결의 군주'), ('3-4', 'boss_fire', '화염의 군주'), ('4-4', 'boss_ruins', '망국의 왕')]:
-        pg.goto(url + Q + '&stage=' + st); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
+        pg.goto(url + Q + '&stage=' + st, timeout=120000); pg.wait_for_function('()=>window.G&&G.ready', timeout=120000); pg.evaluate("()=>G.choose('gunner')")
         r2 = pg.evaluate("()=>{ G.manual=true; G.coreHp=G.coreMax=1e6; G.phase='build'; G.wave=14; G.startWave(); const q=G.spawnQ.filter(t=>/^boss/.test(t)); let k=0; while (k++<600 && !G.enemies.some(e=>e.E.boss&&!e.dead)) G.sim(.1); G.sim(.05); return { q, hud: document.getElementById('bossName').textContent, alive: G.enemies.filter(e=>e.E.boss&&!e.dead).map(e=>e.type) }; }")
         ok(f'{st}_final_boss', r2['q'] == [bt] and r2['hud'] == nm and bt in r2['alive'], r2)
     print('console errors:', errs); ok('no_console_errors', not errs)
