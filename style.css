@@ -611,3 +611,4 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @media (max-height:640px){.udGrid{max-height:52vh}.admTable{max-height:46vh}#twNotes{top:56px}}
 @media (pointer:coarse){#adminPanel select{min-height:44px}.nbX{min-height:44px;min-width:44px}}
 #acfReason{background:#120f22;color:#f0e6c8;border:1px solid #c9a24a88;border-radius:8px;padding:8px;font:inherit;font-size:14px;box-sizing:border-box;resize:vertical}
+.admBar label.amChk{flex-direction:row;align-items:center;gap:6px;white-space:nowrap}

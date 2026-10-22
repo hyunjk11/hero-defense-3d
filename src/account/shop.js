@@ -91,7 +91,7 @@ export async function claim(id, { quiet = false } = {}) {
     pendSet(id, true);
     const c = await sb(), { data, error } = await q(c.rpc('hd3d_claim_mail', { p_mail_id: id }));
     if (error) { if (error.code === 'P0002' || /not found|revoked/i.test(error.message || '')) pendSet(id, false);
-      if (isBannedErr(error)) { refreshMe().catch(() => {}); return { ok: false, banned: true, msg: BAN_MSG.claim }; }
+      if (isBannedErr(error)) { pendSet(id, false); refreshMe().catch(() => {}); return { ok: false, banned: true, msg: BAN_MSG.claim }; }
       if (/revoked/i.test(error.message || '') || error.hint === 'revoked') { await refresh(); return { ok: false, msg: '회수된 우편이라 받을 수 없습니다.' }; }
       return { ok: false, msg: isMissing(error) ? '서버 준비 중이에요.' : '받기 실패: ' + (error.message || '') }; }
     if (uid() !== u) return { ok: false, msg: '계정이 바뀌었습니다.' };

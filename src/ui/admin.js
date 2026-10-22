@@ -68,12 +68,12 @@ export function renderAdmin() {
 }
 
 // ---------- 주문 관리 ----------
-async function loadOrders() {
+async function loadOrders(keepMsg = false) {
   const o = st.ord, r = await Adm.orders(o.status, o.q, o.off, o.lim);
   if (r.ok) { o.data = r.data; o.legacy = false; Sh.S.adminOrders = r.data.rows || []; }
   else if (r.missing) { // 서버가 예전 schema → 예전 목록(승인/거절만)
     const r2 = await Sh.adminOrders(); o.legacy = true;
-    if (r2.ok) { const cnt = {}; for (const x of r2.list) cnt[x.status] = (cnt[x.status] || 0) + 1; o.data = { rows: r2.list, total: r2.list.length, offset: 0, limit: Math.max(1, r2.list.length), counts: cnt }; msg(L.UPDATE_MSG + ' (주문 승인/거절만 가능)'); }
+    if (r2.ok) { const cnt = {}; for (const x of r2.list) cnt[x.status] = (cnt[x.status] || 0) + 1; o.data = { rows: r2.list, total: r2.list.length, offset: 0, limit: Math.max(1, r2.list.length), counts: cnt }; if (!keepMsg) msg(L.UPDATE_MSG + ' (주문 승인/거절만 가능)'); }
     else { o.data = null; msg(r2.msg); }
   } else msg(r.msg);
   renderAdmin();
@@ -81,12 +81,12 @@ async function loadOrders() {
 function hOrders() {
   const o = st.ord, d = o.data, rows = d ? d.rows || [] : [], cnt = (d && d.counts) || {}, all = Object.values(cnt).reduce((a, b) => a + b, 0);
   const chips = o.legacy ? '' : `<div class="admChips">${[['', '전체', all], ...['pending', 'approved', 'rejected', 'refunded'].map(s => [s, ST_N[s], cnt[s] || 0])].map(([s, n, c]) => `<button class="ftab ${o.status === s ? 'on' : ''}" data-act="ostatus" data-s="${s}">${n} <b>${c}</b></button>`).join('')}</div>`;
-  const bar = `<div class="admBar">${o.legacy ? `<span>대기 <b>${cnt.pending || 0}</b> · 전체 ${rows.length}</span>` : `<input id="aoQ" placeholder="이메일 · 닉네임으로 찾기" maxlength="100" data-enter="osearch"><button class="gbtn sm" data-act="osearch">🔍 검색</button>`}<input id="admReason" placeholder="거절 사유 (선택)" maxlength="200"><button class="gbtn sm" id="admReload" data-act="oreload">새로고침</button></div>`;
+  const bar = `<div class="admBar">${o.legacy ? `<span>대기 <b>${cnt.pending || 0}</b> · 전체 ${rows.length}</span>` : `<input id="aoQ" placeholder="이메일 · 닉네임으로 찾기" maxlength="100" data-enter="osearch" value="${esc(o.q)}"><button class="gbtn sm" data-act="osearch">🔍 검색</button>`}<input id="admReason" placeholder="거절 사유 (선택)" maxlength="200"><button class="gbtn sm" id="admReload" data-act="oreload">새로고침</button></div>`;
   const list = rows.length ? `<div class="admTable">${rows.map(x => `<div class="admRow s_${x.status}"><div class="aWho"><b>${esc(x.nickname || '—')}</b><small>${esc(x.email || x.user_id)}</small></div><div class="aItem">${ICO[x.item] || '🎁'} ${esc(itemN(x.item))}<small>주문 #${x.id}</small></div><div class="aDate">${fmtD(x.created_at)}</div><div class="aSt">${ST_N[x.status] || esc(x.status)}${x.decided_at ? `<small>${fmtD(x.decided_at)}</small>` : ''}${x.status === 'refunded' && x.refund_note ? `<small>사유: ${esc(x.refund_note)}</small>` : x.status === 'rejected' && x.note ? `<small>사유: ${esc(x.note)}</small>` : ''}</div>
     <div class="aAct">${x.status === 'pending' ? `<button class="gbtn main admOk" data-act="oapprove" data-id="${x.id}">승인</button><button class="gbtn admNo" data-act="oreject" data-id="${x.id}">거절</button>` : x.status === 'approved' && !o.legacy ? `<button class="gbtn admRefund" data-act="orefund" data-id="${x.id}">↩ 환불</button>` : ''}</div></div>`).join('')}</div>` : `<div class="emptyMsg">${d ? (o.q || o.status ? '조건에 맞는 주문이 없어요.' : '구매 신청이 없어요.') : '불러오는 중…'}</div>`;
   return chips + bar + list + (o.legacy ? '' : pager(d, 'opage'));
 }
-async function decide(b, p, okMsg) { b.disabled = true; Snd.play('ui'); const r = await p; msg(r.ok ? okMsg : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); await loadOrders(); }
+async function decide(b, p, okMsg) { b.disabled = true; Snd.play('ui'); const r = await p; msg(r.ok ? okMsg : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); await loadOrders(true); }
 
 // ---------- 유저 관리 ----------
 async function loadUsers() { const u = st.usr, r = await Adm.users(u.q, u.off, u.lim); if (need(r)) u.data = r.data; else u.data = u.data || null; renderAdmin(); }
@@ -96,7 +96,7 @@ const roleBadges = c => (c.owner ? badge('최고 관리자', 'own') : c.admin ? 
 function hUsers() {
   const u = st.usr; if (u.sel) return hUser();
   const d = u.data, rows = d ? d.rows || [] : [];
-  const bar = `<div class="admBar"><input id="auQ" placeholder="이메일 · 닉네임으로 찾기 (비우면 전체)" maxlength="100" data-enter="usearch"><button class="gbtn sm main" data-act="usearch">🔍 검색</button><span class="aCnt">${d ? `${d.total}명` : ''}</span></div>`;
+  const bar = `<div class="admBar"><input id="auQ" placeholder="이메일 · 닉네임으로 찾기 (비우면 전체)" maxlength="100" data-enter="usearch" value="${esc(u.q)}"><button class="gbtn sm main" data-act="usearch">🔍 검색</button><span class="aCnt">${d ? `${d.total}명` : ''}</span></div>`;
   const list = rows.length ? `<div class="admTable">${rows.map(c => { const s = c.summary;
     return `<div class="admRow auRow ${c.banned ? 's_banned' : ''}" data-act="uopen" data-id="${esc(c.id)}"><div class="aWho"><b>${esc(c.nickname || '—')} ${roleBadges(c)}</b><small>${esc(c.email || '')}</small></div>
       <div class="aSum">${s ? `★ ${s.stars} · 하드 ★ ${s.hstars}<small>영혼석 ${(+s.souls).toLocaleString('ko-KR')} · 마력석 ${(+s.crystal).toLocaleString('ko-KR')} · 정수 ${+s.essence}</small>` : '<small>저장 없음</small>'}</div>
@@ -144,7 +144,7 @@ function hBroadcast() {
 async function loadNotices() { const r = await Adm.notices(50); if (r.ok) st.ntc.list = r.list; else { st.ntc.list = st.ntc.list || []; msg(r.msg); } renderAdmin(); }
 function hNotice() {
   const N = st.ntc, e = N.edit, list = N.list;
-  const form = `<div class="admForm ntForm"><div class="udH">${e ? `공지 #${e.id} 수정` : '새 공지'}</div><label>제목<input id="ntTitle" maxlength="80" value="${esc(e ? e.title : '')}" placeholder="예) 오늘 밤 11시 서버 점검"></label><label>내용<textarea id="ntBody" maxlength="2000" rows="3">${esc(e ? e.body : '')}</textarea></label>
+  const form = `<div class="admForm ntForm"><div class="udH">${e ? `공지 #${e.id} 수정` : '새 공지'}</div><label>제목<input id="ntTitle" maxlength="80" value="${esc(e ? e.title : '')}" placeholder="예) 오늘 밤 11시 서버 점검"></label><label>내용<textarea id="ntBody" maxlength="2000" rows="2">${esc(e ? e.body : '')}</textarea></label>
     <div class="amRw"><label>시작 (비우면 바로)<input id="ntStart" type="datetime-local" value="${e ? L.isoToLocal(e.starts_at) : ''}"></label><label>종료 (비우면 계속)<input id="ntEnd" type="datetime-local" value="${e ? L.isoToLocal(e.ends_at) : ''}"></label><label class="amChk"><input id="ntActive" type="checkbox" ${!e || e.active ? 'checked' : ''}> 게시</label></div>
     <div class="row2"><button class="gbtn main" id="ntSave" data-act="ntsave">${e ? '💾 수정 저장' : '📢 공지 등록'}</button>${e ? '<button class="gbtn" data-act="ntcancel">취소</button>' : ''}</div></div>`;
   const rows = !list ? '<div class="emptyMsg">불러오는 중…</div>' : !list.length ? '<div class="emptyMsg">공지가 없어요.</div>' : `<div class="admTable">${list.map(n => { const s = L.noticeState(n);
