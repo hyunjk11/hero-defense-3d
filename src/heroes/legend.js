@@ -18,7 +18,7 @@ import { mouseGround } from '../ui/input.js';
 import { hero, heroTip, passAt, stat } from './hero.js';
 import { ricochet, rosebarrage, updGun, gunFlash } from './gunner.js';
 import { gigahammer, overdrill, updMechFx } from './mechanic.js';
-import { pawstorm, tigerdash } from './fighter.js';
+import { pawstorm, tigerdash, updFtFx } from './fighter.js';
 import { updUnique, uniqueHero } from './unique.js';
 import { awakeMul, awakeCd } from '../data/items.js';
 
@@ -178,7 +178,7 @@ function smash(c, s) {
 export function updLegend(dt) {
   if (hero && hero.lsk) { if (hero.lcd > 0) hero.lcd -= dt; if (hero.licd > 0) hero.licd -= dt; }
   for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1);
-  updGun(dt); updMechFx(dt); updUnique(dt);
+  updGun(dt); updMechFx(dt); updUnique(dt); updFtFx(dt);
 }
 // 파티의 다른 영웅(조작 영웅 아닌): 영웅별 부분만 (이펙트 목록은 updLegend 가 한 번만 돌림)
 export function updLegendHero(dt) {

@@ -48,7 +48,11 @@ DMG = "()=>window.__bp.reduce((a,e)=>a+(e.max-Math.max(0,e.hp)),0)"
 FIN = "()=>Number.isFinite(G.hero.g.position.x) && Number.isFinite(G.hero.hp) && G.enemies.every(e=>Number.isFinite(e.hp)&&Number.isFinite(e.g.position.x)&&Number.isFinite(e.g.position.z))"
 SPOT = """()=>{ const ok=(c,r)=>{ for(let dc=-2;dc<=2;dc++) for(let dr=-2;dr<=2;dr++){ const t=G.tileAt(c+dc,r+dr); if(!t||t.tower||t.bar||(t.t!==G.T.GRASS&&t.t!==G.T.CARVED)) return false; } return true; };
   let best=null, bd=1e9; for(let c=2;c<G.GW-2;c++) for(let r=2;r<G.GH-2;r++){ const d=Math.hypot(c-G.CORE[0],r-G.CORE[1]); if(d<5||d>=bd||!ok(c,r)) continue; bd=d; best=[c,r]; }
-  if(!best) return null; const [x,z]=G.tileXZ(best[0],best[1]); G.hero.g.position.set(x,0,z); G.hero.path=[]; G.hero.face=0; G.hero.g.rotation.y=0; return best; }"""
+  if(!best) { // 스테이지 맵에 5x5 빈 땅이 없으면: 코어 근처 5x5 (암반·포털·코어·타워 없는 곳) 를 파서 만듦 (테스트 전용)
+    const okc=(c,r)=>{ for(let dc=-2;dc<=2;dc++) for(let dr=-2;dr<=2;dr++){ const t=G.tileAt(c+dc,r+dr); if(!t||t.tower||t.bar||t.t===G.T.BEDROCK||t.t===G.T.SPAWN||t.t===G.T.CORE) return false; } return true; };
+    for(let c=2;c<G.GW-2;c++) for(let r=2;r<G.GH-2;r++){ const d=Math.hypot(c-G.CORE[0],r-G.CORE[1]); if(d<5||d>=bd||!okc(c,r)) continue; bd=d; best=[c,r]; }
+    if(!best) return null; for(let dc=-2;dc<=2;dc++) for(let dr=-2;dr<=2;dr++){ const t=G.tileAt(best[0]+dc,best[1]+dr); if(t.t!==G.T.GRASS&&t.t!==G.T.CARVED) G.carve(t); } }
+  const [x,z]=G.tileXZ(best[0],best[1]); G.hero.g.position.set(x,0,z); G.hero.path=[]; G.hero.face=0; G.hero.g.rotation.y=0; return best; }"""
 FTN = "()=>({...G.ftN})"
 
 with sync_playwright() as pw:
@@ -95,7 +99,7 @@ with sync_playwright() as pw:
     pg.click('#mailClose')
     pg.click('.hcard[data-h="fighter"]'); pg.wait_for_function("()=>G.townHero && G.townHero() && G.townHero().cls==='fighter'", timeout=60000); pg.wait_for_timeout(2500)
     ok('selected', J(pg, "()=>G.gear.Acc.load().hero") == 'fighter' and '서윤' in pg.inner_text('.hcard.sel'))
-    ok('town_model_real', J(pg, "()=>{ const h=G.townHero(); return !!(h && h.ch && h.ch.acts && h.ch.acts.JabLs) && !h.ch.fallback; }"))
+    ok('town_model_real', J(pg, "()=>{ const h=G.townHero(); return !!(h && h.acts && h.acts.includes('JabLs')) && !h.fallback; }"))
     pshot(pg, 'select', True)
     # 전직 탭: '준비 중'
     adv = J(pg, "async()=>{ const m=await import('./src/ui/advance.js'); m.renderAdv(); return document.getElementById('twAdv').innerText; }")
@@ -142,7 +146,7 @@ with sync_playwright() as pw:
     ok('q_slam_hits_stun', n1['qHits'] - n0['qHits'] >= 5 and n1['qStun'] - n0['qStun'] >= 4 and J(pg, "()=>window.__bp.filter(e=>!e.E.fly && e.stunT>0).length") >= 4, n1)
     ok('q_slam_damage', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); return window.__bp.every(e=>e.max-e.hp >= stat.dmg()*4*0.6); }"), J(pg, "()=>window.__bp.map(e=>Math.round(e.max-e.hp))"))
     ok('q_bat_not_stunned', J(pg, "()=>window.__bp.filter(e=>e.E.fly).every(e=>!(e.stunT>0))"))
-    J(pg, "()=>G.sim(1.3)"); ok('q_stun_ends', J(pg, "()=>window.__bp.every(e=>!(e.stunT>0))"))
+    J(pg, "()=>{ G.hero.cd=99; G.sim(1.3); G.hero.cd=0; }"); ok('q_stun_ends', J(pg, "()=>window.__bp.every(e=>!(e.stunT>0))"))
     pg.keyboard.press('q'); J(pg, "()=>G.sim(.05)"); ok('q_cooldown', J(pg, FTN)['q'] == n1['q'])
     J(pg, "()=>{ G.hero.skillCd=0; G.sim(.1) }"); pg.tap('#skillBtn'); J(pg, "()=>G.sim(.05)"); ok('q_touch', J(pg, FTN)['q'] == n1['q'] + 1)
     J(pg, "()=>G.sim(1.5)")

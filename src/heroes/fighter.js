@@ -37,6 +37,8 @@ function glow(on, k = 0) { for (const x of hero.ft.glow) { x.g.visible = on; if 
 // 사망·워프·판 종료: 충전/도약 정리
 export function ftStop() { const F = hero && hero.ft; if (!F) return; if (F.jp) G.ftN.jpCancel++; F.jp = null; F.leap = null; glow(false); }
 export const ftBusy = h => !!(h && h.ft && (h.ft.leap || h.ft.jp));
+// 매 프레임 (legend.js updLegend 에서): 장풍 구체/기파·발자국 이펙트 진행 (이 목록을 안 돌리면 장풍이 날아가지 않고 발자국이 장면에 쌓임)
+export function updFtFx(dt) { for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1); }
 
 // ---------- 기본 공격: 3연타 ----------
 // tgt = 근접 대상(지상, 사거리 안). 없으면 장풍 대상(원거리/비행)을 찾아 충전. 반환값 없음 — hero.js 가 매 프레임 호출
