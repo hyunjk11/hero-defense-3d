@@ -124,7 +124,7 @@ function play(ch, name, o = {}) {
   a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once; a.timeScale = speed; a.setEffectiveWeight(1); a.fadeIn(fade).play();
   if (ch.cur) ch.cur.fadeOut(fade); ch.cur = a; if (ch.aim) ch.yawT = ch.aim[a.getClip().name] || 0; if (ch.gear) gearOn(ch, name, a, speed); return a;
 }
-function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
+function flashMats(mats, on, col = 0xffffff) { for (const m of mats) { if (!m.emissive) continue; if (on) m.emissive.setHex(col); else if (m.userData.e) m.emissive.copy(m.userData.e); else m.emissive.setHex(0); } }
 // 몬스터 피격 플래시: 개체별 머티리얼(ch.mats)은 emissive 변경, 종류별 공유 몸 머티리얼(ch.shMeshes)은 (공유 머티리얼, 색)별 플래시 복제본으로 메시의 material 을 잠시 교체
 const FLASH_V = new WeakMap();
 function flashVar(base, col) { let t = FLASH_V.get(base); if (!t) FLASH_V.set(base, t = {}); if (!t[col]) { const m = base.clone(); m.emissive.setHex(col); t[col] = m; } return t[col]; }
@@ -300,7 +300,10 @@ function makeBat() {
 const SHARED_BODY = {};
 // Meshy 보스 몸 (E.mesh 가 불러와졌을 때만). 해골 몬스터용 이름으로 부르는 동작(걷기·공격·죽음·출현)을 전용 클립에 연결
 const LICH_ALIAS = { Walking_D_Skeletons: 'Walk', Unarmed_Melee_Attack_Punch_A: 'Attack', Death_A: 'Death', Spawn_Ground_Skeletons: 'Scream', Hit_A: 'Hit', Idle_Combat: 'Idle' };
-function makeLich(E) { const ch = makeChar(E.mesh, E.h, GL[E.mesh].animations, .05); for (const [a, b] of Object.entries(LICH_ALIAS)) if (ch.acts[b] && !ch.acts[a]) ch.acts[a] = ch.acts[b]; ch.lich = true; for (const m of ch.mats) m.emissiveIntensity = .3; /* 피격 플래시를 약하게 (영웅 4명이 계속 때려도 하얗게 뜨지 않게) */ return ch; }
+function makeLich(E) { const ch = makeChar(E.mesh, E.h, GL[E.mesh].animations, .05); for (const [a, b] of Object.entries(LICH_ALIAS)) if (ch.acts[b] && !ch.acts[a]) ch.acts[a] = ch.acts[b]; ch.lich = true; const tc = new THREE.Color(0xe4d8ff); for (const m of ch.mats) { m.emissiveIntensity = .3; m.color.multiply(tc); } /* 피격 플래시를 약하게 (영웅 4명이 계속 때려도 하얗게 뜨지 않게) · 살짝 보라 */
+  // 밝은 바닥에서 잘 보이게: 발밑 어두운 보라 장판 + 바깥 고리 (몸 크기 기준)
+  const r = E.h * .34, sh = new THREE.Mesh(new THREE.CircleGeometry(r, 40), new THREE.MeshBasicMaterial({ color: 0x2a0a40, transparent: true, opacity: .5, depthWrite: false })), rg = new THREE.Mesh(new THREE.RingGeometry(r * .92, r * 1.05, 48), new THREE.MeshBasicMaterial({ color: 0xb04aff, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  sh.rotation.x = rg.rotation.x = -Math.PI / 2; sh.position.y = .05; rg.position.y = .07; ch.g.add(sh, rg); ch.mats.push(sh.material, rg.material); ch.aura = rg; return ch; }
 function makeEnemyModel(type) {
   const E = ETYPES[type]; if (E.mesh && GL[E.mesh]) return makeLich(E); if (E.proc === 'wisp') return makeWisp(E); if (E.proc === 'wolf') return makeWolf(E); if (E.proc === 'slime') return makeSlime(E); if (E.fly) return makeBat();
   // 몸 머티리얼은 종류별로 한 벌만 (첫 개체가 색조·눈 발광을 정한 뒤 공유) → 개체마다 clone 하던 머티리얼 수·GPU 유니폼 업로드 감소. 소품 머티리얼(버섯 갓·얼음 등 개체별 변화)은 그대로 개체별
