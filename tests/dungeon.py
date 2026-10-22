@@ -29,6 +29,74 @@ def pick_bless(pg, avoid=('heal',), tap=False, prefer='haste'):
     if i is None: i = next((k for k, c in enumerate(cards) if c[0] not in avoid), 0)
     sel = f'#dgBless .dgBc[data-i="{i}"]'; pg.tap(sel) if tap else pg.click(sel); J(pg, "()=>G.sim(.1)"); return cards[i][0]
 
+# ===== 4단계: 5층 보스 '망령 여왕 모르비아' (dungeon/boss.js) =====
+BOSS = "G.enemies.find(e=>e.type==='dg_lich'&&!e.dead)"
+def boss_ready(pg):  # 보스 출현(spawn 연출 끝)까지 + 졸개 제거
+    pg.wait_for_function("()=>G.dgBossModel", timeout=120000)
+    for _ in range(40):
+        if J(pg, "()=>{ G.sim(.5); const b=%s; return !!b && b.state!=='spawn' && G.dg.q.length===0; }" % BOSS): break
+    J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); G.sim(.1); }")
+def place(pg, spots):  # 영웅 i → 보스 기준 (dx, dz)
+    J(pg, "(S)=>{ const b=%s; S.forEach(([i,dx,dz])=>{ const h=G.heroes[i]; if (!h) return; h.g.position.set(b.g.position.x+dx,0,b.g.position.z+dz); h.path=[]; h.aiGoal=null; }); }" % BOSS, spots)
+def boss_checks(pg, tag):
+    boss_ready(pg)
+    st = J(pg, "()=>{ const b=%s; return b && {lich:!!b.m.lich, model:G.dgBossModel, hp:Math.round(b.hp), max:Math.round(b.max), boss:!!b.E.boss, h:b.E.h}; }" % BOSS)
+    ok(f'boss_{tag}_meshy_model', st and st['lich'] and st['model'] == 'meshy' and st['boss'], st)
+    if tag == 'desktop':
+        fb = J(pg, "async()=>{ const C=await import('./src/render/characters.js'); const s=C.GL.lich_meshy; delete C.GL.lich_meshy; let m; try { m=C.makeEnemyModel('dg_lich'); } finally { C.GL.lich_meshy=s; } const r=[!m.lich, !!m.crown, !!(m.acts&&m.acts.Death_A)]; m.mats&&m.mats.forEach(x=>x.dispose()); return r; }")
+        ok('boss_fallback_model', all(fb), fb)  # Meshy 모델을 못 받으면 해골 마법사 + 보라 색조 + 왕관
+    # 보스 중앙 · 세라 조작(가만히) · 세라를 실바 앞 선 위에 · 루나·4번째는 옆으로 → 창 = 실바(가장 먼 후방) 대상, 세라가 막음
+    J(pg, "()=>{ const b=%s; b.g.position.set(-8,0,0); b.bz.lanceT=99; b.bz.circT=99; b.bz.hold=0; b.atkCd=99; }" % BOSS)
+    J(pg, "async()=>{ const H=await import('./src/heroes/hero.js'); H.setControlled(G.heroes[0]); }")
+    place(pg, [[0, 7, 0.2], [1, 10, 0], [2, 3, 7], [3, 3, -6]])
+    J(pg, "()=>{ G.heroes.forEach(h=>{ h.dead=0; h.hp=h.max; }); const b=%s; b.bz.lanceT=0; G.sim(.1); }" % BOSS)
+    L = J(pg, "()=>{ const f=G.dgB.fx.find(f=>f.k==='lance'); return f && {tgt:f.tgt, guard:f.guard, n:G.dgB.log.lance, banner:document.getElementById('banner').innerText}; }")
+    ok(f'boss_{tag}_lance_telegraph', L and L['n'] == 1 and L['tgt'] in (1, 2, 3) and '영혼의 창' in L['banner'], L)
+    if tag == 'desktop':
+        hp1 = J(pg, "()=>G.heroes.map(h=>h.hp)")
+        J(pg, "()=>G.sim(2.3)"); lg = J(pg, "()=>({...G.dgB.log, hp:G.heroes.map(h=>Math.round(h.hp)), max:G.heroes.map(h=>Math.round(h.max))})")
+        tgt = L['tgt']
+        ok('boss_lance_blocked_by_sera', lg['blocked'] == 1 and lg['lanceHit'] == 0 and lg['hp'][tgt] >= round(hp1[tgt]) - 1 and lg['hp'][0] < lg['max'][0], (lg, L))
+        # 세라를 선에서 치움 → 대상이 맞음 (큰 피해)
+        place(pg, [[0, 2, 9], [1, 10, 0], [2, 3, 7], [3, 3, -6]])
+        J(pg, "()=>{ G.heroes.forEach(h=>{ h.hp=h.max; }); const b=%s; b.bz.lanceT=0; b.bz.hold=0; G.sim(.1); }" % BOSS)
+        L2 = J(pg, "()=>{ const f=G.dgB.fx.find(f=>f.k==='lance'&&!f.fired); return f && [f.tgt, f.guard]; }")
+        J(pg, "()=>{ const f=G.dgB.fx.find(f=>f.k==='lance'&&!f.fired); if (f) f.guard=-1; G.sim(2.3); }")  # 막을 AI 가 없을 때 (조작 영웅 세라는 가만히)
+        lg2 = J(pg, "()=>({...G.dgB.log, hp:G.heroes.map(h=>Math.round(h.hp)), max:G.heroes.map(h=>Math.round(h.max))})")
+        ok('boss_lance_hits_backline', lg2['lanceHit'] + lg2['lanceMiss'] == 1 and (lg2['lanceHit'] == 0 or lg2['hp'][L2[0]] < lg2['max'][L2[0]] * .7), (lg2, L2))
+        # AI 막기: 세라가 아닌 영웅을 조작 → 세라(AI)가 막기 지점으로 달려감
+        J(pg, "async()=>{ const H=await import('./src/heroes/hero.js'); H.setControlled(G.heroes[2]); }")
+        place(pg, [[0, 4, 6], [1, 10, 0], [2, 3, 7], [3, 3, -6]])
+        J(pg, "()=>{ G.heroes.forEach(h=>{ h.hp=h.max; }); const b=%s; b.bz.lanceT=0; b.bz.hold=0; G.sim(.1); }" % BOSS)
+        g = J(pg, "()=>{ const f=G.dgB.fx.find(f=>f.k==='lance'&&!f.fired); return f && [f.tgt, f.guard]; }")
+        J(pg, "()=>G.sim(2.3)"); lg3 = J(pg, "()=>({...G.dgB.log})")
+        ok('boss_lance_ai_intercept', g and g[1] == 0 and lg3['blocked'] == 2, (g, lg3))
+        # 망령의 원: 조작 영웅(루나)은 가만히 → 맞음 · AI 영웅은 피함
+        place(pg, [[0, 4, 3], [1, 10, -3], [2, 9, 6], [3, 6, -6]])
+        J(pg, "()=>{ G.heroes.forEach(h=>{ h.hp=h.max; }); const b=%s; b.bz.circT=0; b.bz.hold=0; b.bz.lanceT=99; G.sim(.1); }" % BOSS)
+        nc = J(pg, "()=>G.dgB.fx.filter(f=>f.k==='circ'&&!f.fired).length")
+        J(pg, "()=>G.sim(2.2)"); lc = J(pg, "()=>({...G.dgB.log, hp:G.heroes.map(h=>Math.round(h.hp)), max:G.heroes.map(h=>Math.round(h.max))})")
+        alive = J(pg, "()=>G.heroes.filter(h=>h.dead<=0).length")
+        ok('boss_circles', nc == 3 and lc['circles'] == 1 and lc['hp'][2] < lc['max'][2] and 1 <= lc['circleHits'] < alive, (nc, lc))
+        # 소환 75% · 분노 50% (원 5개 · 창 2연속) · 소환 40%
+        J(pg, "()=>{ const b=%s; b.hp=b.max*.7; b.bz.lanceT=99; b.bz.circT=99; G.sim(.2); }" % BOSS)
+        sm = J(pg, "()=>[G.dgB.log.summons, G.enemies.filter(e=>e.summoned&&!e.dead).length, G.dgB.log.phase2]")
+        ok('boss_summon_75', sm[0] == 1 and sm[1] >= 3 and not sm[2], sm)
+        J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); const b=%s; b.hp=b.max*.45; b.bz.hold=0; G.sim(.2); }" % BOSS)
+        ph = J(pg, "()=>{ const b=%s; return [G.dgB.log.phase2, b.spdK, document.getElementById('banner').innerText]; }" % BOSS)
+        ok('boss_phase2', ph[0] and ph[1] > 1, ph)
+        J(pg, "()=>{ const b=%s; b.bz.hold=0; b.bz.circT=0; b.bz.lanceT=99; G.sim(.1); }" % BOSS)
+        ok('boss_phase2_circles5', J(pg, "()=>G.dgB.fx.filter(f=>f.k==='circ'&&!f.fired).length") == 5)
+        J(pg, "()=>{ G.sim(2.2); const b=%s; b.bz.hold=0; b.bz.lanceT=0; b.bz.circT=99; G.sim(.1); G.sim(1.2); }" % BOSS)
+        ok('boss_phase2_double_lance', J(pg, "()=>G.dgB.log.lance") >= 5, J(pg, "()=>G.dgB.log"))
+        J(pg, "()=>{ const b=%s; b.hp=b.max*.35; G.sim(.2); }" % BOSS)
+        ok('boss_summon_40', J(pg, "()=>G.dgB.log.summons") == 2)
+        J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); G.heroes.forEach(h=>{ h.dead=0; h.hp=h.max; }); G.sim(2.5); }")
+    # 스크린샷: 창 + 원 예고 동시에
+    place(pg, [[0, 5, 1], [1, 11, 0], [2, 8, 5], [3, 7, -5]])
+    J(pg, "()=>{ const b=%s; b.bz.hold=0; b.bz.lanceT=0; b.bz.circT=99; G.sim(.1); b.bz.hold=0; b.bz.circT=0; b.bz.lanceT=99; G.sim(.6); G.cam.target.set(b.g.position.x+5,0,b.g.position.z); }" % BOSS)
+    shot(pg, f'boss_{tag}', True)
+    J(pg, "()=>G.sim(2)")
 def login(pg, email, owned=False):
     pg.goto(url + '?seed=12345&rng=777&flow=1&dgtest=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000)
     pg.mouse.click(400, 300); pg.wait_for_timeout(300); pg.fill('#lgEmail', email); pg.fill('#lgPw', 'secret12'); pg.click('#lgUp'); pg.wait_for_function("()=>G.screen==='menu'", timeout=20000); pg.wait_for_timeout(400)
@@ -146,8 +214,10 @@ with sync_playwright() as pw:
     r = J(pg, SKIP); ok('floor4_clear', r[1] and r[0] == 3, r); pick_bless(pg)
     ok('floor5_boss_room', J(pg, "()=>G.dg.floor===4") and '5층' in pg.inner_text('#dgTop'))
     J(pg, "async()=>{ const D=G.dg; D.q=[]; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9); G.sim(6); }")
-    ok('floor5_boss_spawns', J(pg, "()=>G.dg.wave===1 && (G.dg.q.includes('boss') || G.enemies.some(e=>e.type==='boss'))"), J(pg, "()=>[G.dg.wave, G.dg.q.slice(0,5)]"))
+    ok('floor5_boss_spawns', J(pg, "()=>G.dg.wave===1 && (G.dg.q.includes('dg_lich') || G.enemies.some(e=>e.type==='dg_lich'))"), J(pg, "()=>[G.dg.wave, G.dg.q.slice(0,5)]"))
+    boss_checks(pg, 'desktop')
     r = J(pg, SKIP); R = J(pg, "()=>G.dgResult"); print('result', R, flush=True)
+    ok('boss_fx_cleared', J(pg, "()=>G.dgB.fx.length===0 && !G.enemies.some(e=>e.type==='dg_lich'&&!e.dead)"))
     ok('all_floors_clear', R and R['win'] and R['cleared'] == 5 and R['got'] == 80 and R['joints'] == 1 and len(R['bless']) >= 1, R)
     ok('result_screen', not hidden(pg, 'stageClear') and '완주' in pg.inner_text('#stageClear') and '영혼석' in pg.inner_text('#stageClear') and J(pg, "()=>document.querySelectorAll('.dgFloors span.ok').length") == 5)
     ok('reward_granted', J(pg, "()=>G.gear.Acc.load().souls") == 50 + 80, J(pg, "()=>G.gear.Acc.load().souls"))
@@ -193,6 +263,8 @@ with sync_playwright() as pw:
     jo = J(pg, "()=>{ const a=document.getElementById('dgJoint').getBoundingClientRect(), b=document.getElementById('dgBar').getBoundingClientRect(), s=document.getElementById('skillBtn').getBoundingClientRect(); return [a.bottom<=b.top, a.right<=s.left, a.top>=0, Math.round(a.width), Math.round(a.height)]; }")
     ok('tablet_joint_layout', all(jo[:3]) and jo[3] >= 44 and jo[4] >= 44, jo); shot(pg, 'joint_tablet', True)
     pg.tap('#dgJoint'); J(pg, "()=>G.sim(.2)"); ok('tablet_joint_tap', J(pg, "()=>G.dg.joints===1"))
+    J(pg, "()=>{ G.dgStartFloor(4); const D=G.dg; D.q=[]; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9); G.sim(6); }")
+    boss_checks(pg, 'tablet')
     J(pg, "async()=>{ (await import('./src/dungeon/run.js')).dgFinish(true); }"); shot(pg, 'result_tablet', True)
     c.close()
     # ===== 일반 판: 파티 1명 (기존 동작) =====

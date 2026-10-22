@@ -27,6 +27,7 @@ import { heroGoTo, setControlled, spawnHero, stat } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
 import { choose, showSelect } from '../ui/select.js';
 import { banner } from '../ui/hud.js';
+import { updBossFx, clearBossFx, bossDodge } from './boss.js';
 
 const D = G.dg = { floor: 0, wave: -1, q: [], spawnT: 0, gapT: 2.5, over: false, kills: 0, t: 0, swap: false, party: [], bless: {}, blessing: null, cleared: 0, joints: 0, k0: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -41,6 +42,7 @@ export async function startDungeonRun() {
   const s = Acc.load(), party = pickParty(dungeonParty(c => Sh.heroOwned(c)), loadPick()), L = Object.fromEntries(party.map(c => [c, loadoutOf(s, c)]));
   const need = [...MON_ASSETS, ...party.flatMap(c => heroAssets(c, true))], opt = party.flatMap(c => AD.advModels(L[c].adv));
   $('loadTxt').textContent = '모델 불러오는 중…'; await ensureModels(need); for (const k of opt) await loadModel(k).catch(e => { console.warn('adv model', k, e); G.advModelFail = true; });
+  loadModel('lich_meshy').then(() => { G.dgBossModel = 'meshy'; }).catch(e => { console.warn('boss model fallback', e); G.dgBossModel = 'fallback'; }); // 5층 보스 모델: 기다리지 않고 뒤에서 (보스 출현 때 없으면 해골 마법사 + 왕관)
   $('loading').classList.add('hidden');
   Object.assign(G, { dungeon: true, gold: 0, grow: false, research: null, runDrops: [], runBossKills: [], stage: null, hard: false, eliteKills: 0, runStart: performance.now() });
   document.body.classList.add('dungeonRun'); core.visible = false;
@@ -69,7 +71,7 @@ G.dgStartFloor = startFloor;
 export function updDungeon(dt) {
   if (!G.dungeon || D.over) return; const F = FLOORS[D.floor];
   if (D.blessing) { D.hudT = (D.hudT || 0) - dt; if (D.hudT <= 0) { D.hudT = .15; refreshBar(); } return; } // 축복 고르는 중: 다음 층 대기 (시간도 멈춤)
-  D.t += dt;
+  D.t += dt; updBossFx(dt);
   if (D.swap) { D.swap = false; if (G.hero.dead > 0) { const n = G.heroes.find(h => h.dead <= 0); if (n) { setControlled(n); banner(`${CLASSES[n.cls].nm} 조작`, '#ffe066', 900); } } }
   if (partyWiped(G.heroes)) return finish(false);
   if (D.q.length) { D.spawnT -= dt; if (D.spawnT <= 0) { D.spawnT = F.every; spawnEnemy(D.q.shift(), F.hpMul); } }
@@ -115,6 +117,7 @@ function partyAI(h, dt) {
   const role = ROLE[h.cls] || 'ranged', En = G.enemies.filter(e => !e.dead && e.dying === undefined && !(e.immT > G.t) && e.state !== 'spawn');
   const tank = G.heroes.find(x => x !== h && x.dead <= 0 && ROLE[x.cls] === 'tank'), lead = G.hero !== h && G.hero.dead <= 0 ? pos(G.hero) : null;
   const busy = h.spinT > 0 || h.roseT > 0 || h.snipeT > 0 || h.leap || (h.mech && h.mech.busy > 0) || (h.ft && h.ft.leap);
+  const dz = bossDodge(h); if (dz) { const g0 = h.aiGoal; if (!g0 || Math.hypot(g0.x - dz.x, g0.z - dz.z) > .8 || !h.path.length) { heroGoTo(_v.set(dz.x, 0, dz.z)); h.aiGoal = dz; } h.aiT = .15; return; } // 5층 보스: 원 피하기 · 창 막기 (dungeon/boss.js)
   const P = rolePlan(role, { ...pos(h), range: stat.range(), jp: FT.jpRange, skillReady: h.skillCd <= 0 && !busy }, { lead, tank: tank ? pos(tank) : null, enemies: En.map(e => ({ ...pos(e), r: isRangedFoe(e.E), fly: !!e.E.fly })), backs: G.heroes.filter(x => x !== h && x.dead <= 0 && ROLE[x.cls] !== 'tank').map(pos) });
   h.aiTgt = P.focus !== null && P.focus !== undefined ? En[P.focus] : null;
   if (P.move) { const g0 = h.aiGoal; if (!g0 || Math.hypot(g0.x - P.move.x, g0.z - P.move.z) > 1.2 || !h.path.length) { heroGoTo(_v.set(P.move.x, 0, P.move.z)); h.aiGoal = P.move; } }
@@ -149,7 +152,7 @@ function refreshBar() { const F = FLOORS[D.floor], fl = $('dgFloor'); if (fl) fl
     const uw = (h.dead > 0 ? 0 : Math.round(h.ult || 0)) + '%', uu = b.querySelector('.dgUlt u'); if (uu.style.width !== uw) uu.style.width = uw; b.classList.toggle('ultFull', h.dead <= 0 && (h.ult || 0) >= ULT_MAX); b.querySelector('.dgSk').classList.toggle('ready', h.skillCd <= 0 && h.dead <= 0); }); }
 
 // ---------- 결과 ----------
-function finish(win) { if (D.over) return; D.over = true; G.phase = 'over'; G.paused = false; const el0 = $('dgBless'); if (el0) el0.className = 'dgBless hidden';
+function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase = 'over'; G.paused = false; const el0 = $('dgBless'); if (el0) el0.className = 'dgBless hidden';
   const N = FLOORS.length, cleared = win ? N : D.cleared, got = dungeonReward(cleared, N);
   if (got > 0) { Acc.update(d => ({ ...d, souls: (d.souls || 0) + got })); Acc.flush(); }
   Snd.setMusic('none'); if (win) Snd.play('victory', { force: true, exact: true }); else Snd.play('error', { force: true });

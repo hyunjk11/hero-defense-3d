@@ -16,6 +16,7 @@ import { hero, heroDamage } from '../heroes/hero.js';
 import { nearestHero, heroesWithin } from '../core/party.js';
 import { aggroHero, bfsField, downhill } from '../dungeon/logic.js';
 import { abilityTick, updAbilities } from './abilities.js';
+import { dgBossTick } from '../dungeon/boss.js';
 
 function groundY(x, z) { const [c, r] = toTile(x, z); return inGrid(c, r) && tileAt(c, r).t === T.CARVED ? -.46 : 0; }
 function enemyWalk(x, z) { const [c, r] = toTile(x, z); if (!inGrid(c, r)) return false; const t = tileAt(c, r); return !isBlock(t.t) && t.t !== T.BEDROCK && !t.tower && !t.bar; }
@@ -58,6 +59,7 @@ function updEnemies(dt) {
       e.bob += dt; const f = Math.sin(G.t * 16 + e.bob); e.m.wings[0].rotation.y = f * .8; e.m.wings[1].rotation.y = -f * .8; e.m.inner.position.y = 3 + Math.sin(G.t * 3 + e.bob) * .35; e.m.inner.rotation.x = .15;
       const [tc, tr] = toTile(g.position.x, g.position.z); if (inGrid(tc, tr)) e.tile = [tc, tr]; continue;
     }
+    if (E.dgBoss && G.dungeon && dgBossTick(e, dt)) { e.slowT -= dt; g.position.y += (groundY(g.position.x, g.position.z) - g.position.y) * Math.min(1, dt * 8); continue; } // 던전 5층 보스: 기믹 시전 중 제자리 (dungeon/boss.js)
     // 영웅과 근접 전투
     const th = G.heroes.length > 1 ? nearestHero(G.heroes, g.position.x, g.position.z) : hero; // 파티: 가장 가까운 살아있는 영웅 (1명이면 기존 그대로)
     const hd = th && th.dead <= 0 ? Math.hypot(th.g.position.x - g.position.x, th.g.position.z - g.position.z) : 99;

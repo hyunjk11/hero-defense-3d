@@ -1,6 +1,6 @@
 // 던전 순수 로직 단위 테스트: 파티 구성(로즈는 서버 소유만, 버들 제외) · 맵 · 웨이브 · 흐름장 · 어그로 · 역할 AI
 import assert from 'node:assert/strict';
-import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K } from '../src/data/dungeon.js';
+import { dungeonParty, dungeonLayout, ENTRANCES, FLOORS, waveList, ROLE, DG_GW, DG_GH, DG_MAX, pickParty, togglePick, BLESS, BLESS_BY, blessChoices, blessMods, nextFloorHp, REVIVE_HP, dungeonReward, ultGain, jointReady, jointDamage, ULT_MAX, JOINT_K, DG_BOSS, DG_BOSS_TYPE, lanceTarget, segDist, lanceVictim, interceptPoint, circleSpots, inCircle, dodgePoint, summonDue } from '../src/data/dungeon.js';
 import { ETYPES } from '../src/data/monsters.js';
 import { bfsField, downhill, aggroHero, bestCluster, rolePlan } from '../src/dungeon/logic.js';
 let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
@@ -28,7 +28,7 @@ t('역할 AI: 원거리는 사거리 밖이면 다가감 (사거리 75% 지점)'
 t('역할 AI: 원거리 사거리 안이면 제자리', () => assert.equal(rolePlan('ranged', { x: 0, z: 0, range: 10, skillReady: false }, { enemies: [{ x: 7, z: 0 }] }).move, null));
 t('역할 AI: 마법사는 밀집 지점을 노리고 3명 이상이면 스킬', () => { const E = [{ x: 7, z: 0 }, { x: 0, z: 8 }, { x: .5, z: 8.5 }, { x: -.5, z: 8 }]; const p = rolePlan('caster', { x: 0, z: 0, range: 9, skillReady: true }, { enemies: E }); assert.ok(p.focus >= 1); assert.ok(p.skill && p.skill.z > 7); });
 t('역할 AI: 적 없으면 조작 영웅 따라감', () => { const p = rolePlan('ranged', { x: 0, z: 0, range: 10 }, { lead: { x: 10, z: 0 } }); assert.ok(p.move.x > 6); assert.equal(rolePlan('ranged', { x: 0, z: 0, range: 10 }, { lead: { x: 2, z: 0 } }).move, null); });
-t('5개 층 · 5층 보스 방 · 몬스터 종류 존재 · 층마다 더 강해짐', () => { assert.equal(FLOORS.length, 5); assert.ok(FLOORS[4].boss && FLOORS[4].waves.flat().some(([k]) => k === 'boss'));
+t('5개 층 · 5층 보스 방 · 몬스터 종류 존재 · 층마다 더 강해짐', () => { assert.equal(FLOORS.length, 5); assert.ok(FLOORS[4].boss && FLOORS[4].waves.flat().some(([k]) => k === DG_BOSS_TYPE));
   for (const F of FLOORS) for (const [k] of F.waves.flat()) assert.ok(ETYPES[k], k); for (let i = 1; i < 4; i++) assert.ok(FLOORS[i].hpMul >= FLOORS[i - 1].hpMul && FLOORS[i].dmgMul >= FLOORS[i - 1].dmgMul);
   for (let f = 0; f < 5; f++) assert.ok(waveList(f, 0).length > 0); });
 t('쓰러진 영웅: 다음 층 체력 30% · 생존 영웅 +15% (최대 초과 없음)', () => { assert.equal(REVIVE_HP, .3); assert.equal(nextFloorHp(0, 1000, true), 300); assert.equal(nextFloorHp(500, 1000, false), 650); assert.equal(nextFloorHp(990, 1000, false), 1000); });
@@ -63,4 +63,24 @@ t('역할 AI: 격투가 — 비행만 남으면 장풍 사거리 안에서 멈�
   assert.equal(rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10 }, { enemies: [{ x: 7, z: 0, fly: true, r: true }] }).move, null); });
 t('역할 AI: 격투가 Q — 지상 적 3명 이상 모인 곳(9 이내)', () => { const E = [{ x: 5, z: 0 }, { x: 5.5, z: .5 }, { x: 6, z: 0 }, { x: 5, z: 0, fly: true }]; const p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, skillReady: true }, { enemies: E }); assert.ok(p.skill && Math.abs(p.skill.x - 5.5) < 1e-9);
   assert.equal(rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, skillReady: true }, { enemies: [{ x: 5, z: 0 }, { x: 5, z: 0, fly: true }, { x: 5.2, z: 0, fly: true }] }).skill, null, '비행은 세지 않음'); });
+// ---------- 4단계: 5층 보스 '망령 여왕 모르비아' ----------
+const Hp = (x, z, role, alive = true) => ({ x, z, role, alive });
+t('보스: 5층 마지막 웨이브에 dg_lich 1마리 · 몬스터 정의(던전 전용, 대체 모델 해골 마법사)', () => { const F = FLOORS[FLOORS.length - 1]; assert.ok(F.boss); assert.deepEqual(F.waves.at(-1)[0], [DG_BOSS_TYPE, 1]);
+  const E = ETYPES[DG_BOSS_TYPE]; assert.ok(E && E.boss && E.dgBoss && E.mesh === 'lich_meshy' && E.model === 'sk_mage' && E.hp > 0 && E.icon);
+  assert.ok(!FLOORS.slice(0, -1).some(f => f.waves.flat().some(([k]) => k === DG_BOSS_TYPE))); });
+t('보스 창: 후방(원거리·광역) 중 가장 먼 영웅', () => { const L = [Hp(2, 0, 'tank'), Hp(8, 0, 'ranged'), Hp(0, 6, 'caster'), Hp(20, 0, 'bruiser')]; assert.equal(lanceTarget({ x: 0, z: 0 }, L), 1);
+  assert.equal(lanceTarget({ x: 0, z: 0 }, L, 1), 2, '2연속 창은 다른 대상'); L[1].alive = false; L[2].alive = false; assert.equal(lanceTarget({ x: 0, z: 0 }, L), 3, '후방 없으면 가장 먼 영웅'); assert.equal(lanceTarget({ x: 0, z: 0 }, []), -1); });
+t('보스 창: 선분 거리 · 뒤쪽은 안 맞음', () => { const a = { x: 0, z: 0 }, b = { x: 10, z: 0 }; assert.equal(segDist(a, b, { x: 5, z: .5 }).d, .5); assert.equal(segDist(a, b, { x: -1, z: 0 }).d, Infinity); assert.equal(segDist(a, b, { x: 15, z: 0 }, 20).d, 0); });
+t('보스 창: 앞에 선 세라가 대신 막음 · 비켜나면 빗나감', () => { const a = { x: 0, z: 0 }, b = { x: 10, z: 0 }, w = DG_BOSS.lance.w, len = DG_BOSS.lance.len;
+  let L = [Hp(7, .4, 'tank'), Hp(10, 0, 'ranged')]; assert.deepEqual(lanceVictim(a, b, L, w, len, 1), { i: 0, blocked: true });
+  L = [Hp(7, 3, 'tank'), Hp(10, 0, 'ranged')]; assert.deepEqual(lanceVictim(a, b, L, w, len, 1), { i: 1, blocked: false });
+  L = [Hp(7, 3, 'tank'), Hp(10, 3, 'ranged')]; assert.equal(lanceVictim(a, b, L, w, len, 1), null);
+  L = [Hp(5, 0, 'caster'), Hp(10, 0, 'ranged')]; assert.deepEqual(lanceVictim(a, b, L, w, len, 1), { i: 0, blocked: false }, '루나가 앞에 있으면 루나가 맞음(막기 아님)');
+  L = [Hp(6, 0, 'bruiser'), Hp(10, 0, 'ranged')]; assert.equal(lanceVictim(a, b, L, w, len, 1).blocked, true, '서윤도 막음'); assert.ok(DG_BOSS.lance.block < .5); });
+t('보스 창: 막기 지점 = 대상 앞 보스 쪽', () => { const p = interceptPoint({ x: 0, z: 0 }, { x: 10, z: 0 }); assert.ok(Math.abs(p.x - 7.6) < 1e-9 && p.z === 0); const q = interceptPoint({ x: 0, z: 0 }, { x: 2, z: 0 }); assert.ok(q.x >= 1 - 1e-9); });
+t('보스 원: 영웅 발밑 먼저 · 남는 수는 주변 · 방 안', () => { const L = [Hp(0, 0, 'tank'), Hp(30, 0, 'ranged'), Hp(5, 5, 'caster', false)]; let q = 1; const rnd = () => (q = (q * 16807) % 2147483647) / 2147483647;
+  const S = circleSpots(L, 5, rnd); assert.equal(S.length, 5); assert.deepEqual(S[0], { x: 0, z: 0 }); assert.equal(S[1].x, 20, 'clamp'); assert.ok(S.every(p => Math.abs(p.x) <= 20 && Math.abs(p.z) <= 12));
+  assert.equal(circleSpots([], 3).length, 0); assert.ok(inCircle({ x: 0, z: 0 }, { x: 1, z: 1 }, 2) && !inCircle({ x: 0, z: 0 }, { x: 2, z: 2 }, 2));
+  const d = dodgePoint({ x: 0, z: 0 }, { x: 1, z: 0 }, 2); assert.ok(d.x > 2 && !inCircle({ x: 0, z: 0 }, d, 2.3)); assert.ok(!inCircle({ x: 0, z: 0 }, dodgePoint({ x: 0, z: 0 }, { x: 0, z: 0 }, 2), 2)); });
+t('보스 소환: 75%·40% 한 번씩', () => { assert.deepEqual(summonDue(.9), []); assert.deepEqual(summonDue(.7), [0]); assert.deepEqual(summonDue(.7, [0]), []); assert.deepEqual(summonDue(.3, [0]), [1]); assert.deepEqual(summonDue(.3), [0, 1]); });
 console.log(`dungeon: ${ok} ok`);

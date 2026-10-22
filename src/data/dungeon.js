@@ -44,6 +44,8 @@ export function dungeonLayout(GW = DG_GW, GH = DG_GH) {
 // 1층 균형(2026-10-22 시뮬레이션, AI 자동 전투·조작 영웅 가만히): 강화·장비 없는 기본 3영웅 ~70초 클리어, 최저 체력 23~78% (hpMul 3.0/dmg 1.6 은 전멸 발생 → 너무 어려움). 로즈 포함 4명 ~62초
 // 3단계(2026-10-22): 5개 층. 층 사이 축복 3택1(판 한정) · 쓰러진 영웅은 다음 층에 체력 30% 로 복귀 · 5층 = 임시 보스 방(해골 군주, 4단계에서 새 Meshy 보스로 교체)
 // 몬스터는 던전 맵에서 검증된 능력 없는/단순 능력 종류만 (imp·grunt·golem·goblin(겁먹으면 빨라짐)·mushroom(몬스터 치유)·boss(능력 없음))
+// 4단계: 5층 던전 보스 '망령 여왕 모르비아' (몬스터 종류 dg_lich, data/monsters.js · 기믹 dungeon/boss.js · 모델 models/lich_meshy.glb 지연 로딩, 없으면 해골 마법사 + 절차적 왕관)
+export const DG_BOSS_TYPE = 'dg_lich';
 export const FLOORS = [
   { n: '1층 · 해골 동굴', hpMul: 2.4, dmgMul: 1.4, gap: 4, every: .55,
     waves: [[['imp', 6], ['grunt', 4]], [['grunt', 8], ['imp', 6]], [['golem', 2], ['grunt', 8], ['imp', 6]]] },
@@ -53,8 +55,8 @@ export const FLOORS = [
     waves: [[['mushroom', 3], ['grunt', 8], ['imp', 6]], [['goblin', 8], ['golem', 2], ['imp', 6]], [['golem', 3], ['mushroom', 3], ['grunt', 8], ['goblin', 4]]] },
   { n: '4층 · 기사의 회랑', hpMul: 2.65, dmgMul: 1.5, gap: 4.5, every: .6,
     waves: [[['golem', 2], ['grunt', 8], ['goblin', 6]], [['golem', 3], ['mushroom', 2], ['imp', 8]], [['golem', 3], ['grunt', 8], ['goblin', 6]]] },
-  { n: '5층 · 군주의 방', hpMul: 1.4, dmgMul: 1.2, gap: 5, every: .7, boss: true,
-    waves: [[['grunt', 6], ['imp', 6]], [['boss', 1], ['grunt', 4], ['imp', 4]]] },
+  { n: '5층 · 망령 여왕의 방', hpMul: 1.4, dmgMul: 1.2, gap: 5, every: .7, boss: true,
+    waves: [[['grunt', 6], ['imp', 6]], [[DG_BOSS_TYPE, 1], ['grunt', 2]]] },
 ];
 export const floorCount = () => FLOORS.length;
 export function waveList(floor, w) { const F = FLOORS[floor], W = F && F.waves[w]; if (!W) return []; const out = []; let left = W.map(([t, n]) => [t, n]);
@@ -101,3 +103,39 @@ export const JOINT_K = 10; // 합동 공격 화면 전체 피해 = 살아있는 
 export const ultGain = (dt, kills, combat, mul = 1) => ((combat ? dt * ULT_RATE : 0) + kills * ULT_KILL) * mul;
 export function jointReady(heroes) { const L = (heroes || []).filter(h => h.dead <= 0); return L.length > 0 && L.every(h => (h.ult || 0) >= ULT_MAX); }
 export const jointDamage = dmgs => dmgs.reduce((a, b) => a + b, 0) * JOINT_K;
+
+// ---------- 5층 보스 '망령 여왕 모르비아' 기믹 (수치 · 순수 판정 함수) ----------
+// ① 영혼의 창(lance): 후방 영웅(실바·로즈·루나 — 없으면 가장 먼 영웅)을 겨눠 붉은 선 예고 → windup 뒤 직선으로 꿰뚫음. 선 위 '첫 영웅'이 맞음
+//    → 세라(tank)·서윤(bruiser)이 선 위(대상보다 앞)에 서면 대신 막고 block 배수만 받음 · 대상이 선에서 비켜나도 피함
+// ② 망령의 원(circles): 살아있는 영웅 발밑마다 보라 원 예고(+남는 수는 무작위) → windup 뒤 터짐 (조작 영웅은 직접 움직여 피해야 함 · AI 영웅은 늦게 반응)
+// ③ 해골 소환(summon): 체력 75%·40% 에서 졸개 소환 (2단계면 더 많이)
+// ④ 2단계(phase, 체력 50%): 분노 — 이동 속도↑ · 기믹 대기 ×cd · 원 n2개 · 창 2연속
+export const DG_BOSS = {
+  lance: { first: 6, every: 10, windup: 1.9, w: 1.1, len: 26, dmg: 165, block: .3 },
+  circles: { first: 10, every: 12, windup: 1.8, r: 2.3, n: 3, n2: 5, dmg: 95, react: .7 },
+  summon: { at: [.75, .4], n: 3, n2: 5, types: ['grunt', 'imp'], hpMul: .8 },
+  phase: { at: .5, spd: 1.25, cd: .7 },
+};
+const _dst = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// 창 대상: 살아있는 후방 영웅(ranged/caster) 중 보스에서 가장 먼 영웅, 없으면 살아있는 영웅 중 가장 먼 영웅. L = [{x,z,role,alive}] → index (-1 = 없음). skip = 제외할 index (2연속 창)
+export function lanceTarget(boss, L, skip = -1) { let bi = -1, bd = -1, back = L.some((h, i) => h.alive && i !== skip && (h.role === 'ranged' || h.role === 'caster'));
+  L.forEach((h, i) => { if (!h.alive || i === skip || (back && h.role !== 'ranged' && h.role !== 'caster')) return; const d = _dst(h, boss); if (d > bd) { bd = d; bi = i; } }); return bi; }
+// 점 p 와 선분 a→b (b 방향 len 까지 연장) 의 거리 · 진행도 t(0=보스). → { d, t }
+export function segDist(a, b, p, len = null) { const dx = b.x - a.x, dz = b.z - a.z, L0 = Math.hypot(dx, dz) || 1, ux = dx / L0, uz = dz / L0, L = len || L0;
+  const t = (p.x - a.x) * ux + (p.z - a.z) * uz; if (t < 0 || t > L) return { d: Infinity, t }; return { d: Math.abs((p.x - a.x) * uz - (p.z - a.z) * ux), t }; }
+// 창 판정: 보스 a 에서 조준점 b 방향(길이 len, 폭 w)으로 '처음' 닿는 살아있는 영웅. → { i, blocked } (blocked = 대상(tgt)이 아닌 tank/bruiser 가 막음) 또는 null
+export function lanceVictim(a, b, L, w, len, tgt = -1) { let best = null;
+  L.forEach((h, i) => { if (!h.alive) return; const s = segDist(a, b, h, len); if (s.d <= w && (!best || s.t < best.t)) best = { i, t: s.t }; });
+  if (!best) return null; const h = L[best.i]; return { i: best.i, blocked: best.i !== tgt && (h.role === 'tank' || h.role === 'bruiser') }; }
+// 막기 위치: 대상 앞(보스 쪽) k 거리 지점 (탱커/격투가 AI 가 그리로 이동)
+export function interceptPoint(a, tgtPos, k = 2.4) { const dx = a.x - tgtPos.x, dz = a.z - tgtPos.z, L = Math.hypot(dx, dz) || 1, kk = Math.min(k, L * .5); return { x: tgtPos.x + dx / L * kk, z: tgtPos.z + dz / L * kk }; }
+// 망령의 원 위치: 살아있는 영웅 발밑 먼저 → 남는 수는 영웅 주변 무작위 (rnd 0~1). 방 안쪽으로 clamp(bound)
+export function circleSpots(L, n, rnd = Math.random, bound = { x: 20, z: 12 }) { const A = L.filter(h => h.alive), out = [];
+  for (const h of A) if (out.length < n) out.push({ x: h.x, z: h.z });
+  for (let k = 0; out.length < n && A.length; k++) { const h = A[k % A.length], a = rnd() * Math.PI * 2, r = 2.5 + rnd() * 3; out.push({ x: h.x + Math.cos(a) * r, z: h.z + Math.sin(a) * r }); }
+  return out.map(p => ({ x: Math.max(-bound.x, Math.min(bound.x, p.x)), z: Math.max(-bound.z, Math.min(bound.z, p.z)) })); }
+export const inCircle = (c, p, r) => _dst(c, p) <= r;
+// 원 밖으로 피할 지점 (AI): 원 중심에서 바깥쪽으로 r + 1.2
+export function dodgePoint(c, p, r) { let dx = p.x - c.x, dz = p.z - c.z, L = Math.hypot(dx, dz); if (L < 1e-3) { dx = 1; dz = 0; L = 1; } return { x: c.x + dx / L * (r + 1.2), z: c.z + dz / L * (r + 1.2) }; }
+// 소환 차례: 체력 비율 frac 이 at[i] 이하로 처음 내려간 소환 번호들 (done = 이미 한 번호 Set/배열)
+export function summonDue(frac, done = []) { const D = new Set(done); return DG_BOSS.summon.at.map((t, i) => i).filter(i => frac <= DG_BOSS.summon.at[i] && !D.has(i)); }

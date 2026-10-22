@@ -101,6 +101,7 @@ const MESHY = {
   // JabLs/JabRs = 가드에서 왼/오른 잽 · SpinK = 회전 돌려차기 · ChargeIn/ChargeHold = 장풍 기 모으기(두 손 가슴 앞) · PalmS = 두 손 장풍 내지르기 · SlamS = 뛰어올라 내려찍기
   seoyun_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'CheerJ', Melee_Show: 'SpinK', IdleLookAround: 'Combat' },
     sub: [['JabLs', 'JabL', .25, .95], ['JabRs', 'JabR', .3, 1.0], ['SpinK', 'SpinKick', .55, 1.55], ['PalmS', 'Palm', 1.2, 2.3], ['ChargeIn', 'Charge', .27, .75], ['ChargeHold', 'Charge', .75, 1.45], ['SlamS', 'Slam', .25, 1.9], ['CheerJ', 'Cheer', 0, 3.2]] },
+  lich_meshy: {}, // 던전 5층 보스 '망령 여왕 모르비아' (몬스터, 지연 로딩 · 클립 이름은 makeLich 에서 해골 클립 이름으로도 연결)
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
@@ -297,8 +298,11 @@ function makeBat() {
   return { g, inner, mats, wings, acts: null, mixer: null };
 }
 const SHARED_BODY = {};
+// Meshy 보스 몸 (E.mesh 가 불러와졌을 때만). 해골 몬스터용 이름으로 부르는 동작(걷기·공격·죽음·출현)을 전용 클립에 연결
+const LICH_ALIAS = { Walking_D_Skeletons: 'Walk', Unarmed_Melee_Attack_Punch_A: 'Attack', Death_A: 'Death', Spawn_Ground_Skeletons: 'Scream', Hit_A: 'Hit', Idle_Combat: 'Idle' };
+function makeLich(E) { const ch = makeChar(E.mesh, E.h, GL[E.mesh].animations, .05); for (const [a, b] of Object.entries(LICH_ALIAS)) if (ch.acts[b] && !ch.acts[a]) ch.acts[a] = ch.acts[b]; ch.lich = true; return ch; }
 function makeEnemyModel(type) {
-  const E = ETYPES[type]; if (E.proc === 'wisp') return makeWisp(E); if (E.proc === 'wolf') return makeWolf(E); if (E.proc === 'slime') return makeSlime(E); if (E.fly) return makeBat();
+  const E = ETYPES[type]; if (E.mesh && GL[E.mesh]) return makeLich(E); if (E.proc === 'wisp') return makeWisp(E); if (E.proc === 'wolf') return makeWolf(E); if (E.proc === 'slime') return makeSlime(E); if (E.fly) return makeBat();
   // 몸 머티리얼은 종류별로 한 벌만 (첫 개체가 색조·눈 발광을 정한 뒤 공유) → 개체마다 clone 하던 머티리얼 수·GPU 유니폼 업로드 감소. 소품 머티리얼(버섯 갓·얼음 등 개체별 변화)은 그대로 개체별
   const sh = SHARED_BODY[type] || null, ch = makeChar(E.model, E.h, skClips(), E.boss ? .05 : .03, sh); attach(ch, E.w, 'handslotr'); if (E.sh) attach(ch, E.sh, 'handslotl');
   if (!sh && E.tint) { const tc = new THREE.Color(E.tint); ch.mats.forEach(m => m.color.multiply(tc)); }

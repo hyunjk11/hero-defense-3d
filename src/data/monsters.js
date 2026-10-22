@@ -51,6 +51,9 @@ const ETYPES = {
   boss_ruins:  { n: '망국의 왕', icon: '👑', model: 'sk_warrior', w: 'w_axe', sh: 'w_shield_large_b', prop: 'ice', crystal: [0x4a3a6a, 0x8a4aff], tint: 0xb0a0d8, eye: 0x6affe8, h: 5.7, hp: 3600, spd: 1.15, gold: 180, core: 10, dps: 185, walk: 'Walking_D_Skeletons', ws: .32, dig: '2H_Melee_Attack_Chop',
               armor: .22, boss: true, ab: { summon: { every: 15, first: 6, windup: 1.4, n: 3, type: 'ruin_guard', hp: .55, r: 2.4, extra: 2 }, curse: { every: 12, first: 9, windup: 1.8, range: 12, r: 3.4, max: 4, dur: 4.5 }, dread: { at: .5, windup: 2.2, r: 8, tower: 90, hero: 70, stun: 2, shield: .12, cd: .7 } },
               desc: '해골 근위병 3마리 소환(보라 원 = 예고), 저주(보라 고리가 깜박인 타워 묶음 최대 4개를 4.5초간 봉인)를 씁니다. 체력 50%에서 어둠의 파동: 2.2초 예고 뒤 주변 타워·영웅 피해 + 어둠 보호막, 이후 더 자주·더 많이 소환.' },
+  // 던전 5층 전용 보스 (일반 스테이지·로스터에는 없음). 기믹은 dungeon/boss.js (dgBoss), 모델 = mesh(Meshy, 지연 로딩) · 못 받으면 model(해골 마법사) + 보라 색조 + 왕관
+  dg_lich:     { n: '망령 여왕 모르비아', icon: '💀', model: 'sk_mage', mesh: 'lich_meshy', tint: 0xc8b0ff, eye: 0x4affe0, h: 4.8, hp: 3400, spd: 1.3, gold: 200, core: 10, dps: 120, walk: 'Walking_D_Skeletons', ws: .34, dig: 'Unarmed_Melee_Attack_Punch_A',
+              armor: .2, boss: true, dgBoss: true, desc: '던전 5층의 주인. 후방 영웅을 노리는 영혼의 창(세라·서윤이 앞을 막으면 대신 맞음), 발밑 망령의 원, 해골 소환, 체력 50% 분노.' },
 };
 // 3장 화산 · 4장 폐허 — 기존 행동을 재사용한 변형 (폐허는 석상화·실체 소멸·어둠 보호막 추가)
 const VARIANTS = {
