@@ -93,8 +93,9 @@ def boss_checks(pg, tag):
         ok('boss_summon_40', J(pg, "()=>G.dgB.log.summons") == 2)
         J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); G.heroes.forEach(h=>{ h.dead=0; h.hp=h.max; }); G.sim(2.5); }")
     # 스크린샷: 창 + 원 예고 동시에
+    J(pg, "()=>{ const b=%s; b.g.position.set(-4,0,-4); b.g.rotation.y=Math.PI/2; for (const e of [...G.enemies]) if (!e.dead && e.type!=='dg_lich') G.hurt(e,1e9); G.sim(1.8); }" % BOSS)  # 기둥 없는 곳 (화면에서 잘 보이게)
     place(pg, [[0, 5, 1], [1, 11, 0], [2, 8, 5], [3, 7, -5]])
-    J(pg, "()=>{ const b=%s; b.bz.hold=0; b.bz.lanceT=0; b.bz.circT=99; G.sim(.1); b.bz.hold=0; b.bz.circT=0; b.bz.lanceT=99; G.sim(.6); G.cam.target.set(b.g.position.x+5,0,b.g.position.z); b.flash=0; }" % BOSS)
+    J(pg, "()=>{ const b=%s; b.bz.hold=0; b.bz.lanceT=0; b.bz.circT=99; G.sim(.1); b.bz.hold=0; b.bz.circT=0; b.bz.lanceT=99; G.sim(.6); G.cam.target.set(b.g.position.x+5,0,b.g.position.z); b.flash=0; const fl=document.getElementById('dgFlash'); if (fl) fl.classList.remove('on'); document.querySelectorAll('.dmg').forEach(d=>d.remove()); }" % BOSS)
     shot(pg, f'boss_{tag}', True)
     J(pg, "()=>G.sim(2)")
 def login(pg, email, owned=False):
