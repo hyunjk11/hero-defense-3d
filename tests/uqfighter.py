@@ -102,8 +102,9 @@ with sync_playwright() as pw:
       const e=G.spawnEnemy(ty, 40, { x, z, tile:G.toTile(x,z) }); e.g.position.set(x, e.g.position.y, z); e.state='walk'; e.spawnT=0; e.next=null; e.path=null; e.spd=0; e.spdK=1e-9; e.max=e.hp=1e7; window.__bp.push(e); }
       G.mouseGround.set(h.x+Math.sin(f)*10, 0, h.z+Math.cos(f)*10); return window.__bp.length; }"""
     J(pg, PUT, [['grunt', 3, 0], ['grunt', 5.5, .5], ['bat', 8, -.4], ['grunt', 10.5, .3], ['imp', 13, 0], ['grunt', 6, 4.2]])
+    pg.mouse.move(640, 300); J(pg, "()=>{ G.hero.atkT=9; G.hero.ft&&(G.hero.ft.jp=null); }")
     p0 = J(pg, "()=>window.__bp.map(e=>[e.g.position.x,e.g.position.z])"); n0 = J(pg, "()=>({...G.ftN})")
-    pg.mouse.move(5, 5); J(pg, "()=>{ G.hero.lcd=0; G.sim(.05); }"); pg.keyboard.press('e'); J(pg, "()=>G.sim(.05)")
+    pg.mouse.move(640, 300); J(pg, "()=>{ const h=G.hero.g.position, f=G.hero.face; G.mouseGround.set(h.x+Math.sin(f)*10, 0, h.z+Math.cos(f)*10); G.hero.lcd=0; }"); pg.keyboard.press('e'); J(pg, "()=>G.sim(.05)")
     ok('catpaw_cast', J(pg, "()=>G.legendN.catpaw") == 1 and J(pg, "()=>G.hero.lcd") > 5 and J(pg, "()=>G.ftN.catpaw") == (n0.get('catpaw') or 0) + 1, J(pg, "()=>[G.legendN, G.hero.lcd, G.ftN.catpaw]"))
     J(pg, "()=>G.sim(.32)"); shot(pg, 'uq_catpaw')
     J(pg, "()=>G.sim(.9)"); n1 = J(pg, "()=>({...G.ftN})"); dm = J(pg, "()=>window.__bp.map(e=>Math.round(e.max-Math.max(0,e.hp)))")
