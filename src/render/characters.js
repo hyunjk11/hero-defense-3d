@@ -9,7 +9,7 @@ import { addOutline, glow, grad, mk, shareGeo, toon } from './toon.js';
 import { makeWolf, makeSlime, makeWisp, extraProp } from './monsters3d.js';
 
 // ================= 캐릭터 (KayKit glTF, 스켈레탈 애니메이션) =================
-const GL = {}; const ALL_ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b', 'rose_rifle_meshy', 'rose_rifle_gun'];
+const GL = {}; const ALL_ASSETS = ['archer_meshy', 'mage_meshy', 'warrior_meshy', 'gunner_meshy', 'budeul_meshy', 'budeul_gear', 'mech_robot_meshy', 'sk_minion', 'sk_warrior', 'sk_rogue', 'w_axe', 'w_blade', 'w_shield_large_a', 'sk_mage', 'w_shield_large_b', 'rose_rifle_meshy', 'rose_rifle_gun', 'seoyun_meshy'];
 // 지연 로딩 (P-2): 모델은 키마다 한 번만 불러옴(LOADING 에 promise 캐시). 필요한 것만 먼저(loadAssets(keys)) → 나머지는 loadBackground 로 하나씩 (판 중 버벅임 방지)
 // 몬스터: 모든 챕터가 같은 해골 모델 4개 + 무기 4개(약 1.9MB)를 공유 → '현재 챕터 몬스터' = MON_ASSETS 전체
 const MON_ASSETS = [...new Set(Object.values(ETYPES).flatMap(E => [E.model, E.w, E.sh]).filter(k => k && ALL_ASSETS.includes(k)))];
@@ -22,8 +22,11 @@ const LOADING = {}; let loader = null;
 function loadModel(k) {
   if (LOADING[k]) return LOADING[k]; if (HIDDEN_ASSETS.includes(k)) return Promise.reject(new Error('숨긴 영웅 모델: ' + k)); if (!loader) { loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder); }
   return (LOADING[k] = loader.loadAsync(`models/${k}.glb`).then(g => { prep(g); if (MESHY[k]) lockRoot(g.animations); if (MESHY[k]) extraClips(g.animations, MESHY[k]); GL[k] = g; for (let i = WAIT.length - 1; i >= 0; i--) if (modelsReady(WAIT[i][0])) { WAIT[i][1](); WAIT.splice(i, 1); } return g; })
-    .catch(e => { delete LOADING[k]; throw e; }));
+    .catch(e => { delete LOADING[k]; if (!FALLBACK[k]) throw e; // 대체 모델 (안정성 우선): 격투가 몸을 못 받으면 세라 몸 + 절차적 고양이 귀 후드·주황 색조 (makeHeroModel)
+      console.warn('model fallback', k, '→', FALLBACK[k], e); return loadModel(FALLBACK[k]).then(g => { FB[k] = FALLBACK[k]; GL[k] = g; G_FB.push(k); return g; }); }));
 }
+// 대체 모델 표 (지연 로딩 실패 시). FB[k] = 실제로 쓰인 대체 키, G_FB = 테스트용 목록
+const FALLBACK = { seoyun_meshy: 'warrior_meshy' }, FB = {}, G_FB = (globalThis.__hd3dModelFallback = []);
 const modelsReady = keys => keys.every(k => GL[k]);
 // 불러오기를 새로 시작하지 않고, (백그라운드 등으로) 다 도착하면 resolve — 영웅 단상처럼 '있으면 보여 주기'용
 const WAIT = []; const whenModels = keys => modelsReady(keys) ? Promise.resolve() : new Promise(r => WAIT.push([keys, r]));
@@ -94,6 +97,10 @@ const MESHY = {
     graft: [['IdleR', 'IdleBase', 'Ready', '(Shoulder|Arm|ForeArm|Hand)$'], ['AimRun', 'Run', 'Aim', '^(Spine|Spine01|Spine02|neck|Head|.*(Shoulder|Arm|ForeArm|Hand))$']],
     calm: [{ clips: ['Hit'], bones: ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'], k: .85, ref: 'Ready' }],
     rifle: { s: .85, grip: [.44, -.01, 0], fore: [-.28, .06, 0], muz: [-.95, .085, .008], aim: ['Aim', 'AimRun'], one: ['Death', 'Flourish'], pitch: .05 } },
+  // Meshy 격투가 진서윤 (고양이 귀 후드 = 몸 메시 일부, 무기·부착물 없음). 클립: /workspace/seoyun3d (merge.json · build.mjs), 타격 시점은 heroes/fighter.js HIT
+  // JabLs/JabRs = 가드에서 왼/오른 잽 · SpinK = 회전 돌려차기 · ChargeIn/ChargeHold = 장풍 기 모으기(두 손 가슴 앞) · PalmS = 두 손 장풍 내지르기 · SlamS = 뛰어올라 내려찍기
+  seoyun_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'CheerJ', Melee_Show: 'SpinK', IdleLookAround: 'Combat' },
+    sub: [['JabLs', 'JabL', .25, .95], ['JabRs', 'JabR', .3, 1.0], ['SpinK', 'SpinKick', .55, 1.55], ['PalmS', 'Palm', 1.2, 2.3], ['ChargeIn', 'Charge', .27, .75], ['ChargeHold', 'Charge', .75, 1.45], ['SlamS', 'Slam', .25, 1.9], ['CheerJ', 'Cheer', 0, 3.2]] },
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
 const wsV = new THREE.Vector3();
@@ -129,7 +136,7 @@ const heroClips = () => GL.warrior_meshy.animations, skClips = () => GL.sk_minio
 // alt = 전직 전용 몸 모델 (로즈 장미 저격수 소총 몸). 모델이 아직 없거나 소품이 없으면 기본 모델 (안정성 우선)
 const altOk = alt => !!(alt && GL[alt] && MESHY[alt] && (!MESHY[alt].rifle || GL.rose_rifle_gun));
 function makeHeroModel(cls, key0, alt) {
-  const key = key0 || (altOk(alt) ? alt : CLASSES[cls].model), M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
+  const want = key0 || (altOk(alt) ? alt : CLASSES[cls].model), key = FB[want] || want, M = MESHY[key], ch = makeChar(key, M ? M.h || 2.8 : 2.5, M ? GL[key].animations : heroClips(), .032);
   if (M) { for (const [a, b] of Object.entries(M.alias)) if (ch.acts[b]) ch.acts[a] = ch.acts[b]; // 기존 동작 이름 → 새 클립
     ch.hitAt = M.hitAt || 0; ch.root.updateMatrixWorld(true);
     if (M.aim) { ch.aim = M.aim; ch.yawT = 0; const up = ch.mixer.update.bind(ch.mixer); ch.mixer.update = dt => { ch.root.rotation.y += (ch.yawT - ch.root.rotation.y) * Math.min(1, dt * 16); return up(dt); }; }
@@ -140,10 +147,16 @@ function makeHeroModel(cls, key0, alt) {
     else if (M.gear) mechGear(ch, M);
     else if (M.arms) mechArms(ch, M);
     else if (key === 'archer_meshy') { const hand = ch.root.getObjectByName('LeftHand'); if (hand) { const tip = new THREE.Object3D(); tip.position.copy(hand.worldToLocal(bowGrip(ch, hand.getWorldPosition(new THREE.Vector3())))); hand.add(tip); ch.tip = tip; } } } // 활 손잡이(왼손에 스킨된 활) = 화살 발사 지점
+  if (FB[want]) fallbackLook(ch, cls); // 대체 모델: 색조 + 고양이 귀 후드 (절차적)
   ch.key = key; if (key0) return ch; // 변신 로봇: 링/색은 본체 것을 사용
   const ring = new THREE.Mesh(new THREE.RingGeometry(.75, .95, 32), new THREE.MeshBasicMaterial({ color: CLASSES[cls].color, transparent: true, opacity: .7, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; ch.g.add(ring); ch.ring = ring;
   return ch;
 }
+// 대체 모델 꾸미기 (격투가 몸을 못 받았을 때 세라 몸 위에): 주황 색조 + 머리에 고양이 귀 2개 (원뿔, 안쪽 분홍)
+function fallbackLook(ch, cls) { const col = new THREE.Color(CLASSES[cls].color); ch.mats.forEach(m => m.color.lerp(col, .45)); ch.fallback = true;
+  const head = ch.root.getObjectByName('Head') || ch.root.getObjectByName('head'); if (!head) return; const g = new THREE.Group(), out = toon(CLASSES[cls].color), inn = toon(0xffb0c0);
+  for (const s of [-1, 1]) { const e = mk(new THREE.ConeGeometry(.16, .34, 4), out, s * .2, .42, 0, g, .02); e.rotation.z = -s * .35; const i = mk(new THREE.ConeGeometry(.09, .2, 4), inn, s * .19, .4, .05, g, 0); i.rotation.z = -s * .35; }
+  attachProp(ch, head.name, g, [0, .05, 0]); }
 // 메카닉 로봇 팔: 바인드 포즈에서 손 주변 정점 중 아래팔 뼈에서 가장 먼 점 = 드릴 끝 / 주먹 끝. 드릴 끝에는 회전하는 가산 드릴 잔상(평소 숨김)
 function armTip(ch, hand, fore, rad) { const hp = hand.getWorldPosition(new THREE.Vector3()), fp = fore.getWorldPosition(new THREE.Vector3()), v = new THREE.Vector3(); let best = null, bd = -1;
   ch.root.traverse(o => { if (!o.isSkinnedMesh || o.userData.ol) return; const n = o.geometry.attributes.position.count;

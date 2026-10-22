@@ -13,7 +13,7 @@ export function initAdv(h) { hooks = { ...hooks, ...h }; $('advConfirm').addEven
 export const resetPreview = () => { pv = null; };
 export function renderAdv() {
   const s = Acc.load(), h = Sh.usableHero(s.hero), C = CLASSES[h], el = $('twAdv'), cur = AD.advOf(h, s.adv[h]), owned = Sh.heroOwned(h);
-  if (!AD.ADV_HEROES.includes(h)) { setH(el, `<div class="advCur">${C.nm}은(는) 아직 전직할 수 없어요</div>`); return; }
+  if (!AD.ADV_HEROES.includes(h)) { setH(el, `<div class="advCur advSoon">${C.icon} <b>${C.nm}</b> 전직은 <b>준비 중</b>이에요<br><small>새 전직 분기가 곧 추가될 예정이에요. 지금은 여신탑 강화와 장비로 키워 주세요!</small></div>`); return; } // 분기 없는 영웅(서윤 등): '준비 중'
   const mats = `<div class="advMats"><span>🔮 영혼석 <b>${s.souls}</b></span><span>💎 마력석 <b>${s.mat.crystal}</b></span><span>◆ 고유 정수 <b>${s.mat.essence || 0}</b></span></div>`;
   const head = cur ? `<div class="advCur" style="--ac:${cur.c}">${cur.icon} <b>${C.nm} · ${cur.n}</b><br><small>영구 강화 상한 ${AD.PERM_MAX_ADV} · 재전직 영혼석 ${AD.ADV_SWITCH.souls}</small></div>`
     : `<ul class="advChk">${AD.advChecks(s, h).map(x => `<li class="${x.ok ? 'ok' : 'no'}">${x.ok ? '✓' : '✗'} ${x.t}</li>`).join('')}</ul>`;

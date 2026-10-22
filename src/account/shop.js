@@ -72,7 +72,7 @@ export async function order(item) {
   if (S.me.banned) return { ok: false, banned: true, msg: BAN_MSG.order };
   if (pendingOf(item)) return { ok: false, msg: '이미 구매 신청이 접수되어 관리자 확인을 기다리는 중이에요.' };
   const c = await sb(), { error } = await q(c.from(T.orders).insert({ item }));
-  if (error) { await refresh(); if (isBannedErr(error)) return { ok: false, banned: true, msg: BAN_MSG.order }; if (error.code === '23505') return { ok: false, msg: owns(item) ? '이미 보유한 상품이에요.' : '이미 구매 신청이 접수되어 있어요.' }; if (isMissing(error)) return { ok: false, msg: '서버 준비 중이에요.' }; return { ok: false, msg: '구매 신청 실패: ' + (error.message || '') }; }
+  if (error) { await refresh(); if (isBannedErr(error)) return { ok: false, banned: true, msg: BAN_MSG.order }; if (error.code === '23514') return { ok: false, outdated: true, msg: '서버 업데이트 필요 — 이 영웅은 서버 준비가 끝나면 구매할 수 있어요. (관리자: schema.sql 다시 실행)' }; if (error.code === '23505') return { ok: false, msg: owns(item) ? '이미 보유한 상품이에요.' : '이미 구매 신청이 접수되어 있어요.' }; if (isMissing(error)) return { ok: false, msg: '서버 준비 중이에요.' }; return { ok: false, msg: '구매 신청 실패: ' + (error.message || '') }; }
   await refresh(); return { ok: true, msg: '구매 신청이 접수되었습니다!' };
 }
 
@@ -119,7 +119,7 @@ export async function adminOrders() {
   if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : error.message }; S.adminOrders = data || []; emit(); return { ok: true, list: S.adminOrders };
 }
 async function adminRpc(fn, args) { const c = await sb(), { data, error } = await q(c.rpc(fn, args)); if (error) return { ok: false, msg: isMissing(error) ? '서버 준비 중 (schema.sql 실행 필요)' : /forbidden|42501/.test(error.message + error.code) ? '관리자 권한이 없습니다.' : error.message };
-  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: '보상 값이 올바르지 않습니다.', bad_title: '제목을 확인해 주세요.' }[data.reason] || '실패' }; return { ok: true, data }; }
+  if (data && data.ok === false) return { ok: false, msg: { not_pending: '이미 처리된 신청입니다.', no_user: '해당 이메일의 사용자가 없습니다.', bad_reward: (args && args.p_reward && args.p_reward.hero === 'fighter') ? '서버 업데이트 필요: schema.sql 을 다시 실행해 주세요 (격투가 서윤)' : '보상 값이 올바르지 않습니다.', bad_title: '제목을 확인해 주세요.' }[data.reason] || '실패' }; return { ok: true, data }; }
 export const approve = id => adminRpc('hd3d_admin_approve', { p_order_id: id });
 export const reject = (id, reason) => adminRpc('hd3d_admin_reject', { p_order_id: id, p_reason: reason || null });
 export const sendMail = (email, title, body, reward) => adminRpc('hd3d_admin_send_mail', { p_email: email, p_title: title, p_body: body || '', p_reward: reward && Object.keys(reward).length ? reward : null });

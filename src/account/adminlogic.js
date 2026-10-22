@@ -5,7 +5,7 @@ export const MAX_RW = 1000000;
 export const UPDATE_MSG = '서버 업데이트 필요: schema.sql 을 다시 실행해 주세요';
 // 폼 값 → 보상 객체 (0 은 빼고, 0~1,000,000 정수). hero 는 판매 영웅 키만
 // items: 보상 아이템 줄 목록 (rewarditems.validItem 으로 거른 뒤 최대 10개), essence = 고유 정수(조각) 0~10,000
-export function buildReward({ souls, steel, crystal, essence, hero, items } = {}, heroes = ['gunner', 'mechanic']) {
+export function buildReward({ souls, steel, crystal, essence, hero, items } = {}, heroes = ['gunner', 'mechanic', 'fighter']) {
   const n = (v, cap = MAX_RW) => Math.max(0, Math.min(cap, Math.floor(+v || 0))), r = {};
   if (n(souls)) r.souls = n(souls); if (n(steel)) r.steel = n(steel); if (n(crystal)) r.crystal = n(crystal); if (n(essence, MAX_ESSENCE)) r.essence = n(essence, MAX_ESSENCE);
   if (hero && heroes.includes(hero)) r.hero = hero; const L = cleanItems(items); if (L.length) r.items = L.map(x => ({ ...x })); return r;
@@ -14,7 +14,7 @@ export function buildReward({ souls, steel, crystal, essence, hero, items } = {}
 export function validReward(r) {
   if (r == null) return true; if (typeof r !== 'object' || Array.isArray(r)) return false;
   return Object.keys(r).every(k => ['souls', 'steel', 'crystal', 'hero', 'essence', 'items'].includes(k)) && ['souls', 'steel', 'crystal'].every(k => r[k] == null || (Number.isInteger(r[k]) && r[k] >= 0 && r[k] <= MAX_RW))
-    && (r.essence == null || (Number.isInteger(r.essence) && r.essence >= 0 && r.essence <= MAX_ESSENCE)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic') && validItems(r.items);
+    && (r.essence == null || (Number.isInteger(r.essence) && r.essence >= 0 && r.essence <= MAX_ESSENCE)) && (r.hero == null || r.hero === 'gunner' || r.hero === 'mechanic' || r.hero === 'fighter') && validItems(r.items);
 }
 // 사유: 앞뒤 공백 제거, 1~200자 아니면 null (서버 hd3d_reason 과 같음)
 export const cleanReason = s => { const t = String(s == null ? '' : s).trim(); return t.length >= 1 && t.length <= 200 ? t : null; };
@@ -56,7 +56,7 @@ export const isoToLocal = s => { if (!s) return ''; const d = new Date(s); if (i
 export const ACTION_N = { order_approve: '주문 승인', order_reject: '주문 거절', order_refund: '환불 처리', mail_send: '우편 보내기', broadcast: '전체 우편', hero_grant: '영웅 지급', hero_revoke: '영웅 회수',
   ban: '계정 정지', unban: '정지 해제', notice_create: '공지 작성', notice_update: '공지 수정', notice_activate: '공지 게시', notice_deactivate: '공지 내림', admin_add: '관리자 추가', admin_remove: '관리자 삭제' };
 export function logDetail(l, rewardText = () => '') { const d = l && l.detail || {}, o = [];
-  if (d.item) o.push(d.item === 'hero_gunner' ? '로즈' : d.item === 'hero_mechanic' ? '버들' : d.item); if (d.order) o.push('주문 #' + d.order); if (d.title) o.push('「' + d.title + '」');
+  if (d.item) o.push(d.item === 'hero_gunner' ? '로즈' : d.item === 'hero_mechanic' ? '버들' : d.item === 'hero_fighter' ? '서윤' : d.item); if (d.order) o.push('주문 #' + d.order); if (d.title) o.push('「' + d.title + '」');
   if (d.reward) { const t = rewardText(d.reward); if (t) o.push(t); } if (d.recipients != null) o.push(d.recipients + '명'); if (d.notice) o.push('공지 #' + d.notice); if (d.reason) o.push('사유: ' + d.reason); return o.join(' · '); }
 // 전체 우편 확인 문구
 export function broadcastConfirmText(count, rewardText) { return `이 게임의 사용자 <b>${count}명</b> 모두에게 우편을 보냅니다.${rewardText ? `<br>보상: <b>${rewardText}</b> (1인당)` : ''}<br>보낸 뒤에는 되돌릴 수 없습니다.`; }
