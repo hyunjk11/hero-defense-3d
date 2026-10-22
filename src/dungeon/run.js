@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $ } from '../core/util.js';
 import { G } from '../core/state.js';
+import { waveStart, waveEnd } from '../combat/meter.js';
 import { CORE, tileX, tileZ } from '../core/grid.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { DG_TITLES } from '../data/dungeon.js';
@@ -86,7 +87,7 @@ export function updDungeon(dt) {
   D.hudT = (D.hudT || 0) - dt; if (D.hudT <= 0) { D.hudT = .15; refreshBar(); }
 }
 // 층 돌파: 마지막 층이면 완주, 아니면 축복 3택1 → 다음 층
-function floorClear() { D.cleared = D.floor + 1; if (D.floor >= FLOORS.length - 1) return finish(true); openBless(); }
+function floorClear() { waveEnd(G.waveLog, G.t); D.cleared = D.floor + 1; if (D.floor >= FLOORS.length - 1) return finish(true); openBless(); }
 function openBless() { const roles = [...new Set(G.heroes.map(h => ROLE[h.cls]))], ch = blessChoices(D.bless, roles, G.dgRnd || Math.random); D.blessing = ch;
   Snd.play('levelUp', { force: true }); let el = $('dgBless'); if (!el) { el = document.createElement('div'); el.id = 'dgBless'; $('stageClear').parentNode.appendChild(el); }
   const nf = FLOORS[D.floor + 1], down = G.heroes.filter(h => h.dead > 0).length;
@@ -113,7 +114,7 @@ function joint() { if (D.over || D.blessing || G.paused || !jointReady(G.heroes)
   refreshBar(); return true; }
 G.dgJoint = joint;
 
-function nextWave() { const F = FLOORS[D.floor]; G.dgDmg = F.dmgMul || 1; D.wave++; G.wave = D.wave + 1; D.q = waveList(D.floor, D.wave); D.spawnT = .6; D.gapT = F.gap; Snd.horn(); if (D.wave > 0) banner(`웨이브 ${D.wave + 1} / ${F.waves.length}`, '#ffd27a', 1400); }
+function nextWave() { const F = FLOORS[D.floor]; G.dgDmg = F.dmgMul || 1; D.wave++; G.wave = D.wave + 1; waveStart(G.waveLog, `${D.floor + 1}-${D.wave + 1}`, G.t); D.q = waveList(D.floor, D.wave); D.spawnT = .6; D.gapT = F.gap; Snd.horn(); if (D.wave > 0) banner(`웨이브 ${D.wave + 1} / ${F.waves.length}`, '#ffd27a', 1400); }
 
 // ---------- 역할 AI (조작하지 않는 영웅, hero.js updParty 가 그 영웅 문맥으로 호출) ----------
 const _v = new THREE.Vector3(), pos = o => ({ x: o.g.position.x, z: o.g.position.z });

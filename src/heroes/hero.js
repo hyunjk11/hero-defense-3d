@@ -5,7 +5,7 @@ import { CORE, DIRS, GH, T, inGrid, tileX, tileZ, toTile } from '../core/grid.js
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { applyAdv } from '../data/advance.js';
 import { G, later, asSkill } from '../core/state.js';
-import { newMeter } from '../combat/meter.js';
+import { newMeter, meterTaken } from '../combat/meter.js';
 import { cam, scene } from '../render/scene.js';
 import { P, emit, ringFx } from '../render/vfx.js';
 import { hpBar } from '../render/hpbars.js';
@@ -53,14 +53,14 @@ function spawnHero(cls, L = null, party = false) {
   uqInit(hero); // 고유 방어구·장신구 자동 궁극기 + 고유 무기 각성 (마을 출정 때만, 없으면 hero.uqs 없음)
   hero.hb = hpBar(ch.g, 3.1, 1.6, 0x55ff77); play(ch, 'Idle'); if (cls === 'mechanic') mechInit(hero); if (cls === 'fighter') fighterInit(hero);
   heroHud();
-  hero.dm = newMeter(G.t); if (!party || !G.dmOther) G.dmOther = newMeter(G.t); // 피해 미터 (combat/meter.js · 능력치 창) · 공용 = 타워·합동 공격
+  hero.dm = newMeter(G.t); if (!party || !G.dmOther) { G.dmOther = newMeter(G.t); G.dmTowers = []; G.waveLog = []; } // 피해 미터 (combat/meter.js · 능력치 창) · 공용 = 타워·합동 공격
   const h0 = hero; if (party) { G.heroes.push(h0); if (prevCtl && G.heroes.includes(prevCtl)) setControlled(prevCtl); } else G.heroes = [h0]; // 파티: 첫 영웅이 계속 조작 영웅
   return h0;
 }
 // 하단 영웅 이름·스킬 버튼 = 조작 영웅 (spawnHero · 던전 초상화 전환)
 function heroHud() { if (!hero) return; $('heroName').textContent = hero.C.title ? `${CLASSES[hero.cls].nm} · ${hero.C.title} · 스킬 [Q] ${hero.C.skill}` : `${heroLabel(hero.cls)} · 스킬 [Q] ${hero.C.skill}`; $('heroName').classList.toggle('adv', !!hero.C.title); if (hero.C.adv) $('heroName').style.setProperty('--adv', hero.C.adv.c); else $('heroName').style.removeProperty('--adv'); $('skillName').textContent = hero.C.skill; $('skillName').classList.toggle('long', hero.C.skill.length > 5); }
 function heroDamage(d, h = hero) { if (!h) return; if (h !== hero) return withHero(h, () => heroDamage(d, h)); // 피해는 맞은 영웅에게 (파티)
-  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (G.dungeon && G.dgDmg) d *= G.dgDmg * dgm().taken; /* 던전 층 몬스터 공격력 배수 (data/dungeon.js dmgMul) · 축복 '수호자의 맹세' */ if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.uqs) asSkill(uqPostHit, hp0); if (hero.adv && hero.hp > 0) advOnHurt(); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo && !(hero.ft && (hero.ft.jp || hero.ft.leap))) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
+  if (hero.dead > 0) return; d *= 1 - hero.C.armor; if (G.dungeon && G.dgDmg) d *= G.dgDmg * dgm().taken; /* 던전 층 몬스터 공격력 배수 (data/dungeon.js dmgMul) · 축복 '수호자의 맹세' */ if (hero.mech) { d = mechAbsorb(d); if (d <= 0) return; } const hp0 = hero.hp; if (hero.uqs) { d = uqPreHit(d); if (d <= 0) return; } hero.hp -= d; if (hero.dm) meterTaken(hero.dm, Math.min(d, Math.max(0, hp0))); if (hero.uqs) asSkill(uqPostHit, hp0); if (hero.adv && hero.hp > 0) advOnHurt(); hero.flash = .1; Snd.play('heroHurt', { pos: hero.g.position, vol: .8 }); if (hero.ch.acts.Hit && hero.hp > 0 && hero.atkT <= 0 && hero.spinT <= 0 && !(hero.roseT > 0) && !(hero.gunT > 0) && hero.warpT <= 0 && !hero.robo && !(hero.ft && (hero.ft.jp || hero.ft.leap))) { play(hero.ch, 'Hit', { once: true, force: true, speed: 1.6 }); hero.atkT = .35; }
   if (hero.hp <= 0 && hero.uqs && asSkill(uqOnDeath)) return; // 불사조 부활
   if (hero.hp <= 0 && G.dungeon) { if (hero.mech) mechRevert(); if (hero.ft) ftStop(); hero.hp = 0; hero.dead = 1e9; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; hero.snipeT = 0; hero.warpT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner(`${CLASSES[hero.cls].nm} 쓰러짐!`, '#ff8a9a', 1500); if (G.onHeroDown) G.onHeroDown(hero); return; } // 던전: 이 층에서는 부활 없음 → 다음 층 시작 때 체력 30% 로 복귀 (dungeon/run.js startFloor)
   if (hero.hp <= 0) { if (hero.mech) mechRevert(); if (hero.ft) ftStop(); hero.hp = 0; hero.dead = 5; hero.spinT = 0; hero.roseT = 0; hero.gunT = 0; hero.snipeT = 0; if (hero.swirl) hero.swirl.visible = false; hero.path = []; play(hero.ch, 'Death_A', { once: true }); hero.hb.show(false); emit(P, hero.g.position.x, 1.5, hero.g.position.z, 50, 0xff4a5a, 6, .9); banner('영웅 쓰러짐! 5초 후 부활', '#ff8a9a', 1500); }

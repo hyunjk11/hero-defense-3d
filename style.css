@@ -711,5 +711,5 @@ body:not(.dungeonRun) #dgJoint{display:none}
 @media (max-width:900px){.stRow{grid-template-columns:96px 80px 1fr}}
 @media (pointer:coarse){
   #statOv .xbtn{width:48px;height:48px}#ovTabs .ftab,.statTabs .ftab{min-height:48px;min-width:48px}#twStats{min-height:48px}
-  #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}
+  #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}#statPanel .xbtn{min-width:48px;min-height:48px}
 }

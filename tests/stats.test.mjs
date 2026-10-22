@@ -57,4 +57,8 @@ for (const h of VISIBLE_HEROES) { const C = S.sortieC(h, {}), F = S.finalStats(C
   // 할당 없음: 같은 버퍼 재사용
   const buf = k.b; for (let i = 0; i < 1000; i++) Mt.meterAdd(k, 1, 40 + i * .01, i & 1, false); assert.equal(k.b, buf); assert.equal(k.b.length, Mt.NB); ok();
   Mt.resetMeter(k, 5); assert.equal(k.tot + k.max + k.kills + k.sk, 0); near(Mt.meterDps(k, 6), 0); ok(); }
+// 받은 피해 · 타워별 피해 · 웨이브 시간 (다음: 스테이지 종료 통계)
+{ const m = Mt.newMeter(0); Mt.meterTaken(m, 30); Mt.meterTaken(m, 0); Mt.meterTaken(m, -5); assert.equal(m.taken, 30); assert.equal(m.takenN, 1); Mt.resetMeter(m); assert.equal(m.taken + m.takenN, 0); ok();
+  const L = [], a = {}, b = {}; Mt.towerAdd(L, a, 10, false); Mt.towerAdd(L, a, 5, true); Mt.towerAdd(L, b, 0, true); assert.deepEqual(L, [a, b]); assert.equal(a.dmT, 15); assert.equal(a.dmK, 1); assert.equal(b.dmT, 0); assert.equal(b.dmK, 1); ok();
+  const W = []; Mt.waveStart(W, 1, 10); Mt.waveEnd(W, 40); Mt.waveStart(W, 2, 50); Mt.waveStart(W, 3, 80); assert.deepEqual(W.map(Mt.waveTime), [30, 30, -1]); Mt.waveEnd(W, 81); Mt.waveEnd(W, 99); assert.equal(Mt.waveTime(W[2]), 1); Mt.waveStart(null, 1, 0); ok(); }
 console.log(`stats.test OK (${n} groups)`);

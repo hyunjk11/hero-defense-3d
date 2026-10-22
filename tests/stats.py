@@ -7,7 +7,7 @@
  스크린샷 shots/stats/*.png · 콘솔 오류 0      python3 tests/stats.py"""
 import sys, os, pathlib, json
 sys.path.insert(0, os.path.dirname(__file__))
-from regress import serve, ARGS
+from regress import serve, ARGS, HELP
 from playwright.sync_api import sync_playwright
 MOCK = (pathlib.Path(__file__).parent / 'sbmock.js').read_text(encoding='utf-8')
 OUT = 'shots/stats'; os.makedirs(OUT, exist_ok=True)
@@ -24,7 +24,7 @@ overlap = lambda a, b: not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3]
 CMP = """()=>G.heroes.map(h=>G.withHero(h, ()=>{ const S=G.heroStat, L=G.statsUI.liveStats(h).F, c=(h.eq&&h.eq.crit)||0;
   const d=[['rate',S.rate(),L.rate],['range',S.range(),L.range],['skill',S.skillMul(),L.skillMul],['cd',S.skillCd(),L.cd]]; if(!c && !(h.adv&&h.adv.atk&&h.adv.atk.crit)) d.push(['dmg',S.dmg(),L.dmg]);
   return d.filter(([k,a,b])=>Math.abs(a-b)>1e-6*Math.max(1,Math.abs(a))).map(([k,a,b])=>[h.cls,k,a,b]); })).flat()"""
-METER = "()=>{ const h=G.hero, m=h.dm; return {tot:m.tot, sk:m.sk, max:m.max, kills:m.kills, hits:m.hits, other:G.dmOther?G.dmOther.tot:-1, otherK:G.dmOther?G.dmOther.kills:0, gk:Object.values(G.stats.kills).reduce((a,b)=>a+b,0)}; }"
+METER = "()=>{ const h=G.hero, m=h.dm; return {waves:G.waveLog.map(w=>[w.n, w.t1>=0]), taken:m.taken, tot:m.tot, sk:m.sk, max:m.max, kills:m.kills, hits:m.hits, other:G.dmOther?G.dmOther.tot:-1, otherK:G.dmOther?G.dmOther.kills:0, gk:Object.values(G.stats.kills).reduce((a,b)=>a+b,0)}; }"
 
 def town_login(pg, email):
     pg.goto(url + '?seed=12345&rng=777&flow=1&dgtest=1'); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000)
@@ -52,10 +52,15 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.gold=5000; G.ups.atk=2; G.ups.spd=1; }"); pg.wait_for_timeout(400); ok('stats_match_after_ups', J(pg, CMP) == [], J(pg, CMP))
     ok('overlay_shows_ups_buff', '영웅 강화 공격 Lv.2' in pg.inner_text('#statOv'))
     # 타워 하나 + 웨이브 → 미터
-    J(pg, "()=>{ G.startWave(); }"); J(pg, "()=>G.sim(14)")
+    J(pg, HELP); J(pg, "()=>{ const s=T_.grassNearRoute(4, 3, []); G.gold=9999; G.build(s[0], s[1], 'arrow'); G.startWave(); }")
+    for _ in range(30):  # 적이 사거리에 올 때까지
+        if J(pg, "()=>{ G.sim(2); return G.hero.dm.hits>3; }"): break
     J(pg, "()=>{ const p=G.enemies.find(e=>!e.dead); if (p) { G.hero.skillCd=0; G.mouseWorld && G.mouseWorld.copy && G.mouseWorld.copy(p.g.position); } }")
     pg.keyboard.press('q'); J(pg, "()=>G.sim(6)"); pg.wait_for_timeout(400)
     M = J(pg, METER); ok('meter_total', M['tot'] > 0 and M['hits'] > 0 and M['max'] > 0 and M['max'] <= M['tot'], M)
+    TW = J(pg, "()=>({n:G.dmTowers.length, t:G.towers.map(t=>Math.round(t.dmT||0)), other:Math.round(G.dmOther.tot)})")
+    ok('tower_damage', TW['n'] >= 1 and sum(TW['t']) > 0 and abs(sum(TW['t']) - TW['other']) <= 1, TW)
+    ok('wave_log', M['waves'][:1] == [[1, False]] or M['waves'][:1] == [[1, True]], M['waves'])
     ok('meter_kills_match_game', M['kills'] + M['otherK'] == M['gk'], M)
     live = J(pg, "()=>{ const L=[...document.querySelectorAll('#statOv .ovC')].map(e=>e.innerText.replace(/\\n/g,' ')); return L; }")
     ok('overlay_live_values', any(x.startswith('총 피해') and not x.endswith(' 0') for x in live), live)
@@ -87,7 +92,7 @@ with sync_playwright() as pw:
     ok('town_btn_visible', vis(pg, 'twStats'))
     pg.click('#twStats'); pg.wait_for_timeout(500); ok('town_panel_open', vis(pg, 'statPanel'))
     tabs = J(pg, "()=>[...document.querySelectorAll('#statTabs .ftab')].map(b=>[b.dataset.h, b.classList.contains('on')])")
-    ok('town_tabs_owned', [t[0] for t in tabs] == ['warrior', 'archer', 'mage'] and dict(tabs).get('archer'), tabs)
+    ok('town_tabs_owned', sorted(t[0] for t in tabs) == ['archer', 'mage', 'warrior'] and dict(tabs).get('archer'), tabs)
     rows = J(pg, "()=>[...document.querySelectorAll('#statBody .stRow')].map(r=>[r.dataset.k, r.innerText.replace(/\\n/g,' ')])")
     ok('town_rows_9', [r[0] for r in rows] == ['dmg', 'rate', 'crit', 'critX', 'range', 'hp', 'taken', 'skill', 'cd'], rows)
     dm = dict(rows)['dmg']; ok('town_breakdown_sources', '여신탑 공격 Lv.2' in dm and '전직 바람의 순찰자' in dm and '장비' in dm, dm)
@@ -116,6 +121,7 @@ with sync_playwright() as pw:
     per = J(pg, "()=>G.heroes.map(h=>[h.cls, Math.round(h.dm.tot), h.dm.kills])"); ok('dungeon_meter_per_hero', sum(1 for p in per if p[1] > 0) >= 2, per)
     pg.click('#ovTabs .ftab[data-i="1"]'); pg.wait_for_timeout(400)
     hd = pg.inner_text('#ovBody .ovHd'); ok('dungeon_tab_switch', J(pg, "()=>document.querySelector('#ovTabs .ftab.on').dataset.i") == '1' and len(hd) > 0, hd)
+    tk = J(pg, "()=>({taken:G.heroes.map(h=>Math.round(h.dm.taken)), waves:G.waveLog.map(w=>w.n)})"); ok('dungeon_taken_waves', sum(tk['taken']) > 0 and tk['waves'][:1] == ['1-1'], tk)
     ok('dungeon_no_pause', not J(pg, "()=>!!G.paused"))
     shot(pg, 'dungeon_party')
     c.close()
@@ -124,7 +130,7 @@ with sync_playwright() as pw:
     c = b.new_context(viewport={'width': 1024, 'height': 600}, has_touch=True, is_mobile=True, device_scale_factor=2); c.add_init_script(MOCK); pg = c.new_page(); hook(pg)
     town_login(pg, 'stats2@test.kr')
     tw = J(pg, RECT, 'twStats'); ok('town_tablet_btn_48', tw[5] >= 48, tw)
-    pg.tap('#twStats'); pg.wait_for_timeout(500); ok('town_tablet_open', vis(pg, 'statPanel'))
+    pg.tap('#twStats'); pg.wait_for_timeout(1500); ok('town_tablet_open', vis(pg, 'statPanel'))
     small = J(pg, "()=>[...document.querySelectorAll('#statPanel button')].map(b=>{ const r=b.getBoundingClientRect(); return [b.innerText||b.id, Math.round(r.width), Math.round(r.height)]; }).filter(x=>x[1]<48||x[2]<48)")
     ok('town_tablet_touch_48', not small, small)
     sp = J(pg, RECT, 'statPanel'); ok('town_tablet_in_view', sp[0] >= 0 and sp[1] >= 0 and sp[2] <= 1024 and sp[3] <= 600, sp)

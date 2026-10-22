@@ -15,7 +15,7 @@ import { gameOver } from '../core/waves.js';
 import { banner } from '../ui/hud.js';
 import { towerXp } from '../world/growth.js';
 import { KILL_XP } from '../data/growth.js';
-import { meterAdd } from '../combat/meter.js';
+import { meterAdd, towerAdd } from '../combat/meter.js';
 import { lootFx } from '../render/loot.js';
 import { BOSS_DROP, bossOdds, randomItem, GRADES } from '../account/equip.js';
 import { initAbilities, armorOf, crackHit, absorbShield, onKilled } from './abilities.js';
@@ -69,7 +69,7 @@ function shieldFactor(e, src) {
 // 피해 미터: 실제로 깎인 체력만 기록 (주인 = G.mWho 가 정해졌으면 그것(null = 타워·공용), 아니면 현재 영웅 G.curHero) · 종류 G.mK (1 = 스킬)
 function hurt(e, dmg, color, big, src) { if (e.dead) return hurt0(e, dmg, color, big, src); const tw = G.xpSrc, w = G.mWho, own = w === undefined ? G.curHero : w, dm = own ? own.dm : G.dmOther;
   if (!tw && !dm) return hurt0(e, dmg, color, big, src); const h0 = Math.max(0, e.hp); hurt0(e, dmg, color, big, src); const d = h0 - Math.max(0, e.hp);
-  if (tw) towerXp(tw, d + (e.dead ? KILL_XP : 0)); if (dm) meterAdd(dm, d, G.t, G.mK, e.dead); }
+  if (tw) towerXp(tw, d + (e.dead ? KILL_XP : 0)); if (dm) meterAdd(dm, d, G.t, G.mK, e.dead); if (!own && G.mTw) towerAdd(G.dmTowers, G.mTw, d, e.dead); }
 function hurt0(e, dmg, color = '#fff', big = false, src = null) {
   if (e.dead) return; if (e.immT > G.t && dmg < 1e8) { if (!(e.immTxt > G.t)) { e.immTxt = G.t + .6; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, e.phaseT > 0 ? '통과!' : '무적', '#d8d0f0'); } return; } // 석상·실체 소멸 (테스트 즉사 피해는 통과)
   if (e.vulnT > G.t) dmg *= 1 + (e.vulnAmt || 0); // 뿌리 감옥 ★3: 속박된 적 받는 피해 증가 (설정된 적만)

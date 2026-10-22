@@ -101,10 +101,10 @@ function repairAll() { let n = 0, spent = 0; const L = G.towers.filter(t => t.hp
   if (!L.length) banner('수리할 타워가 없습니다', '#ffffff', 700); else if (!n) { Snd.play('error'); banner('골드가 부족합니다', '#ff8a8a', 700); } return spent; }
 function enemyAim(e) { return e.g.position.clone().setY(e.E.fly ? e.m.inner.position.y : e.E.h * .55 + e.g.position.y); }
 // 피해 미터: 타워 피해는 영웅이 아닌 공용 칸 (G.mWho = null)
-function updTowers(dt) { const w0 = G.mWho; G.mWho = null; try { updTowers0(dt); } finally { G.mWho = w0; } }
+function updTowers(dt) { const w0 = G.mWho; G.mWho = null; try { updTowers0(dt); } finally { G.mWho = w0; G.mTw = null; } } // G.mTw = 지금 행동 중인 타워 (타워별 피해)
 function updTowers0(dt) {
   if (G.grow) updGrowFx(dt);
-  for (const tw of G.towers) {
+  for (const tw of G.towers) { G.mTw = tw;
     const D = TOWERS[tw.type], L = tw.lvl - 1, m = tw.m, p = m.g.position, S = tw.S, B = tw.branch ? tw.B || BRANCH[tw.type][tw.branch] : null; if (tw.deco) updDeco(tw, dt); const canAct = towerCdStep(tw, dt, G.t); /* 챕터 몬스터 디버프: 속박·용암·저주(정지) · 빙결·한기(감속) — combat/towerstatus.js */ tw.pop = Math.min(1, tw.pop + dt * 3);
     const s = tw.pop < 1 ? 1 + Math.sin(tw.pop * Math.PI) * .25 : 1; m.g.scale.set(s, tw.pop < 1 ? .4 + tw.pop * .6 : 1, s);
     if (m.anim.crys) { m.head.position.y = m.anim.baseY + Math.sin(G.t * 2.4 + tw.c) * .15; m.anim.crys.rotation.y += dt * 1.6; m.anim.rings.forEach((r, k) => { r.rotation.z += dt * (1.2 + k * .7) * (k % 2 ? -1 : 1); }); }

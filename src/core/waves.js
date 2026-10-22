@@ -2,6 +2,7 @@ import { Snd } from '../audio/audio.js';
 import { $, rand } from './util.js';
 import { ETYPES, NEW_TYPES, NEW_WEIGHT, newShare, ROSTERS } from '../data/monsters.js';
 import { G } from './state.js';
+import { waveStart, waveEnd } from '../combat/meter.js';
 import { play } from '../render/characters.js';
 import { computeDist } from '../world/pathfinding.js';
 import { hero } from '../heroes/hero.js';
@@ -19,7 +20,7 @@ function gameOver() { if (G.phase === 'over') return; G.phase = 'over'; if (G.on
 
 // ================= 웨이브 =================
 function startWave() {
-  if (G.phase !== 'build') return; G.wave++; G.phase = 'wave'; G.nightTarget = 1; select(null);
+  if (G.phase !== 'build') return; G.wave++; G.phase = 'wave'; G.nightTarget = 1; select(null); waveStart(G.waveLog, G.wave, G.t); // 웨이브 시간 기록 (결과 통계)
   const n = G.wave, boss = n % 5 === 0, hpMul = Math.pow(1.16, n - 1), q = [], count = 8 + n * 3;
   for (let i = 0; i < count; i++) { let t = 'grunt'; const r = rand(); if (r < .32) t = 'imp'; else if (n >= 3 && r > .86) t = 'golem'; else if (n >= 4 && r > .73 && r <= .86) t = 'bat'; q.push(t); }
   let intro = G.classic ? [] : mixNewTypes(q, n);
@@ -48,7 +49,7 @@ function mixNewTypes(q, n) {
   for (const t of intro) { let have = q.filter(x => x === t).length; for (let i = 2; have < 2 && i < q.length; i += 3) if (q[i] === 'grunt' || q[i] === 'imp') { q[i] = t; have++; } }
   return intro;
 }
-function endWave() {
+function endWave() { waveEnd(G.waveLog, G.t);
   G.phase = 'build'; G.nightTarget = 0; const bonus = Math.round((25 + G.wave * 6) * (STAGE && G.hard ? HARD.waveGold : 1)); G.gold += bonus; G.stats.goldEarned += bonus; Snd.play('waveClear', { force: true, exact: true }); Snd.play('coins', { delay: .3 }); Snd.duck(.4, 1.6); banner(`웨이브 ${G.wave} 클리어! +${bonus}G`, '#ffe066');
   if (hero && hero.dead <= 0) { hero.hp = hero.max; play(hero.ch, 'Cheer', { once: true }); hero.atkT = 1.5; } computeDist(); setPhaseUI();
   if (STAGE && G.wave >= STAGE.waves && G.onStageClear) { G.onStageClear(); return; }
