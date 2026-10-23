@@ -3,7 +3,6 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
-import { escLayer } from './keys.js';
 import { definePanel } from './panel.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
@@ -11,7 +10,7 @@ import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../r
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import { SHOP, PAY_INFO } from '../config/shop.js';
-import { openAdmin, closeAdmin, renderAdmin, adminOpen, initAdmin } from './admin.js';
+import { openAdmin, closeAdmin, renderAdmin, initAdmin } from './admin.js';
 export { openAdmin, closeAdmin };
 
 const fmtD = s => { const d = new Date(s); return isNaN(d) ? '' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -127,7 +126,6 @@ export function initShop(h) {
   $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); initAdmin({ closeOthers: k => hooks.closeOthers(k), onChange: () => hooks.onChange() });
   $('twMail').onclick = () => { if (ui.mail) closeMail(); else openMail(); }; $('twAdmin').onclick = () => openAdmin(); $('mnAdmin').onclick = () => openAdmin();
   Sh.onShop(() => render()); Acc.onChange(() => badge());
-  escLayer('admin', 50, () => adminOpen(), () => closeAdmin());
   badge();
 }
 G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };

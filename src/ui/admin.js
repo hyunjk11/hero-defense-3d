@@ -3,6 +3,7 @@
 // 되돌릴 수 없는 일(환불·회수·정지·전체 우편·관리자 삭제)은 게임 안 확인 창(#admConfirm)을 거칩니다. 사유가 필요한 일은 사유 입력 필수.
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { definePanel } from './panel.js';
 import { CLASSES, heroLabel, VISIBLE_HEROES } from '../data/heroes.js';
 import * as AD from '../data/advance.js';
 import * as Acc from '../account/account.js';
@@ -23,16 +24,17 @@ const rwText = rw => Sh.rewardText(rw);
 let isOpen = false, hooks = { closeOthers: () => {}, onChange: () => {} }, fresh = false;
 const st = { tab: 'orders', msg: null, ord: { status: '', q: '', off: 0, lim: 20, data: null, legacy: false }, usr: { q: '', off: 0, lim: 20, data: null, sel: null, detail: null },
   ntc: { list: null, edit: null }, log: { action: '', off: 0, lim: 30, data: null }, adm: { list: null }, busy: false, rw: { ud: [], am: [], bc: [] } };
-export const adminOpen = () => isOpen;
+const adminOpen = () => isOpen;
 const paintMsg = () => { const m = $('admMsg'), x = st.msg; if (m) m.innerHTML = x ? `<span class="${x.ok ? 'ok' : 'bad'}">${x.ok ? '✅' : '⚠'} ${esc(x.t)}</span>` : ''; };
 const msg = (t, ok = false) => { st.msg = t ? { t, ok } : null; paintMsg(); };
 
 // ---------- 열기 / 닫기 ----------
-export function openAdmin() { if (!Sh.isAdminUI()) return; Snd.play('confirm'); hooks.closeOthers('admin'); isOpen = true; $('adminPanel').classList.remove('hidden'); msg(''); st.usr.sel = null; renderAdmin(); load(st.tab); }
+export function openAdmin() { if (!Sh.isAdminUI()) return; Snd.play('confirm'); hooks.closeOthers('admin'); isOpen = true; AP.show(); msg(''); st.usr.sel = null; renderAdmin(); load(st.tab); }
 export function closeAdmin(silent) {
   if (!silent && !$('admConfirm').classList.contains('hidden')) { $('acfNo').click(); return; } // 확인 창이 열려 있으면 그것만 닫음
-  if (isOpen && !silent) Snd.play('ui'); isOpen = false; $('adminPanel').classList.add('hidden'); $('admConfirm').classList.add('hidden');
+  if (isOpen && !silent) Snd.play('ui'); isOpen = false; AP.hide(); $('admConfirm').classList.add('hidden');
 }
+const AP = definePanel('admin', { id: 'adminPanel', z: 50, isOpen: adminOpen, close: s => closeAdmin(s) });
 function setTab(t) { if (t === 'admins' && !Sh.isOwnerUI()) t = 'orders'; st.tab = t; msg(''); fresh = true; renderAdmin(); load(t); }
 async function load(t) {
   if (t === 'orders') return loadOrders(); if (t === 'users') return st.usr.sel ? loadUser(st.usr.sel) : loadUsers(); if (t === 'notice') return loadNotices(); if (t === 'log') return loadLog(); if (t === 'admins') return loadAdmins();
