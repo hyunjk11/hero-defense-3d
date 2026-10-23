@@ -33,14 +33,15 @@ def page(b, vw=1280, vh=800, login=True):
     if login: pg.click('#lgGuest'); pg.wait_for_timeout(300)
     return c, pg
 NUSER = [0]
-def own_gunner(pg):  # 가짜 서버(hd3d_owned)에 로즈 소유권 — 실서버라면 관리자 승인 → 우편으로 생김
+PAID = ('gunner', 'fighter')
+def own_gunner(pg, hero='gunner'):  # 가짜 서버(hd3d_owned)에 유료 영웅(로즈·서윤) 소유권 — 실서버라면 관리자 승인 → 우편으로 생김
     NUSER[0] += 1; pg.fill('#lgEmail', f'adv{NUSER[0]}@test.kr'); pg.fill('#lgPw', 'secret12'); pg.click('#lgUp'); pg.wait_for_function("()=>G.screen==='menu'", timeout=15000); pg.wait_for_timeout(300)
-    J(pg, "()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const u=Object.values(d.users).slice(-1)[0].id; d.hd3d_owned={[u+':hero_gunner']:{user_id:u,item:'hero_gunner'}}; localStorage.setItem('__mockdb', JSON.stringify(d)); }")
+    J(pg, "(h)=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const u=Object.values(d.users).slice(-1)[0].id; d.hd3d_owned={[u+':hero_'+h]:{user_id:u,item:'hero_'+h}}; localStorage.setItem('__mockdb', JSON.stringify(d)); }", hero)
 def run(b, hero, br):
-    c, pg = page(b, login=hero != 'gunner')
-    if hero == 'gunner': own_gunner(pg)
+    c, pg = page(b, login=hero not in PAID)
+    if hero in PAID: own_gunner(pg, hero)
     J(pg, """([hero, br]) => { const {Acc}=G.gear; Acc.update(d=>{ d.souls=999; d.hero=hero; d.stats={runs:1,kills:1,waves:1,souls:1}; d.eq[hero]={}; d.adv = br ? {[hero]:{b:br,n:1}} : {}; return d; }); }""", [hero, br])
-    pg.click('#mnCont'); pg.wait_for_function("()=>G.screen==='town'" + (" && G.shop.Sh.heroOwned('gunner')" if hero == 'gunner' else ''), timeout=30000); pg.wait_for_timeout(800)
+    pg.click('#mnCont'); pg.wait_for_function("()=>G.screen==='town'" + (f" && G.shop.Sh.heroOwned('{hero}')" if hero in PAID else ''), timeout=30000); pg.wait_for_timeout(800)
     pg.click('#twGo'); pg.wait_for_timeout(300); pg.click('.chtab[data-c="0"]'); J(pg, "()=>document.getElementById('stChalGo').click()"); pg.wait_for_function("()=>G.phase==='build'&&G.hero", timeout=60000); pg.wait_for_timeout(400)
     J(pg, "()=>{ G.manual=true; G.gold=0; G.hero.hp=G.hero.max; G.advN={}; G.advDmg=0; }")
     return c, pg
@@ -52,14 +53,19 @@ EXP = {  # 분기 → (스탯 확인 JS, 기대)
   ('archer', 'wind'): "Math.abs(G.hero.C.rate-2.5)<1e-6", ('archer', 'hawk'): "Math.abs(G.hero.C.range-14.3)<1e-6 && Math.abs(G.hero.C.dmg-24*1.7)<1e-6",
   ('mage', 'flame'): "G.hero.C.aoe===3", ('mage', 'frost'): "Math.abs(G.hero.C.rate-.95*1.1)<1e-6",
   ('warrior', 'paladin'): "G.hero.C.hp===1250 && G.hero.C.armor===.55", ('warrior', 'berserk'): "G.hero.C.armor===.25 && Math.abs(G.hero.C.rate-1.69)<1e-6",
+  ('fighter', 'tiger'): "Math.abs(G.hero.C.dmg-26*.9)<1e-6 && Math.abs(G.hero.C.rate-2.6*1.2)<1e-6 && G.hero.C.hp===760 && G.hero.ft.o.fin===.35 && G.hero.ft.o.jpFull===1.2",
+  ('fighter', 'dragon'): "Math.abs(G.hero.C.dmg-26*1.2)<1e-6 && Math.abs(G.hero.C.rate-2.6*.9)<1e-6 && G.hero.ft.o.jpFull===.8 && G.hero.ft.o.jpFullMul===3 && Math.abs(G.hero.ft.o.jpW-1.56)<1e-6",
   ('gunner', 'duel'): "Math.abs(G.hero.C.rate-4.2*1.2)<1e-6", ('gunner', 'thorn'): "Math.abs(G.hero.C.dmg-13*2.5)<1e-6 && Math.abs(G.hero.C.rate-4.2*.45)<1e-6 && Math.abs(G.hero.C.range-8.5*1.4)<1e-6 && G.hero.ch.key==='rose_rifle_meshy'",
 }
 ATK = { 'wind': "G.advN.multi>0", 'hawk': "G.advN.ap>0", 'flame': "G.advN.burn>0 && G.advN.burnTick>0", 'frost': "G.advN.freeze>0",
-  'paladin': "true", 'berserk': "G.advN.leech>0", 'duel': "G.advN.rico>0 && G.advN.ricoHit>0", 'thorn': "G.advN.rifle>0 && G.advN.pierceHit>0" }  # 장미 저격수(2026-10-22): 소총 관통
+  'paladin': "true", 'berserk': "G.advN.leech>0", 'duel': "G.advN.rico>0 && G.advN.ricoHit>0", 'thorn': "G.advN.rifle>0 && G.advN.pierceHit>0",
+  'tiger': "G.ftN.fin>0 && G.ftN.leech>0 && G.advHeal>0 && G.advHeal<=G.ftN.leech*760*.02+1e-6", 'dragon': "G.ftN.jpFull>0 && G.ftN.jpSlow>0" }  # 서윤(2026-10-24): 피니시·콤보 회복(상한) / 0.8초 완전 장풍·둔화  # 장미 저격수(2026-10-22): 소총 관통
 SKL = { 'wind': (1.6, "G.advN.skill_storm===1 && G.enemies.some(e=>!e.dead&&e.slowT>0)"), 'hawk': (.6, "G.advN.skill_snipe===1 && G.advN.snipeHit>=2"),
   'flame': (1.8, "G.advN.skill_meteors===1 && G.enemies.filter(e=>!e.dead&&e.hp<1e6).length>=3"), 'frost': (1.15, "G.advN.glacierFreeze>=3 && G.advN.comet===12 && G.enemies.some(e=>!e.dead&&e.frozen&&e.stunT>1.5)"),
   'paladin': (1.2, "G.advN.sanctHit>0 && G.hero.sanctT>2 && G.enemies.some(e=>!e.dead&&e.slowT>0)"), 'berserk': (.5, "G.hero.spinT>3 && G.hero.spinR>4.3 && G.hero.spinSpd===1.3"),
-  'duel': (2.0, "G.hero.roseT>0 && Math.abs(G.hero.roseDur-2.6875*1.4)<1e-3"), 'thorn': (1.4, "G.advN.skill_pierceshot===1 && G.advN.pierceshot===1 && G.advN.snipeN>=2") }
+  'duel': (2.0, "G.hero.roseT>0 && Math.abs(G.hero.roseDur-2.6875*1.4)<1e-3"), 'thorn': (1.4, "G.advN.skill_pierceshot===1 && G.advN.pierceshot===1 && G.advN.snipeN>=2"),
+  'tiger': (1.3, "G.ftN.tf===1 && G.ftN.tfFin===1 && G.ftN.tfHits>=7 && G.ftN.tiger===1 && !G.hero.ft.leap && G.hero.skillCd>5"),
+  'dragon': (1.2, "G.ftN.dw===1 && G.ftN.dwHits>=3 && G.ftN.dwStun>=3 && !G.ftN.tf && G.hero.skillCd>5 && G.enemies.some(e=>!e.dead&&e.stunT>0)") }
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     if ONLY != 'game':
@@ -115,15 +121,25 @@ with sync_playwright() as pw:
                 ok('hawk_prio', J(pg, "()=>G.boss0.hp<5e6 && G.advN.ap>0"), J(pg, "()=>[G.boss0.hp, G.advN]")); J(pg, CLEAR)
             if br == 'paladin': J(pg, "()=>{ G.advForceStun=true; }")
             if br == 'thorn': J(pg, TIGHT, [6, 5])  # 관통(폭 0.75) 검사용 밀집 무리
-            auto(pg, 6 if h != 'warrior' else 4, d=5 if h != 'warrior' else 2)
+            if br == 'dragon':  # 장풍: 사거리 밖 비행 적(박쥐) 3마리 → 0.8초 완전 충전 관통 장풍 + 둔화
+                J(pg, "()=>{ const h=G.hero.g.position, a=G.hero.face; for (let i=0;i<3;i++){ const e=G.spawnEnemy('bat', 40); const x=h.x+Math.sin(a)*(6+i*1.5), z=h.z+Math.cos(a)*(6+i*1.5); e.g.position.x=x; e.g.position.z=z; e.tile=G.toTile(x,z); e.spawnT=0; e.next=null; e.max=e.hp=1e6; e.E={...e.E, spd:0}; } }")
+                J(pg, "()=>G.sim(1.2)"); ok('dragon_full_08', J(pg, "()=>G.ftN.jpFull>=1 && G.ftN.charge>=1"), J(pg, "()=>G.ftN")); J(pg, CLEAR)
+            if h == 'fighter': J(pg, "()=>{ G.hero.hp=G.hero.max*.5; }")
+            auto(pg, 6 if h not in ('warrior', 'fighter') else 4, d=5 if h not in ('warrior', 'fighter') else 2)
             if br == 'paladin':
                 J(pg, "()=>{ G.hero.advStunCd=0; G.heroDamage(5); G.advForceStun=false; }"); ok('paladin_stun', J(pg, "()=>G.advN.stun===1 && G.advN.stunHit>0 && G.enemies.some(e=>!e.dead&&e.stunT>0)"), J(pg, "()=>G.advN"))
             if br == 'berserk': J(pg, "()=>{ G.hero.hp=G.hero.max*.4 }"); ok('berserk_low_atk', J(pg, "()=>{ const q=G.hero.eq; if(q) q.crit=0; let s=0; for(let i=0;i<5;i++) s+=G.stat?G.stat.dmg():0; return true; }"))
             ok(f'{br}_attack', J(pg, f"()=>{ATK[br]}"), J(pg, "()=>G.advN"))
             if br == 'hawk': J(pg, CLEAR); J(pg, LINE, [3, 4])  # 일섬 저격: 일직선 위 적 3명
-            mid, cond = SKL[br]; cast(pg, mid, br != 'hawk')
+            if br == 'dragon': J(pg, CLEAR); J(pg, LINE, [4, 3])  # 천룡파: 일직선 위 적 4명 (길이 16 안)
+            if br == 'tiger':  # 백호난무 시전 중 받는 피해 -30% (방어 .25 뒤): 즉시 피격 100 → 52.5
+                J(pg, "()=>{ G.hero.hp=G.hero.max; G.hero.skillCd=0; G.hero.atkT=0; }"); pg.mouse.move(5, 5); J(pg, AIM); pg.keyboard.press('q'); J(pg, "()=>G.sim(.3)")
+                g = J(pg, "()=>{ const L=G.hero.ft.leap, h0=G.hero.hp; G.heroDamage(100); return [L&&L.kind, h0-G.hero.hp]; }"); ok('tiger_guard', g[0] == 'fury' and abs(g[1] - 52.5) < 1e-6, g)
+                J(pg, "()=>G.sim(1.2)"); J(pg, "()=>{ G.ftN.tf=0; G.ftN.tfFin=0; G.ftN.tfHits=0; G.ftN.tiger=0; }")
+                g = J(pg, "()=>{ const h0=G.hero.hp; G.heroDamage(100); return h0-G.hero.hp; }"); ok('tiger_guard_off', abs(g - 75) < 1e-6, g)
+            mid, cond = SKL[br]; cast(pg, mid, br not in ('hawk', 'dragon'))
             ok(f'{br}_skill', J(pg, f"()=>{cond}"), J(pg, "()=>[G.advN, G.hero.skillCd, G.projs.map(p=>p.kind), G.mouseGround.toArray(), G.hero.g.position.toArray()]"))
-            if br in ('wind', 'frost', 'paladin', 'thorn', 'hawk', 'flame', 'berserk', 'duel'):  # 오라 + Q 근접 화면 (카메라를 영웅 쪽으로)
+            if br in ('wind', 'frost', 'paladin', 'thorn', 'hawk', 'flame', 'berserk', 'duel', 'tiger', 'dragon'):  # 오라 + Q 근접 화면 (카메라를 영웅 쪽으로)
                 J(pg, "()=>{ const p=G.hero.g.position, m=G.mouseGround; G.cam.target.set((p.x+m.x)/2, 0, (p.z+m.z)/2); G.cam.r=17; G.cam.phi=.8; G.cam.theta=.3; G.sim(.05); }"); shot(pg, f'ingame_{h}_{br}', force=br in ('frost', 'paladin', 'wind', 'thorn'))
             c.close()
     print('console errors:', len(errs), errs[:5])

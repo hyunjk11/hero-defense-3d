@@ -24,7 +24,7 @@ t('Q 냥냥 진각: 400% · 1초 기절 · 반경', () => { assert.equal(FT.qMul
 t('상점 상품 · 스키마 (멱등: drop/add 제약, create or replace)', () => { const I = SHOP.items.hero_fighter; assert.ok(I && I.kind === 'hero' && I.hero === 'fighter' && I.price && I.desc);
   assert.ok(sql.includes(`when 'hero_fighter' then '{"hero":"fighter"}'`) && sql.includes("'hero_fighter' then '유료 영웅 · 격투가 서윤'")); assert.ok((sql.match(/'hero_fighter'/g) || []).length >= 8);
   assert.ok(/x ->> 'h' in \([^)]*'fighter'/.test(sql) && /r ->> 'hero' in \([^)]*'fighter'/.test(sql)); assert.ok(/drop constraint if exists hd3d_owned_item_check/.test(sql)); });
-t('보이는 영웅 · 전직 없음(준비 중)', () => { assert.ok(VISIBLE_HEROES.includes('fighter') && !isHidden('fighter')); assert.deepEqual(AD.branchesOf('fighter'), []); assert.equal(AD.advBlock({}, 'fighter'), '전직할 수 없는 영웅'); });
+t('보이는 영웅 · 전직 2개(2026-10-24 백호권성/천기권사)', () => { assert.ok(VISIBLE_HEROES.includes('fighter') && !isHidden('fighter')); assert.deepEqual(AD.branchesOf('fighter'), ['tiger', 'dragon']); assert.equal(AD.advBlock({}, 'fighter', 'tiger', false), '영웅 미보유'); });
 t('장비: 무기 이름 · 전설 풀(냥냥 난타 · 맹호 돌진) · 별칭', () => { assert.deepEqual(E.LPOOL.fighter, ['pawstorm', 'tigerdash']); assert.equal(E.LSK.pawstorm.type, 'proc'); assert.equal(E.LSK.tigerdash.type, 'active');
   for (const k of ['격투가', '서윤', '진서윤', 'fist', ' FIGHTER ']) assert.equal(E.heroKey(k), 'fighter', k); const r = () => .3; for (let g = 0; g < 5; g++) assert.ok(!/undefined/.test(E.makeItem('weapon', 'fighter', g, r).n)); });
 t('관리자: 보상 영웅 지급 · 로그 이름', () => { assert.deepEqual(L.buildReward({ hero: 'fighter' }), { hero: 'fighter' }); assert.ok(L.validReward({ hero: 'fighter' })); assert.ok(L.logDetail({ detail: { item: 'hero_fighter' } }).includes('서윤')); });

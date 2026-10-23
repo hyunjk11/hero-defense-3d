@@ -30,6 +30,14 @@ export const ADV = {
     thorn: { n: '장미 저격수', icon: '🎯', c: '#c8174a', col: 0xc8174a, d: '공격속도 ×0.45 · 피해 ×2.5 · 사거리 ×1.4 · 소총 탄이 일직선 3명 관통(100/70/50%) · 치명타 확률 +15% · 보스/정예 피해 +20%', mod: { rate: .45, dmg: 2.5, range: 1.4 }, atk: { pierce: [1, .7, .5], pierceW: .75, crit: 15, bossK: 1.2 },
       skill: 'pierceshot', sk: '관통 저격', sd: '0.6초 조준 → 직선 위 모든 적(보스 포함)에게 600% 관통 저격', tower: { arrow: { rng: 1.08 } }, td: '화살 타워 사거리 +8%', ws: 1, model: 'rose_rifle_meshy', prop: 'rose_rifle_gun' },
   },
+  // 서윤(2026-10-24, 기획 /workspace/plans/SEOYUN_ADV_2026-10-23.md): 권법 특화 vs 기공술 특화. 동작 = heroes/fighter.js (ftOpt 로 전직 수치를 읽음 — FT 전역 상수는 불변)
+  // atk: fin 3타 완성 뒤 다음 유효 근접 타격 추가 피해 · leech 콤보 피해 회복 비율 · leechCap 콤보 1회 회복 상한(최대 체력 비율) / jpFull 완전 충전 시간 · jpFullMul 완전 장풍 배수 · jpWMul 판정 폭 배수 · jpSlow/jpSlowT 장풍 둔화
+  fighter: {
+    tiger: { n: '백호권성', icon: '🐯', c: '#ff6a3d', col: 0xff6a3d, d: '공격속도 ×1.2 · 피해 ×0.9 · 3연타 완성 뒤 다음 근접 타격 +35% · 콤보 피해의 2% 회복(콤보당 최대 체력 2%까지) — 붙어서 몰아치는 권법', mod: { dmg: .9, rate: 1.2 }, atk: { fin: .35, leech: .02, leechCap: .02 },
+      skill: 'tigerfury', sk: '백호난무', sd: '짧게 돌진 → 6연타(각 75%) → 250% 회전 발차기·넉백 · 시전 중 받는 피해 -30%', tower: { arrow: { rate: 1.05 } }, td: '화살 타워 공격속도 +5%', ws: 1 },
+    dragon: { n: '천기권사', icon: '🐉', c: '#65dfff', col: 0x65dfff, d: '피해 ×1.2 · 공격속도 ×0.9 · 장풍 완전 충전 1.2→0.8초 · 완전 장풍 250→300% · 판정 폭 +20% · 장풍 맞은 적 1초 20% 둔화 — 대열을 꿰뚫는 기공', mod: { dmg: 1.2, rate: .9 }, atk: { jpFull: .8, jpFullMul: 3, jpWMul: 1.2, jpSlow: .2, jpSlowT: 1 },
+      skill: 'dragonwave', sk: '천룡파', sd: '푸른 용 기파: 직선 16 · 폭 3 관통 500% (적마다 1회) · 일반 적 1초 기절 / 보스 2초 25% 둔화', tower: { magic: { rng: 1.06 } }, td: '마법 타워 사거리 +6%', ws: 1 },
+  },
   // 버들(숨김): 분기 예약만 — 숨김 해제 때 수치·스킬 확정 (reserved → 전직 탭·해금·적용 모두 제외)
   mechanic: {
     armor: { n: '중장 기갑', icon: '⚙️', c: '#7aff5a', col: 0x7aff5a, d: '(예약) 로봇 지속 +5초 · 흡수 +30%', mod: {}, atk: {}, skill: null, sk: '', sd: '', tower: {}, td: '', ws: 1, reserved: true },
