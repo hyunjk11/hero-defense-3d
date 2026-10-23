@@ -61,6 +61,11 @@ with sync_playwright() as pw:
     pg.wait_for_function("()=>G.gear.Acc.A.sync==='offline' && localStorage.getItem('hd3d_save').includes('\"hero\":\"archer\"')", timeout=60000)
     ok('offline_dirty', J(pg, "()=>localStorage.getItem('hd3d_dirty')") == '1' and '오프라인' in pg.inner_text('#twAcct'), pg.inner_text('#twAcct'))
     J(pg, "()=>localStorage.setItem('__mockflags', '{}')")
+    # Q-12: 브라우저 online 이벤트 → 백오프 기다리지 않고 바로 재시도 (20초 안 · 백오프 다음 단계는 10~60초)
+    J(pg, "()=>dispatchEvent(new Event('online'))")
+    try: pg.wait_for_function("()=>localStorage.getItem('hd3d_dirty')===null && G.gear.Acc.A.sync==='saved'", timeout=20000); fast = True
+    except Exception: fast = False
+    ok('online_retry_fast', fast, pg.inner_text('#twAcct'))
     # 재시도 백오프 3s→10s→30s→60s(SUPABASE.retryMs): 느린 화면에서 오프라인 동안 실패가 여러 번 쌓이면 다음 재시도가 최대 60초 뒤 → 사용자 조작 없이 자동 재시도로 동기화될 때까지 상태 대기
     try: pg.wait_for_function("()=>localStorage.getItem('hd3d_dirty')===null && G.gear.Acc.A.sync==='saved'", timeout=75000)
     except Exception: pass

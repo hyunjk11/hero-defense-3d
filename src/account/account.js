@@ -153,7 +153,8 @@ async function saveOnce() {
 }
 // 즉시 저장 (판 종료 시 등) — 디바운스 무시
 export const flush = () => save();
-addEventListener('online', () => { if (A.user && ls.get(K_DIRTY) === '1') save(); });
+// 네트워크 복구(online): 백오프(최대 60초)를 기다리지 않고 바로 재시도 + 백오프 단계 초기화 (Q-12)
+addEventListener('online', () => { retry = 0; if (A.user && ls.get(K_DIRTY) === '1') { clearTimeout(timer); save(); } });
 // 탭 숨김(앱 전환·화면 끔)·페이지 닫힘: 디바운스 기다리지 않고 바로 저장 (beforeunload 의 async 저장은 자주 누락됨)
 function leaveFlush() { if (A.user && ls.get(K_DIRTY) === '1') { A.leaving = true; save().finally(() => { A.leaving = false; }); } }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaveFlush(); });
