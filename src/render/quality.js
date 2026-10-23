@@ -1,10 +1,11 @@
 // ================= 그래픽 품질 (자동 / 고품질 / 성능) =================
+import { ls as LS } from '../core/store.js';
 // 설정은 이 기기에만 저장(localStorage 'hd3d_gfx') — 기기마다 성능이 다르므로 클라우드 세이브에 넣지 않음.
 // 성능 모드: ① 작은/먼 일반 몬스터 외곽선 끔 ② 그림자는 영웅·보스·타워만 (일반 몬스터 그림자 끔) ③ 픽셀 비율 상한 1.25 ④ 그림자 맵 1024
 // 자동: 터치 기기(pointer: coarse)나 약한 기기(메모리·코어 ≤ 4)면 처음부터 성능, 아니면 고품질로 시작해 판 안에서 FPS가 계속 낮으면(4초 평균 < 36 이 두 번) 성능으로 전환하고 기억
 // URL ?gfx=perf|high 로 강제 (테스트용). 자동화 브라우저(navigator.webdriver)에서는 FPS 자동 전환을 하지 않음 (swiftshader 는 항상 느려서 결과가 흔들림)
 const LS = 'hd3d_gfx', LS_AUTO = 'hd3d_gfx_auto';
-const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } };
+const ls = (k, v) => v === undefined ? LS.get(k) : v === null ? LS.del(k) : LS.set(k, v); // C-6 core/store.js
 const QS = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const COARSE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 // 약한 기기: 메모리 ≤ 4GB 또는 CPU 코어 ≤ 4 (자동화 브라우저는 제외 — 테스트 기기 사양에 따라 결과가 바뀌지 않게)

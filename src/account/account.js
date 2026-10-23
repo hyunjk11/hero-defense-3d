@@ -5,11 +5,11 @@
 // 탭 숨김/페이지 닫힘(S-4): visibilitychange(hidden)·pagehide 에서 즉시 저장, 이때 요청은 fetch keepalive 로 보냄
 import { SUPABASE } from '../config/supabase.js';
 import * as P from './progress.js';
+import { ls } from '../core/store.js';
 import { isHidden } from '../data/heroes.js';
 
 const T = SUPABASE.tables, AUTH_KEY = 'hd3dSbAuth', K_SAVE = 'hd3d_save', K_GUEST = 'hd3d_guest', K_UID = 'hd3d_uid', K_DIRTY = 'hd3d_dirty', K_MODE = 'hd3d_mode';
 const mergedKey = uid => 'hd3d_merged_' + uid, tsKey = uid => 'hd3d_cloud_ts_' + uid;
-const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
 const parse = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 
 export const A = { sb: null, user: null, tables: 'unknown', sync: 'local', msg: '', listeners: [], mode: ls.get(K_MODE) || '', conflicts: 0, leaving: false, banned: false }; // mode: '' | 'guest' | 'account'
