@@ -37,6 +37,7 @@ import './endstats.js'; // 판 종료 통계 (결과 화면 📊 통계)
 import { shop as shopBld, SHOP_P, shopFront } from '../world/town.js';
 import { dungeon as dungeonBld, DUNGEON_P, dungeonFront } from '../world/town.js';
 import { initDungeonUI, openDungeon, closeDungeon } from './dungeon.js';
+import { DG_OPEN } from '../data/dungeon.js';
 let dgNear = false;
 let shopNear = false; const closeShopUI = () => { closeShop(true); closeMail(true); };
 
@@ -207,6 +208,9 @@ function bindUI() {
   for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn', 'stBgMute']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; C.bgMute = $('stBgMute').checked; Snd.apply(); Snd.bgSync(); Snd.save(); });
   $('mnNickSave').onclick = async () => { Snd.play('ui'); await Acc.saveNick($('mnNick').value); refreshMenu(); };
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
+  // U-9a/Q-15 (2026-10-23): 오른쪽 '시설 바로가기' 레일 — 걷지 않고 바로 패널 열기 (걷기 경로는 그대로). 다른 큰 패널은 닫고 엶
+  const railGo = { smith: () => { closeDungeon(true); closeBless(); closeShopUI(); closeStageSel(true); openSmith(); }, lab: () => { closeDungeon(true); doOpenLab(); }, shop: () => { closeDungeon(true); doOpenShop(); }, dungeon: () => openDungeon(), bless: () => { closeDungeon(true); openBless(); } };
+  document.querySelectorAll('#twRail .railBtn').forEach(b => { if (b.dataset.go === 'dungeon' && !DG_OPEN) b.classList.add('hidden'); b.onclick = e => { e.stopPropagation(); const f = railGo[b.dataset.go]; if (f) f(); }; });
   $('twGo').onclick = () => { closeDungeon(true); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); openStageSel(); };
   initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = async () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!(await askConfirm({ title: '마을로 귀환', icon: '🏠', body: '지금까지의 보상을 가지고 마을로 귀환할까요?', ok: '귀환' }))) return; if (G.phase !== 'build') { Snd.play('error'); return; } onRunEnd('retreat'); };

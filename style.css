@@ -763,3 +763,8 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .overBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
 #over .overBtns button{margin:0;padding:12px 26px;font-size:17px;font-weight:bold;border-radius:var(--r-btn);border:1px solid var(--gold-line);background:linear-gradient(var(--btn-top),var(--btn-bot));color:var(--ink);min-height:var(--hit)}
 #over .overBtns #overRetry{background:linear-gradient(#c0304a,#6a1020);border-color:var(--gold-hi)}#over .overBtns #overStats{background:linear-gradient(#3a3a6a,#1c1c40)}
+/* U-9a/Q-15 마을 시설 바로가기 레일 (2026-10-23): 오른쪽 가운데 세로 [🔨 대장간][🔬 연구소][💰 상점][⚔ 던전][✨ 여신탑] — 누르면 바로 패널 (큰 패널보다 아래 층) */
+.twRail{position:absolute;right:calc(12px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;padding:8px 6px;z-index:3}
+.railBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:64px;min-height:var(--hit);padding:5px 2px;font-size:20px;line-height:1.1;letter-spacing:0}
+.railBtn span{font-size:12px;font-weight:bold;color:var(--txt-dim)}.railBtn:hover span{color:var(--gold-hi)}
+@media (max-height:680px){.railBtn{padding:3px 2px;font-size:18px}.twRail{gap:4px;padding:6px 5px}}
