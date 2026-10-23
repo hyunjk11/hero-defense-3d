@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Q-1 공용 확인창 · Q-2 Esc 층 스택 브라우저 테스트 (2026-10-23, docs/IMPROVE_2026-10-23.md).  python3 tests/confirm.py   (단독 실행)
+"""Q-1 공용 확인창 · Q-2 Esc 층 스택 · U-2 층 순서 브라우저 테스트 (2026-10-23, docs/IMPROVE_2026-10-23.md).  python3 tests/confirm.py   (단독 실행)
  - 네이티브 confirm() 창이 한 번도 뜨지 않음 (dialog 이벤트 0)
  - 새로 시작(#mnNew): #gConfirm(위험=빨강) · Esc = 취소(저장 그대로) · 확인 → 초기화 후 마을
  - 마을: 가방 위에 확인창 → Esc 는 확인창만, 다음 Esc 가 가방 닫기 (맨 위 하나만)
@@ -31,6 +31,9 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     # ===== 데스크톱 1280×800 =====
     c, pg = boot(b, 1280, 800, q='&dgtest=1')
+    # U-2 층 순서 (z-index 토큰): 아이템 툴팁 > 확인창 > 모달(전직·관리자 확인) > 연출(상자) > 관리자 패널 · 배너/새 몬스터 > 📊 오버레이
+    Z = J(pg, "()=>Object.fromEntries(['itemTip','gConfirm','advConfirm','admConfirm','chestOv','adminPanel','banner','note','statOv','fade','loading'].map(i=>{ const e=document.getElementById(i); return [i, e ? +getComputedStyle(e).zIndex||0 : null]; }))")
+    ok('u2_layers', Z['itemTip'] > Z['advConfirm'] and Z['admConfirm'] > Z['chestOv'] > Z['adminPanel'] and Z['banner'] > Z['statOv'] and Z['note'] > Z['statOv'] and Z['fade'] > Z['chestOv'], Z)
     pg.click('#mnNew'); pg.wait_for_timeout(300)
     ok('new_confirm_shown', conf(pg) and '새로 시작' in pg.inner_text('#gConfirm') and J(pg, "()=>document.getElementById('gConfirm').classList.contains('danger')"), pg.inner_text('#gConfirm') if conf(pg) else '')
     ok('new_focus_ok', J(pg, "()=>document.activeElement && document.activeElement.id")=='gcOk')
