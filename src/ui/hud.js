@@ -1,6 +1,7 @@
 import { $ } from '../core/util.js';
 import { UPS } from '../data/heroes.js';
-import { TOWERS, BARRICADE } from '../data/towers.js';
+import { TOWERS, BARRICADE, barHpAt } from '../data/towers.js';
+import { upPreview } from './stats.js';
 import { repairCost } from '../world/towers.js';
 import { G } from '../core/state.js';
 import { hero, stat, WARP_CD } from '../heroes/hero.js';
@@ -19,7 +20,8 @@ function updBossBar() { let b = null; for (const e of G.enemies) if (e.E.boss &&
 function refreshHud() {
   $('gold').textContent = G.gold; $('wave').textContent = G.wave; setBar('coreBar', 'coreTr', G.coreHp / G.coreMax); if (G.coreHb) G.coreHb.set(G.coreHp / G.coreMax); $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
   refreshWavePrev(); $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
-  document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); const h = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; if (b._h !== h) { b._h = h; b.innerHTML = h; } const dis = G.gold < c; if (b.disabled !== dis) b.disabled = dis; }); // 바뀔 때만 다시 그림 (매 프레임 innerHTML 교체 → 클릭 씹힘 방지)
+  document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); const h = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; if (b._h !== h) { b._h = h; b.innerHTML = h; }
+    const tt = k === 'bar' ? `바리케이드 체력 ${Math.round(barHpAt(G.ups.bar, G.advBar || 1))} → ${Math.round(barHpAt(G.ups.bar + 1, G.advBar || 1))}` : upPreview(G.hero, k); if (b._tt !== tt) { b._tt = tt; b.title = tt ? `${UPS[k].n}: ${tt}` : ''; b.dataset.nx = tt; } // Q-7: 지금 → 다음 (툴팁 · data-nx) const dis = G.gold < c; if (b.disabled !== dis) b.disabled = dis; }); // 바뀔 때만 다시 그림 (매 프레임 innerHTML 교체 → 클릭 씹힘 방지)
   document.querySelectorAll('.tool').forEach(b => { const T2 = TOWERS[b.dataset.tool]; if (T2) b.disabled = G.gold < T2.cost; if (b.dataset.tool === 'barricade') b.disabled = G.gold < BARRICADE.cost; });
   const s = G.sel;
   if (s && s.kind === 'tower') { const D = TOWERS[s.type], L = s.lvl - 1; $('tName').textContent = `${D.n} Lv.${s.lvl}`;
