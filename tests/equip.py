@@ -25,6 +25,11 @@ with sync_playwright() as pw:
     pg.click('#twBag'); pg.wait_for_timeout(300); ok('inv_opens', not hidden(pg, 'invPanel') and pg.locator('#invGrid .itile').count() == 12)
     for id in ['wpn1', 'arm1', 'acc1']:
         pg.click(f'#invGrid .itile[data-id="{id}"]'); pg.click('#invEq'); pg.wait_for_timeout(100)
+    # Q-8 장착 버튼 옆 전투력 변화: 장착 중 무기(wpn1, 전설) 대비 다른 마법사 무기 → 음수
+    alt = J(pg, "()=>{ const s=G.gear.Acc.load(); const x=s.inv.find(i=>i.s==='weapon'&&i.h==='mage'&&i.id!=='wpn1'); return x ? x.id : null }")
+    if alt:
+        pg.click(f'#invGrid .itile[data-id="{alt}"]'); pl = J(pg, f"()=>{{ const s=G.gear.Acc.load(), E=G.gear.E, a=s.inv.find(i=>i.id==='wpn1'), b=s.inv.find(i=>i.id==='{alt}'), l=document.querySelector('#invDetail .acts .pwrLine'); return [l?l.innerText:'', E.power(a), E.power(b)] }}")
+        ok('q8_equip_power_delta', f'{pl[1]} → {pl[2]}' in pl[0] and f'({pl[2] - pl[1]})' in pl[0].replace('(+', '('), pl)
     pg.click('#invGrid .itile[data-id="arw1"]'); ok('other_hero_weapon_blocked', '전용' in pg.inner_text('#invDetail'))
     b0 = J(pg, "()=>G.gear.E.bonus(G.gear.Acc.load(),'mage')"); ok('equip_bonus', b0.get('atk', 0) >= 25 and b0.get('hp', 0) >= 24, b0)
     ok('bonus_shown', '공격력' in pg.inner_text('#invBonus') and '공격력' in pg.inner_text('#twBonus'))
@@ -81,6 +86,8 @@ with sync_playwright() as pw:
     w0 = [x for x in s0['inv'] if x['id'] == 'wpn1'][0]
     ok('enhance_paid_and_leveled', w1['e'] == w0['e'] + 1 and s1['souls'] == s0['souls'] - 20 * (w0['e'] + 1) * 3 and s1['mat']['steel'] == s0['mat']['steel'] - 2 - 2 * w0['e'], (w0['e'], w1['e'], s0['souls'], s1['souls']))
     ok('enhance_result_msg', '성공' in pg.inner_text('#enhRes'))
+    pw = J(pg, "()=>{ const s=G.gear.Acc.load(), it=s.inv.find(x=>x.id==='wpn1'), E=G.gear.E, l=document.querySelector('.enhInfo .pwrLine'); return [l ? l.innerText : '', E.power(it), E.power({...it, e: it.e+1})] }")
+    ok('q8_enh_power_preview', '강화 후 전투력' in pw[0] and f'{pw[1]} → {pw[2]}' in pw[0] and f'+{pw[2] - pw[1]}' in pw[0], pw)
     for _ in range(4): J(pg, "()=>G.gear.doEnhance('wpn1', true)"); pg.wait_for_timeout(80)
     pg.wait_for_timeout(400); pg.click('#smTabs .ftab[data-t="dis"]'); n0 = J(pg, "()=>G.gear.Acc.load().inv.length"); st0 = J(pg, "()=>G.gear.Acc.load().mat.steel")
     pg.click('.disBulk .ftab[data-g="0"]'); cnt = pg.locator('#disGrid .itile.pick').count(); ys = J(pg, "()=>{ const s=G.gear.Acc.load(); return [...document.querySelectorAll('#disGrid .itile.pick')].reduce((a,b)=>a+G.gear.E.dismantleYield(s.inv.find(x=>x.id===b.dataset.id)).steel,0) }"); pg.click('#disGo'); pg.wait_for_function(f"()=>G.gear.Acc.load().inv.length==={n0}-{cnt}", timeout=10000); pg.wait_for_timeout(200)

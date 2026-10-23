@@ -644,6 +644,7 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .khSec h3{margin:0 0 6px;font-size:var(--fs-md);color:var(--gold-txt)}.khSec h3 small{font-size:var(--fs-sm);color:#9fe8ff;font-weight:normal}
 .khRow{display:flex;gap:8px;align-items:baseline;margin:4px 0}.khRow kbd{flex:none;min-width:44px;text-align:center;background:#2a2446;border:1px solid #6a5a9a;border-bottom-width:3px;border-radius:6px;padding:1px 6px;font:inherit;font-weight:bold;color:var(--ink)}.khRow span{color:var(--txt-dim)}
 .khFoot{margin-top:10px;text-align:center;color:#a898c0;font-size:var(--fs-sm)}
+.pwrLine{font-size:var(--fs);color:var(--txt-dim);margin:4px 0}.pwrLine b{color:var(--ink)}.pwrLine .gup{color:#8aff9a}.pwrLine .gdown{color:#ff8a7a} .acts{flex-wrap:wrap}.acts .pwrLine{flex-basis:100%;text-align:center} /* Q-8 */
 /* ===== 반응형 — U-3 (2026-10-23): 흩어져 있던 @media 블록을 질의별로 한 곳에 (원래 순서 유지). 순서: 좁은 화면(1100/800) → 높이 800 → 폭 → 높이 700·680·640 → 터치(hover:none · pointer:coarse, 마지막 = 48px 규칙이 이김) ===== */
 @media (max-width:1100px), (max-height:800px){
 .pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:12px}.pill b{font-size:15px}.gold b{font-size:17px}.mailBtn{font-size:inherit} /* U-3: 원래 .mailBtn{font:inherit} 가 이 규칙 뒤에 있어 이겼음 — 블록 이동 후에도 같게 */
