@@ -31,7 +31,7 @@ CMPH = """async()=>{ const ES=await import('./src/data/endstats.js'), A=G.endSta
     const want={'총 피해':ES.fmtBig(a.tot),'평균 DPS':ES.fmtDps(a.dps),'최고 한 방':ES.fmtBig(a.max),'처치':ES.fmtBig(a.kills),'받은 피해':ES.fmtBig(a.taken),'스킬 비중':ES.fmtPct(a.skPct)};
     for (const k in want) if (v[k]!==want[k]) bad.push([h.cls,k,v[k],want[k]]); if (Math.abs(a.dps - a.tot/Math.max(1,A.span))>1e-9) bad.push(['dps',h.cls]); });
   return bad; }"""
-TOWERS = """()=>{ const A=G.endStats, live=(G.dmTowers||[]).filter(t=>(t.dmT||0)>0||(t.dmK||0)>0); const rows=[...document.querySelectorAll('#endStats .esRow')].map(r=>r.innerText.replace(/\\n/g,' '));
+TOWERS = """()=>{ const A=G.endStats, live=(G.dmTowers||[]).filter(t=>(t.dmT||0)>0||(t.dmK||0)>0); const rows=[...document.querySelectorAll('#endStats .esRow:not(.share)')].map(r=>r.innerText.replace(/\\n/g,' '));
   return { n: rows.length, want: Math.min(6, live.length), sorted: A.towers.every((t,i)=>!i||A.towers[i-1].dmT>=t.dmT), sum: Math.round(live.reduce((s,t)=>s+t.dmT,0)), other: Math.round(G.dmOther.tot), names: rows.slice(0,3) }; }"""
 WAVES = """()=>{ const A=G.endStats, W=[...document.querySelectorAll('#endStats .esW')]; return { n: W.length, log: G.waveLog.length, labels: W.map(w=>w.querySelector('span').innerText), times: W.map(w=>w.querySelector(':scope > b').innerText), sec: A.waves.map(w=>Math.round(w.sec*10)/10), live: W.filter(w=>w.classList.contains('live')).length, fast: W.filter(w=>w.classList.contains('fast')).length }; }"""
 SMALL = "()=>[...document.querySelectorAll('#endStats button, #scStats, #overStats')].filter(b=>b.offsetParent).map(b=>{ const r=b.getBoundingClientRect(); return [b.id||b.innerText, b.offsetWidth, b.offsetHeight, Math.round(r.width), Math.round(r.height)]; }).filter(x=>x.slice(1).some(v=>v<48))"
@@ -131,7 +131,7 @@ with sync_playwright() as pw:
     n = J(pg, "()=>G.heroes.length"); per = J(pg, "()=>G.endStats.heroes.map(h=>[h.cls, Math.round(h.tot), h.taken>0])")
     ok('dg_party_cards', J(pg, "()=>document.querySelectorAll('#endStats .esHero').length") == n and 3 <= n <= 4 and sum(1 for p in per if p[1] > 0) >= 2 and per[1][2], per)
     bad = J(pg, CMPH); ok('dg_hero_values', bad == [], bad)
-    txt = pg.inner_text('#endStats'); W = J(pg, WAVES); ok('dg_labels', '파티' in txt and '던전에는 타워가 없어요' in txt and W['labels'][:1] == ['1-1'], (W['labels'], txt[:160].replace('\n', ' ')))
+    txt = pg.inner_text('#endStats'); W = J(pg, WAVES); ok('dg_labels', '파티' in txt and '피해 비중' in txt and J(pg, "()=>document.querySelectorAll('#endStats .esRow.share').length") >= n and W['labels'][:1] == ['1-1'], (W['labels'], txt[:160].replace('\n', ' ')))
     L = J(pg, LAY); ok('dg_layout', L['inView'] and not L['hs'] and not L['clip'] and L['onTop'], L)
     shot(pg, 'end_dungeon')
     c.close()

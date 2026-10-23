@@ -24,11 +24,14 @@ function heroCard(h, A) { return `<div class="esHero${h.dead ? ' down' : ''}" da
   <div class="esG">${cell('총 피해', fmtBig(h.tot))}${cell('평균 DPS', fmtDps(h.dps))}${cell('최고 한 방', fmtBig(h.max))}${cell('처치', fmtBig(h.kills))}${cell('받은 피해', fmtBig(h.taken))}${cell('스킬 비중', fmtPct(h.skPct), bar(h.skPct, 'sk'))}</div></div>`; }
 export function renderEnd(A = G.endStats || snapEnd()) {
   const tw = A.towers.length ? A.towers.map(x => `<div class="esRow${x.gone ? ' gone' : ''}"><span class="esRn">${x.icon} ${esc(x.n)} <small>${'★'.repeat(Math.min(3, x.stars))}${x.gone ? ' · 철거' : ''}</small></span>${bar(x.bar, 'tw')}<b>${fmtBig(x.dmT)}</b><small class="esK">처치 ${x.dmK || 0}</small></div>`).join('') + (A.towersMore ? `<div class="esMore">외 ${A.towersMore}개 타워</div>` : '')
-    : `<div class="esNone">${A.dungeon ? '던전에는 타워가 없어요' : '피해를 준 타워 없음'}</div>`;
+    : '<div class="esNone">피해를 준 타워 없음</div>';
+  // 던전 (타워 없음): 타워 칸 대신 피해 비중 (파티원 + 합동 공격)
+  const shares = [...A.heroes.map(h => [`${h.icon} ${esc(h.nm)}`, h.share, h.tot, h.dead]), ...(A.other.tot > 0 ? [[`⚡ ${A.other.label}`, A.team > 0 ? A.other.tot / A.team : 0, A.other.tot, false]] : [])];
+  const shareHtml = shares.map(([n, k, v, d]) => `<div class="esRow share${d ? ' gone' : ''}"><span class="esRn">${n}</span>${bar(k, 'sh')}<b>${fmtPct(k)}</b><small class="esK">${fmtBig(v)}</small></div>`).join('');
   const wv = A.waves.length ? A.waves.map(w => `<div class="esW${A.fastest === w ? ' fast' : ''}${A.slowest === w && A.waves.length > 1 ? ' slow' : ''}${w.done ? '' : ' live'}" title="${esc(waveLabel(w.n))} ${fmtTime(w.sec)}"><span>${esc(waveLabel(w.n))}</span>${bar(w.bar, 'wv')}<b>${fmtClock(w.sec)}${w.done ? '' : '…'}</b></div>`).join('') : '<div class="esNone">웨이브 기록 없음</div>';
   return `<div class="esHd"><div class="gtitle">📊 전투 통계</div><div class="esSum">전투 시간 <b>${fmtTime(A.span)}</b> · 팀 총 피해 <b>${fmtBig(A.team)}</b>${A.other.tot > 0 ? ` · ${A.other.label} ${fmtBig(A.other.tot)} (${fmtPct(A.team > 0 ? A.other.tot / A.team : 0)})` : ''}</div></div>
     <div class="esSub">영웅별${A.heroes.length > 1 ? ` · 파티 ${A.heroes.length}명` : ''}</div><div class="esHeroes n${A.heroes.length}">${A.heroes.map(h => heroCard(h, A)).join('')}</div>
-    <div class="esCols"><div><div class="esSub">${A.dungeon ? '타워' : `타워별 피해${A.towerCount ? ` · ${A.towerCount}개` : ''}`}</div><div class="esTw">${tw}</div></div>
+    <div class="esCols"><div>${A.dungeon && !A.towerCount ? `<div class="esSub">피해 비중</div><div class="esTw">${shareHtml}</div>` : `<div class="esSub">타워별 피해${A.towerCount ? ` · ${A.towerCount}개` : ''}</div><div class="esTw">${tw}</div>`}</div>
     <div><div class="esSub">웨이브별 클리어 시간${A.fastest ? ` <small>최단 ${esc(waveLabel(A.fastest.n))} ${fmtClock(A.fastest.sec)}${A.slowest && A.slowest !== A.fastest ? ` · 최장 ${esc(waveLabel(A.slowest.n))} ${fmtClock(A.slowest.sec)}` : ''}</small>` : ''}</div><div class="esWv">${wv}</div></div></div>`; }
 function panel() { let p = $('endStats'); if (!p) { p = document.createElement('div'); p.id = 'endStats'; p.className = 'gpanel esPanel hidden'; p.setAttribute('role', 'dialog');
   p.innerHTML = '<button id="esClose" class="gbtn sm xbtn" title="닫기 (Esc)">✕</button><div id="esBody"></div><button id="esBack" class="gbtn">← 결과로</button>'; document.body.appendChild(p);
