@@ -3,7 +3,7 @@
 // 확률(성기사 기절)은 Math.random — 게임 난수(rand) 소비 없음. 카운터 G.advN (테스트용), 전직 효과 피해 합계 G.advDmg
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
-import { G, later, heroFx } from '../core/state.js';
+import { G, later, heroFx, asSkill } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { P, PB, emit, ringFx } from '../render/vfx.js';
 import { glow } from '../render/toon.js';
@@ -40,7 +40,7 @@ export function advInit(h) {
 export function advUpd(dt) {
   const h = hero, A = h.adv; if (h.aura) { h.aura.rotation.y += dt * 1.4; const [a, b] = h.aura.children; a.material.opacity = .42 + Math.sin(G.t * 3) * .14; if (b) b.rotation.z -= dt * 2.6; }
   if (A.ws && A.ws !== 1) for (const b of h.advBones) b.scale.setScalar(A.ws);
-  if (h.advStunCd > 0) h.advStunCd -= dt; if (h.sanctT > 0) updSanct(dt);
+  if (h.advStunCd > 0) h.advStunCd -= dt; if (h.sanctT > 0) asSkill(updSanct, dt);
   if (G.heroes.length <= 1) advFx(dt); // 파티: 이펙트는 updParty 에서 한 번만 (core/party 루프)
 }
 export function advFx(dt) { for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1); }

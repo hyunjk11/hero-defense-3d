@@ -5,7 +5,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { QS, mulberry32 } from '../core/util.js';
-import { G, heroFx } from '../core/state.js';
+import { G, heroFx, asSkill } from '../core/state.js';
 import { scene } from '../render/scene.js';
 import { glow } from '../render/toon.js';
 import { P, PB, emit, ringFx, debris } from '../render/vfx.js';
@@ -97,7 +97,7 @@ export function uniqueHero(dt) { // 영웅별: 고유 장비 쿨다운·트리�
     if (x.U.tr === 'wave' && G.wave !== x.w) { x.w = G.wave; const st = Math.min(p.max, Math.floor(Math.max(0, G.wave - 1) / p.per) * (A3(x) ? 4 : p.add)) * pow(x); if (st > (h.uqAtkP || 0)) { h.uqAtkP = st; h.uqAtk = 1 + st / 100; count(x.k); banner(`🌑 심연 적응 · 공격력 +${Math.round(st)}%`, '#b89aff', 1200); } }
     if (h.dead > 0 || G.phase === 'over') continue;
     if (x.U.tr === 'shield' && !h.uqShield) { x.t += dt; if (x.t >= (A3(x) ? 3.5 : p.wait)) { h.uqShield = true; showShield(true); } }
-    if (x.U.tr === 'every' && (G.phase === 'wave' || G.uqForce)) { x.t += dt; if (x.t >= cdOf(x, p.cd)) { x.t = 0; count(x.k); (x.k === 'c_acc' ? timeStop : spores)(x); } }
+    if (x.U.tr === 'every' && (G.phase === 'wave' || G.uqForce)) { x.t += dt; if (x.t >= cdOf(x, p.cd)) { x.t = 0; count(x.k); asSkill(x.k === 'c_acc' ? timeStop : spores, x); } }
   }
 }
 // 포자 구름: 주변 적 공격력 80% + 2초 40% 둔화

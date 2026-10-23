@@ -8,6 +8,7 @@ import { closeLab } from './lab.js';
 import * as P from '../account/progress.js';
 import * as ST from '../data/stages.js';
 import { DGS, dgStatus } from '../account/dungeon.js';
+import { closeStats } from './stats.js';
 import { UQ, UQ_COLOR, UQ_DUP, UQ_DG, AWAKE_MAX, CHSET, CH_KEYS, UQ_PITY, CODEX_RW, awakeMul, awakeCd, chOdds } from '../data/items.js';
 
 const ICON = { ...Object.fromEntries(HERO_KEYS.map(k => [k, CLASSES[k].icon])), armor: '🛡️', acc: '💍' }; // 영웅 무기 아이콘은 data/heroes.js 의 icon (빠진 영웅이 없도록 한 곳에서)
@@ -51,7 +52,7 @@ export function bonusHtml(b) { const e = Object.entries(b); return e.length ? e.
 export function heroDots(s, h) { return E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === (s.eq[h] || {})[sl]); return `<i class="dot" style="background:${it ? GCi(it) : '#3a3450'}" title="${E.SLOTS[sl]}"></i>`; }).join(''); }
 
 // ---------- 가방 ----------
-export function openInv() { closeLab(true); ui.inv = true; $('invPanel').classList.remove('hidden'); Snd.play('ui'); closeSmith(true); renderInv(); }
+export function openInv() { closeLab(true); closeStats(); ui.inv = true; $('invPanel').classList.remove('hidden'); Snd.play('ui'); closeSmith(true); renderInv(); }
 export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; $('invPanel').classList.add('hidden'); hideTip(); }
 function renderInv() {
   if (!ui.inv) return; const s = S(), h = s.hero, eq = s.eq[h] || {};
@@ -79,7 +80,7 @@ export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; 
 export function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------
-export function openSmith() { closeLab(true); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
+export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
 export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; $('smithPanel').classList.add('hidden'); hideTip(); }
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');
 function renderSmith() {

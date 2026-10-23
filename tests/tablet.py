@@ -89,6 +89,7 @@ with sync_playwright() as pw:
     pg.tap('#twBag'); pg.wait_for_timeout(300); pg.tap('#invGrid .itile[data-id="it3"]'); pg.wait_for_timeout(200)
     sweep(pg, 'inventory', ['#scr_town'])
     pg.tap('#invClose'); pg.wait_for_timeout(200)
+    pg.tap('#twStats'); pg.wait_for_timeout(400); sweep(pg, 'stats_town', ['#scr_town']); pg.tap('#statClose'); pg.wait_for_timeout(200)  # 📊 영웅 능력치
     for t in ['enh', 'dis', 'craft']:
         def prep(t=t):
             J(pg, "()=>G.gear.openSmith()"); pg.tap(f'#smTabs .ftab[data-t="{t}"]'); pg.wait_for_timeout(150)
@@ -170,6 +171,7 @@ with sync_playwright() as pw:
     sweep(pg, 'hud_tinfo_star', ['#hud'])
     pg.tap('#sndBtn'); pg.wait_for_timeout(200); sweep(pg, 'hud_sound', ['#hud']); pg.tap('#sndBtn')
     J(pg, "()=>{ G.select(null); G.startWave(); }"); pg.wait_for_timeout(2500); sweep(pg, 'hud_wave', ['#hud', '#bossHud'])
+    pg.tap('#statBtn'); pg.wait_for_timeout(500); sweep(pg, 'hud_stats', ['#hud']); pg.tap('#ovClose'); pg.wait_for_timeout(200)  # 📊 전투 능력치 오버레이
     J(pg, "()=>{ G.manual=true; G.wave=9; G.spawnQ=[]; G.phase='build'; G.startWave(); G.spawnQ=[]; }")
     for _ in range(40):
         d = J(pg, "()=>{ for (const e of [...G.enemies]) if (!e.dead) G.hurt(e, 1e9, '#fff', false); G.sim(1); return G.phase; }")
