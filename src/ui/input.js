@@ -2,7 +2,7 @@ import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $ } from '../core/util.js';
 import { typing } from './keys.js';
-import { GH, SPAWNS, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
+import { T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 import { BLK, TNAME } from '../data/terrain.js';
 import { UPS, UP_GROWTH } from '../data/heroes.js';
 import { TOWERS, BARRICADE } from '../data/towers.js';
@@ -11,7 +11,7 @@ import { cam, camera, renderer, scene } from '../render/scene.js';
 import { SFX } from '../audio/sfx.js';
 import { P, debris, emit, ringFx } from '../render/vfx.js';
 import { refreshTile, tileAt } from '../world/terrain.js';
-import { computeDist, dijkstra } from '../world/pathfinding.js';
+import { computeDist } from '../world/pathfinding.js';
 import { addBarricade, barMaxHp, removeBarricade } from '../world/barricades.js';
 import { placeTower, repairAll, repairTower, sellTower, upgradeTower } from '../world/towers.js';
 import { groundY } from '../monsters/ai.js';
@@ -21,6 +21,7 @@ import { castLegend } from '../heroes/legend.js';
 import { startWave } from '../core/waves.js';
 import { banner, refreshHud } from './hud.js';
 import { showPreview, hidePreview } from './preview.js';
+import { toolCost, clearCost, blkName, TOOLN, buildReason, canBuild } from '../combat/build.js';
 
 // ================= 입력 / 건설 =================
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), mouseGround = new THREE.Vector3();
@@ -68,39 +69,11 @@ cvs.addEventListener('wheel', e => { cam.r = Math.min(90, Math.max(14, cam.r + e
 addEventListener('keydown', e => { if (G.paused || typing(e)) return; const k = e.key.toLowerCase(); keys[k] = true; if (k === 'q') castSkill(); if (k === 't' && !e.repeat && !G.dungeon) startWarp(); if (k === 'e' && !e.repeat) castLegend(); if (k === 'r' && !e.repeat) { if (G.sel && G.sel.kind === 'tower') repairTower(G.sel); else repairAll(); refreshHud(); } const tools = ['arrow', 'cannon', 'magic', 'barricade', 'clear']; if (e.key >= '1' && e.key <= '5') setTool(tools[+e.key - 1]); if (e.key === 'Escape') { setTool('move'); select(null); } if (e.key === ' ' && G.phase === 'build') { e.preventDefault(); startWave(); } });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 $('rotL').onclick = () => { cam.theta += Math.PI / 4; Snd.play('ui'); }; $('rotR').onclick = () => { cam.theta -= Math.PI / 4; Snd.play('ui'); };
-function occupied(c, r) {
-  if (G.enemies.some(e => !e.dead && !e.E.fly && ((e.tile[0] === c && e.tile[1] === r) || (e.next && e.next[0] === c && e.next[1] === r)))) return true;
-  if (hero && hero.dead <= 0) { const [hc, hr] = toTile(hero.g.position.x, hero.g.position.z); if (hc === c && hr === r) return true; } return false;
-}
-function toolCost(t) { const tool = G.tool; return TOWERS[tool] ? TOWERS[tool].cost : tool === 'barricade' ? BARRICADE.cost : tool === 'clear' && isBlock(t.t) ? clearCost(t) : 0; }
-// 폐허 고대 성벽: 바위보다 단단하고 개간 비용도 큼
-function clearCost(t) { return t.wall ? 60 : BLK[t.t].clear; }
-function blkName(t) { return t.wall ? '고대 성벽' : BLK[t.t].n; }
-const TOOLN = { barricade: '바리케이드', clear: '개간' };
-// 불가 사유 (가능하면 null)
-function buildReason(c, r) {
-  if (!inGrid(c, r)) return '맵 밖'; const t = tileAt(c, r), tool = G.tool, cost = toolCost(t);
-  if (TOWERS[tool] || tool === 'barricade') {
-    if (t.tower) return '이미 타워가 있음'; if (t.bar) return '이미 바리케이드가 있음';
-    if (TOWERS[tool] && t.t !== T.GRASS) return isBlock(t.t) ? '지형 블록 (먼저 개간)' : t.t === T.CARVED ? '파인 길 (바리케이드만 가능)' : '건설 불가 지형';
-    if (tool === 'barricade' && t.t !== T.CARVED && t.t !== T.GRASS) return isBlock(t.t) ? '지형 블록' : '설치 불가 지형';
-    if (occupied(c, r)) return '유닛이 서 있음'; if (G.gold < cost) return `골드 부족 (${cost - G.gold}G 더 필요)`;
-    if (TOWERS[tool] && !canBuild(c, r)) return '경로 차단'; return null; }
-  if (tool === 'clear') { if (!isBlock(t.t)) return t.t === T.BEDROCK ? '파괴 불가 암반' : '개간할 블록 없음'; if (G.gold < cost) return `골드 부족 (${cost - G.gold}G 더 필요)`; return null; }
-  return '도구 없음';
-}
 function previewTip(t, why) { const tool = G.tool, cost = toolCost(t), name = TOWERS[tool] ? TOWERS[tool].n : TOOLN[tool];
   let s = `<b>${name}</b> <span class="cost">${cost ? cost + 'G' : ''}</span>`;
   if (tool === 'clear' && isBlock(t.t)) s += `<br>${blkName(t)} · 내구도 ${Math.ceil(t.hp)}/${t.max}`;
   if (TOWERS[tool]) s += `<br>사거리 ${TOWERS[tool].range[0]} · 피해 ${TOWERS[tool].dmg[0]}`;
   return s + `<br>${why ? `<span class="bad">✖ ${why}</span>` : `<span class="good">✔ 클릭하여 ${tool === 'clear' ? '개간' : '건설'}</span>`}`; }
-function canBuild(c, r) {
-  if (!inGrid(c, r)) return false; const t = tileAt(c, r), tool = G.tool;
-  if (TOWERS[tool]) { if (t.t !== T.GRASS || t.tower || t.bar || G.gold < TOWERS[tool].cost || occupied(c, r)) return false; const D = dijkstra(t); return SPAWNS.every(s => isFinite(D[s[0] * GH + s[1]])); }
-  if (tool === 'barricade') return (t.t === T.CARVED || t.t === T.GRASS) && !t.tower && !t.bar && G.gold >= BARRICADE.cost && !occupied(c, r);
-  if (tool === 'clear') return isBlock(t.t) && G.gold >= clearCost(t);
-  return false;
-}
 function build(c, r) {
   if (G.dungeon) return false; // 던전 원정: 타워·바리케이드 없음
   if (!canBuild(c, r)) { Snd.play('error'); const why = buildReason(c, r); if (why) banner(why === '경로 차단' ? '경로 차단: 길을 완전히 막을 수 없습니다' : why, '#ff8a9a', 900); return false; }
