@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
 import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
@@ -97,8 +98,9 @@ async function buy(k) {
 }
 
 // ---------- 우편함 ----------
-export function openMail() { if (!ui.mail) Snd.play('confirm'); hooks.closeOthers('mail'); ui.mail = true; $('mailPanel').classList.remove('hidden'); renderMail(); if (Acc.A.user) Sh.refresh().then(render); }
-export function closeMail(silent) { if (ui.mail && !silent) Snd.play('ui'); ui.mail = false; $('mailPanel').classList.add('hidden'); }
+export function openMail() { if (!ui.mail) Snd.play('confirm'); hooks.closeOthers('mail'); ui.mail = true; MP.show(); renderMail(); if (Acc.A.user) Sh.refresh().then(render); }
+export function closeMail(silent) { if (ui.mail && !silent) Snd.play('ui'); ui.mail = false; MP.hide(); }
+const MP = definePanel('mail', { id: 'mailPanel', z: 42, isOpen: () => ui.mail, close: s => closeMail(s) });
 function renderMail() {
   if (!ui.mail) return; const A = Acc.A, st = Sh.S.status, L = Sh.S.mail; let h = '';
   if (!A.user) h = '<div class="emptyMsg">로그인한 계정만 우편을 받을 수 있어요.</div>';
@@ -124,7 +126,7 @@ export function initShop(h) {
   $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); initAdmin({ closeOthers: k => hooks.closeOthers(k), onChange: () => hooks.onChange() });
   $('twMail').onclick = () => { if (ui.mail) closeMail(); else openMail(); }; $('twAdmin').onclick = () => openAdmin(); $('mnAdmin').onclick = () => openAdmin();
   Sh.onShop(() => render()); Acc.onChange(() => badge());
-  escLayer('admin', 50, () => adminOpen(), () => closeAdmin()); escLayer('mail', 42, () => ui.mail, () => closeMail()); escLayer('shop', 40, () => ui.shop, () => closeShop());
+  escLayer('admin', 50, () => adminOpen(), () => closeAdmin()); escLayer('shop', 40, () => ui.shop, () => closeShop());
   badge();
 }
 G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };
