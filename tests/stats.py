@@ -52,6 +52,7 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.gold=5000; G.ups.atk=2; G.ups.spd=1; }"); pg.wait_for_timeout(400); ok('stats_match_after_ups', J(pg, CMP) == [], J(pg, CMP))
     ok('overlay_shows_ups_buff', '영웅 강화 공격 Lv.2' in pg.inner_text('#statOv'))
     # Q-7: #ups 버튼 "지금 → 다음" (title·data-nx) — 공격력 다음 값 = finalStats 와 같은 계산 (ups.atk 2 → 3 이면 ×(1+.45)/(1+.3))
+    J(pg, "()=>G.sim(.3)")  # test=1 은 루프가 sim 으로만 돌아 refreshHud(0.15초 주기)도 sim 뒤에 갱신
     nx = J(pg, "()=>Object.fromEntries([...document.querySelectorAll('#ups .up')].map(b=>[b.dataset.up, b.dataset.nx||'']))")
     import re as _re
     m = _re.match(r'공격력 ([\d.]+) → ([\d.]+)', nx.get('atk', ''))
