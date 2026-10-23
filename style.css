@@ -1,5 +1,5 @@
 /* 층 (z-index) 토큰 — U-2 (2026-10-23). 값이 클수록 위. 아래 순서: HUD 오버레이 < HUD < 토스트 < 화면 < 관리자 < 연출 < 일시정지 < 결과 < 페이드 < 모달 < 확인창 < 아이템 툴팁 */
-:root{--z-hud-ov:4;--z-hud:5;--z-tip:5;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100}
+:root{--z-hud-ov:4;--z-hud:5;--z-tip:7;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100}
 #banner,#note{z-index:var(--z-toast)} /* 웨이브 배너·새 몬스터 카드는 📊 오버레이(#statOv) 위 */
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05060c;font-family:"Noto Sans CJK KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#fff;user-select:none}
 #app{position:fixed;inset:0}#app canvas{display:block}
@@ -742,3 +742,6 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #gConfirm h3{margin:0 0 8px;color:#ffe08a;font-size:18px}#gConfirm.danger h3{color:#ffb0a0}#gConfirm .acIco{font-size:36px}
 #gConfirm .gcB{font-size:15px;line-height:1.5;color:#e8dcc0}
 #gConfirm .acBtns{display:flex;gap:10px;justify-content:center;margin-top:14px}#gConfirm .acBtns .gbtn{min-width:120px;min-height:48px}
+/* U-2 겹침 정리 (2026-10-23): 자원 알약 줄 아래로 들어간 건물 라벨은 흐리게 (ui/flow.js twTopRect) · 낮은 화면에서 마을 큰 패널이 자원 알약 줄(.twTop)을 덮지 않게 */
+.tlabel{transition:opacity .2s}.tlabel.under{opacity:.22}
+@media (max-height:680px){#scr_town .bigPanel{top:calc(50% + 25px);max-height:calc(100dvh - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}
