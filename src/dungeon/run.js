@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { askConfirm } from '../ui/confirm.js';
 import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { waveStart, waveEnd } from '../combat/meter.js';
@@ -135,7 +136,7 @@ function partyAI(h, dt) {
 function buildHud() {
   let top = $('dgTop'); if (!top) { top = document.createElement('div'); top.id = 'dgTop'; $('top').appendChild(top); }
   top.className = 'pill dgTop'; top.innerHTML = `<span class="lbl">⚔ 던전${D.entry && D.entry.mode === 'practice' ? ' <i class="dgPrTag">연습</i>' : ''}</span><b id="dgFloor"></b><span id="dgBl" class="dgBl"></span><button id="dgGiveUp" class="dgGiveUp" title="원정 포기">🏳 포기</button>`;
-  $('dgGiveUp').onclick = e => { e.stopPropagation(); if (D.over) return; if (!confirm('원정을 포기하고 마을로 돌아갈까요? (보상 없음)')) return; D.over = true; goTownD(); };
+  $('dgGiveUp').onclick = e => { e.stopPropagation(); if (D.over) return; askConfirm({ title: '원정 포기', icon: '🏳', body: '원정을 포기하고 마을로 돌아갈까요? (보상 없음)', ok: '포기', tone: 'danger' }).then(y => { if (!y || D.over) return; D.over = true; goTownD(); }); };
   let bar = $('dgBar'); if (!bar) { bar = document.createElement('div'); bar.id = 'dgBar'; $('hud').appendChild(bar); }
   bar.innerHTML = G.heroes.map((h, i) => { const C = CLASSES[h.cls], A = h.adv; return `<button class="dgP" data-i="${i}" style="--hc:#${C.color.toString(16).padStart(6, '0')}" title="${esc(heroLabel(h.cls))} (${i + 1})"><span class="dgIc">${C.icon}</span><span class="dgNm">${esc(C.nm)}${A ? `<i style="color:${A.c}">${A.icon}</i>` : ''}</span><span class="dgHp"><u></u></span><span class="dgUlt"><u></u></span><span class="dgSk"></span><span class="dgKey">${i + 1}</span></button>`; }).join('');
   bar.querySelectorAll('.dgP').forEach(b => { b.onpointerdown = e => e.stopPropagation(); b.onclick = e => { e.stopPropagation(); pick(+b.dataset.i); }; });

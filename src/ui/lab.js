@@ -1,6 +1,7 @@
 // 타워 연구소 패널: 타워 종류별 공격력·사거리·공격속도 + 후반 '시작 성장'. 버튼은 한 번만 만들고 글자/비활성만 갱신 (클릭 씹힘 방지)
 import { Snd } from '../audio/audio.js';
 import { $, setH } from '../core/util.js';
+import { escLayer } from './keys.js';
 import { G } from '../core/state.js';
 import { TOWERS } from '../data/towers.js';
 import * as GR from '../data/growth.js';
@@ -12,7 +13,7 @@ import { labFx } from '../world/town.js';
 let open = false, tab = 'arrow', built = null, hooks = { onChange() {}, cheer() {} };
 const TC = { arrow: '#5a9aff', cannon: '#ff9a4a', magic: '#c07aff' };
 const MATN = { steel: '⚙ 강철', crystal: '💎 마력석' };
-export function initLab(h) { hooks = { ...hooks, ...h }; $('labClose').onclick = () => closeLab(); addEventListener('keydown', e => { if (e.key === 'Escape' && open) closeLab(); }); }
+export function initLab(h) { hooks = { ...hooks, ...h }; $('labClose').onclick = () => closeLab(); escLayer('lab', 40, () => open, () => closeLab()); }
 export function openLab() { if (G.screen !== 'town') return; if (!open) { Snd.play('confirm'); Snd.play('magic', { vol: .4 }); } open = true; $('labPanel').classList.remove('hidden'); renderLab(); }
 export function closeLab(silent) { if (open && !silent) Snd.play('ui'); open = false; $('labPanel').classList.add('hidden'); }
 function build() {

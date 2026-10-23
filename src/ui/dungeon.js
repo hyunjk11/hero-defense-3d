@@ -2,6 +2,8 @@
 // 로즈는 서버 소유 기록(account/shop.js heroOwned ← hd3d_owned)이 확인될 때만 파티에 들어감. 버들은 숨김 플래그로 제외 (data/dungeon.js dungeonParty)
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { escLayer } from './keys.js';
+import { askConfirm } from './confirm.js';
 import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { CLASSES } from '../data/heroes.js';
@@ -50,7 +52,7 @@ function renderShop() { const p = $('dgPanel'); if (!p) return; const D = DS.DGS
     <div class="dgInfo"><small>${esc(note)}</small></div><div class="dgGo"><button id="dgBack" class="gbtn">← 원정 준비</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgBack').onclick = () => { Snd.play('ui'); view = 'party'; render(); };
   p.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buy(b.dataset.buy)); }
-async function buy(id) { const it = DG_SHOP_BY[id]; if (!it || buying) return; if (!confirm(`${it.n} 을(를) 던전 메달 ${it.price}개로 살까요?`)) return;
+async function buy(id) { const it = DG_SHOP_BY[id]; if (!it || buying) return; if (!(await askConfirm({ title: '던전 상점', icon: '🏅', body: `${it.n} 을(를) 던전 메달 ${it.price}개로 살까요?`, ok: '구매' })) || buying) return;
   buying = true; renderShop(); const r = await DS.dgBuy(id); buying = false; Snd.play(r.ok ? 'confirm' : 'error'); banner(r.msg, r.ok ? '#9affb0' : '#ffb06a', 2200); G.dgLastBuy = r;
   if (r.ok && r.mail) Sh.refresh().catch(() => {}); if (!r.ok && DS.DGS.st === 'ok') refreshDay(); if (open && view === 'shop') renderShop(); }
 function render() { if (view === 'shop') return renderShop(); const p = $('dgPanel'); if (!p) return; const s = Acc.load(), cands = dungeonParty(c => Sh.heroOwned(c)), party = pickParty(cands, loadPick()), F = FLOORS[0];
@@ -65,6 +67,7 @@ function render() { if (view === 'shop') return renderShop(); const p = $('dgPan
   p.querySelectorAll('.dgCard.pick').forEach(b => b.onclick = () => { const r = togglePick(party, b.dataset.cls, cands); if (r.msg) { Snd.play('error'); banner(r.msg, '#ffb06a', 1100); return; } Snd.play('select'); savePick(r.pick); render(); }); }
 export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; view = 'party'; $('dgPanel').classList.remove('hidden'); Snd.play('ui'); refreshDay();
   if (Acc.A.user && !checking) { checking = true; render(); Sh.verifyOwned().finally(() => { checking = false; if (open) render(); }); } else render(); }
+escLayer('dungeon', 40, () => open, () => closeDungeon());
 export function closeDungeon(quiet) { if (!open) return; open = false; $('dgPanel').classList.add('hidden'); if (!quiet) Snd.play('ui'); }
 // 출발: 로그인 계정은 서버 입장 등록(하루 3회) 성공 때 메달 원정, 게스트·서버 업데이트 전·오프라인은 연습 원정. 횟수 초과·정지는 출발 막음
 async function depart() { if (departing) return; departing = true; const b = $('dgStart'); if (b) { b.disabled = true; b.textContent = '입장 확인 중…'; }

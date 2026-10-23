@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { escLayer } from './keys.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
@@ -123,7 +124,7 @@ export function initShop(h) {
   $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); initAdmin({ closeOthers: k => hooks.closeOthers(k), onChange: () => hooks.onChange() });
   $('twMail').onclick = () => { if (ui.mail) closeMail(); else openMail(); }; $('twAdmin').onclick = () => openAdmin(); $('mnAdmin').onclick = () => openAdmin();
   Sh.onShop(() => render()); Acc.onChange(() => badge());
-  addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (adminOpen()) closeAdmin(); else if (ui.mail) closeMail(); else if (ui.shop) closeShop(); });
+  escLayer('admin', 50, () => adminOpen(), () => closeAdmin()); escLayer('mail', 42, () => ui.mail, () => closeMail()); escLayer('shop', 40, () => ui.shop, () => closeShop());
   badge();
 }
 G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };

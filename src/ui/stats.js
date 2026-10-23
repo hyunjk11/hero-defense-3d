@@ -2,6 +2,7 @@
 // 수치는 data/herostats.js 순수 수식 (게임 난수·밸런스에 영향 없음). 전투 오버레이는 일시정지하지 않음 · 0.25초마다 글자만 갱신 (버튼은 탭 목록이 바뀔 때만 다시 만듦)
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { escLayer } from './keys.js';
 import { G } from '../core/state.js';
 import { VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
@@ -65,9 +66,9 @@ function bindBattle() {
   $('statTabs').onclick = e => { const b = e.target.closest('[data-h]'); if (!b || b.dataset.h === st.cls) return; Snd.play('select'); st.cls = b.dataset.h; renderTown(); };
   addEventListener('keydown', e => { const tag = document.activeElement && document.activeElement.tagName; if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     const E = G.endStatsUI, endOn = G.phase === 'over' && E && E.kind(); // 결과 화면: C = 📊 통계 (ui/endstats.js)
-    if (e.key === 'Escape') { closeStats(); if (st.ov) closeOv(); if (E && E.isOpen()) E.close(); return; }
     if (endOn && (e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) { E.toggle(); return; }
     if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && !$('hud').classList.contains('hidden') && G.phase !== 'select') toggleOv(); });
+  escLayer('endStats', 70, () => !!(G.endStatsUI && G.endStatsUI.isOpen()), () => G.endStatsUI.close()); escLayer('statPanel', 40, () => st.town, () => closeStats()); escLayer('statOv', 15, () => st.ov, () => closeOv());
   G.statsUI = { townData, liveStats, openStats, closeStats, toggleOv, isOpen: () => st.ov, townOpen: () => st.town };
 }
 if (typeof document !== 'undefined' && document.getElementById('statBtn')) bindBattle();

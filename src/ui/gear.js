@@ -1,6 +1,8 @@
 // ================= 장비 UI: 가방(장착/비교) · 대장간(강화/분해/제작) · 보상 상자 개봉 =================
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { escLayer } from './keys.js';
+import { askConfirm } from './confirm.js';
 import { CLASSES, HERO_KEYS, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
 import * as E from '../account/equip.js';
@@ -151,9 +153,9 @@ let G_last = null; export const lastEnh = () => G_last;
 // 세트 제작이 열린 챕터 = 그 챕터 보스(마지막 스테이지)를 클리어한 챕터
 const clearedSets = s => CH_KEYS.filter(c => { const C = ST.CHAPTERS.find(x => x.id === c); return C && ST.stars(s, C.stages[C.stages.length - 1].id) > 0; });
 function flashMsg(t, c) { const el = $('enhRes'); if (el) { el.className = 'enhRes fail'; el.style.color = c; el.textContent = t; } }
-function doDismantle() {
+async function doDismantle() {
   const s = S(), ids = [...ui.dis], hi = ids.map(id => s.inv.find(x => x.id === id)).filter(x => x && x.g >= 3);
-  if (hi.length && !confirm(`영웅/전설 등급 장비 ${hi.length}개가 포함되어 있어요. 정말 분해할까요?`)) return;
+  if (hi.length && !(await askConfirm({ title: '고급 장비 분해', icon: '⚒', body: `영웅/전설 등급 장비 ${hi.length}개가 포함되어 있어요.\n정말 분해할까요?`, ok: '분해', tone: 'danger' }))) return;
   document.querySelectorAll('#disGrid .itile.pick').forEach(b => b.classList.add('melt'));
   Snd.play('breakRock'); Snd.play('coins', { delay: .2 });
   setTimeout(() => { let got; Acc.update(d => { const r = E.dismantle(d, ids); got = r[1]; return r[0]; }); ui.dis.clear(); renderSmith(); hooks.onChange(true); const f = document.querySelector('.disFoot div'); if (f) f.innerHTML = `<span class="gotPop">+ 강철 ${got.steel} · 마력석 ${got.crystal} 획득!</span>`; }, 450);
@@ -274,5 +276,6 @@ function renderCodex(s) {
 export function refreshGear() { renderInv(); renderSmith(); }
 function bind() {
   $('invClose').onclick = () => closeInv(); $('smClose').onclick = () => closeSmith();
-  addEventListener('keydown', e => { if (e.key === 'Escape') { if (revealing()) return; closeInv(); closeSmith(); } if (e.key.toLowerCase() === 'i' && document.activeElement?.tagName !== 'INPUT' && !$('scr_town').classList.contains('hidden')) ui.inv ? closeInv() : openInv(); });
+  escLayer('reveal', 90, () => revealing(), () => {}); escLayer('inv', 41, () => ui.inv, () => closeInv()); escLayer('smith', 40, () => ui.smith, () => closeSmith());
+  addEventListener('keydown', e => { if (e.key.toLowerCase() === 'i' && document.activeElement?.tagName !== 'INPUT' && !$('scr_town').classList.contains('hidden')) ui.inv ? closeInv() : openInv(); });
 }

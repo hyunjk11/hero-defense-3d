@@ -255,7 +255,12 @@ with sync_playwright() as pw:
     ok('shop_items', [x[0] for x in stt] == ['dg_steel', 'dg_souls', 'dg_crystal', 'dg_essence', 'dg_title', 'dg_uq_fist'] and stt[3][1] == 'ok' and stt[4][1] == 'lack' and stt[4][2], stt)
     ok('shop_touch44', all(w >= 44 and h >= 44 for w, h in J(pg, "()=>[...document.querySelectorAll('.dgBuy,#dgBack')].map(b=>{ const r=b.getBoundingClientRect(); return [r.width, r.height]; })")))
     es0 = J(pg, "()=>G.gear.Acc.load().mat.essence||0")
-    pg.click('.dgBuy[data-buy="dg_essence"]'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(300)
+    # Q-1 공용 확인창: 구매 → #gConfirm (메달 가격) · 취소 = 안 삼 · 다시 눌러 확인
+    J(pg, "()=>G.dgLastBuy=null"); pg.click('.dgBuy[data-buy="dg_essence"]'); pg.wait_for_timeout(300)
+    ok('q1_dgshop_confirm', J(pg, "()=>{ const e=document.getElementById('gConfirm'); return !!e && !e.classList.contains('hidden') && e.innerText.includes('던전 상점') && e.innerText.includes('메달'); }"))
+    os.makedirs('shots/improve', exist_ok=True); pg.screenshot(path='shots/improve/confirm_dgshop.png')
+    pg.click('#gcNo'); pg.wait_for_timeout(500); ok('q1_dgshop_cancel', J(pg, "()=>G.dgLastBuy===null && document.getElementById('gConfirm').classList.contains('hidden')") and J(pg, "()=>G.gear.Acc.load().mat.essence||0") == es0 and not hidden(pg, 'dgPanel'))
+    pg.click('.dgBuy[data-buy="dg_essence"]'); pg.click('#gcOk'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(300)
     ok('shop_buy_essence', pg.inner_text('#dgShopMedals') == '2' and '우편함' in pg.inner_text('#banner'), pg.inner_text('#dgShopMedals'))
     mid = J(pg, "()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const m=Object.values(d.hd3d_mail).find(m=>m.reward&&m.reward.essence===3); return m&&m.id; }")
     r = J(pg, "async(id)=>{ const Sh=await import('./src/account/shop.js'); return await Sh.claim(id); }", mid)
@@ -266,7 +271,7 @@ with sync_playwright() as pw:
     r = J(pg, "async()=>{ const Sh=await import('./src/account/shop.js'); const r=await Sh.claim(window._mm); const DS=await import('./src/account/dungeon.js'); await DS.dgStatus(); return [r.ok, DS.DGS.medals, G.gear.Acc.load().souls]; }")
     ok('admin_medal_mail_claim', r[0] and r[1] == 102 and r[2] == 50, r)
     J(pg, "()=>{ document.getElementById('dgBack').click(); document.getElementById('dgShopBtn').click(); }"); pg.wait_for_function("()=>document.getElementById('dgShopMedals').textContent==='102'", timeout=20000)
-    G0 = "()=>G.dgLastBuy=null"; J(pg, G0); pg.click('.dgBuy[data-buy="dg_title"]'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(300)
+    G0 = "()=>G.dgLastBuy=null"; J(pg, G0); pg.click('.dgBuy[data-buy="dg_title"]'); pg.click('#gcOk'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(300)
     ok('shop_buy_title', pg.inner_text('#dgShopMedals') == '42' and '망령 사냥꾼' in pg.inner_text('#dgPanel') and J(pg, "()=>document.querySelector('.dgShopIt[data-id=dg_title]').classList.contains('own')"))
     J(pg, "()=>{ document.getElementById('banner') && document.getElementById('banner').classList.add('hidden'); }"); shot(pg, 'shop_desktop', True)
     # ===== schema.sql 다시 실행 전 (서버 함수 없음): '서버 업데이트 필요' + 연습 원정(임시 영혼석) · 상점 닫힘 =====

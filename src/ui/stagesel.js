@@ -1,6 +1,7 @@
 // ================= 스테이지 선택 지도 (출정의 문) =================
 import { Snd } from '../audio/audio.js';
 import { $ } from '../core/util.js';
+import { escLayer } from './keys.js';
 import * as Acc from '../account/account.js';
 import * as ST from '../data/stages.js';
 import * as P from '../account/progress.js';
@@ -11,7 +12,7 @@ import { card, showTip, hideTip, sampleItem, weaponIcon, iconKey, icon } from '.
 
 const ICONS = { forest: ['🌲', '🍄', '🍃', '🌳'], snow: ['❄️', '⛄', '🌨️', '❄️'], volcano: ['🌋', '🔥', '☄️', '🔥'], ruins: ['🏛️', '🗿', '🕸️', '🏺'] };
 let ui = { open: false, ch: 1, sel: null, hard: false }, hooks = { challenge: () => {}, start: () => {} };
-export function initStageSel(h) { hooks = { ...hooks, ...h }; $('stClose').onclick = () => closeStageSel(); addEventListener('keydown', e => { if (e.key === 'Escape' && ui.open) closeStageSel(); }); }
+export function initStageSel(h) { hooks = { ...hooks, ...h }; $('stClose').onclick = () => closeStageSel(); escLayer('stage', 40, () => ui.open, () => closeStageSel()); }
 function current(s) { for (const ch of ST.CHAPTERS) for (const st of ch.stages) if (ST.stageUnlocked(s, st.id) && !ST.stars(s, st.id)) return st.id; return null; }
 export function openStageSel() {
   const s = Acc.load(); if (!ui.open) { Snd.play('confirm'); Snd.play('magic', { rate: .7 }); }
