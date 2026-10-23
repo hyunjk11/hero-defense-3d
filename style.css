@@ -637,6 +637,13 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #gConfirm .acBtns{display:flex;gap:10px;justify-content:center;margin-top:14px}#gConfirm .acBtns .gbtn{min-width:120px;min-height:48px}
 /* U-2 겹침 정리 (2026-10-23): 자원 알약 줄 아래로 들어간 건물 라벨은 흐리게 (ui/flow.js twTopRect) · 낮은 화면에서 마을 큰 패널이 자원 알약 줄(.twTop)을 덮지 않게 (반응형 680 블록 끝) */
 .tlabel{transition:opacity .2s}.tlabel.under{opacity:.22}
+/* Q-3 단축키 안내 (H/?) */
+#keyHelp{position:fixed;inset:0;z-index:var(--z-modal);background:#000a;display:flex;align-items:center;justify-content:center}#keyHelp.hidden{display:none}
+.khBox{width:min(860px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;font-size:var(--fs)}.khHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:18px;color:var(--gold-hi)}
+.khCols{display:flex;flex-wrap:wrap;gap:12px}.khSec{flex:1 1 240px;background:#0006;border:1px solid #c9a24a44;border-radius:var(--r-panel);padding:8px 12px}.khSec.now{border-color:var(--gold-line);box-shadow:0 0 10px #ffd23a44}
+.khSec h3{margin:0 0 6px;font-size:var(--fs-md);color:var(--gold-txt)}.khSec h3 small{font-size:var(--fs-sm);color:#9fe8ff;font-weight:normal}
+.khRow{display:flex;gap:8px;align-items:baseline;margin:4px 0}.khRow kbd{flex:none;min-width:44px;text-align:center;background:#2a2446;border:1px solid #6a5a9a;border-bottom-width:3px;border-radius:6px;padding:1px 6px;font:inherit;font-weight:bold;color:var(--ink)}.khRow span{color:var(--txt-dim)}
+.khFoot{margin-top:10px;text-align:center;color:#a898c0;font-size:var(--fs-sm)}
 /* ===== 반응형 — U-3 (2026-10-23): 흩어져 있던 @media 블록을 질의별로 한 곳에 (원래 순서 유지). 순서: 좁은 화면(1100/800) → 높이 800 → 폭 → 높이 700·680·640 → 터치(hover:none · pointer:coarse, 마지막 = 48px 규칙이 이김) ===== */
 @media (max-width:1100px), (max-height:800px){
 .pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:12px}.pill b{font-size:15px}.gold b{font-size:17px}.mailBtn{font-size:inherit} /* U-3: 원래 .mailBtn{font:inherit} 가 이 규칙 뒤에 있어 이겼음 — 블록 이동 후에도 같게 */
