@@ -58,7 +58,7 @@ export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; 
 export function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------
-export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; SMP.show(); closeInv(); renderSmith(); }
+export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) ui.xchMsg = ''; if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; SMP.show(); closeInv(); renderSmith(); }
 export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; SMP.hide(); hideTip(); }
 const SMP = definePanel('smith', { id: 'smithPanel', z: 40, isOpen: () => ui.smith, close: s => closeSmith(s) });
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');
@@ -67,7 +67,7 @@ const pwrLine = (a, b, pre = '') => { const p0 = a ? E.power(a) : 0, p1 = E.powe
 function renderSmith() {
   if (!ui.smith) return; const s = S();
   $('smMats').innerHTML = `<span><i class="mi souls"></i>${s.souls}</span><span><i class="mi steel"></i>강철 ${s.mat.steel}</span><span><i class="mi crystal"></i>마력석 ${s.mat.crystal}</span><span class="essM" title="고유 정수 — 고유 장비 각성 재료 (고유 중복 획득·도감 보상·도전 모드 보스)"><i class="mi essence"></i>고유 정수 ${s.mat.essence || 0}</span>`;
-  document.querySelectorAll('#smTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === ui.smTab); b.onclick = () => { if (ui.busy) return; ui.smTab = b.dataset.t; Snd.play('ui'); hideTip(); renderSmith(); }; });
+  document.querySelectorAll('#smTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === ui.smTab); b.onclick = () => { if (ui.busy) return; ui.smTab = b.dataset.t; ui.xchMsg = ''; Snd.play('ui'); hideTip(); renderSmith(); }; });
   const body = $('smBody');
   if (ui.smTab === 'enh') {
     const list = sorted(s.inv, s); if (!list.some(x => x.id === ui.smSel)) ui.smSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.smSel);
@@ -109,7 +109,6 @@ function renderSmith() {
       <div class="xchLeft">오늘 남은 교환 <b id="xchLeftN">${left}</b>/${X.daily}회 <small>(한국 시간 0시에 초기화)</small></div><div class="xchPips">${Array.from({ length: X.daily }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('')}</div>
       <div class="xchBtns">${btn(1, '1회')}${btn(5, '5회')}${btn(mx, `최대 ${mx}회`)}</div><div class="xchMsg" id="xchMsg">${ui.xchMsg || (left <= 0 ? '오늘 교환을 모두 썼어요. 내일 다시 오세요!' : s.mat.steel < X.steel ? `강철이 부족해요 (1회에 ${X.steel})` : '')}</div>
       <div class="hintS">남는 강철을 영혼석으로 바꿔요 · 하루 최대 강철 ${X.steel * X.daily} → 영혼석 ${X.souls * X.daily} · 영혼석은 출정이 주 수입이에요 (교환은 보조)</div></div>`;
-    ui.xchMsg = '';
     body.querySelectorAll('.xchGo').forEach(b => b.onclick = () => { if (b.disabled) return; let r, got; Acc.update(d => { const o = P.exchangeSteel(d, +b.dataset.n); r = o[1]; got = o[2]; return o[0]; });
       if (r === 'ok') { Snd.play('coins'); ui.xchMsg = `<span class="gotPop">강철 ${got.steel} → 영혼석 +${got.souls} 교환 완료!</span>`; } else { Snd.play('error'); ui.xchMsg = r === 'cap' ? '오늘 교환 횟수가 부족해요' : '강철이 부족해요'; } renderSmith(); hooks.onChange(true); });
   } else if (ui.smTab === 'awk') { // 각성: 고유 정수로 고유 궁극기 강화 (항상 성공)
