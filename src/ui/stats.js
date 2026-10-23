@@ -3,6 +3,7 @@
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
 import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import { G } from '../core/state.js';
 import { VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
@@ -30,8 +31,9 @@ function renderTown() { const s = Acc.load(), own = VISIBLE_HEROES.filter(h => S
     <div class="stRows">${D.rows.map(r => `<div class="stRow" data-k="${r.k}"><span class="stN">${r.n}</span><b class="stV">${esc(r.v)}</b><span class="stP">${chips(r.parts)}</span></div>`).join('')}</div>
     <div class="lbl">장착 전설·고유 효과</div><div class="stFxs">${fxHtml(D.fx)}</div>
     <div class="stNote">${esc(CP_TXT)}<br>${esc(DPS_TXT)}<br>판 안 강화·던전 축복은 전투 중 📊 (C 키) 에서 확인</div>`; }
-export function openStats(cls) { st.town = true; st.cls = cls || Sh.usableHero(Acc.load().hero); $('statPanel').classList.remove('hidden'); Snd.play('ui'); renderTown(); }
-export function closeStats() { if (!st.town) return; st.town = false; $('statPanel').classList.add('hidden'); }
+export function openStats(cls) { st.town = true; st.cls = cls || Sh.usableHero(Acc.load().hero); STP.show(); Snd.play('ui'); renderTown(); }
+export function closeStats() { if (!st.town) return; st.town = false; STP.hide(); }
+const STP = definePanel('statPanel', { id: 'statPanel', z: 40, isOpen: () => st.town, close: () => closeStats() });
 
 // ---------- 전투 ----------
 const liveM = h => { const a = h.adv && h.adv.atk; return { cls: h.cls, ups: G.ups, uqAtk: h.uqAtk || 1, uqRate: h.uqRateT > 0 ? h.uqRateM : 1, advLow: a && a.lowHp && h.hp <= h.max * a.lowHp ? a.lowAtk : 1, M: (G.dgM && G.dgM(h)) || NOM, robo: !!h.robo, max: h.max }; };
@@ -68,7 +70,7 @@ function bindBattle() {
     const E = G.endStatsUI, endOn = G.phase === 'over' && E && E.kind(); // 결과 화면: C = 📊 통계 (ui/endstats.js)
     if (endOn && (e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) { E.toggle(); return; }
     if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && !$('hud').classList.contains('hidden') && G.phase !== 'select') toggleOv(); });
-  escLayer('endStats', 70, () => !!(G.endStatsUI && G.endStatsUI.isOpen()), () => G.endStatsUI.close()); escLayer('statPanel', 40, () => st.town, () => closeStats()); escLayer('statOv', 15, () => st.ov, () => closeOv());
+  escLayer('endStats', 70, () => !!(G.endStatsUI && G.endStatsUI.isOpen()), () => G.endStatsUI.close()); escLayer('statOv', 15, () => st.ov, () => closeOv());
   G.statsUI = { townData, liveStats, openStats, closeStats, toggleOv, isOpen: () => st.ov, townOpen: () => st.town };
 }
 if (typeof document !== 'undefined' && document.getElementById('statBtn')) bindBattle();

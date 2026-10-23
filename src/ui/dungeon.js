@@ -2,7 +2,7 @@
 // 로즈는 서버 소유 기록(account/shop.js heroOwned ← hd3d_owned)이 확인될 때만 파티에 들어감. 버들은 숨김 플래그로 제외 (data/dungeon.js dungeonParty)
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
-import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import { askConfirm } from './confirm.js';
 import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
@@ -17,7 +17,7 @@ import * as Sh from '../account/shop.js';
 
 let open = false, checking = false, departing = false, view = 'party', buying = false, H = { closeOthers: () => {} };
 export function initDungeonUI(o) { H = { ...H, ...o };
-  if ($('dgPanel')) return; const p = document.createElement('div'); p.id = 'dgPanel'; p.className = 'gpanel bigPanel wide hidden'; $('scr_town').appendChild(p); }
+  if ($('dgPanel')) return; const p = document.createElement('div'); p.id = 'dgPanel'; p.className = 'gpanel bigPanel wide ui-panel ui-panel--wide hidden'; $('scr_town').appendChild(p); }
 // 고른 파티 (이 기기에만 저장 · 출발 때 서버 소유로 다시 거름 — dungeon/run.js)
 const loadPick = () => { try { const a = JSON.parse(localStorage.getItem(DG_PICK_KEY) || 'null'); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
 const savePick = p => { try { localStorage.setItem(DG_PICK_KEY, JSON.stringify(p)); } catch (e) {} };
@@ -45,7 +45,7 @@ const ownedUq = () => { const s = Acc.load(); return [...new Set([...DS.DGS.uniq
 // ---------- 던전 상점 (메달 → 재료는 우편으로, 칭호는 서버 지갑에) ----------
 function renderShop() { const p = $('dgPanel'); if (!p) return; const D = DS.DGS, on = D.st === 'ok' && !!Acc.A.user;
   const note = !Acc.A.user ? '로그인한 계정만 던전 상점을 쓸 수 있어요.' : D.st === 'missing' ? '⚠ 서버 업데이트 필요 — 관리자가 schema.sql 을 다시 실행하면 열려요.' : D.st !== 'ok' ? '서버에 연결할 수 없어요.' : '산 재료는 📮 우편함으로 와요 (받기를 눌러 수령). 가격은 서버가 정해요.';
-  p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn">✕</button><div class="gtitle">🏪 던전 상점</div><div class="labSub">던전 원정에서 모은 던전 메달로 재료를 사요</div>
+  p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn ui-x">✕</button><div class="gtitle">🏪 던전 상점</div><div class="labSub">던전 원정에서 모은 던전 메달로 재료를 사요</div>
     <div class="dgDay">🏅 던전 메달 <b id="dgShopMedals">${on ? D.medals : '-'}</b>${titleTxt() ? ` · <span class="dgTitle">${esc(titleTxt())}</span>` : ''}</div>
     <div class="dgShop">${DG_SHOP.map(it => { const stt = on ? shopState(it, D.medals, D.titles, ownedUq()) : 'off'; return `<div class="dgShopIt ${stt}${it.uq ? ' uq' : ''}" data-id="${it.id}"><span class="dgSIc">${it.icon}</span><b>${esc(it.n)}</b><small>${esc(it.desc)}</small>
       <button class="gbtn sm dgBuy" data-buy="${it.id}" ${stt === 'ok' && !buying ? '' : 'disabled'}>${stt === 'own' ? '✔ 보유 중' : `🏅 ${it.price}`}</button></div>`; }).join('')}</div>
@@ -57,7 +57,7 @@ async function buy(id) { const it = DG_SHOP_BY[id]; if (!it || buying) return; i
   if (r.ok && r.mail) Sh.refresh().catch(() => {}); if (!r.ok && DS.DGS.st === 'ok') refreshDay(); if (open && view === 'shop') renderShop(); }
 function render() { if (view === 'shop') return renderShop(); const p = $('dgPanel'); if (!p) return; const s = Acc.load(), cands = dungeonParty(c => Sh.heroOwned(c)), party = pickParty(cands, loadPick()), F = FLOORS[0];
   const paidNote = DG_PAID.filter(c => !cands.includes(c) && CLASSES[c] && !CLASSES[c].hidden).map(c => `<div class="dgCard lock"><div class="dgCH"><span class="dgIc">${CLASSES[c].icon}</span><b>${esc(CLASSES[c].nm)}</b> <small>· ${esc(CLASSES[c].n)}</small></div><div class="dgRole">${checking ? '소유 확인 중…' : '🔒 상점에서 영입하면<br>함께 출전해요'}</div></div>`).join('');
-  p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn">✕</button><div class="gtitle">⚔ 던전 원정</div><div class="labSub">카드를 눌러 출전할 영웅을 고르세요 (최대 ${DG_MAX}명) · 전투 중 초상화를 눌러 조작할 영웅을 바꾸고, 나머지는 역할대로 자동 전투해요</div>
+  p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn ui-x">✕</button><div class="gtitle">⚔ 던전 원정</div><div class="labSub">카드를 눌러 출전할 영웅을 고르세요 (최대 ${DG_MAX}명) · 전투 중 초상화를 눌러 조작할 영웅을 바꾸고, 나머지는 역할대로 자동 전투해요</div>
     <div class="dgPickN" id="dgPickN">출전 <b>${party.length}</b> / ${DG_MAX}명</div>
     <div class="dgParty">${cands.map(c => card(s, c, party.includes(c))).join('')}${paidNote}</div>
     <div class="dgInfo"><b>${FLOORS.length}개 층</b> (${esc(F.n)} → ${esc(FLOORS[FLOORS.length - 1].n)}) · 타워 없음 · 입구 4곳에서 몬스터가 영웅을 쫓아와요<br>층 사이 <b>축복 3택1</b> · 모두의 궁극기 게이지가 차면 <b>⚡ 합동 공격</b><br><small>쓰러진 영웅은 그 층을 쉬고 다음 층에 체력 30% 로 복귀 · 파티 전멸 = 실패 · 돌파한 층만큼 보상</small></div>
@@ -65,10 +65,10 @@ function render() { if (view === 'shop') return renderShop(); const p = $('dgPan
     <div class="dgGo"><button id="dgShopBtn" class="gbtn">🏪 던전 상점</button><button id="dgStart" class="gbtn main">⚔ 원정 출발</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgStart').onclick = () => depart(); $('dgShopBtn').onclick = () => { Snd.play('ui'); view = 'shop'; renderShop(); refreshDay(); }; paintDay();
   p.querySelectorAll('.dgCard.pick').forEach(b => b.onclick = () => { const r = togglePick(party, b.dataset.cls, cands); if (r.msg) { Snd.play('error'); banner(r.msg, '#ffb06a', 1100); return; } Snd.play('select'); savePick(r.pick); render(); }); }
-export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; view = 'party'; $('dgPanel').classList.remove('hidden'); Snd.play('ui'); refreshDay();
+export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; view = 'party'; DP.show(); Snd.play('ui'); refreshDay();
   if (Acc.A.user && !checking) { checking = true; render(); Sh.verifyOwned().finally(() => { checking = false; if (open) render(); }); } else render(); }
-escLayer('dungeon', 40, () => open, () => closeDungeon());
-export function closeDungeon(quiet) { if (!open) return; open = false; $('dgPanel').classList.add('hidden'); if (!quiet) Snd.play('ui'); }
+const DP = definePanel('dungeon', { id: 'dgPanel', z: 40, isOpen: () => open, close: q => closeDungeon(q) });
+export function closeDungeon(quiet) { if (!open) return; open = false; DP.hide(); if (!quiet) Snd.play('ui'); }
 // 출발: 로그인 계정은 서버 입장 등록(하루 3회) 성공 때 메달 원정, 게스트·서버 업데이트 전·오프라인은 연습 원정. 횟수 초과·정지는 출발 막음
 async function depart() { if (departing) return; departing = true; const b = $('dgStart'); if (b) { b.disabled = true; b.textContent = '입장 확인 중…'; }
   const r = await DS.dgStart(); G.dgEntry = r;

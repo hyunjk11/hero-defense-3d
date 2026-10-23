@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { $, QS } from '../core/util.js';
 import { askConfirm } from './confirm.js';
 import { escLayer, typing } from './keys.js';
+import { definePanel } from './panel.js';
 import { go } from '../core/nav.js';
 import { CLASSES, VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
@@ -126,8 +127,9 @@ let blessOpen = false, blessNear = false, blessTab = 'perm';
 const heroRingColor = () => { if (!th || !th.ring) return; const s = Acc.load(), A = AD.advOf(th.cls, s.adv[th.cls]); th.ring.material.color.setHex(A ? A.col : CLASSES[th.cls].color); }; // 전직 칭호 색 (마을 단상 영웅 발밑 링)
 function setBlessTab(t) { blessTab = t === 'adv' ? 'adv' : 'perm'; document.querySelectorAll('#blessTabs .ftab').forEach(b => b.classList.toggle('on', b.dataset.bt === blessTab)); $('twPerm').classList.toggle('hidden', blessTab !== 'perm'); $('twAdv').classList.toggle('hidden', blessTab !== 'adv'); $('twBless').classList.toggle('advMode', blessTab === 'adv'); if (blessTab !== 'adv') { resetAdvPreview(); endPv(); } refreshTown(); }
 G.blessTab = setBlessTab;
-function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeShopUI(); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); closeLab(true); $('twBless').classList.remove('hidden'); refreshTown(); }
-function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; $('twBless').classList.add('hidden'); closeAdvConfirm(); resetAdvPreview(); endPv(); }
+function openBless() { if (G.screen !== 'town') return; if (!blessOpen) { Snd.play('confirm'); Snd.play('levelUp', { vol: .35 }); } blessOpen = true; closeShopUI(); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); closeLab(true); BP.show(); refreshTown(); }
+function closeBless() { if (blessOpen) Snd.play('ui'); blessOpen = false; BP.hide(); closeAdvConfirm(); resetAdvPreview(); endPv(); }
+const BP = definePanel('bless', { id: 'twBless', z: 40, isOpen: () => blessOpen, close: () => closeBless() });
 G.openBlessing = openBless; G.closeBlessing = closeBless;
 G.townHero = () => th && { x: th.g.position.x, z: th.g.position.z, cls: th.cls, key: th.key, acts: Object.keys(th.acts || {}), fallback: !!th.fallback };
 G.townTeleport = (x, z) => { if (th) { th.g.position.set(x, 0, z); th.goal = null; } };
@@ -231,7 +233,7 @@ function bindUI() {
   initLab({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   initStats({ beforeOpen: () => { closeDungeon(true); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); } }); // 📊 능력치 (마을 패널 · 전투 C 키)
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
-  escLayer('bless', 40, () => blessOpen, () => closeBless()); escLayer('advConfirm', 60, () => !$('advConfirm').classList.contains('hidden'), () => closeAdvConfirm());
+  escLayer('advConfirm', 60, () => !$('advConfirm').classList.contains('hidden'), () => closeAdvConfirm());
 }
 function syncSet() { const C = Snd.cfg; $('stBgm').value = Math.round(C.bgm * 100); $('stSfx').value = Math.round(C.sfx * 100); $('stBgmOn').checked = C.bgmOn; $('stSfxOn').checked = C.sfxOn; $('stBgMute').checked = C.bgMute !== false; }
 

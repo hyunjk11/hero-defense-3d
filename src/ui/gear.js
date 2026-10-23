@@ -2,6 +2,7 @@
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
 import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import { askConfirm } from './confirm.js';
 import { CLASSES, HERO_KEYS, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
@@ -54,8 +55,9 @@ export function bonusHtml(b) { const e = Object.entries(b); return e.length ? e.
 export function heroDots(s, h) { return E.SLOT_KEYS.map(sl => { const it = s.inv.find(x => x.id === (s.eq[h] || {})[sl]); return `<i class="dot" style="background:${it ? GCi(it) : '#3a3450'}" title="${E.SLOTS[sl]}"></i>`; }).join(''); }
 
 // ---------- 가방 ----------
-export function openInv() { closeLab(true); closeStats(); ui.inv = true; $('invPanel').classList.remove('hidden'); Snd.play('ui'); closeSmith(true); renderInv(); }
-export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; $('invPanel').classList.add('hidden'); hideTip(); }
+export function openInv() { closeLab(true); closeStats(); ui.inv = true; IP.show(); Snd.play('ui'); closeSmith(true); renderInv(); }
+export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; IP.hide(); hideTip(); }
+const IP = definePanel('inv', { id: 'invPanel', z: 41, isOpen: () => ui.inv, close: () => closeInv() });
 function renderInv() {
   if (!ui.inv) return; const s = S(), h = s.hero, eq = s.eq[h] || {};
   $('invTabs').innerHTML = [['bag', '🎒 가방'], ['codex', '📖 도감']].map(([k, n]) => `<button class="ftab ${ui.invTab === k ? 'on' : ''}" data-v="${k}">${n}${k === 'codex' && codexClaimable(s) ? ' <i class="newDot"></i>' : ''}</button>`).join('');
@@ -85,8 +87,9 @@ export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; 
 export function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------
-export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
-export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; $('smithPanel').classList.add('hidden'); hideTip(); }
+export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; SMP.show(); closeInv(); renderSmith(); }
+export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; SMP.hide(); hideTip(); }
+const SMP = definePanel('smith', { id: 'smithPanel', z: 40, isOpen: () => ui.smith, close: s => closeSmith(s) });
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');
 // Q-8 (2026-10-23): 전투력 변화 한 줄 (장착 버튼 옆 · 강화 미리보기). a 없음 = 빈 칸에 장착
 const pwrLine = (a, b, pre = '') => { const p0 = a ? E.power(a) : 0, p1 = E.power(b), d = p1 - p0; return `<div class="pwrLine">${pre}전투력 ${a ? `${p0} → ` : ''}<b>${p1}</b> <span class="${d > 0 ? 'gup' : d < 0 ? 'gdown' : ''}">(${d > 0 ? '+' : ''}${d})</span></div>`; };
@@ -281,6 +284,6 @@ function renderCodex(s) {
 export function refreshGear() { renderInv(); renderSmith(); }
 function bind() {
   $('invClose').onclick = () => closeInv(); $('smClose').onclick = () => closeSmith();
-  escLayer('reveal', 90, () => revealing(), () => {}); escLayer('inv', 41, () => ui.inv, () => closeInv()); escLayer('smith', 40, () => ui.smith, () => closeSmith());
+  escLayer('reveal', 90, () => revealing(), () => {});
   addEventListener('keydown', e => { if (e.key.toLowerCase() === 'i' && document.activeElement?.tagName !== 'INPUT' && !$('scr_town').classList.contains('hidden')) ui.inv ? closeInv() : openInv(); });
 }

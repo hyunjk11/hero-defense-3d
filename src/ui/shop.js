@@ -3,14 +3,14 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
-import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { ensureModels, heroAssets, makeHeroModel, modelsReady, play } from '../render/characters.js';
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import { SHOP, PAY_INFO } from '../config/shop.js';
-import { openAdmin, closeAdmin, renderAdmin, adminOpen, initAdmin } from './admin.js';
+import { openAdmin, closeAdmin, renderAdmin, initAdmin } from './admin.js';
 export { openAdmin, closeAdmin };
 
 const fmtD = s => { const d = new Date(s); return isNaN(d) ? '' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -59,8 +59,9 @@ export function updShop(dt) {
 }
 
 // ---------- 상점 ----------
-export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (PKEYS.includes(k)) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
-export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; $('shopPanel').classList.add('hidden'); }
+export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (PKEYS.includes(k)) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; SHP.show(); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
+export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; SHP.hide(); }
+const SHP = definePanel('shop', { id: 'shopPanel', z: 40, isOpen: () => ui.shop, close: s => closeShop(s) });
 function itemState(k) {
   const A = Acc.A, st = Sh.S.status;
   if (!A.user) return { cls: 'guest', btn: '🔒 로그인 후 구매 가능', dis: true, note: '게스트는 구매할 수 없어요. 메뉴에서 로그인해 주세요.' };
@@ -97,8 +98,9 @@ async function buy(k) {
 }
 
 // ---------- 우편함 ----------
-export function openMail() { if (!ui.mail) Snd.play('confirm'); hooks.closeOthers('mail'); ui.mail = true; $('mailPanel').classList.remove('hidden'); renderMail(); if (Acc.A.user) Sh.refresh().then(render); }
-export function closeMail(silent) { if (ui.mail && !silent) Snd.play('ui'); ui.mail = false; $('mailPanel').classList.add('hidden'); }
+export function openMail() { if (!ui.mail) Snd.play('confirm'); hooks.closeOthers('mail'); ui.mail = true; MP.show(); renderMail(); if (Acc.A.user) Sh.refresh().then(render); }
+export function closeMail(silent) { if (ui.mail && !silent) Snd.play('ui'); ui.mail = false; MP.hide(); }
+const MP = definePanel('mail', { id: 'mailPanel', z: 42, isOpen: () => ui.mail, close: s => closeMail(s) });
 function renderMail() {
   if (!ui.mail) return; const A = Acc.A, st = Sh.S.status, L = Sh.S.mail; let h = '';
   if (!A.user) h = '<div class="emptyMsg">로그인한 계정만 우편을 받을 수 있어요.</div>';
@@ -124,7 +126,6 @@ export function initShop(h) {
   $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); initAdmin({ closeOthers: k => hooks.closeOthers(k), onChange: () => hooks.onChange() });
   $('twMail').onclick = () => { if (ui.mail) closeMail(); else openMail(); }; $('twAdmin').onclick = () => openAdmin(); $('mnAdmin').onclick = () => openAdmin();
   Sh.onShop(() => render()); Acc.onChange(() => badge());
-  escLayer('admin', 50, () => adminOpen(), () => closeAdmin()); escLayer('mail', 42, () => ui.mail, () => closeMail()); escLayer('shop', 40, () => ui.shop, () => closeShop());
   badge();
 }
 G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };

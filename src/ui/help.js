@@ -14,7 +14,7 @@ export const helpOpen = () => !!el && !el.classList.contains('hidden');
 export function openHelp() {
   if (!el) { el = document.createElement('div'); el.id = 'keyHelp'; el.className = 'hidden'; el.onclick = e => { if (e.target === el) closeHelp(); }; document.body.appendChild(el); }
   const w = where(), secs = [...HELP].sort((a, b) => (b.id === w) - (a.id === w));
-  el.innerHTML = `<div class="khBox gpanel" role="dialog" aria-label="단축키 안내"><div class="khHead"><b>⌨ 단축키 안내</b><button class="xbtn" id="khClose" aria-label="닫기">✕</button></div><div class="khCols">${secs.map(s => `<section class="khSec ${s.id === w ? 'now' : ''}" data-s="${s.id}"><h3>${s.t}${s.id === w ? ' <small>지금 화면</small>' : ''}</h3>${s.k.map(([k, d]) => `<div class="khRow"><kbd>${k}</kbd><span>${d}</span></div>`).join('')}</section>`).join('')}</div><div class="khFoot">H 또는 ? 로 열고 닫기</div></div>`;
+  el.innerHTML = `<div class="khBox gpanel" role="dialog" aria-label="단축키 안내"><div class="khHead"><b>⌨ 단축키 안내</b><button class="xbtn ui-x" id="khClose" aria-label="닫기">✕</button></div><div class="khCols">${secs.map(s => `<section class="khSec ${s.id === w ? 'now' : ''}" data-s="${s.id}"><h3>${s.t}${s.id === w ? ' <small>지금 화면</small>' : ''}</h3>${s.k.map(([k, d]) => `<div class="khRow"><kbd>${k}</kbd><span>${d}</span></div>`).join('')}</section>`).join('')}</div><div class="khFoot">H 또는 ? 로 열고 닫기</div></div>`;
   $('khClose').onclick = () => closeHelp(); el.classList.remove('hidden');
 }
 export function closeHelp() { if (el) el.classList.add('hidden'); }
