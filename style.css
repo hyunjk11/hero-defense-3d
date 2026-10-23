@@ -232,7 +232,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .scBox{text-align:center;color:var(--ink);animation:panelIn2 .5s cubic-bezier(.3,1.6,.5,1)}@keyframes panelIn2{from{transform:scale(.5);opacity:0}}
 .scT{font-size:44px;font-weight:900;color:var(--gold-txt);text-shadow:0 0 20px #ffb03a,0 3px 0 #6a3a00;letter-spacing:4px}.scS{font-size:16px;color:#d8c8a0;margin-bottom:10px}
 .scStars{display:flex;gap:14px;justify-content:center;margin:10px 0}.scStars i{font-style:normal;font-size:70px;color:#3a3450;text-shadow:0 3px 0 #0008;transform:scale(0);animation:starIn .5s cubic-bezier(.3,1.8,.5,1) forwards}.scStars i.on{color:var(--gold-glow);text-shadow:0 0 24px #ffb03a,0 3px 0 #8a5a00}
-@keyframes starIn{to{transform:scale(1)}}.scConds div{color:#a898c0;font-size:13px}.scConds .got{color:var(--gold-txt)}.scRw{margin:12px 0;font-size:15px}.scRw b{color:#d8b0ff}.scBox .gbtn{padding:12px 30px;font-size:17px}
+@keyframes starIn{to{transform:scale(1)}}.scConds div{color:#a898c0;font-size:13px}.scConds .got{color:var(--gold-txt)}.scRw{margin:12px 0;font-size:15px}.scRw b{color:#d8b0ff}.scBox .gbtn{padding:12px 30px;font-size:17px}.scBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}.scBtns .gbtn{margin:0}
 /* 버튼 안쪽 요소가 다시 그려져도 클릭 대상은 항상 버튼 */
 .up *,.perm *,.hcard *,.gbtn *,.snode *,.chtab *{pointer-events:none}
 /* ===== 가로 태블릿 · 터치 대응 ===== */

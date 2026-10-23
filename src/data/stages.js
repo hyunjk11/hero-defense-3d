@@ -79,6 +79,8 @@ const bossOf = ch => { const C = CHAPTERS.find(c => c.id === ch); return C && C.
 export function hardChapterUnlocked(save, ch) { const B = bossOf(ch); return !!B && chapterUnlocked(save, ch) && stars(save, B.id) > 0; }
 export const hardChapterCleared = (save, ch) => { const B = bossOf(ch); return !!B && hstars(save, B.id) > 0; }; // 하드 보스 클리어 = 챕터 하드 정복 배지
 export function hardUnlocked(save, id) { const S = STAGES[id]; if (!S || !hardChapterUnlocked(save, S.ch)) return false; if (S.idx === 0 || hstars(save, id) > 0) return true; const C = CHAPTERS.find(c => c.id === S.ch); return hstars(save, C.stages[S.idx - 1].id) > 0; }
+// Q-6 (2026-10-23): 결과 화면 '다음 스테이지' — 같은 장 다음 칸, 장 마지막이면 다음 장 첫 칸. 열려 있을 때만 (하드는 하드 해금 기준), 없으면 null
+export function nextStage(save, id, hard = false) { const ids = CHAPTERS.flatMap(c => c.stages.map(s => s.id)), i = ids.indexOf(id), n = i >= 0 ? ids[i + 1] : undefined; if (n == null) return null; return (hard ? hardUnlocked(save, n) : stageUnlocked(save, n)) ? n : null; }
 export const hardLockText = ch => `🔒 노말 ${stageNo(bossOf(ch) ? bossOf(ch).id : '')} 보스를 처치하면 하드가 열려요`;
 // 스테이지 보상 영혼석: 하드 = 노말의 HARD.souls 배 (첫 클리어·재도전 모두)
 export const stageRewardH = (id, first, hard) => stageReward(id, first) * (hard ? HARD.souls : 1);
