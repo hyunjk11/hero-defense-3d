@@ -14,7 +14,7 @@ import { UQ } from '../data/items.js';
 import { FLOORS, ROLE, BLESS_BY, ULT_MAX, DG_PICK_KEY, dungeonParty, pickParty, waveList, dungeonReward, nextFloorHp, blessChoices, blessMods, ultGain, jointReady, jointDamage } from '../data/dungeon.js';
 import { FT, isRangedFoe } from '../data/fighter.js';
 import { later } from '../core/state.js';
-import { P as PT, PB, emit, ringFx } from '../render/vfx.js';
+import { P as PT, PB, emit, ringFx, setDmgCap } from '../render/vfx.js';
 import { play } from '../render/characters.js';
 import * as AD from '../data/advance.js';
 import * as E from '../account/equip.js';
@@ -41,7 +41,7 @@ export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), l
 
 // 입장 화면에서 고른 파티 (이 기기 localStorage, 소유는 위에서 서버로 다시 확인)
 export const loadPick = () => { try { const a = JSON.parse(localStorage.getItem(DG_PICK_KEY) || 'null'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 8) : null; } catch (e) { return null; } };
-export async function startDungeonRun() {
+export async function startDungeonRun() { setDmgCap(30); // U-11: 던전 피해 숫자 동시 표시 상한 30 (전투 60)
   $('loadTxt').textContent = '파티 확인 중…'; $('loading').classList.remove('hidden');
   D.entry = DS.takeEntry(); G.dgEntryMode = D.entry.mode; // 5단계: 출발 때 서버가 준 1회용 입장 token (없으면 연습 원정 — 메달 없음)
   await Sh.verifyOwned(); // 로즈: 서버 소유 기록(hd3d_owned)만 믿음 — 저장 데이터의 영웅 값은 쓰지 않음

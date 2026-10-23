@@ -1,6 +1,7 @@
 import { Snd } from '../audio/audio.js';
 import { rand, rnd } from '../core/util.js';
-import { SPAWN, SPAWNS, tileX, tileZ, GW, STAGE } from '../core/grid.js';
+import { SPAWN, SPAWNS, tileX, tileZ, GW, STAGE, DUNGEON } from '../core/grid.js';
+const DN_MERGE = .15; // U-11 던전 피해 숫자 합치기 창 (초)
 import { ETYPES } from '../data/monsters.js';
 import { G, later } from '../core/state.js';
 import { scene } from '../render/scene.js';
@@ -79,7 +80,9 @@ function hurt0(e, dmg, color = '#fff', big = false, src = null) {
     G.stats.blocked = (G.stats.blocked || 0) + dmg * (1 - sk); if (!(e.blockTxt > G.t)) { e.blockTxt = G.t + .6; p.y += e.E.h * .55 + .3; dmgText(p, '막음!', '#9ad4ff'); } }
   else Snd.play(armorOf(e) ? 'hitArmor' : 'hit', { pos: e.g.position });
   if (sk !== 1) { dmg *= sk; if (sk < .5) { dmg = armorDmg(e, dmg); if (e.shield > 0) dmg = absorbShield(e, dmg); e.hp -= dmg; e.flash = .05; if (e.hp <= 0) killEnemy(e); return; } } dmg = armorDmg(e, dmg);
-  if (e.shield > 0) { dmg = absorbShield(e, dmg); if (dmg <= 0) { e.flash = .05; return; } } e.hp -= dmg; e.flash = .09; const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; dmgText(p, dmg, color, big);
+  if (e.shield > 0) { dmg = absorbShield(e, dmg); if (dmg <= 0) { e.flash = .05; return; } } e.hp -= dmg; e.flash = .09;
+  if (DUNGEON && e.dnEl && e.dnT > G.t && e.dnEl.isConnected) { e.dnSum += dmg; e.dnEl.textContent = Math.round(e.dnSum); e.dnEl.classList.add('sum'); } // U-11: 던전 — 같은 대상 0.15초 안 피해는 한 숫자로 합침
+  else { const p = enemyAim(e); p.y += e.E.fly ? .8 : e.E.h * .55; const el = dmgText(p, dmg, color, big); if (DUNGEON) { e.dnEl = el; e.dnSum = dmg; e.dnT = G.t + DN_MERGE; } }
   if (e.hp <= 0) killEnemy(e);
 }
 // 방어력 (서리 골렘: 깨지기 전 피해 누적, 서리늑대: 무리 감소 포함). 능력 없는 몬스터는 기존 1 - E.armor 그대로
