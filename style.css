@@ -757,3 +757,9 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #cam .camGrp2{margin-left:14px}
 /* Q-4a 알림 배지 (2026-10-23): 받을 도감 보상이 있으면 🎒 가방 버튼 오른쪽 위 빨간 점 (.ui-badge 모양 = .newDot) */
 #twBag{position:relative}#twBag.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
+/* U-5b 패배 화면 #over 를 클리어 결과 카드(#stageClear)와 같은 모양으로 (2026-10-23): 같은 배경·등장 애니메이션·버튼 줄 [🔁 재도전][📊 통계][🏠 마을] (id 그대로, 버튼은 .overBtns 한 줄) */
+#over{z-index:var(--z-result);background:radial-gradient(circle,#3a1020cc,#05030cf0);text-align:center;color:var(--ink);padding:16px}#over>*{animation:panelIn2 .5s cubic-bezier(.3,1.6,.5,1)}
+#over h1{text-shadow:0 0 24px #ff4a5a88,0 3px 0 #3a0810}#overTxt{font-size:16px;color:var(--txt);margin:10px 0 4px}
+.overBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
+#over .overBtns button{margin:0;padding:12px 26px;font-size:17px;font-weight:bold;border-radius:var(--r-btn);border:1px solid var(--gold-line);background:linear-gradient(var(--btn-top),var(--btn-bot));color:var(--ink);min-height:var(--hit)}
+#over .overBtns #overRetry{background:linear-gradient(#c0304a,#6a1020);border-color:var(--gold-hi)}#over .overBtns #overStats{background:linear-gradient(#3a3a6a,#1c1c40)}
