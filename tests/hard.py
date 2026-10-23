@@ -29,7 +29,7 @@ def boot(b, vw, vh, save_js=None):
     pg.mouse.click(vw // 2, vh // 2); pg.wait_for_timeout(300); pg.click('#lgGuest'); pg.wait_for_timeout(300); pg.click('#mnNew'); pg.wait_for_function("()=>window.G&&G.screen==='town'", timeout=60000); pg.wait_for_timeout(400)
     if save_js: J(pg, "()=>{ G.gear.Acc.store(" + save_js + "); }")
     return c, pg
-def shot(pg, path): J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(600); pg.screenshot(path=path); J(pg, "()=>G.pauseRender=false")
+def shot(pg, path): J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(600); pg.screenshot(path=path, timeout=240000); J(pg, "()=>G.pauseRender=false")
 def open_map(pg, ch):
     J(pg, "()=>G.stageSel.openStageSel()"); pg.wait_for_timeout(250); pg.click(f'.chtab[data-c="{ch}"]'); pg.wait_for_timeout(250)
 def go_stage_wait(pg):
@@ -82,7 +82,7 @@ with sync_playwright() as pw:
             J(pg, "()=>{ G.wave=2; G.gold=5000; }"); pg.wait_for_timeout(1500)
             wp = J(pg, "()=>{ const W=document.getElementById('wavePrev'), p=G.wavePrev(); return { cls: W.className, el: W.querySelectorAll('.wpRow.elite, .wpI.elite').length, txt: W.innerText, p: p.elite }; }")
             ok('preview_elite', wp['p'] and wp['p']['n'] == 1 and wp['el'] >= 1 and 'hard' in wp['cls'] and '정예' in wp['txt'], wp)
-            J(pg, "()=>{ G.pauseRender=true; }"); pg.wait_for_timeout(400); pg.screenshot(path=f'{OUT}/ingame_preview_1440x860.png'); J(pg, "()=>{ G.pauseRender=false; }")
+            J(pg, "()=>{ G.pauseRender=true; }"); pg.wait_for_timeout(400); pg.screenshot(path=f'{OUT}/ingame_preview_1440x860.png', timeout=240000); J(pg, "()=>{ G.pauseRender=false; }")
             # 3웨이브 시작 → 정예 출현
             J(pg, "()=>{ G.startWave(); }"); q = J(pg, "()=>({ n: G.spawnE ? G.spawnE.filter(Boolean).length : -1, len: G.spawnQ.length, elen: G.spawnE ? G.spawnE.length : -1, hpMul: G.hpMul })")
             ok('wave3_elite_queue', q['n'] == 1 and q['len'] == q['elen'], q)
@@ -95,7 +95,7 @@ with sync_playwright() as pw:
             ok('hard_monster_speed', nrm and abs(nrm[0]['spd'] / nrm[0]['bs'] - 1.1) < .01, nrm)
             # 정예를 화면 가운데로 (스크린샷)
             J(pg, "()=>{ G.manual=false; const e=G.enemies.find(x=>x.elite&&!x.dead); if (e) { G.cam.target.set(e.g.position.x, 0, e.g.position.z); G.cam.r = 22; } }"); pg.wait_for_timeout(2500)
-            pg.screenshot(path=f'{OUT}/ingame_hard_elite_1440x860.png')
+            J(pg, "()=>{ G.pauseRender=true; }"); pg.wait_for_timeout(400); pg.screenshot(path=f'{OUT}/ingame_hard_elite_1440x860.png', timeout=240000); J(pg, "()=>{ G.pauseRender=false; }")
             # 정예 처치 → 클리어
             J(pg, "()=>{ G.manual=true; for (const e of [...G.enemies]) if (!e.dead && e.elite) G.hurt(e,1e9,'#fff',false); G.sim(.5); }"); ek = J(pg, "()=>G.eliteKills"); ok('elite_kill_counted', ek == 1, ek)
             s0 = J(pg, "()=>G.gear.Acc.load()"); finish_stage(pg, 10)
