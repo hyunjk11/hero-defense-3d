@@ -23,7 +23,9 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     for vw, vh, touch in ((1024, 600, True), (1440, 860, False)):
         tag = f'{vw}x{vh}'; c, pg = town(b, vw, vh, touch)
-        ok(f'{tag} rail_visible', vis(pg, 'twRail') and pg.locator('#twRail .railBtn:not(.hidden)').count() == 5)
+        ok(f'{tag} rail_visible', vis(pg, 'twRail') and pg.locator('#twRail .railBtn:not(.hidden)').count() == 7)
+        # U-9b: .twLeft = 영웅 목록만 — 가방·능력치·상자는 레일 (id 그대로)
+        ok(f'{tag} u9b_left_heroes_only', J(pg, "()=>!document.querySelector('.twLeft #twBag,.twLeft #twStats,.twLeft #twChest') && !!document.querySelector('#twRail #twBag') && !!document.querySelector('#twRail #twStats') && !!document.querySelector('#twRail #twChest') && !!document.querySelector('.twLeft #twHeroes')"))
         r = J(pg, """()=>{ const R=e=>e.getBoundingClientRect(), rail=R(document.getElementById('twRail')), hit=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
           const others=['.twTop','.twBottom','.twLeft'].map(s=>document.querySelector(s)).filter(Boolean).map(R);
           return { inView: rail.top>=0&&rail.bottom<=innerHeight&&rail.right<=innerWidth, overlaps: others.filter(o=>hit(rail,o)).length,
@@ -46,12 +48,23 @@ with sync_playwright() as pw:
             # Q-4a: 🎒 가방 배지 = codexClaimable(현재 저장) 과 같음
             q = J(pg, "async ()=>{ const m=await import('./src/ui/gear.js'); return [m.codexClaimable(G.gear.Acc.load()), document.getElementById('twBag').classList.contains('hasNew')] }")
             ok(f'{tag} q4_bag_badge_matches_codex', q[0] == q[1], q)
+            # 레일 배지 (연구 가능 · 축복 가능) = railBadges(현재 저장): 영혼석·재료 주면 켜지고, 0 이면 꺼짐
+            for souls, mat in ((5000, 500), (0, 0)):
+                J(pg, f"()=>{{ G.gear.Acc.update(d=>({{...d, souls:{souls}, mat:{{...d.mat, steel:{mat}, crystal:{mat}}}}})); }}"); pg.wait_for_timeout(1500)
+                q = J(pg, "async ()=>{ const m=await import('./src/ui/flow.js'), s=G.gear.Acc.load(), rb=m.railBadges(s, s.hero); const on=k=>document.querySelector(`#twRail .railBtn[data-go=\"${k}\"]`).classList.contains('hasNew'); return [rb.lab, on('lab'), rb.bless, on('bless')] }")
+                ok(f'{tag} rail_badges_souls{souls}', q[0] == q[1] and q[2] == q[3] and q[0] == (souls > 0) and q[2] == (souls > 0), q)
+            # 가방 버튼은 레일에서도 가방을 엶
+            pg.click('#twBag'); pg.wait_for_timeout(600); ok(f'{tag} u9b_bag_opens', vis(pg, 'invPanel')); pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
         c.close()
     # U-7a 전투 HUD 키 배지 C·P·F
     c = b.new_context(viewport={'width': 1024, 'height': 600}, has_touch=True); c.add_init_script(MOCK); pg = c.new_page(); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     pg.goto(url + '?seed=12345'); pg.wait_for_function("()=>window.G&&G.ready", timeout=120000)
     k = J(pg, "()=>['statBtn','pauseBtn','speedBtn'].map(id=>getComputedStyle(document.getElementById(id),'::after').content)")
     ok('u7_key_badges', k == ['"C"', '"P"', '"F"'], k)
+    # U-7b: 오른쪽 아래 #cam = 흐름 3개, 오른쪽 위 #camTop = ⟲ ⟳ ♬ (#top 알약 줄·#ups 와 안 겹침)
+    t = J(pg, """()=>{ const R=s=>document.querySelector(s).getBoundingClientRect(), hit=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom, ct=R('#camTop');
+      return [[...document.querySelectorAll('#cam button')].map(b=>b.id).join(','), [...document.querySelectorAll('#camTop button')].map(b=>b.id).join(','), ct.top < innerHeight/4 && ct.right <= innerWidth, hit(ct,R('#top')), hit(ct,R('#ups'))] }""")
+    ok('u7b_hud_groups', t[0] == 'statBtn,pauseBtn,speedBtn' and t[1] == 'rotL,rotR,sndBtn' and t[2] and not t[3] and not t[4], t)
     c.close(); b.close()
 ok('no_page_errors', not [e for e in errs if e.startswith('PE')], errs[:3])
 print('FAILED:', [k for k, v in res.items() if not v] or 'none'); sys.exit(0 if all(res.values()) else 1)
