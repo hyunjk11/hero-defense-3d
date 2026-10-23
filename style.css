@@ -637,7 +637,7 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .tlabel{transition:opacity .2s}.tlabel.under{opacity:.22}
 /* ===== 반응형 — U-3 (2026-10-23): 흩어져 있던 @media 블록을 질의별로 한 곳에 (원래 순서 유지). 순서: 좁은 화면(1100/800) → 높이 800 → 폭 → 높이 700·680·640 → 터치(hover:none · pointer:coarse, 마지막 = 48px 규칙이 이김) ===== */
 @media (max-width:1100px), (max-height:800px){
-.pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:11px}.pill b{font-size:15px}.gold b{font-size:17px}
+.pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:11px}.pill b{font-size:15px}.gold b{font-size:17px}.mailBtn{font-size:inherit} /* U-3: 원래 .mailBtn{font:inherit} 가 이 규칙 뒤에 있어 이겼음 — 블록 이동 후에도 같게 */
   .twTop,#top{top:calc(8px + env(safe-area-inset-top));gap:6px}
   .twAcct{top:calc(48px + env(safe-area-inset-top))}
   .twLeft{top:calc(64px + env(safe-area-inset-top));width:206px;padding:10px;gap:5px;max-height:calc(100dvh - 150px)}
