@@ -274,4 +274,3 @@ export function initAdmin(h) {
   body.addEventListener('change', e => { const t = e.target.closest('[data-change]'); if (t && ACT[t.dataset.change]) ACT[t.dataset.change](t); });
   $('admConfirm').addEventListener('click', e => { if (e.target.id === 'admConfirm') $('acfNo').click(); });
 }
-export const _adminState = () => st; // 테스트용
