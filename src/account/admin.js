@@ -12,7 +12,6 @@ export async function call(fn, args = {}) {
   if (data && data.ok === false) { const nh = data.reason === 'bad_reward' && args.p_reward && args.p_reward.hero === 'fighter'; /* 새 영웅 보상인데 서버 검사 구버전 */ return { ok: false, reason: data.reason, count: data.count, outdated: nh || undefined, msg: nh ? L.UPDATE_MSG + ' (격투가 서윤)' : L.reasonMsg(data.reason) }; }
   return { ok: true, data };
 }
-export const myStatus = () => call('hd3d_my_status');
 export const users = (q, off = 0, lim = 20) => call('hd3d_admin_users', { p_query: q || '', p_offset: off, p_limit: lim });
 export const user = id => call('hd3d_admin_user', { p_user: id });
 // 클라이언트가 아는 상품인데 서버가 bad_item → 새 영웅(예: 격투가 서윤 hero_fighter) 추가 후 schema.sql 미실행 → '서버 업데이트 필요'
