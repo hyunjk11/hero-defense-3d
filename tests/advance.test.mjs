@@ -2,8 +2,8 @@
 import * as A from '../src/data/advance.js';
 import { CLASSES, VISIBLE_HEROES, HERO_KEYS, isHidden } from '../src/data/heroes.js';
 import assert from 'node:assert/strict';
-// 보이는 영웅은 분기 2개 (칭호·아이콘·설명·Q 스킬·타워 보너스) 또는 전직 없음(서윤: 전직 '준비 중'), 숨긴 영웅(버들)은 예약만
-const NO_ADV = ['fighter']; for (const h of NO_ADV) { assert.ok(!A.ADV[h] && A.branchesOf(h).length === 0 && !A.ADV_HEROES.includes(h), h); assert.equal(A.advOf(h, { b: 'x' }), null); assert.equal(A.advBlock({}, h), '전직할 수 없는 영웅'); }
+// 보이는 영웅은 분기 2개 (칭호·아이콘·설명·Q 스킬·타워 보너스) 또는 전직 없음(지금은 없음 — 서윤은 2026-10-24 전직 추가), 숨긴 영웅(버들)은 예약만
+const NO_ADV = []; for (const h of NO_ADV) { assert.ok(!A.ADV[h] && A.branchesOf(h).length === 0 && !A.ADV_HEROES.includes(h), h); assert.equal(A.advOf(h, { b: 'x' }), null); assert.equal(A.advBlock({}, h), '전직할 수 없는 영웅'); }
 for (const h of VISIBLE_HEROES.filter(h => !NO_ADV.includes(h))) { const bs = A.branchesOf(h); assert.equal(bs.length, 2, h); assert.ok(A.ADV_HEROES.includes(h));
   for (const b of bs) { const X = A.ADV[h][b]; assert.ok(X.n && X.icon && X.d && X.skill && X.sk && X.td && Number.isInteger(X.col) && /^#/.test(X.c), h + b); assert.ok(!X.reserved); assert.equal(X.h, h); assert.equal(X.k, b); } }
 for (const h of HERO_KEYS.filter(isHidden)) { assert.ok(!A.ADV_HEROES.includes(h)); assert.equal(A.advOf(h, { b: A.branchesOf(h)[0] }), null); assert.equal(A.branchesOf(h).length, 2); assert.ok(A.branchesOf(h).every(b => A.ADV[h][b].reserved)); }
@@ -50,4 +50,18 @@ assert.equal(A.advBlock(s, 'archer', 'wind'), '고유 정수 부족'); s.mat.ess
 s.adv = { archer: { b: 'wind', n: 1 } }; s.souls = 499; assert.equal(A.advBlock(s, 'archer', 'wind'), '현재 분기'); assert.equal(A.advBlock(s, 'archer', 'hawk'), '영혼석 부족'); s.souls = 500; assert.equal(A.advBlock(s, 'archer', 'hawk'), null);
 // 상한: 전직하면 15
 assert.equal(A.permMax(s, 'archer'), 15); assert.equal(A.permMax(s, 'mage'), 10); assert.equal(A.advTitle('archer', s.adv.archer), '실바 · 바람의 순찰자'); assert.equal(A.advTitle('mage', undefined), '');
+// 서윤 전직 (2026-10-24): 백호권성 / 천기권사 — 기본 DPS 각각 +8% (26×0.9×2.6×1.2 = 26×1.2×2.6×0.9 = 73.008), 두 분기 차이 0
+{ const T = A.ADV.fighter.tiger, D = A.ADV.fighter.dragon, F = CLASSES.fighter; assert.deepEqual(A.branchesOf('fighter'), ['tiger', 'dragon']); assert.ok(A.ADV_HEROES.includes('fighter'));
+  assert.deepEqual([T.n, T.icon, T.skill, T.sk, D.n, D.icon, D.skill, D.sk], ['백호권성', '🐯', 'tigerfury', '백호난무', '천기권사', '🐉', 'dragonwave', '천룡파']);
+  const t = A.applyAdv(F, T), d = A.applyAdv(F, D); assert.ok(Math.abs(t.dmg - 23.4) < 1e-9 && Math.abs(t.rate - 3.12) < 1e-9 && t.hp === 760 && t.armor === .25 && t.speed === 8 && t.range === 2.6 && t.skill === '백호난무');
+  assert.ok(Math.abs(d.dmg - 31.2) < 1e-9 && Math.abs(d.rate - 2.34) < 1e-9 && d.hp === 760 && d.armor === .25 && d.skill === '천룡파'); assert.equal(F.skill, '냥냥 진각'); assert.equal(F.dmg, 26);
+  const dt = A.advDps('fighter', 'tiger'), dd = A.advDps('fighter', 'dragon'), b0 = A.advDps('fighter'); assert.ok(Math.abs(dt - 73.008) < 1e-6 && Math.abs(dd - 73.008) < 1e-6 && Math.abs(b0 - 67.6) < 1e-6);
+  assert.equal(A.advTowerMods(T, 'arrow').rate, 1.05); assert.equal(A.advTowerMods(T, 'magic').rng, 1); assert.equal(A.advTowerMods(D, 'magic').rng, 1.06); assert.equal(A.advTowerMods(D, 'arrow').rate, 1);
+  assert.deepEqual(A.advModels(T), []); assert.deepEqual(A.advModels(D), []);
+  // 해금: 미보유면 불가(서버 소유권), 보유 + 조건 충족이면 가능 · 재전직 500
+  const s2 = { st: { '2-4': 1 }, heroLv: { fighter: { hp: 5, atk: 5 } }, hq: { fighter: { boss: 1 } }, souls: 1500, mat: { crystal: 20, essence: 3 }, adv: {} };
+  assert.equal(A.advBlock(s2, 'fighter', 'tiger', false), '영웅 미보유'); assert.equal(A.advBlock(s2, 'fighter', 'tiger', true), null); assert.equal(A.advBlock(s2, 'fighter', 'nope'), '알 수 없는 분기');
+  s2.adv.fighter = { b: 'tiger', n: 1 }; s2.souls = 500; assert.equal(A.advBlock(s2, 'fighter', 'dragon'), null); assert.equal(A.advBlock(s2, 'fighter', 'tiger'), '현재 분기'); assert.equal(A.permMax(s2, 'fighter'), 15); assert.equal(A.advTitle('fighter', s2.adv.fighter), '서윤 · 백호권성');
+  const P = await import('../src/account/progress.js'); const [n1, ok1] = P.buyAdv(s2, 'fighter', 'dragon', true); assert.ok(ok1); assert.deepEqual(P.clean(n1).adv.fighter, { b: 'dragon', n: 2 }); assert.equal(n1.souls, 0);
+  assert.equal(P.buyAdv(s2, 'fighter', 'dragon', false)[1], false); }
 console.log('advance tests OK');
