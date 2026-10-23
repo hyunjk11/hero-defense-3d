@@ -52,14 +52,15 @@
     <button id="skillBtn"><span id="skillName"></span><small>Q</small><div id="skillCd"></div></button>
   </div>
   <div id="sndPanel" class="hidden">
-    <div class="ptitle">소리 설정</div>
+    <div class="ptitle">⚙ 설정 <small>소리 · 그래픽 · 배속</small></div>
     <label class="snd"><input type="checkbox" id="bgmOn"> 배경음악 <input type="range" id="bgmVol" min="0" max="100"></label>
     <label class="snd"><input type="checkbox" id="sfxOn"> 효과음 <input type="range" id="sfxVol" min="0" max="100"></label>
     <label class="snd"><input type="checkbox" id="bgMute"> 백그라운드에서 음소거</label>
+    <label class="snd"><input type="checkbox" id="sndKeepSpd"> ×2 배속을 다음 판에도 유지</label>
     <div class="gfxRow"><span>그래픽</span><div class="gfxSeg"><button data-gfx="auto">자동</button><button data-gfx="high">고품질</button><button data-gfx="perf">성능</button></div></div><div class="gfxNow"></div>
     <div class="sndHint">M 키: 전체 음소거</div>
   </div>
-  <div id="cam"><button id="statBtn" data-key="C" title="능력치 · 피해 미터 (C)">📊</button><button id="pauseBtn" data-key="P" title="일시정지 (P)">&#10074;&#10074;</button><button id="speedBtn" data-key="F" title="배속 ×1 / ×2 (F)">×1</button><button id="sndBtn" class="camGrp2" title="소리 설정">&#9835;</button><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button></div>
+  <div id="cam"><button id="statBtn" data-key="C" title="능력치 · 피해 미터 (C)">📊</button><button id="pauseBtn" data-key="P" title="일시정지 (P)">&#10074;&#10074;</button><button id="speedBtn" data-key="F" title="배속 ×1 / ×2 (F)">×1</button><button id="sndBtn" class="camGrp2" title="설정 (소리 · 그래픽 · 배속)">&#9835;</button><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button></div>
   <div id="statOv" class="hidden"><button id="ovClose" class="xbtn ui-x" title="닫기 (C)">✕</button><div class="ovT">📊 능력치 <small>C</small></div><div id="ovTabs" class="ftabs"></div><div id="ovBody"></div></div>
   <div id="pauseOv" class="hidden"><div class="pBox"><div class="pT">일시정지</div><button id="pauseGo" class="gbtn main">▶ 계속하기</button><div class="pH">P 키로도 멈추고 계속할 수 있어요</div></div></div>
   <div id="help">좌클릭 이동/건설/선택 · WASD 이동 · Q 스킬 · T 워프 · R 타워 수리 · 1~5 도구 · 우클릭 드래그 회전 · 휠 확대 · Space 웨이브 · H 단축키 안내</div>
