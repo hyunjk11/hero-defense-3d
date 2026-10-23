@@ -1,3 +1,4 @@
+import { barHpAt } from '../data/towers.js';
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { T, inGrid, tileX, tileZ } from '../core/grid.js';
@@ -12,7 +13,7 @@ import { banner } from '../ui/hud.js';
 import { select } from '../ui/input.js';
 
 // ================= 바리케이드 =================
-const barMaxHp = () => 320 * (1 + .25 * G.ups.bar) * (G.advBar || 1); // 전직 성기사: 바리케이드 체력 +15%
+const barMaxHp = () => barHpAt(G.ups.bar, G.advBar || 1); // 전직 성기사: 바리케이드 체력 +15%
 const woodM = toon(0xa8703a), woodD = toon(0x6a4422), ropeM = toon(0xe0c890);
 function addBarricade(t) {
   const g = new THREE.Group(), x = tileX(t.c), z = tileZ(t.r); g.position.set(x, t.t === T.CARVED ? -.46 : 0, z); scene.add(g);

@@ -1,19 +1,18 @@
 // 상점 · 우편함 · 관리자 클라이언트 (Supabase). 유료 영웅 소유권은 서버 테이블 hd3d_owned(사용자 쓰기 불가)에서 읽은 값만 메모리에 둠 (localStorage/세이브에 저장하지 않음).
 // 테이블/함수가 아직 없으면(schema.sql 미실행) status = 'missing' → UI는 '서버 준비 중'. 게스트는 구매/우편 불가.
 import { A, ensureClient, load as accLoad, store as accStore, onChange as accOnChange, setBanned, onDenied } from './account.js';
-import { isBannedErr } from './adminlogic.js';
+import { isBannedErr, isMissingErr as isMissing } from './errors.js';
+import { ls } from '../core/store.js';
 import { applyMail } from './progress.js';
 import { itemsText } from './rewarditems.js';
 import { SHOP, ADMIN_EMAIL } from '../config/shop.js';
 import { CLASSES, DEFAULT_HERO, isHidden } from '../data/heroes.js';
 
 const T = SHOP.tables;
-const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 export const S = { status: 'idle', owned: [], ownedUid: null, orders: [], mail: [], adminOrders: [], msg: '', listeners: [], me: { st: 'idle', admin: false, owner: false, banned: false, reason: null } }; // status: idle | guest | loading | ok | missing | error
 // me = 서버 hd3d_my_status (관리자/owner/정지). st: idle | ok | missing(schema.sql 재실행 전) | error
 const emit = () => S.listeners.forEach(f => { try { f(S); } catch (e) { console.warn(e); } });
 export const onShop = f => S.listeners.push(f);
-const isMissing = e => !!e && (e.code === 'PGRST205' || e.code === 'PGRST202' || e.code === '42P01' || e.code === '42883' || e.status === 404);
 const uid = () => (A.user && A.user.id) || '';
 
 // ---------- 소유권 (서버 hd3d_owned 를 마지막으로 읽은 값, 현재 로그인 계정 것만) ----------

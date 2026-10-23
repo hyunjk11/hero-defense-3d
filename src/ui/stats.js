@@ -37,6 +37,15 @@ const STP = definePanel('statPanel', { id: 'statPanel', z: 40, isOpen: () => st.
 
 // ---------- 전투 ----------
 const liveM = h => { const a = h.adv && h.adv.atk; return { cls: h.cls, ups: G.ups, uqAtk: h.uqAtk || 1, uqRate: h.uqRateT > 0 ? h.uqRateM : 1, advLow: a && a.lowHp && h.hp <= h.max * a.lowHp ? a.lowAtk : 1, M: (G.dgM && G.dgM(h)) || NOM, robo: !!h.robo, max: h.max }; };
+// Q-7 (2026-10-24): 전투 업그레이드(#ups) "지금 → 다음" 수치 — 같은 finalStats 를 G.ups[k]+1 로 한 번 더 (barricade 는 hud 에서)
+export function upPreview(h, k) {
+  if (!h || !h.C) return ''; const m = liveM(h), a = finalStats(h.C, h.eq, m), b = finalStats(h.C, h.eq, { ...m, ups: { ...m.ups, [k]: (m.ups[k] || 0) + 1 } }), r2 = v => Math.round(v * 100) / 100;
+  if (k === 'atk') return `공격력 ${r1(a.dmg)} → ${r1(b.dmg)}`;
+  if (k === 'spd') return `초당 공격 ${r2(a.rate)} → ${r2(b.rate)}회`;
+  if (k === 'rng') return `사거리 ${r1(a.range)} → ${r1(b.range)}`;
+  if (k === 'skill') return `스킬 위력 ×${r2(a.skillMul)} → ×${r2(b.skillMul)} · 쿨 ${r1(a.cd)}초 → ${r1(b.cd)}초`;
+  return '';
+}
 export function liveStats(h) { const F = finalStats(h.C, h.eq, liveM(h)); return { F, cp: heroCP(h.cls, F) }; }
 function buffs(h, m) { const o = [], u = G.ups || {}, M = m.M;
   for (const [k, n, p] of [['atk', '공격', 15], ['spd', '공속', 10], ['rng', '사거리', 8], ['skill', '스킬', 25]]) if (u[k]) o.push(`영웅 강화 ${n} Lv.${u[k]} (+${u[k] * p}%)`);

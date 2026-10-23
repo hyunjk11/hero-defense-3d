@@ -27,10 +27,8 @@ export const REASON = {
   count_mismatch: '받는 사람 수가 바뀌었습니다. 다시 확인해 주세요.', too_soon: '방금 전체 우편을 보냈습니다. 30초 뒤에 다시 시도해 주세요.', bad_range: '종료 시각이 시작 시각보다 뒤여야 합니다.',
   not_found: '대상을 찾을 수 없습니다.', bad_status: '알 수 없는 상태입니다.', owner: '최고 관리자는 삭제할 수 없습니다.', not_admin: '관리자가 아닙니다.',
 };
+export { isMissingErr, isForbiddenErr, isBannedErr } from './errors.js'; // C-6
 export const reasonMsg = r => REASON[r] || '실패했습니다.' + (r ? ` (${r})` : '');
-export const isMissingErr = e => !!e && (e.code === 'PGRST202' || e.code === 'PGRST205' || e.code === '42P01' || e.code === '42883' || e.status === 404);
-export const isForbiddenErr = e => !!e && (e.code === '42501' || /forbidden|permission denied/i.test(e.message || ''));
-export const isBannedErr = e => !!e && (e.hint === 'banned' || /\bbanned\b/i.test(e.message || ''));
 // 페이지 표시
 export function pageInfo(total, offset, limit) { total = Math.max(0, +total || 0); limit = Math.max(1, +limit || 1); offset = Math.max(0, +offset || 0);
   const pages = Math.max(1, Math.ceil(total / limit)), page = Math.min(pages, Math.floor(offset / limit) + 1); return { page, pages, prev: page > 1 ? (page - 2) * limit : null, next: page < pages ? page * limit : null }; }

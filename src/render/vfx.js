@@ -55,10 +55,12 @@ const fx = $('fx'), v3 = new THREE.Vector3();
 function screenOf(p) { v3.copy(p).project(camera); return [(v3.x + 1) / 2 * innerWidth, (1 - v3.y) / 2 * innerHeight, v3.z < 1]; }
 let dmgCount = 0;
 function dmgText(p, val, color = '#fff', big = false) {
-  if (dmgCount > 60) return; const [x, y, ok] = screenOf(p); if (!ok) return; dmgCount++;
+  if (dmgCount > dmgCap) return null; const [x, y, ok] = screenOf(p); if (!ok) return null; dmgCount++;
   const d = document.createElement('div'); d.className = 'dmg'; d.textContent = typeof val === 'number' ? Math.round(val) : val; d.style.left = x + rnd(-12, 12) + 'px'; d.style.top = y - 20 + 'px'; d.style.color = color; if (big) d.style.fontSize = '26px';
-  fx.appendChild(d); setTimeout(() => { d.remove(); dmgCount--; }, 800);
+  fx.appendChild(d); setTimeout(() => { d.remove(); dmgCount--; }, 800); return d;
 }
+// U-11 (2026-10-24): 던전은 동시 표시 상한을 낮춤 (영웅 여럿 + 범위 공격으로 숫자가 화면을 덮던 문제) — 기본 60
+let dmgCap = 60; const setDmgCap = n => { dmgCap = n; };
 function flyCoinDom(p) {
   const [x, y, ok] = screenOf(p); if (!ok) return; const tgt = $('gold').getBoundingClientRect(); const c = document.createElement('div'); c.className = 'flycoin'; c.style.left = x + 'px'; c.style.top = y + 'px'; fx.appendChild(c);
   setTimeout(() => { c.style.left = tgt.left - 14 + 'px'; c.style.top = tgt.top + tgt.height / 2 + 'px'; c.style.transform = 'translate(-50%,-50%) scale(.6)'; }, 30);
@@ -78,4 +80,4 @@ function updFx(dt) {
     if (k >= 1) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); G.fxs.splice(i, 1); } }
 }
 
-export { P, PB, emit, updParticles, debris, updDebris, stars, dmgText, popCoins, updCoins, ringFx, updFx };
+export { P, PB, emit, updParticles, debris, updDebris, stars, dmgText, setDmgCap, popCoins, updCoins, ringFx, updFx };

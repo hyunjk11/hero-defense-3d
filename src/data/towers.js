@@ -14,5 +14,6 @@ const REPAIR_K = .45;
 
 // 바리케이드: 설치 비용 · 철거 환급 (ui/input.js 건설·철거, ui/hud.js 버튼 표시, index.html 도구 버튼 가격)
 const BARRICADE = Object.freeze({ cost: 30, refund: 15 });
+export const barHpAt = (lv, adv = 1) => 320 * (1 + .25 * lv) * adv; // 바리케이드 체력 (world/barricades.js barMaxHp · Q-7 #ups 미리보기)
 
 export { TOWERS, REPAIR_K, BARRICADE };

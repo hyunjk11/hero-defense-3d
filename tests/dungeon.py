@@ -162,6 +162,12 @@ with sync_playwright() as pw:
     r = J(pg, """()=>{ const L=G.heroes; L.forEach((h,i)=>{ h.hp=h.max; h.g.position.set(-2+i,0,1); h.path=[]; }); const e=G.spawnEnemy('imp', 1); e.hp=e.max=1e7; const d=()=>Math.min(...L.map(h=>h.g.position.distanceTo(e.g.position)));
       const savedAI=G.partyAI; G.partyAI=null; L.forEach(h=>{ h.cd=99; }); const d0=d(); G.sim(6); const d1=d(); G.partyAI=savedAI; L.forEach(h=>{ h.cd=0; }); e.dead=true; e.hb.show(false); G.enemies.length=0; return [Math.round(d0*10)/10, Math.round(d1*10)/10, e.next===null]; }""")
     ok('chase_from_entrance', r[1] < r[0] - 8 and r[1] < 3, r)
+    # U-11: 같은 대상 0.15초 안 피해 숫자는 하나로 합침 (G.t 고정 상태에서 5번 → 숫자 1개 '50') · 창이 지나면 새 숫자 · 던전 동시 상한 30
+    r = J(pg, """async()=>{ const L=G.heroes, h=L[0]; const e=G.spawnEnemy('grunt', 1, { x:h.g.position.x+1.5, z:h.g.position.z, tile:G.toTile(h.g.position.x+1.5, h.g.position.z) }); e.hp=e.max=1e7;
+      const n=()=>document.querySelectorAll('#fx .dmg').length, n0=n(); for (let i=0;i<5;i++) G.hurt(e, 10, '#fff'); const n1=n(), t1=e.dnEl&&e.dnEl.textContent, sum=!!(e.dnEl&&e.dnEl.classList.contains('sum'));
+      const el0=e.dnEl; e.dnT=G.t-1; G.hurt(e, 7, '#fff'); const fresh=e.dnEl!==el0 && e.dnEl && e.dnEl.textContent;
+      e.dead=true; e.hb.show(false); G.enemies.splice(G.enemies.indexOf(e),1); return [n1-n0, t1, sum, fresh]; }""")
+    ok('u11_dmg_merge', r[0] == 1 and r[1] == '50' and r[2] and r[3] == '7', r)
     # 일시정지 · 배속 · 탭 숨김(자동 일시정지 + 소리 끔)
     J(pg, "()=>{ G.setPaused(true); }"); ok('pause', J(pg, "()=>G.paused") and not hidden(pg, 'pauseOv')); J(pg, "()=>G.setPaused(false)")
     J(pg, "()=>G.setSpeed(2)"); ok('speed2', J(pg, "()=>G.speed") == 2 and '×2' in pg.inner_text('#speedBtn')); J(pg, "()=>G.setSpeed(1)")

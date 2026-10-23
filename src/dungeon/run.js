@@ -4,18 +4,17 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
-import { askConfirm } from '../ui/confirm.js';
 import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { waveStart, waveEnd } from '../combat/meter.js';
 import { CORE, tileX, tileZ } from '../core/grid.js';
-import { CLASSES, heroLabel } from '../data/heroes.js';
+import { CLASSES } from '../data/heroes.js';
 import { DG_TITLES } from '../data/dungeon.js';
 import { UQ } from '../data/items.js';
 import { FLOORS, ROLE, BLESS_BY, ULT_MAX, DG_PICK_KEY, dungeonParty, pickParty, waveList, dungeonReward, nextFloorHp, blessChoices, blessMods, ultGain, jointReady, jointDamage } from '../data/dungeon.js';
 import { FT, isRangedFoe } from '../data/fighter.js';
 import { later } from '../core/state.js';
-import { P as PT, PB, emit, ringFx } from '../render/vfx.js';
+import { P as PT, PB, emit, ringFx, setDmgCap } from '../render/vfx.js';
 import { play } from '../render/characters.js';
 import * as AD from '../data/advance.js';
 import * as E from '../account/equip.js';
@@ -33,6 +32,7 @@ import { heroGoTo, setControlled, spawnHero, stat } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
 import { choose, showSelect } from '../ui/select.js';
 import { banner } from '../ui/hud.js';
+import * as HUD from '../ui/dungeonhud.js';
 import { updBossFx, clearBossFx, bossDodge } from './boss.js';
 
 const D = G.dg = { floor: 0, wave: -1, q: [], spawnT: 0, gapT: 2.5, over: false, kills: 0, t: 0, swap: false, party: [], bless: {}, blessing: null, cleared: 0, joints: 0, k0: 0 };
@@ -41,7 +41,7 @@ export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), l
 
 // 입장 화면에서 고른 파티 (이 기기 localStorage, 소유는 위에서 서버로 다시 확인)
 export const loadPick = () => { try { const a = JSON.parse(localStorage.getItem(DG_PICK_KEY) || 'null'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 8) : null; } catch (e) { return null; } };
-export async function startDungeonRun() {
+export async function startDungeonRun() { setDmgCap(30); // U-11: 던전 피해 숫자 동시 표시 상한 30 (전투 60)
   $('loadTxt').textContent = '파티 확인 중…'; $('loading').classList.remove('hidden');
   D.entry = DS.takeEntry(); G.dgEntryMode = D.entry.mode; // 5단계: 출발 때 서버가 준 1회용 입장 token (없으면 연습 원정 — 메달 없음)
   await Sh.verifyOwned(); // 로즈: 서버 소유 기록(hd3d_owned)만 믿음 — 저장 데이터의 영웅 값은 쓰지 않음
@@ -99,7 +99,6 @@ function takeBless(id) { if (!D.blessing || !D.blessing.includes(id) || D.over) 
   const el = $('dgBless'); if (el) el.className = 'dgBless hidden'; (G.dgBlessLog ||= []).push(id);
   banner(`${B.icon} ${B.n}`, '#ffe9a0', 1600); startFloor(D.floor + 1, id === 'heal' ? .5 : 0, id === 'ult' ? 30 : 0); refreshTop(); }
 G.dgTakeBless = takeBless;
-function refreshTop() { const b = $('dgBl'); if (b) b.innerHTML = Object.entries(D.bless).map(([id, n]) => `<i title="${esc(BLESS_BY[id].n)}">${BLESS_BY[id].icon}${n > 1 ? `<sub>${n}</sub>` : ''}</i>`).join(''); }
 
 // ---------- 합동 공격: 살아있는 영웅 전원 궁극기 가득 → 모두 스킬 동시 시전 + 화면 전체 큰 피해 ----------
 function joint() { if (D.over || D.blessing || G.paused || !jointReady(G.heroes)) { if (!D.over && !D.blessing) Snd.play('error'); return false; }
@@ -133,31 +132,13 @@ function partyAI(h, dt) {
 }
 
 // ---------- HUD: 층 표시 + 초상화 바 ----------
-function buildHud() {
-  let top = $('dgTop'); if (!top) { top = document.createElement('div'); top.id = 'dgTop'; $('top').appendChild(top); }
-  top.className = 'pill dgTop'; top.innerHTML = `<span class="lbl">⚔ 던전${D.entry && D.entry.mode === 'practice' ? ' <i class="dgPrTag">연습</i>' : ''}</span><b id="dgFloor"></b><span id="dgBl" class="dgBl"></span><button id="dgGiveUp" class="dgGiveUp" title="원정 포기">🏳 포기</button>`;
-  $('dgGiveUp').onclick = e => { e.stopPropagation(); if (D.over) return; askConfirm({ title: '원정 포기', icon: '🏳', body: '원정을 포기하고 마을로 돌아갈까요? (보상 없음)', ok: '포기', tone: 'danger' }).then(y => { if (!y || D.over) return; D.over = true; goTownD(); }); };
-  let bar = $('dgBar'); if (!bar) { bar = document.createElement('div'); bar.id = 'dgBar'; $('hud').appendChild(bar); }
-  bar.innerHTML = G.heroes.map((h, i) => { const C = CLASSES[h.cls], A = h.adv; return `<button class="dgP" data-i="${i}" style="--hc:#${C.color.toString(16).padStart(6, '0')}" title="${esc(heroLabel(h.cls))} (${i + 1})"><span class="dgIc">${C.icon}</span><span class="dgNm">${esc(C.nm)}${A ? `<i style="color:${A.c}">${A.icon}</i>` : ''}</span><span class="dgHp"><u></u></span><span class="dgUlt"><u></u></span><span class="dgSk"></span><span class="dgKey">${i + 1}</span></button>`; }).join('');
-  bar.querySelectorAll('.dgP').forEach(b => { b.onpointerdown = e => e.stopPropagation(); b.onclick = e => { e.stopPropagation(); pick(+b.dataset.i); }; });
-  let jb = $('dgJoint'); if (!jb) { jb = document.createElement('button'); jb.id = 'dgJoint'; $('hud').appendChild(jb); } jb.className = 'dgJoint'; jb.title = '합동 공격 (Space)';
-  jb.innerHTML = '<span class="dgJf"></span><span class="dgJt">⚡ 합동 공격</span><small id="dgJp"></small>'; jb.onpointerdown = e => e.stopPropagation(); jb.onclick = e => { e.stopPropagation(); joint(); };
-  if (!$('dgFlash')) { const f = document.createElement('div'); f.id = 'dgFlash'; $('stageClear').parentNode.appendChild(f); }
-  refreshBar(); refreshTop();
-}
+const buildHud = () => HUD.buildHud({ pick, joint, giveUp: () => goTownD() }), refreshTop = HUD.refreshTop, refreshBar = HUD.refreshBar; // C-12 ui/dungeonhud.js
 function pick(i) { const h = G.heroes[i]; if (!h || D.over || G.paused) return; if (h.dead > 0) { Snd.play('error'); banner(`${CLASSES[h.cls].nm} 쓰러짐 — 조작할 수 없어요`, '#ff8a9a', 900); return; }
   if (h === G.hero) return; Snd.play('ui'); setControlled(h); h.aiGoal = null; h.aiTgt = null; refreshBar(); }
 G.dgPick = pick;
 addEventListener('keydown', e => { if (!G.dungeon || G.paused || e.repeat || D.over) return;
   if (D.blessing) { if (e.key >= '1' && e.key <= '3' && D.blessing[+e.key - 1]) takeBless(D.blessing[+e.key - 1]); return; } // 축복 고르는 중: 1~3 = 카드
   if (e.key === ' ') { e.preventDefault(); joint(); return; } if (e.key >= '1' && e.key <= '4') pick(+e.key - 1); });
-function refreshBar() { const F = FLOORS[D.floor], fl = $('dgFloor'); if (fl) fl.textContent = `${F.n} (${D.floor + 1}/${FLOORS.length}) · 웨이브 ${Math.max(1, D.wave + 1)}/${F.waves.length}`;
-  const jb = $('dgJoint'); if (jb) { const L = G.heroes.filter(h => h.dead <= 0), m = L.length ? Math.min(...L.map(h => h.ult || 0)) : 0, rd = jointReady(G.heroes) && !D.blessing; jb.classList.toggle('ready', rd); jb.disabled = !rd;
-    jb.style.setProperty('--p', Math.round(m) + '%'); const jp = $('dgJp'); if (jp) jp.textContent = rd ? 'Space' : Math.floor(m) + '%'; }
-  document.querySelectorAll('#dgBar .dgP').forEach(b => { const h = G.heroes[+b.dataset.i]; if (!h) return; b.classList.toggle('ctl', h === G.hero); b.classList.toggle('down', h.dead > 0);
-    const w = Math.max(0, h.hp / h.max) * 100 + '%', u = b.querySelector('.dgHp u'); if (u.style.width !== w) u.style.width = w;
-    const uw = (h.dead > 0 ? 0 : Math.round(h.ult || 0)) + '%', uu = b.querySelector('.dgUlt u'); if (uu.style.width !== uw) uu.style.width = uw; b.classList.toggle('ultFull', h.dead <= 0 && (h.ult || 0) >= ULT_MAX); b.querySelector('.dgSk').classList.toggle('ready', h.skillCd <= 0 && h.dead <= 0); }); }
-
 // ---------- 결과 ----------
 function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase = 'over'; G.paused = false; const el0 = $('dgBless'); if (el0) el0.className = 'dgBless hidden';
   const N = FLOORS.length, cleared = win ? N : D.cleared, E0 = D.entry || { mode: 'practice', why: 'reload' }, ranked = E0.mode === 'ranked';
