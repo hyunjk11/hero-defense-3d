@@ -1,7 +1,7 @@
 // ================= 영웅 능력치: 마을 패널(#statPanel) + 전투 오버레이(#statOv, C 키 · 📊 버튼) =================
 // 수치는 data/herostats.js 순수 수식 (게임 난수·밸런스에 영향 없음). 전투 오버레이는 일시정지하지 않음 · 0.25초마다 글자만 갱신 (버튼은 탭 목록이 바뀔 때만 다시 만듦)
 import { Snd } from '../audio/audio.js';
-import { $ } from '../core/util.js';
+import { $, esc } from '../core/util.js';
 import { G } from '../core/state.js';
 import { VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
@@ -11,7 +11,6 @@ import * as AD from '../data/advance.js';
 import { NOM, breakdown, finalStats, heroCP, effectsOf, critMul, CP_TXT } from '../data/herostats.js';
 import { meterDps, skillShare } from '../combat/meter.js';
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const r1 = v => Math.round(v * 10) / 10, int = v => Math.round(v).toLocaleString('ko-KR');
 const big = v => v >= 1e6 ? `${r1(v / 1e6)}M` : v >= 1e4 ? `${r1(v / 1e3)}k` : int(v);
 const DPS_TXT = '예상 DPS = 공격력 × 공격 속도 × (1 + 치명타 확률 × (치명타 피해 − 100%)) · 기본 공격 기준 (스킬 제외)';
@@ -57,7 +56,6 @@ function renderOv() { const L = heroesNow(), hud = $('hud'); if (!L.length || !h
 function openOv() { if (!heroesNow().length) return; st.ov = true; st.tabsKey = ''; $('statOv').classList.remove('hidden'); $('statBtn').classList.add('on'); renderOv(); clearInterval(st.timer); st.timer = setInterval(() => { if (st.ov) renderOv(); }, 250); }
 function closeOv() { st.ov = false; clearInterval(st.timer); st.timer = 0; const o = $('statOv'); if (o) o.classList.add('hidden'); const b = $('statBtn'); if (b) b.classList.remove('on'); }
 export function toggleOv() { if (st.ov) closeOv(); else openOv(); Snd.play('ui'); }
-export const statsOpen = () => st.ov;
 
 // 전투 쪽 (버튼·C 키·탭)은 모듈을 불러오면 바로 연결 (?test=1 처럼 마을 흐름 없이 시작해도 동작) · 마을 버튼은 initStats (flow.js 가 다른 창 닫기를 넘김)
 function bindBattle() {

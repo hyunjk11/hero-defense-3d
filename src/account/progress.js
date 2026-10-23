@@ -150,4 +150,3 @@ export function mergeHq(a, b) { a = cleanHq(a); b = cleanHq(b); const o = {}; fo
 export function buyAdv(save, hero, b, owned = true) { const s = clean(save); if (AD.advBlock(s, hero, b, owned)) return [s, false];
   const cur = s.adv[hero]; if (cur) { s.souls -= AD.ADV_SWITCH.souls; s.adv[hero] = { b, n: cur.n + 1 }; return [s, true]; }
   s.souls -= AD.ADV_COST.souls; s.mat.crystal -= AD.ADV_COST.crystal; s.mat.essence -= AD.ADV_COST.essence; if (!s.mat.essence) delete s.mat.essence; s.adv[hero] = { b, n: 1 }; return [s, true]; }
-export const changeAdv = buyAdv; // 재전직도 같은 함수 (이미 전직했으면 영혼석 500)

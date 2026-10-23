@@ -75,7 +75,6 @@ export function makeItem(slot, hero, g, r = Math.random, ch) {
 }
 // ---------- 고유 아이템 (계정당 1개) ----------
 // 저장에서 의미 있는 값은 { uq, e, a } 뿐 — 나머지(id·s·h·g·n·m·sub)는 항상 UQ 표에서 다시 만듦 (변조·옛 값 자동 교정, 밸런스 패치 즉시 반영)
-export const isUnique = it => !!(it && it.uq);
 export const uqId = k => 'u_' + k;
 export function makeUnique(k, e = 0, a = 0) { const U = UQ[k]; if (!U) return null; const it = { id: uqId(k), s: U.s, g: 4, uq: k, n: U.n, m: [...U.m], sub: U.sub.map(p => [...p]), e, a };
   if (U.h) it.h = U.h; return it; }

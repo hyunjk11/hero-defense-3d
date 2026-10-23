@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import { $ } from '../core/util.js';
 import { GH, SPAWNS, T, inGrid, isBlock, tileX, tileZ, toTile } from '../core/grid.js';
 import { BLK, TNAME } from '../data/terrain.js';
-import { UPS } from '../data/heroes.js';
-import { TOWERS } from '../data/towers.js';
+import { UPS, UP_GROWTH } from '../data/heroes.js';
+import { TOWERS, BARRICADE } from '../data/towers.js';
 import { G } from '../core/state.js';
 import { cam, camera, renderer, scene } from '../render/scene.js';
 import { SFX } from '../audio/sfx.js';
@@ -71,7 +71,7 @@ function occupied(c, r) {
   if (G.enemies.some(e => !e.dead && !e.E.fly && ((e.tile[0] === c && e.tile[1] === r) || (e.next && e.next[0] === c && e.next[1] === r)))) return true;
   if (hero && hero.dead <= 0) { const [hc, hr] = toTile(hero.g.position.x, hero.g.position.z); if (hc === c && hr === r) return true; } return false;
 }
-function toolCost(t) { const tool = G.tool; return TOWERS[tool] ? TOWERS[tool].cost : tool === 'barricade' ? 30 : tool === 'clear' && isBlock(t.t) ? clearCost(t) : 0; }
+function toolCost(t) { const tool = G.tool; return TOWERS[tool] ? TOWERS[tool].cost : tool === 'barricade' ? BARRICADE.cost : tool === 'clear' && isBlock(t.t) ? clearCost(t) : 0; }
 // 폐허 고대 성벽: 바위보다 단단하고 개간 비용도 큼
 function clearCost(t) { return t.wall ? 60 : BLK[t.t].clear; }
 function blkName(t) { return t.wall ? '고대 성벽' : BLK[t.t].n; }
@@ -96,7 +96,7 @@ function previewTip(t, why) { const tool = G.tool, cost = toolCost(t), name = TO
 function canBuild(c, r) {
   if (!inGrid(c, r)) return false; const t = tileAt(c, r), tool = G.tool;
   if (TOWERS[tool]) { if (t.t !== T.GRASS || t.tower || t.bar || G.gold < TOWERS[tool].cost || occupied(c, r)) return false; const D = dijkstra(t); return SPAWNS.every(s => isFinite(D[s[0] * GH + s[1]])); }
-  if (tool === 'barricade') return (t.t === T.CARVED || t.t === T.GRASS) && !t.tower && !t.bar && G.gold >= 30 && !occupied(c, r);
+  if (tool === 'barricade') return (t.t === T.CARVED || t.t === T.GRASS) && !t.tower && !t.bar && G.gold >= BARRICADE.cost && !occupied(c, r);
   if (tool === 'clear') return isBlock(t.t) && G.gold >= clearCost(t);
   return false;
 }
@@ -105,7 +105,7 @@ function build(c, r) {
   if (!canBuild(c, r)) { Snd.play('error'); const why = buildReason(c, r); if (why) banner(why === '경로 차단' ? '경로 차단: 길을 완전히 막을 수 없습니다' : why, '#ff8a9a', 900); return false; }
   const t = tileAt(c, r), p = new THREE.Vector3(tileX(c), .5, tileZ(r));
   if (TOWERS[G.tool]) { G.gold -= TOWERS[G.tool].cost; placeTower(t, G.tool); emit(P, p.x, .5, p.z, 30, 0xffe066, 5, .6, -6, 2); debris(p.x, .3, p.z, 8, [0xe0dacb, 0x9e98ae], 4); ringFx(p, 2, 0xffe066, .4); }
-  else if (G.tool === 'barricade') { G.gold -= 30; addBarricade(t); emit(P, p.x, .6, p.z, 16, 0xffb03a, 4, .5); }
+  else if (G.tool === 'barricade') { G.gold -= BARRICADE.cost; addBarricade(t); emit(P, p.x, .6, p.z, 16, 0xffb03a, 4, .5); }
   else if (G.tool === 'clear') { const B = BLK[t.t]; G.gold -= clearCost(t); t.wall = false; debris(p.x, .8, p.z, 16, B.deb, 6); emit(P, p.x, .8, p.z, 24, 0x8ad05a, 4, .7); t.t = T.GRASS; t.hp = t.max = 0; refreshTile(t); }
   if (!TOWERS[G.tool]) Snd.play(G.tool === 'barricade' ? 'build' : 'breakDirt', { pos: { x: tileX(c), z: tileZ(r) }, force: true }); computeDist(); refreshHud(); return true;
 }
@@ -113,6 +113,8 @@ function setTool(t) { if (G.dungeon) t = 'move'; /* 던전 원정: 건설 없음
   if (mi) { mi.classList.toggle('hidden', t === 'move'); mi.classList.toggle('clear', t === 'clear'); if (t !== 'move') mi.innerHTML = `${t === 'clear' ? '⛏ 개간 모드' : t === 'barricade' ? '🧱 바리케이드 설치' : '🏰 건설 모드: ' + TOWERS[t].n} <small>Esc / 우클릭: 취소</small>`; }
   if (t === 'move') { hidePreview(); rangeRing.visible = false; } document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.tool === t)); if (t !== 'move') select(null); }
 document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+// 도구 버튼 가격 표시를 데이터에서 채움 (index.html 의 글자는 같은 값의 기본값)
+document.querySelectorAll('.tool').forEach(b => { const c = TOWERS[b.dataset.tool] ? TOWERS[b.dataset.tool].cost : b.dataset.tool === 'barricade' ? BARRICADE.cost : null; const sm = b.querySelector('small'); if (c != null && sm) sm.textContent = c + 'G'; });
 (function sndUI() { const C = Snd.cfg; $('bgmOn').checked = C.bgmOn; $('sfxOn').checked = C.sfxOn; $('bgmVol').value = Math.round(C.bgm * 100); $('sfxVol').value = Math.round(C.sfx * 100); $('bgMute').checked = C.bgMute !== false;
   const upd = () => { C.bgmOn = $('bgmOn').checked; C.sfxOn = $('sfxOn').checked; C.bgm = $('bgmVol').value / 100; C.sfx = $('sfxVol').value / 100; C.bgMute = $('bgMute').checked; Snd.apply(); Snd.bgSync(); Snd.save(); $('sndBtn').classList.toggle('muted', !C.bgmOn && !C.sfxOn); };
   ['bgmOn', 'sfxOn', 'bgmVol', 'sfxVol', 'bgMute'].forEach(id => $(id).addEventListener('input', upd)); $('sfxVol').addEventListener('change', () => Snd.play('coin', { force: true }));
@@ -120,13 +122,13 @@ document.querySelectorAll('.tool').forEach(b => b.onclick = () => setTool(b.data
   addEventListener('keydown', e => { if (e.key.toLowerCase() === 'm' && !e.repeat) { const on = !(C.bgmOn || C.sfxOn); $('bgmOn').checked = $('sfxOn').checked = on; upd(); } });
 })();
 $('startWave').onclick = startWave; $('skillBtn').onclick = castSkill; $('warpBtn').onclick = () => startWarp(); $('legBtn').onclick = () => castLegend();
-const upCost = k => Math.round(UPS[k].base * Math.pow(1.45, G.ups[k]));
+const upCost = k => Math.round(UPS[k].base * Math.pow(UP_GROWTH, G.ups[k]));
 document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.dataset.up, c = upCost(k); if (G.gold < c) return Snd.play('error'); G.gold -= c; G.ups[k]++;
   if (k === 'bar') for (const col of G.tiles) for (const t of col) if (t.bar) { const r = t.bar.hp / t.bar.max; t.bar.max = barMaxHp(); t.bar.hp = t.bar.max * r; }
   Snd.play('upgrade'); Snd.play('levelUp', { vol: .6 }); if (hero) emit(P, hero.g.position.x, 1.5, hero.g.position.z, 24, 0xffe066, 4, .7); refreshHud(); });
 function select(o) { G.sel = o; $('tinfo').classList.toggle('hidden', !o); if (o && o.kind === 'tower') showRange(tileX(o.c), tileZ(o.r), o.S.range, 0xffe066); else rangeRing.visible = false; refreshHud(); }
 $('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { upgradeTower(G.sel); select(G.sel); } };
 $('tRep').onclick = () => { if (G.sel && G.sel.kind === 'tower') { repairTower(G.sel); select(G.sel); } };
-$('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += 15; removeBarricade(s.t, false); refreshHud(); } };
+$('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += BARRICADE.refund; removeBarricade(s.t, false); refreshHud(); } };
 
 export { onMove, buildReason, mouseGround, moveMark, keys, build, setTool, upCost, select };

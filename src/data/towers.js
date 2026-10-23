@@ -12,4 +12,7 @@ const TOWERS = {
 // 수리 비용 = 잃은 체력 비율 × 누적 투자액 × REPAIR_K (최소 5G)
 const REPAIR_K = .45;
 
-export { TOWERS, REPAIR_K };
+// 바리케이드: 설치 비용 · 철거 환급 (ui/input.js 건설·철거, ui/hud.js 버튼 표시, index.html 도구 버튼 가격)
+const BARRICADE = Object.freeze({ cost: 30, refund: 15 });
+
+export { TOWERS, REPAIR_K, BARRICADE };

@@ -11,6 +11,7 @@ mkdir -p tests/logs; declare -a SUM; fail=0; T0=$SECONDS
 note() { SUM+=("$1"); echo "$1"; }
 for f in tests/*.test.mjs; do n=$(basename "$f" .test.mjs)
   if node "$f" > "tests/logs/node_$n.log" 2>&1; then note "OK    node $n"; else note "FAIL  node $n (tests/logs/node_$n.log)"; fail=1; fi; done
+node tests/lint_unused.mjs > tests/logs/lint_unused.log 2>&1 && note "OK    lint_unused ($(head -1 tests/logs/lint_unused.log))" || { note "FAIL  lint_unused (tests/logs/lint_unused.log)"; fail=1; }
 if [ $# -eq 0 ] || [[ " $* " == *" regress "* ]]; then
   t=$SECONDS; python3 tests/regress.py > tests/logs/regress.log 2>&1
   d=$(grep -c '^  DIFF' tests/logs/regress.log); ce=$(grep -o 'console errors: [0-9]*' tests/logs/regress.log | grep -o '[0-9]*$')

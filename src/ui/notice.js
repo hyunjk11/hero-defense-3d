@@ -17,7 +17,6 @@ export async function showNotices() {
   const r = await Adm.notices(20); if (my !== token) return;
   queue = r.ok && Acc.A.user ? L.pendingNotices(r.list, seen()) : []; render();
 }
-export function hideNotices() { token++; queue = []; render(); }
 function render() {
   const el = $('noticeBar'); if (!el) return; const n = queue[0];
   if (!n) { el.classList.add('hidden'); el.innerHTML = ''; return; }

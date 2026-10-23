@@ -3,7 +3,8 @@
 // 일반 스테이지·하드·도전 모드에서는 G.dungeon 이 없어 이 파일의 어떤 것도 동작하지 않음
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
-import { $ } from '../core/util.js';
+import { $, esc } from '../core/util.js';
+import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { waveStart, waveEnd } from '../combat/meter.js';
 import { CORE, tileX, tileZ } from '../core/grid.js';
@@ -34,7 +35,6 @@ import { banner } from '../ui/hud.js';
 import { updBossFx, clearBossFx, bossDodge } from './boss.js';
 
 const D = G.dg = { floor: 0, wave: -1, q: [], spawnT: 0, gapT: 2.5, over: false, kills: 0, t: 0, swap: false, party: [], bless: {}, blessing: null, cleared: 0, joints: 0, k0: 0 };
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // 영웅별 출정 정보 (일반 출정 ui/flow.js startStageRun2 와 같은 계산)
 export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), legend: E.legendOf(s, c), adv: AD.advOf(c, (s.adv || {})[c]), uq: E.uniquesOf(s, c) });
 
@@ -180,5 +180,5 @@ function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase
     if (r.ok && r.uq) { m.innerHTML += `<div class="dgUqDrop" id="dgUqDrop">🐾 모르비아가 <b>${esc((UQ[r.uq] || {}).n || r.uq)}</b> 을(를) 떨어뜨렸어요! <small>📮 우편함에서 받기</small></div>`; Snd.play('levelUp', { force: true }); Sh.refresh().catch(() => {}); }
     if (r.ok && r.medals > 0) Snd.play('coin', { force: true }); }); }
 }
-function goTownD() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('dungeon'); q.delete('run'); q.delete('stage'); q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
+function goTownD() { $('fade').classList.add('on'); go({ town: 1 }, 400); }
 export { finish as dgFinish };

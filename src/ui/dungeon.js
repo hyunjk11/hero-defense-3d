@@ -1,7 +1,8 @@
 // ================= 마을 던전 건물 → 던전 원정 입장 화면 (파티 · 영웅별 장비/전직 요약 · 출발) =================
 // 로즈는 서버 소유 기록(account/shop.js heroOwned ← hd3d_owned)이 확인될 때만 파티에 들어감. 버들은 숨김 플래그로 제외 (data/dungeon.js dungeonParty)
 import { Snd } from '../audio/audio.js';
-import { $ } from '../core/util.js';
+import { $, esc } from '../core/util.js';
+import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { CLASSES } from '../data/heroes.js';
 import { FLOORS, ROLE, ROLE_N, DG_PAID, DG_OPEN, DG_MAX, DG_PICK_KEY, DG_MEDAL, DG_SHOP, DG_SHOP_BY, DG_TITLES, dungeonParty, pickParty, togglePick, shopState } from '../data/dungeon.js';
@@ -12,9 +13,7 @@ import * as E from '../account/equip.js';
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let open = false, checking = false, departing = false, view = 'party', buying = false, H = { closeOthers: () => {} };
-export const dungeonOpen = () => open;
 export function initDungeonUI(o) { H = { ...H, ...o };
   if ($('dgPanel')) return; const p = document.createElement('div'); p.id = 'dgPanel'; p.className = 'gpanel bigPanel wide hidden'; $('scr_town').appendChild(p); }
 // 고른 파티 (이 기기에만 저장 · 출발 때 서버 소유로 다시 거름 — dungeon/run.js)
@@ -73,5 +72,5 @@ async function depart() { if (departing) return; departing = true; const b = $('
   if (r.blocked) { departing = false; Snd.play('error'); banner(r.msg, '#ffb06a', 2600); paintDay(); return; }
   if (r.mode === 'practice') DS.markPractice(r.why);
   Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
-  const q = new URLSearchParams(location.search); q.delete('town'); q.delete('stage'); q.delete('hard'); q.set('dungeon', '1'); q.set('run', '1'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 500); }
+  go({ dungeon: 1 }, 500); }
 G.openDungeon = openDungeon;

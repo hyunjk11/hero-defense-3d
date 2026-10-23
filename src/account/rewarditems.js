@@ -2,7 +2,7 @@
 // 보상 jsonb: { souls, steel, crystal, essence, hero, items: [ {k:'gear', s, h?, g, c?} | {k:'uq', u} ] }  — 서버 hd3d_valid_item/hd3d_valid_reward 와 같은 규칙
 // 받기: progress.applyMail → 장비는 🎁 보상 상자로(받는 우편 id 로 고정된 장비 id · 같은 우편은 한 번만), 고유는 grantUnique(이미 있으면 고유 정수·마력석·영혼석으로 변환)
 import { UQ, CHSET, CH_KEYS } from '../data/items.js';
-import { CLASSES, HERO_KEYS, VISIBLE_HEROES, isHidden } from '../data/heroes.js';
+import { CLASSES, HERO_KEYS, VISIBLE_HEROES } from '../data/heroes.js';
 import { GRADES, SLOTS, SLOT_KEYS, GEAR_NAMES } from './equip.js';
 
 export const MAX_ITEMS = 10, MAX_ESSENCE = 10000;
@@ -39,7 +39,6 @@ export function catalog(heroes = VISIBLE_HEROES) {
 }
 export function searchCatalog(q, limit = 8, cat = catalog()) { q = String(q || '').trim().toLowerCase(); if (!q) return []; const t = q.split(/\s+/);
   return cat.filter(e => { const hay = (e.label + ' ' + e.n).toLowerCase(); return t.every(w => hay.includes(w)); }).slice(0, limit); }
-export const sameItem = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // 받기 미리보기 문장 (고유 중복 변환 안내 포함)
 export function previewLines(rw, owns = () => false) {
   const o = [], f = n => (+n || 0).toLocaleString('ko-KR'); if (!rw) return o;
@@ -50,4 +49,3 @@ export function previewLines(rw, owns = () => false) {
 }
 // 우편 id·순번으로 고정된 난수 (같은 우편을 다시 처리해도 같은 장비)
 export function seeded(seed) { let a = 0; for (const ch of String(seed)) a = (Math.imul(a ^ ch.charCodeAt(0), 2654435761) + 1) >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-export const hiddenHero = h => isHidden(h);

@@ -37,7 +37,6 @@ export function fighterInit(h) {
 function glow(on, k = 0) { for (const x of hero.ft.glow) { x.g.visible = on; if (!on) continue; const s = .6 + k * 1.2 + Math.sin(G.t * 30) * .08; x.core.scale.setScalar(s); x.halo.scale.setScalar(s * (1.1 + Math.sin(G.t * 12) * .15)); x.halo.material.color.setHex(k >= 1 ? 0xffe8a0 : ORANGE); } }
 // 사망·워프·판 종료: 충전/도약 정리
 export function ftStop() { const F = hero && hero.ft; if (!F) return; if (F.jp) G.ftN.jpCancel++; F.jp = null; F.leap = null; glow(false); }
-export const ftBusy = h => !!(h && h.ft && (h.ft.leap || h.ft.jp));
 // 매 프레임 (legend.js updLegend 에서): 장풍 구체/기파·발자국 이펙트 진행 (이 목록을 안 돌리면 장풍이 날아가지 않고 발자국이 장면에 쌓임)
 export function updFtFx(dt) { for (let i = FX.length - 1; i >= 0; i--) if (!FX[i](dt)) FX.splice(i, 1); }
 

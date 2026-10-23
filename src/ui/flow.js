@@ -2,6 +2,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $, QS } from '../core/util.js';
+import { go } from '../core/nav.js';
 import { CLASSES, VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
 import { cam, camera, scene, renderer } from '../render/scene.js';
@@ -47,7 +48,7 @@ export function equipLine(eq) { const e = Object.entries(eq || {}).sort((a, b) =
 
 // ---------- 스테이지 ----------
 function departStage(id, hard) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
-  const q = new URLSearchParams(location.search); q.delete('town'); q.set('stage', id); q.set('run', '1'); if (hard) q.set('hard', '1'); else q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 500); }
+  go({ stage: id, hard }, 500); }
 function startStageRun() { // 저장된 영웅이 유료 영웅이면 서버 소유권(hd3d_owned)을 먼저 확인
   const s0 = Acc.load(); if (CLASSES[s0.hero] && CLASSES[s0.hero].paid) { $('loadTxt').textContent = '영웅 확인 중…'; Sh.verifyOwned().then(() => startStageRun2(true)); } else startStageRun2(false);
 }
@@ -184,7 +185,7 @@ function onRunEnd(reason) {
   const btn = $('overTown'); if (btn) { btn.classList.remove('hidden'); $('overReward').innerHTML = `획득 영혼석 <b>+${got}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}`; }
   if (reason === 'retreat') goTown();
 }
-export function goTown() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('stage'); q.delete('run'); q.delete('hard'); q.delete('dungeon'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
+export function goTown() { $('fade').classList.add('on'); go({ town: 1 }, 400); }
 
 // ---------- UI 바인딩 ----------
 function bindUI() {

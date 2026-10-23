@@ -1,14 +1,13 @@
 // ================= 판 종료 통계 (📊 통계): 스테이지 클리어·하드(#stageClear) · 패배·도전(#over) · 던전 결과(파티원별) =================
 // 결과 화면의 보상 UI 는 그대로 두고 '📊 통계' 버튼(+ C 키)으로 따로 여는 패널 #endStats. 수치 = data/endstats.js aggregate (combat/meter.js 기록 그대로)
 import { Snd } from '../audio/audio.js';
-import { $ } from '../core/util.js';
+import { $, esc } from '../core/util.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { TOWERS } from '../data/towers.js';
 import { BRANCH } from '../data/growth.js';
 import { aggregate, TOWER_IC, fmtBig, fmtDps, fmtPct, fmtTime, fmtClock, waveLabel } from '../data/endstats.js';
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const st = { open: false, kind: null };
 // 지금 판의 미터 → aggregate 입력
 export function collect() { const L = G.heroes && G.heroes.length ? G.heroes : G.hero ? [G.hero] : [];

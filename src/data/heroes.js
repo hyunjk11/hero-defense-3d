@@ -17,6 +17,8 @@ const UPS = {
   atk: { n: '공격력', d: '+15% 피해', base: 40 }, spd: { n: '공격 속도', d: '+10% 속도', base: 40 }, rng: { n: '사거리', d: '+8% 사거리', base: 45 },
   skill: { n: '스킬 강화', d: '+25% 위력 · -8% 쿨', base: 60 }, bar: { n: '바리케이드', d: '+25% 체력', base: 35 },
 };
+// 전투 중 영웅 강화 비용 = base × UP_GROWTH^레벨 (ui/input.js upCost)
+const UP_GROWTH = 1.45;
 
 // 영웅 표시 이름: '실바 · 궁수'
 const heroLabel = c => CLASSES[c] ? (CLASSES[c].nm ? `${CLASSES[c].nm} · ${CLASSES[c].n}` : CLASSES[c].n) : '';
@@ -31,4 +33,4 @@ const VISIBLE_HEROES = Object.freeze(HERO_KEYS.filter(k => !isHidden(k)));
 // 숨긴 영웅이 저장돼 있을 때 바꿀 기본 영웅 = 보이는 첫 무료 영웅 (실바 · 궁수)
 const DEFAULT_HERO = VISIBLE_HEROES.find(k => !CLASSES[k].paid) || VISIBLE_HEROES[0];
 
-export { CLASSES, HERO_KEYS, HIDDEN_HEROES, VISIBLE_HEROES, DEFAULT_HERO, isHidden, UPS, heroLabel };
+export { CLASSES, HERO_KEYS, HIDDEN_HEROES, VISIBLE_HEROES, DEFAULT_HERO, isHidden, UPS, UP_GROWTH, heroLabel };
