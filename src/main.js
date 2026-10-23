@@ -35,6 +35,7 @@ import { separate, updEnemies, updLod } from './monsters/ai.js';
 import { Q } from './render/quality.js';
 import './ui/gfx.js';
 import './ui/speed.js';
+import { updAutoWave } from './ui/autowave.js'; // Q-13 다음 웨이브 자동 시작 (설정, 기본 off)
 import './ui/help.js'; // Q-3 단축키 안내 (H/?)
 import { hero, heroDamage, heroGoTo, updHero, updParty } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
@@ -81,6 +82,7 @@ function step(dt) {
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); runTimer(tm); } }
   if (G.phase === 'select') updSelect(dt);
   if (G.phase === 'wave') { if (G.spawnQ.length) { G.spawnT -= dt; if (G.spawnT <= 0) { G.spawnT = rnd(.55, .9); const t0 = G.spawnQ.shift(), el = G.spawnE ? G.spawnE.shift() : false; spawnEnemy(t0, G.hpMul, undefined, el); if (ETYPES[t0].pack && G.spawnQ[0] === t0) G.spawnT = .22; /* 무리는 붙어서 */ } } else if (!G.enemies.length && !pendingSpawns() && !G.dungeon) endWave(); }
+  updAutoWave();
   if (G.dungeon) updDungeon(dt); // 던전 원정: 층·웨이브·결과 (src/dungeon/run.js)
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
     if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
