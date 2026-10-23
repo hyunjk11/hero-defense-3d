@@ -19,7 +19,7 @@ import { labels as TL, buildTown as buildTownScene, updTown, townPass, LAKE, LR,
 let smithNear = false, portalNear = false;
 import { sun } from '../render/scene.js';
 import * as E from '../account/equip.js';
-import { initGear, openInv, closeInv, openSmith, closeSmith, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots } from './gear.js';
+import { initGear, openInv, closeInv, openSmith, closeSmith, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots, codexClaimable } from './gear.js';
 import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
 import { initStageSel, openStageSel, closeStageSel, rememberStage } from './stagesel.js';
@@ -165,7 +165,7 @@ function refreshTown() {
   renderLab();
   if (G.screen !== 'town') return; if (P.backfillList(Acc.load()).length) Acc.update(d => P.backfill(d)[0]); // 기존 유저 고유 소급 지급 (조건을 이미 채운 고유 → 상자, id 고정이라 여러 번·여러 기기에서도 1개)
   const s = Acc.load(), A = Acc.A, cls = Sh.usableHero(s.hero), L = s.heroLv[cls];
-  $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP);
+  $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP); $('twBag').classList.toggle('hasNew', codexClaimable(s)); /* Q-4a 도감 보상 배지 */
   const nc = (s.chests || []).length; $('twChest').classList.toggle('hidden', !nc); $('twChestN').textContent = nc;
   $('twBonus').innerHTML = `<div class="lbl">${heroN(cls)} 장비 보너스</div>` + bonusHtml(E.bonus(s, cls)); $('twBest').textContent = s.bestWave; $('twRuns').textContent = s.stats.runs; $('twKills').textContent = s.stats.kills;
   $('twAcct').innerHTML = A.user ? `${esc(s.nick || A.user.email)} · <span class="sync s_${A.sync}">${Acc.SYNC_TXT[A.sync] || ''}</span>` : `${esc(s.nick || '게스트')} · <span class="sync">게스트 (이 기기 저장)</span>`;

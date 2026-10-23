@@ -755,3 +755,5 @@ body:not(.dungeonRun) #dgJoint{display:none}
 /* U-7a 전투 HUD (2026-10-23): 하단 #cam 을 두 묶음으로 보이게 — [📊 C][❚❚ P][×1 F] 게임 흐름 | [♬][⟲][⟳] 소리·카메라. 흐름 버튼에 키 글자 배지(터치에서도 보임). 위치 이동(U-7b)은 보류 */
 #cam button{position:relative}#cam button[data-key]::after{content:attr(data-key);position:absolute;right:-5px;bottom:-5px;min-width:18px;height:18px;padding:0 3px;box-sizing:border-box;border-radius:9px;background:#0b0914;border:1px solid var(--gold-line);color:var(--gold-txt);font:bold 12px/16px sans-serif;letter-spacing:0;text-align:center;pointer-events:none}
 #cam .camGrp2{margin-left:14px}
+/* Q-4a 알림 배지 (2026-10-23): 받을 도감 보상이 있으면 🎒 가방 버튼 오른쪽 위 빨간 점 (.ui-badge 모양 = .newDot) */
+#twBag{position:relative}#twBag.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
