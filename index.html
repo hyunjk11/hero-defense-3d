@@ -52,14 +52,7 @@
     <button id="skillBtn"><span id="skillName"></span><small>Q</small><div id="skillCd"></div></button>
   </div>
   <div id="sndPanel" class="hidden">
-    <div class="ptitle">⚙ 설정 <small>소리 · 그래픽 · 배속</small></div>
-    <label class="snd"><input type="checkbox" id="bgmOn"> 배경음악 <input type="range" id="bgmVol" min="0" max="100"></label>
-    <label class="snd"><input type="checkbox" id="sfxOn"> 효과음 <input type="range" id="sfxVol" min="0" max="100"></label>
-    <label class="snd"><input type="checkbox" id="bgMute"> 백그라운드에서 음소거</label>
-    <label class="snd"><input type="checkbox" id="sndKeepSpd"> ×2 배속을 다음 판에도 유지</label>
-    <div class="gfxRow"><span>그래픽</span><div class="gfxSeg"><button data-gfx="auto">자동</button><button data-gfx="high">고품질</button><button data-gfx="perf">성능</button></div></div><div class="gfxNow"></div>
-    <div class="sndHint">M 키: 전체 음소거</div>
-  </div>
+    <div class="ptitle">⚙ 설정 <small>소리 · 그래픽 · 배속</small></div><!-- 칸은 src/ui/settings.js 가 채움 (메뉴 설정과 같은 표) --></div>
   <div id="cam"><button id="statBtn" data-key="C" title="능력치 · 피해 미터 (C)">📊</button><button id="pauseBtn" data-key="P" title="일시정지 (P)">&#10074;&#10074;</button><button id="speedBtn" data-key="F" title="배속 ×1 / ×2 (F)">×1</button></div>
   <div id="camTop" role="toolbar" aria-label="카메라 · 설정"><button id="rotL" title="왼쪽 회전">⟲</button><button id="rotR" title="오른쪽 회전">⟳</button><button id="sndBtn" title="설정 (소리 · 그래픽 · 배속)">&#9835;</button></div>
   <div id="statOv" class="hidden"><button id="ovClose" class="xbtn ui-x" title="닫기 (C)">✕</button><div class="ovT">📊 능력치 <small>C</small></div><div id="ovTabs" class="ftabs"></div><div id="ovBody"></div></div>
@@ -106,13 +99,7 @@
     <button id="mnCont" class="gbtn main">▶ 이어하기</button>
     <button id="mnNew" class="gbtn">✦ 새로 시작</button>
     <button id="mnSet" class="gbtn">⚙ 설정</button>
-    <div id="mnSettings" class="hidden settings">
-      <label><input type="checkbox" id="stBgmOn"> 배경음악 <input type="range" id="stBgm" min="0" max="100"></label>
-      <label><input type="checkbox" id="stSfxOn"> 효과음 <input type="range" id="stSfx" min="0" max="100"></label>
-      <label><input type="checkbox" id="stBgMute"> 백그라운드에서 음소거</label>
-      <label><input type="checkbox" id="stKeepSpd"> ×2 배속을 다음 판에도 유지</label>
-      <div class="gfxRow"><span>그래픽</span><div class="gfxSeg"><button data-gfx="auto">자동</button><button data-gfx="high">고품질</button><button data-gfx="perf">성능</button></div></div><div class="gfxNow"></div>
-    </div>
+    <div id="mnSettings" class="hidden settings"><!-- src/ui/settings.js --></div>
     <div class="nick"><input id="mnNick" maxlength="12" placeholder="닉네임"><button id="mnNickSave" class="gbtn sm">저장</button></div>
     <button id="mnAdmin" class="gbtn sm admBtn hidden">🛡 관리자</button>
     <button id="mnAuth" class="gbtn ghost sm"></button>
