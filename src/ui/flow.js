@@ -53,7 +53,7 @@ function hideAll() { for (const s of SCREENS) $('scr_' + s).classList.add('hidde
 const heroN = c => heroLabel(c);
 
 // ---------- 스테이지 ----------
-function departStage(id, hard) { if (departing) return; departing = true; rememberStage(id, hard); // Q-5 지도·Q-6 재도전/다음 공통 Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
+function departStage(id, hard) { if (departing) return; departing = true; rememberStage(id, hard); Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on'); // Q-5 지도·Q-6 재도전/다음 공통 (47b5eb7 에서 주석 안으로 들어가 소리·화면 어두워짐이 빠졌던 것 복구)
   go({ stage: id, hard }, 500); }
 function startStageRun() { // 저장된 영웅이 유료 영웅이면 서버 소유권(hd3d_owned)을 먼저 확인
   const s0 = Acc.load(); if (CLASSES[s0.hero] && CLASSES[s0.hero].paid) { $('loadTxt').textContent = '영웅 확인 중…'; Sh.verifyOwned().then(() => startStageRun2(true)); } else startStageRun2(false);
