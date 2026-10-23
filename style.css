@@ -261,60 +261,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #townPop{max-width:calc(100vw - 40px);max-height:calc(100dvh - 40px);overflow:auto}
 
 /* 터치 기기: 누를 대상 44px 이상, 호버 의존 효과 제거 */
-@media (pointer:coarse){
-  .gbtn,.ftab,.panel button,#over button,#tinfo button,.perm,.hcard,.chtab,#popOk,#townPop button{min-height:44px}
-  .gbtn.sm{min-height:44px;min-width:44px;padding:8px 12px}
-  .xbtn,#blessClose{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
-  .ftab{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:6px 14px}
-  .gpanel input[type=email],.gpanel input[type=password],.gpanel input:not([type]){min-height:46px;font-size:16px}
-  input[type=checkbox]{width:26px;height:26px;margin:9px;flex:none}
-  input[type=range]{height:44px;min-width:110px}
-  .settings label,#sndPanel .snd{min-height:44px}
-  #cam button{width:46px;height:46px}
-  #help{display:none}
-  .card{padding:16px}
-  #heroBox{min-height:44px}
-}
-@media (hover:none){
-  .panel button:hover,.gbtn:hover:not(:disabled),.itile:hover,.snode:hover,.chtab:hover{filter:none;transform:none}
-  .snode:hover{transform:translate(-50%,-50%)}
-  .card:hover{transform:none;box-shadow:none}
-}
 
 /* 컴팩트 레이아웃: 폭 1100px 미만 또는 높이 800px 미만 (가로 태블릿) */
-@media (max-width:1100px),(max-height:800px){
-  .pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:11px}.pill b{font-size:15px}.gold b{font-size:17px}
-  .twTop,#top{top:calc(8px + env(safe-area-inset-top));gap:6px}
-  .twAcct{top:calc(48px + env(safe-area-inset-top))}
-  .twLeft{top:calc(64px + env(safe-area-inset-top));width:206px;padding:10px;gap:5px;max-height:calc(100dvh - 150px)}
-  .twTip{font-size:11px;padding:5px 7px}
-  #twHint{font-size:12px;padding:6px 10px;max-width:min(520px,calc(100vw - 260px))}
-  #twGo{font-size:17px;padding:10px 18px}
-  #build,#ups,#tinfo{top:calc(60px + env(safe-area-inset-top))}
-  #build{width:170px;padding:8px;gap:4px}#ups{width:190px;padding:8px;gap:4px}#tinfo{left:calc(192px + env(safe-area-inset-left))}
-  .panel button{padding:6px 8px;font-size:12.5px}
-  #build,#ups,#tinfo{max-height:calc(100dvh - 76px - 110px)}
-  #skillBtn{width:76px;height:76px}#warpBtn{width:58px;height:58px}#legBtn{width:64px;height:64px;font-size:11.5px}
-  .bar.hp{width:190px}.bar{width:130px}.bar.boss{width:min(420px,60vw)}
-  #bossHud{top:calc(54px + env(safe-area-inset-top))}
-  #banner{font-size:clamp(20px,3.6vw,38px)}#banner.long{font-size:clamp(14px,2.1vw,22px)}
-  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(150px,18vw,220px)}
-  #over h1{font-size:clamp(40px,6vw,60px)}
-  .logo h1{font-size:clamp(52px,8vw,84px)}
-  .bigPanel{padding:12px 14px;gap:8px}
-  .smGrid{max-height:min(300px,calc(100dvh - 330px))}.smList{max-height:min(340px,calc(100dvh - 260px))}
-  .stMap{height:clamp(240px,calc(100dvh - 250px),360px)}.stInfo{width:240px}
-  .scT{font-size:clamp(30px,4.5vw,44px)}.scStars i{font-size:clamp(46px,7vh,70px)}
-}
 /* 높이가 낮은 화면 (예: 960x600) */
-@media (max-height:680px){
-  .gtitle{font-size:19px;padding-bottom:5px}
-  #scr_login .fcard,#scr_menu .fcard{gap:7px;padding:14px 20px}
-  .twLeft{max-height:calc(100dvh - 140px)}
-  .hcard{padding:5px 8px}
-  #build .ptitle.sub{margin-top:0}
-  .scStars{margin:4px 0}.scRw{margin:6px 0}
-}
 
 /* 전설 무기 고유 스킬 */
 .lsk{margin-top:6px;padding:6px 8px;border-radius:8px;background:linear-gradient(135deg,#3a2406cc,#1a1002cc);border:1px solid #ffc04a;box-shadow:0 0 10px #ffb02a44,inset 0 0 8px #ffd86a22;text-align:left}
@@ -335,7 +284,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #branchPop .bpCard:active{transform:scale(.96)}#branchPop .bpIcon{font-size:38px;filter:drop-shadow(0 0 8px var(--c));animation:bpBob 1.6s ease-in-out infinite}@keyframes bpBob{50%{transform:translateY(-4px) scale(1.08)}}
 #branchPop .bpN{font-size:18px;font-weight:bold;color:var(--c)}#branchPop .bpD{font-size:13px;color:#e0d8f0;line-height:1.45}#branchPop .bpS{font-size:12px;color:var(--gold-hi);line-height:1.5;background:#0006;border-radius:8px;padding:5px 8px;width:100%;box-sizing:border-box}
 #branchPop .bpLater{margin-top:12px;min-height:44px;padding:8px 26px}
-@media (max-height:680px){#branchPop .bpIcon{font-size:28px}#branchPop .bpBox{padding:10px 12px}#branchPop .bpD{font-size:12px}}
 .tlabel.lab{border-color:#6ad8ff;box-shadow:0 0 12px #3ac0ff;color:#e0f6ff}.tlabel.lab small{color:#9ae8ff}
 #labPanel{border-color:#6ad8ff;box-shadow:0 0 30px #3ac0ff55,inset 0 0 24px #3ac0ff18;background:linear-gradient(#1c2244f4,#0c0e1ef4)}
 #labPanel .gtitle{color:#bff0ff;text-shadow:0 0 12px #3ac0ff}.labSub{text-align:center;font-size:12px;color:#a8c8e0}
@@ -349,7 +297,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .labRow.late .lrPips i.on{background:linear-gradient(90deg,#ffb03a,var(--gold-hi));box-shadow:0 0 5px #ffb03a}
 .labRow .lrD{font-size:12px;color:#d0dcf0}.labRow .lrD b{color:#bff0ff}.labRow .lrBtn{min-height:44px;font-size:14px;padding:6px 10px}.labRow .lrBtn small{display:block}.labRow .lrLock{font-size:11px;color:#ffb07a}
 .labRow.flash{animation:labFlash .7s ease-out}@keyframes labFlash{0%{box-shadow:inset 0 0 0 200px #6ad8ff66,0 0 24px #6ad8ff}100%{box-shadow:none}}
-@media (max-width:700px){.labBody{grid-template-columns:1fr}}
 
 /* ---------- 상점 · 우편함 · 관리자 ---------- */
 .card.paid{border-color:#ff6aa8;box-shadow:0 0 18px #ff6aa855;position:relative}.card.paid h2{color:#ffb0d4}
@@ -387,9 +334,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .admRow small{display:block;color:#9a8ab8;font-size:11px;overflow-wrap:anywhere}.aSt{font-weight:bold}.s_pending .aSt{color:#ffd06a}.s_approved .aSt{color:#9affb0}.s_rejected .aSt{color:#ff9a9a}
 .aAct{display:flex;gap:6px}.aAct .gbtn{padding:6px 12px}
 .admForm{display:flex;flex-direction:column;gap:8px}.admForm label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:#d8c8a0}.amRw{display:flex;gap:8px}.amRw label{flex:1}.admForm .amChk{flex-direction:row;align-items:center;gap:8px}
-@media (max-width:1100px),(max-height:800px){.pvWrap{min-height:270px}.shopDesc{font-size:13px}.price{font-size:24px}.pvName{font-size:24px}}
-@media (max-height:680px){.pvWrap{min-height:230px}.shopSk{padding:4px 8px}.shopStats span{padding:3px 6px}}
-@media (pointer:coarse){.mailBtn,#twAdmin,#mnAdmin{min-height:44px;min-width:44px}.amChk input{width:24px;height:24px}#adminPanel input:not([type=checkbox]),#adminPanel textarea{min-height:44px}}
 #scr_login .fcard>*,#scr_menu .fcard>*{flex-shrink:0}
 .mailBtn{white-space:nowrap;flex-shrink:0}.mailBtn .lbl{white-space:nowrap}
 .admForm .amChk{min-height:46px}
@@ -401,10 +345,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .shopTab.on{border-color:var(--pc);box-shadow:0 0 12px var(--pc);background:#261a34}.shopTab:hover{border-color:var(--pc)}
 .shopCard.p_mechanic .pvTag{background:linear-gradient(#5ad83a,#2a8a1a);box-shadow:0 0 10px #5ad83a}.shopCard.p_mechanic .pvName{color:#e8ffe0;text-shadow:0 0 12px #3aff3a,0 2px 0 #1a5a10}
 .shopCard.p_mechanic .pvWrap{background:radial-gradient(circle at 50% 70%,#7aff5a44,#0f2a14 70%),linear-gradient(#153a1a,#0a160c);border-color:#7aff5a;box-shadow:inset 0 0 30px #3aff3a33}.shopCard.p_mechanic .shopTitle{color:#c8ffb0}.shopCard.p_mechanic .shopStats span{background:#14301a;border-color:#7aff5a66}.shopCard.p_mechanic .shopStats b{color:#b0ff9a}.shopCard.p_mechanic .shopSk b{color:#9aff6a}.shopCard.p_mechanic .shopSk.lg b{color:#ffc94a}
-@media (max-height:680px){.shopTabs{margin-bottom:6px}.shopTab{padding:3px 8px;min-height:48px}.shopTab i{font-size:18px}}
 
 #note{flex-wrap:wrap;justify-content:center;max-width:96vw;width:max-content}#note .nc.mon{max-width:250px;padding:8px 12px 9px;border-color:#9affb0;position:relative}#note .nc.mon i{float:left;font-style:normal;font-size:30px;line-height:1;margin:2px 8px 0 0}#note .nc.mon small{display:block;color:#9affb0;font-size:11px;font-weight:bold;letter-spacing:.5px}#note .nc.mon b{color:#fff;font-size:15px}
-@media (max-width:1100px){#note .nc.mon{max-width:210px;font-size:12px}}
 /* ===== 보상 상자 보관함: 한 개씩 · 10개 · 모두 열기 + 요약 ===== */
 #twChest{position:relative;background:linear-gradient(#7a4a1a,#4a2a0a);border-color:#ffd27a;animation:chestPulse 1.8s ease-in-out infinite;min-height:44px}#twChest b{color:var(--gold-txt);margin-left:4px}#twChest.hidden{display:none}
 @keyframes chestPulse{50%{box-shadow:0 0 14px #ffd27a99}}
@@ -430,9 +372,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @keyframes sparkle{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1.6) rotate(45deg)}}
 .cbDetail{min-height:40px;display:flex;justify-content:center}.cbDetail .icard{width:min(320px,90%)}
 .cbActs{display:flex;gap:8px;justify-content:center}.cbActs .gbtn{min-height:46px;min-width:120px}
-@media (max-height:800px){.cbSum{padding:10px 14px;gap:6px}.cbSum .gtitle{font-size:20px}.cbDetail .icard{font-size:12px}}
-@media (max-height:680px){.cbGrid{gap:6px;padding:4px}.cbDetail{display:none}}
-@media (max-width:1100px){.cbBar{width:170px}}
 
 /* 그래픽 품질 (자동/고품질/성능) — src/ui/gfx.js */
 .gfxRow{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0 2px}.gfxRow>span{white-space:nowrap}
@@ -440,7 +379,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .gfxSeg button{flex:1;min-height:30px;padding:2px 4px;border:0;background:#1a1628;color:#d8d0ee;font:inherit;font-size:12px;cursor:pointer}
 .gfxSeg button+button{border-left:1px solid #c9a24a55}.gfxSeg button.on{background:linear-gradient(#e8c86a,#b8902a);color:#1a1020;font-weight:bold}
 .gfxNow{font-size:11px;color:#a9a0c0;min-height:14px}
-@media (pointer:coarse){.gfxSeg button{min-height:44px}}
 
 /* 다음 웨이브 미리보기 — src/ui/waveprev.js (top/width/max-height 는 JS 가 영웅 강화 패널 아래 빈 공간에 맞춤) */
 #wavePrev{right:calc(12px + env(safe-area-inset-right));width:200px;padding:7px 9px;gap:2px;overflow:hidden;pointer-events:auto}
@@ -497,16 +435,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .gd{width:8px;height:8px;border-radius:50%;border:1px solid var(--gc);opacity:.35}.gd.on{background:var(--gc);opacity:1;box-shadow:0 0 4px var(--gc)}
 .dru{width:52px;height:38px;padding:1px 2px;border-radius:8px;border:1px solid #3ae8d066;background:#0a1a1e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;color:#9ab;overflow:hidden;line-height:1}
 .dru .ic{display:block;font-size:17px;line-height:1.05;max-width:100%;overflow:hidden;white-space:nowrap;text-align:center;filter:grayscale(1) opacity(.7) drop-shadow(0 0 1px #cfe8ee)}.dru small{display:block;font-size:9.5px;line-height:1;white-space:nowrap;max-width:100%;overflow:hidden;letter-spacing:-.2px} /* 아이콘 위·진행도 아래, 미보유 = 흐린 실루엣 */.dru.have{border-color:#3ae8d0;box-shadow:0 0 8px #3ae8d055;color:#7affe8}.dru.have .ic{filter:none}.dru.far{opacity:.75}
-@media (pointer:coarse){.drRow{flex-wrap:wrap;row-gap:3px}.drRow .drL{flex-basis:100%}.drChips,.drUq{display:flex;gap:5px}.drc{width:44px;height:44px;font-size:20px}.dru{width:62px;height:48px}.dru .ic{font-size:21px}.dru small{font-size:10.5px}} /* 태블릿: 드롭 미리보기 칩도 44px 터치 대상 */
+ /* 태블릿: 드롭 미리보기 칩도 44px 터치 대상 */
 .snode .uqNode{position:absolute;right:-6px;top:-8px;font-size:13px;font-style:normal;filter:drop-shadow(0 0 4px #3ae8d0);animation:uqBob 1.6s ease-in-out infinite}@keyframes uqBob{50%{transform:translateY(-3px)}}
 .chalMs{display:flex;gap:10px;justify-content:center;margin-top:10px}.msC{display:flex;flex-direction:column;align-items:center;min-width:64px;padding:5px 8px;border-radius:10px;border:1px solid #3ae8d066;background:#0a1a1ecc;color:#9ab;cursor:pointer}
 .msC span{font-size:22px;filter:grayscale(1) brightness(.5)}.msC b{color:#ffe9b0}.msC small{font-size:10px}.msC.have{border-color:#3ae8d0;color:#7affe8}.msC.have span{filter:none}
-@media (max-height:640px){
-  .stInfo{gap:5px;font-size:12px}.stInfo .sn{font-size:15px}.stInfo .sd{font-size:11px}
-  .stInfo .prop{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 6px;font-size:11px;line-height:1.4}
-  .stInfo .conds{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;font-size:10px}.stInfo .conds div{padding:0;line-height:1.25}
-  .stInfo .rw{font-size:11px}.bigGo{padding:8px;font-size:16px}.chalMs{margin-top:4px}
-}
 /* 도감 */
 .invTabs{margin-bottom:4px}.invTabs .newDot,.newDot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;vertical-align:2px}
 .codexBody{display:flex;flex-direction:column;gap:8px}.cxTabs{display:flex;gap:6px;flex-wrap:wrap}.cxTabs .ftab{border-color:var(--cc)}.cxTabs .ftab.on{background:color-mix(in srgb,var(--cc) 35%,#1a1430)}.cxTabs small{opacity:.8;font-size:10px}
@@ -522,7 +454,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .uqCell{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px;border-radius:10px;border:1px solid #3ae8d044;background:#0a141c;color:#8a9aa8;cursor:pointer;min-height:84px}
 .uqCell .ic{font-size:24px;color:#3a4a50;font-weight:900}.uqCell .un{font-size:11px;font-weight:bold;color:#7a8a90;text-align:center;line-height:1.2}.uqCell small{font-size:9.5px;text-align:center;line-height:1.2}.uqCell .pg{color:var(--gold-hi)}
 .uqCell.have{border:2px solid transparent;background:linear-gradient(#123a3c,#0c1220) padding-box,linear-gradient(135deg,#3ae8d0,#ffd84a) border-box}.uqCell.have .un{color:#7affe8}.uqSt{color:#ffd84a;letter-spacing:1px}
-@media (max-height:680px){.cxGrid{grid-template-columns:86px repeat(5,40px) 54px;gap:3px}.cxC{width:40px;height:34px}.uqCell{min-height:70px;padding:4px 3px}.uqCell .ic{font-size:20px}}
 
 /* ===== 전직 (여신탑 전직 탭) ===== */
 .blessTabs{justify-content:center}.blessTabs .ftab{flex:1}
@@ -544,7 +475,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .hcard .advT{font-style:normal;font-size:11px;color:var(--ac,var(--gold-hi))}
 #heroName.adv{color:var(--adv,var(--gold-hi))}
 .labAdv{text-align:center;font-size:12px;color:#ffe9a0;background:#2a1e0aaa;border:1px solid #ffd27a66;border-radius:8px;padding:4px 8px}.labAdv.hidden{display:none}
-@media (max-height:640px){#twBless.advMode{width:min(380px,calc(100vw - 32px))}.advCard{padding:6px 9px;font-size:11.5px}.advCard h4{font-size:14px}.advChk{line-height:1.5}}
 /* ---------- 하드 모드 (2026-10-21) ---------- */
 .modeTog{position:absolute;left:8px;top:8px;z-index:4;display:flex;border:2px solid #c9a24a99;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px #0009;background:#0c0a16cc}
 .modeTog .mt{font:inherit;font-size:13px;font-weight:bold;color:#d8c8a0;background:transparent;border:0;padding:5px 12px;cursor:pointer;white-space:nowrap}
@@ -564,8 +494,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #wavePrev.hard{border-color:#ff4a3a99}#wavePrev.hard .ptitle:after{content:" 🔥 하드";color:#ff8a6a;font-size:11px}
 .wpRow.elite .wpNm{color:#ffab7a;font-weight:bold}.wpNm em.el{background:#c0301e;color:#fff;font-style:normal;font-size:9px;border-radius:4px;padding:0 3px;margin-left:3px}
 #wavePrev.compact .wpI.elite{filter:drop-shadow(0 0 3px #ff6a2a)}
-@media (max-height:640px){.modeTog{left:6px;top:6px}.modeTog .mt{font-size:12px;padding:4px 10px;min-height:0}}
-@media (pointer:coarse){.modeTog .mt{min-height:44px;min-width:56px;padding:4px 12px}}
 /* ---------- 관리자 확장 (2026-10-22): 주문·유저·전체 우편·공지·기록·관리자 탭, 확인 창, 공지 배너, 정지 안내 ---------- */
 #adminPanel{width:min(1040px,96vw)}
 #adminPanel #admTabs .ftab{font-size:13px;padding:6px 11px}
@@ -614,8 +542,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .banNote{padding:9px 14px;border-color:#ff8a7a;box-shadow:0 0 0 3px #3a1010,0 0 18px #ff4a4a55;display:flex;flex-direction:column;gap:3px;font-size:14px}
 .banNote b{color:#ffb0a0}.banNote .bnR{color:#ffe0d0}.banNote small{color:#d8b8b0;font-size:12px;line-height:1.45}
 .mAct .got.revoked{color:#a898c0}
-@media (max-height:640px){.udGrid{max-height:52vh}.admTable{max-height:46vh}#twNotes{top:56px}}
-@media (pointer:coarse){#adminPanel select{min-height:44px}.nbX{min-height:44px;min-width:44px}}
 #acfReason{background:#120f22;color:var(--txt);border:1px solid #c9a24a88;border-radius:8px;padding:8px;font:inherit;font-size:14px;box-sizing:border-box;resize:vertical}
 .admBar label.amChk{flex-direction:row;align-items:center;gap:6px;white-space:nowrap}
 /* 관리자 보상 입력: 고유 정수(조각) · 아이템 검색 · 아이템 줄 · 미리보기 (2026-10-22) */
@@ -668,9 +594,6 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .dgBc *{pointer-events:none}.dgBc:hover{transform:translateY(-4px);border-color:var(--gold-txt);box-shadow:0 0 18px #ffe06688}.dgBi{font-size:38px;line-height:1.1}.dgBc b{font-size:17px;color:#ffe9a0}.dgBd{font-size:13px;color:#e0d4f4;line-height:1.45}.dgBn{font-size:11px;color:#9ae8a0}.dgBk{position:absolute;top:6px;left:9px;font-size:11px;color:#a898c0}
 .dgFloors{display:flex;gap:8px;justify-content:center;margin:10px 0}.dgFloors span{width:34px;height:34px;border-radius:50%;border:2px solid #5a4a7a;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#a898c0;background:#140f26}
 .dgFloors span.ok{border-color:#7aff9a;color:#7aff9a;background:#14301e}.dgFloors span.fail{border-color:#ff6a7a;color:#ff8a9a;background:#301418}.dgResBl{font-size:13px;color:#ffe9a0;margin:4px 0 8px}
-@media (max-height:680px){.dgBT{font-size:22px}.dgBS{margin:4px 0 10px;font-size:12.5px}.dgBc{width:200px;min-height:140px;padding:10px}.dgBi{font-size:30px}#dgJoint{bottom:calc(96px + env(safe-area-inset-bottom));min-height:46px;font-size:15px}}
-@media (max-width:1100px),(max-height:800px){.dgCard{width:150px;font-size:11.5px;padding:8px}.dgSt{min-height:44px}.dgParty{margin:8px 0;gap:8px}}
-@media (max-height:680px){.dgCard{width:140px;gap:3px}.dgLv{display:none}.dgInfo{font-size:12px;line-height:1.4}}
 /* 던전 입장: 출전 영웅 고르기 (2026-10-22 서윤) — 카드 = 버튼(탭으로 넣기/빼기, 최대 4명) */
 .dgCard.pick{font:inherit;text-align:left;cursor:pointer;position:relative;min-height:44px;transition:transform .12s,box-shadow .12s,opacity .12s}
 .dgCard.pick.on{box-shadow:0 0 14px color-mix(in srgb,var(--hc) 60%,transparent);border-style:solid}.dgCard.pick.off{opacity:.55;border-style:dashed;filter:saturate(.6)}
@@ -690,7 +613,6 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .dgUqDrop{margin-top:8px;padding:8px 10px;border-radius:12px;background:#3a2440;border:2px solid #ff9a3a;color:#ffe3b0;box-shadow:0 0 12px #ff9a3a66}
 .dgMedalRes{font-size:15px}.dgMedalRes b{color:var(--gold-hi);font-size:18px}.dgMedTot{color:#d8c8ff;font-size:13px;margin-left:4px}.dgPrNote{color:#a898c0}
 .dgPrTag{font-style:normal;font-size:11px;background:#5a4a7a;color:#e8d8ff;border-radius:6px;padding:1px 5px;margin-left:2px}
-@media (max-height:680px){.dgDay{font-size:12px;margin-top:4px}.dgDay small{display:none}.dgShop{gap:6px;margin:6px 0 2px}.dgShopIt{width:150px;padding:6px}.dgShopIt small{min-height:0;font-size:11px}.dgSIc{font-size:22px}}
 
 /* ===== 영웅 능력치 (ui/stats.js): 마을 패널 #statPanel · 전투 오버레이 #statOv ===== */
 .statTabs{justify-content:center}
@@ -712,12 +634,6 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .ovG{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}.ovC{display:flex;justify-content:space-between;gap:6px;font-size:12.5px;padding:2px 6px;border-radius:6px;background:#ffffff08}.ovC span{color:#c9b88a}.ovC b{color:#fff;white-space:nowrap}.ovC.hi b{color:var(--gold-txt)}
 .ovSub{font-size:12px;color:var(--gold-hi);border-bottom:1px solid #c9a24a44;margin-top:2px}.ovBf{display:flex;flex-wrap:wrap;gap:4px}.ovBf span{font-size:11.5px;background:#2a2244;border-radius:6px;padding:1px 6px}.ovBf .none{color:#8a80a0;background:none}
 .ovOther{font-size:12px;color:#a8c8e0}
-@media (max-width:1100px),(max-height:800px){#statOv{right:calc(214px + env(safe-area-inset-right));top:calc(60px + env(safe-area-inset-top));max-height:calc(100dvh - 76px - 110px)}}
-@media (max-width:900px){.stRow{grid-template-columns:96px 80px 1fr}}
-@media (pointer:coarse){
-  #statOv .xbtn{width:48px;height:48px}#ovTabs .ftab,.statTabs .ftab{min-height:48px;min-width:48px}#twStats{min-height:48px}
-  #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}#statPanel .xbtn{min-width:48px;min-height:48px}
-}
 /* ===== 판 종료 통계 (ui/endstats.js): 결과 화면 📊 통계 → #endStats ===== */
 .esBtn{margin:0 8px 0 0}.scBox .esBtn{padding:12px 22px;font-size:17px;background:linear-gradient(#3a3a6a,#1c1c40)}
 #endStats{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:var(--z-modal);width:min(920px,96vw);max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;overscroll-behavior:contain;padding:14px 16px;display:flex;flex-direction:column;gap:6px;color:var(--txt);box-sizing:border-box}
@@ -734,9 +650,6 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .esTw{display:flex;flex-direction:column;gap:3px;margin-top:4px}.esRow{display:grid;grid-template-columns:minmax(0,10.5em) 1fr auto auto;align-items:center;gap:6px;font-size:12.5px}.esRow.gone{opacity:.7}.esRn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.esRn small{color:var(--gold-glow)}.esRow>b{color:#fff;min-width:3.5em;text-align:right}.esK{color:#a898c0;font-size:11px;white-space:nowrap}
 .esWv{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:2px 10px;margin-top:4px}.esW{display:grid;grid-template-columns:2.6em 1fr 3em;align-items:center;gap:5px;font-size:12px}.esW span{color:#c9b88a;white-space:nowrap}.esW>b{color:#fff;text-align:right;font-weight:normal;white-space:nowrap}.esW.fast>b{color:#8affc0;font-weight:bold}.esW.slow>b{color:#ffb08a;font-weight:bold}.esW.live{opacity:.75}
 .esNone,.esMore{font-size:12px;color:#8a80a0;margin-top:4px}
-@media (max-width:760px){.esCols{grid-template-columns:1fr}.esG{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-height:700px){#endStats{padding:10px 12px;gap:4px}.esHero{padding:4px 6px;gap:2px}.esC>b{font-size:13px}}
-@media (pointer:coarse){.esBtn,#overStats,#esBack{min-height:48px;min-width:48px}#endStats .xbtn{min-width:48px;min-height:48px}}
 /* 공용 확인창 #gConfirm (ui/confirm.js, 2026-10-23 Q-1) — #advConfirm 과 같은 모양, 모달 층 */
 #gConfirm{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:var(--z-confirm)}#gConfirm.hidden{display:none}
 #gConfirm .acBox{width:min(380px,92vw);padding:16px 18px;border-radius:14px;border:2px solid var(--gold-hi);background:linear-gradient(#2a2246,#120e22);color:var(--ink);text-align:center;box-shadow:0 0 30px #ffe08a55;animation:blessIn2 .25s ease-out}
@@ -744,3 +657,103 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #gConfirm h3{margin:0 0 8px;color:var(--gold-hi);font-size:18px}#gConfirm.danger h3{color:#ffb0a0}#gConfirm .acIco{font-size:36px}
 #gConfirm .gcB{font-size:15px;line-height:1.5;color:var(--txt-dim)}
 #gConfirm .acBtns{display:flex;gap:10px;justify-content:center;margin-top:14px}#gConfirm .acBtns .gbtn{min-width:120px;min-height:48px}
+
+/* ===== 반응형 — U-3 (2026-10-23): 흩어져 있던 @media 블록을 질의별로 한 곳에 (원래 순서 유지). 순서: 좁은 화면(1100/800) → 높이 800 → 폭 → 높이 700·680·640 → 터치(hover:none · pointer:coarse, 마지막 = 48px 규칙이 이김) ===== */
+@media (max-width:1100px), (max-height:800px){
+.pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:11px}.pill b{font-size:15px}.gold b{font-size:17px}
+  .twTop,#top{top:calc(8px + env(safe-area-inset-top));gap:6px}
+  .twAcct{top:calc(48px + env(safe-area-inset-top))}
+  .twLeft{top:calc(64px + env(safe-area-inset-top));width:206px;padding:10px;gap:5px;max-height:calc(100dvh - 150px)}
+  .twTip{font-size:11px;padding:5px 7px}
+  #twHint{font-size:12px;padding:6px 10px;max-width:min(520px,calc(100vw - 260px))}
+  #twGo{font-size:17px;padding:10px 18px}
+  #build,#ups,#tinfo{top:calc(60px + env(safe-area-inset-top))}
+  #build{width:170px;padding:8px;gap:4px}#ups{width:190px;padding:8px;gap:4px}#tinfo{left:calc(192px + env(safe-area-inset-left))}
+  .panel button{padding:6px 8px;font-size:12.5px}
+  #build,#ups,#tinfo{max-height:calc(100dvh - 76px - 110px)}
+  #skillBtn{width:76px;height:76px}#warpBtn{width:58px;height:58px}#legBtn{width:64px;height:64px;font-size:11.5px}
+  .bar.hp{width:190px}.bar{width:130px}.bar.boss{width:min(420px,60vw)}
+  #bossHud{top:calc(54px + env(safe-area-inset-top))}
+  #banner{font-size:clamp(20px,3.6vw,38px)}#banner.long{font-size:clamp(14px,2.1vw,22px)}
+  #select h1{font-size:clamp(34px,5vw,52px)}#cards{gap:12px}.card{width:clamp(150px,18vw,220px)}
+  #over h1{font-size:clamp(40px,6vw,60px)}
+  .logo h1{font-size:clamp(52px,8vw,84px)}
+  .bigPanel{padding:12px 14px;gap:8px}
+  .smGrid{max-height:min(300px,calc(100dvh - 330px))}.smList{max-height:min(340px,calc(100dvh - 260px))}
+  .stMap{height:clamp(240px,calc(100dvh - 250px),360px)}.stInfo{width:240px}
+  .scT{font-size:clamp(30px,4.5vw,44px)}.scStars i{font-size:clamp(46px,7vh,70px)}
+.pvWrap{min-height:270px}.shopDesc{font-size:13px}.price{font-size:24px}.pvName{font-size:24px}
+.dgCard{width:150px;font-size:11.5px;padding:8px}.dgSt{min-height:44px}.dgParty{margin:8px 0;gap:8px}
+#statOv{right:calc(214px + env(safe-area-inset-right));top:calc(60px + env(safe-area-inset-top));max-height:calc(100dvh - 76px - 110px)}
+}
+@media (max-height:800px){
+.cbSum{padding:10px 14px;gap:6px}.cbSum .gtitle{font-size:20px}.cbDetail .icard{font-size:12px}
+}
+@media (max-width:1100px){
+#note .nc.mon{max-width:210px;font-size:12px}
+.cbBar{width:170px}
+}
+@media (max-width:900px){
+.stRow{grid-template-columns:96px 80px 1fr}
+}
+@media (max-width:760px){
+.esCols{grid-template-columns:1fr}.esG{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:700px){
+.labBody{grid-template-columns:1fr}
+}
+@media (max-height:700px){
+#endStats{padding:10px 12px;gap:4px}.esHero{padding:4px 6px;gap:2px}.esC>b{font-size:13px}
+}
+@media (max-height:680px){
+.gtitle{font-size:19px;padding-bottom:5px}
+  #scr_login .fcard,#scr_menu .fcard{gap:7px;padding:14px 20px}
+  .twLeft{max-height:calc(100dvh - 140px)}
+  .hcard{padding:5px 8px}
+  #build .ptitle.sub{margin-top:0}
+  .scStars{margin:4px 0}.scRw{margin:6px 0}
+#branchPop .bpIcon{font-size:28px}#branchPop .bpBox{padding:10px 12px}#branchPop .bpD{font-size:12px}
+.pvWrap{min-height:230px}.shopSk{padding:4px 8px}.shopStats span{padding:3px 6px}
+.shopTabs{margin-bottom:6px}.shopTab{padding:3px 8px;min-height:48px}.shopTab i{font-size:18px}
+.cbGrid{gap:6px;padding:4px}.cbDetail{display:none}
+.cxGrid{grid-template-columns:86px repeat(5,40px) 54px;gap:3px}.cxC{width:40px;height:34px}.uqCell{min-height:70px;padding:4px 3px}.uqCell .ic{font-size:20px}
+.dgBT{font-size:22px}.dgBS{margin:4px 0 10px;font-size:12.5px}.dgBc{width:200px;min-height:140px;padding:10px}.dgBi{font-size:30px}#dgJoint{bottom:calc(96px + env(safe-area-inset-bottom));min-height:46px;font-size:15px}
+.dgCard{width:140px;gap:3px}.dgLv{display:none}.dgInfo{font-size:12px;line-height:1.4}
+.dgDay{font-size:12px;margin-top:4px}.dgDay small{display:none}.dgShop{gap:6px;margin:6px 0 2px}.dgShopIt{width:150px;padding:6px}.dgShopIt small{min-height:0;font-size:11px}.dgSIc{font-size:22px}
+}
+@media (max-height:640px){
+.stInfo{gap:5px;font-size:12px}.stInfo .sn{font-size:15px}.stInfo .sd{font-size:11px}
+  .stInfo .prop{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 6px;font-size:11px;line-height:1.4}
+  .stInfo .conds{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;font-size:10px}.stInfo .conds div{padding:0;line-height:1.25}
+  .stInfo .rw{font-size:11px}.bigGo{padding:8px;font-size:16px}.chalMs{margin-top:4px}
+#twBless.advMode{width:min(380px,calc(100vw - 32px))}.advCard{padding:6px 9px;font-size:11.5px}.advCard h4{font-size:14px}.advChk{line-height:1.5}
+.modeTog{left:6px;top:6px}.modeTog .mt{font-size:12px;padding:4px 10px;min-height:0}
+.udGrid{max-height:52vh}.admTable{max-height:46vh}#twNotes{top:56px}
+}
+@media (hover:none){
+.panel button:hover,.gbtn:hover:not(:disabled),.itile:hover,.snode:hover,.chtab:hover{filter:none;transform:none}
+  .snode:hover{transform:translate(-50%,-50%)}
+  .card:hover{transform:none;box-shadow:none}
+}
+@media (pointer:coarse){
+.gbtn,.ftab,.panel button,#over button,#tinfo button,.perm,.hcard,.chtab,#popOk,#townPop button{min-height:44px}
+  .gbtn.sm{min-height:44px;min-width:44px;padding:8px 12px}
+  .xbtn,#blessClose{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  .ftab{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:6px 14px}
+  .gpanel input[type=email],.gpanel input[type=password],.gpanel input:not([type]){min-height:46px;font-size:16px}
+  input[type=checkbox]{width:26px;height:26px;margin:9px;flex:none}
+  input[type=range]{height:44px;min-width:110px}
+  .settings label,#sndPanel .snd{min-height:44px}
+  #cam button{width:46px;height:46px}
+  #help{display:none}
+  .card{padding:16px}
+  #heroBox{min-height:44px}
+.mailBtn,#twAdmin,#mnAdmin{min-height:44px;min-width:44px}.amChk input{width:24px;height:24px}#adminPanel input:not([type=checkbox]),#adminPanel textarea{min-height:44px}
+.gfxSeg button{min-height:44px}
+.drRow{flex-wrap:wrap;row-gap:3px}.drRow .drL{flex-basis:100%}.drChips,.drUq{display:flex;gap:5px}.drc{width:44px;height:44px;font-size:20px}.dru{width:62px;height:48px}.dru .ic{font-size:21px}.dru small{font-size:10.5px}
+.modeTog .mt{min-height:44px;min-width:56px;padding:4px 12px}
+#adminPanel select{min-height:44px}.nbX{min-height:44px;min-width:44px}
+#statOv .xbtn{width:48px;height:48px}#ovTabs .ftab,.statTabs .ftab{min-height:48px;min-width:48px}#twStats{min-height:48px}
+  #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}#statPanel .xbtn{min-width:48px;min-height:48px}
+.esBtn,#overStats,#esBack{min-height:48px;min-width:48px}#endStats .xbtn{min-width:48px;min-height:48px}
+}
