@@ -35,7 +35,7 @@ import { banner } from '../ui/hud.js';
 import * as HUD from '../ui/dungeonhud.js';
 import { updBossFx, clearBossFx, bossDodge } from './boss.js';
 
-const D = G.dg = { floor: 0, wave: -1, q: [], spawnT: 0, gapT: 2.5, over: false, kills: 0, t: 0, swap: false, party: [], bless: {}, blessing: null, cleared: 0, joints: 0, k0: 0 };
+const D = G.dg = { floors: FLOORS, floor: 0, wave: -1, q: [], spawnT: 0, gapT: 2.5, over: false, kills: 0, t: 0, swap: false, party: [], bless: {}, blessing: null, cleared: 0, joints: 0, k0: 0 };
 // 영웅별 출정 정보 (일반 출정 ui/flow.js startStageRun2 와 같은 계산)
 export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), legend: E.legendOf(s, c), adv: AD.advOf(c, (s.adv || {})[c]), uq: E.uniquesOf(s, c) });
 
@@ -43,6 +43,7 @@ export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), l
 export const loadPick = () => { try { const a = JSON.parse(localStorage.getItem(DG_PICK_KEY) || 'null'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 8) : null; } catch (e) { return null; } };
 export async function startDungeonRun() { setDmgCap(30); // U-11: 던전 피해 숫자 동시 표시 상한 30 (전투 60)
   $('loadTxt').textContent = '파티 확인 중…'; $('loading').classList.remove('hidden');
+  D.floors = FLOORS; // T-1: 이번 판의 층 목록 (원정 = FLOORS, 무한의 탑은 층 목록을 바꿔 끼움)
   D.entry = DS.takeEntry(); G.dgEntryMode = D.entry.mode; // 5단계: 출발 때 서버가 준 1회용 입장 token (없으면 연습 원정 — 메달 없음)
   await Sh.verifyOwned(); // 로즈: 서버 소유 기록(hd3d_owned)만 믿음 — 저장 데이터의 영웅 값은 쓰지 않음
   const s = Acc.load(), party = pickParty(dungeonParty(c => Sh.heroOwned(c)), loadPick()), L = Object.fromEntries(party.map(c => [c, loadoutOf(s, c)]));
@@ -70,12 +71,12 @@ function startFloor(f, heal = 0, ult0 = 0) {
     if (down && f > 0) { h.dead = 0; h.hb.show(true); h.path = []; play(h.ch, 'Cheer', { once: true }); h.atkT = 1.2; }
     if (f > 0) { h.g.position.set(tileX(CORE[0]) + off[i][0], 0, tileZ(CORE[1]) + off[i][1]); h.path = []; h.aiGoal = null; h.face = -Math.PI / 2; if (down) { emit(PT, h.g.position.x, 1, h.g.position.z, 40, 0x8aff9a, 5, .8); ringFx(h.g.position, 2.5, 0x8aff9a, .6); } } });
   if (G.hero.dead > 0) { const n = G.heroes.find(h => h.dead <= 0); if (n) setControlled(n); }
-  nextWave(); banner(f === 0 ? `⚔ 던전 원정 · ${FLOORS[f].n}` : `⚔ ${FLOORS[f].n}${FLOORS[f].boss ? ' — 보스의 방!' : ''}`, FLOORS[f].boss ? '#ff8a9a' : '#c8a8ff', 2600); refreshBar(); }
+  nextWave(); banner(f === 0 ? `⚔ 던전 원정 · ${D.floors[f].n}` : `⚔ ${D.floors[f].n}${D.floors[f].boss ? ' — 보스의 방!' : ''}`, D.floors[f].boss ? '#ff8a9a' : '#c8a8ff', 2600); refreshBar(); }
 G.dgStartFloor = startFloor;
 
 // ---------- 층 진행 (main.js step 에서, 일시정지·배속 그대로) ----------
 export function updDungeon(dt) {
-  if (!G.dungeon || D.over) return; const F = FLOORS[D.floor];
+  if (!G.dungeon || D.over) return; const F = D.floors[D.floor];
   if (D.blessing) { D.hudT = (D.hudT || 0) - dt; if (D.hudT <= 0) { D.hudT = .15; refreshBar(); } return; } // 축복 고르는 중: 다음 층 대기 (시간도 멈춤)
   D.t += dt; updBossFx(dt);
   if (D.swap) { D.swap = false; if (G.hero.dead > 0) { const n = G.heroes.find(h => h.dead <= 0); if (n) { setControlled(n); banner(`${CLASSES[n.cls].nm} 조작`, '#ffe066', 900); } } }
@@ -88,11 +89,11 @@ export function updDungeon(dt) {
   D.hudT = (D.hudT || 0) - dt; if (D.hudT <= 0) { D.hudT = .15; refreshBar(); }
 }
 // 층 돌파: 마지막 층이면 완주, 아니면 축복 3택1 → 다음 층
-function floorClear() { waveEnd(G.waveLog, G.t); D.cleared = D.floor + 1; if (D.floor >= FLOORS.length - 1) return finish(true); openBless(); }
+function floorClear() { waveEnd(G.waveLog, G.t); D.cleared = D.floor + 1; if (D.floor >= D.floors.length - 1) return finish(true); openBless(); }
 function openBless() { const roles = [...new Set(G.heroes.map(h => ROLE[h.cls]))], ch = blessChoices(D.bless, roles, G.dgRnd || Math.random); D.blessing = ch;
   Snd.play('levelUp', { force: true }); let el = $('dgBless'); if (!el) { el = document.createElement('div'); el.id = 'dgBless'; $('stageClear').parentNode.appendChild(el); }
-  const nf = FLOORS[D.floor + 1], down = G.heroes.filter(h => h.dead > 0).length;
-  el.className = 'dgBless'; el.innerHTML = `<div class="dgBBox"><div class="dgBT">✦ ${esc(FLOORS[D.floor].n)} 돌파! ✦</div><div class="dgBS">축복을 하나 고르세요 · 이번 원정에서만 유지돼요<br><small>다음: <b>${esc(nf.n)}</b>${nf.boss ? ' (보스)' : ''} · 생존 영웅 체력 +15%${down ? ` · 쓰러진 영웅 ${down}명은 체력 30% 로 복귀` : ''}</small></div>
+  const nf = D.floors[D.floor + 1], down = G.heroes.filter(h => h.dead > 0).length;
+  el.className = 'dgBless'; el.innerHTML = `<div class="dgBBox"><div class="dgBT">✦ ${esc(D.floors[D.floor].n)} 돌파! ✦</div><div class="dgBS">축복을 하나 고르세요 · 이번 원정에서만 유지돼요<br><small>다음: <b>${esc(nf.n)}</b>${nf.boss ? ' (보스)' : ''} · 생존 영웅 체력 +15%${down ? ` · 쓰러진 영웅 ${down}명은 체력 30% 로 복귀` : ''}</small></div>
     <div class="dgBC">${ch.map((id, i) => { const B = BLESS_BY[id], n = D.bless[id] || 0; return `<button class="dgBc" data-id="${id}" data-i="${i}"><span class="dgBi">${B.icon}</span><b>${esc(B.n)}</b><span class="dgBd">${esc(B.d)}</span>${n ? `<span class="dgBn">보유 ${n} → ${n + 1}</span>` : ''}<span class="dgBk">${i + 1}</span></button>`; }).join('')}</div></div>`;
   el.querySelectorAll('.dgBc').forEach(b => { b.onpointerdown = e => e.stopPropagation(); b.onclick = e => { e.stopPropagation(); takeBless(b.dataset.id); }; }); }
 function takeBless(id) { if (!D.blessing || !D.blessing.includes(id) || D.over) return; D.bless[id] = (D.bless[id] || 0) + 1; setMods(); Snd.play('confirm'); const B = BLESS_BY[id];
@@ -114,7 +115,7 @@ function joint() { if (D.over || D.blessing || G.paused || !jointReady(G.heroes)
   refreshBar(); return true; }
 G.dgJoint = joint;
 
-function nextWave() { const F = FLOORS[D.floor]; G.dgDmg = F.dmgMul || 1; D.wave++; G.wave = D.wave + 1; waveStart(G.waveLog, `${D.floor + 1}-${D.wave + 1}`, G.t); D.q = waveList(D.floor, D.wave); D.spawnT = .6; D.gapT = F.gap; Snd.horn(); if (D.wave > 0) banner(`웨이브 ${D.wave + 1} / ${F.waves.length}`, '#ffd27a', 1400); }
+function nextWave() { const F = D.floors[D.floor]; G.dgDmg = F.dmgMul || 1; D.wave++; G.wave = D.wave + 1; waveStart(G.waveLog, `${D.floor + 1}-${D.wave + 1}`, G.t); D.q = waveList(F, D.wave); D.spawnT = .6; D.gapT = F.gap; Snd.horn(); if (D.wave > 0) banner(`웨이브 ${D.wave + 1} / ${F.waves.length}`, '#ffd27a', 1400); }
 
 // ---------- 역할 AI (조작하지 않는 영웅, hero.js updParty 가 그 영웅 문맥으로 호출) ----------
 const _v = new THREE.Vector3(), pos = o => ({ x: o.g.position.x, z: o.g.position.z });
@@ -141,16 +142,16 @@ addEventListener('keydown', e => { if (!G.dungeon || G.paused || e.repeat || D.o
   if (e.key === ' ') { e.preventDefault(); joint(); return; } if (e.key >= '1' && e.key <= '4') pick(+e.key - 1); });
 // ---------- 결과 ----------
 function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase = 'over'; G.paused = false; const el0 = $('dgBless'); if (el0) el0.className = 'dgBless hidden';
-  const N = FLOORS.length, cleared = win ? N : D.cleared, E0 = D.entry || { mode: 'practice', why: 'reload' }, ranked = E0.mode === 'ranked';
+  const N = D.floors.length, cleared = win ? N : D.cleared, E0 = D.entry || { mode: 'practice', why: 'reload' }, ranked = E0.mode === 'ranked';
   // 메달 원정: 영혼석 대신 서버 정산(던전 메달) · 연습 원정: 임시 영혼석 (판 중 새로고침한 원정은 보상 없음)
   const got = ranked || E0.why === 'reload' ? 0 : dungeonReward(cleared, N);
   const PR = { guest: '게스트 연습 원정 — 로그인하면 던전 메달을 받아요', missing: '⚠ 서버 업데이트 필요 — 지금은 던전 메달 대신 임시 보상(영혼석)', error: '서버에 연결할 수 없어 연습 원정으로 진행했어요 (메달 없음)', reload: '새로고침·직접 입장한 원정은 연습이라 보상이 없어요' }, prNote = PR[E0.why] || PR.error;
   if (got > 0) { Acc.update(d => ({ ...d, souls: (d.souls || 0) + got })); Acc.flush(); }
   Snd.setMusic('none'); if (win) Snd.play('victory', { force: true, exact: true }); else Snd.play('error', { force: true });
   const sec = Math.round(D.t), el = $('stageClear'), alive = G.heroes.filter(h => h.dead <= 0).length;
-  const dots = FLOORS.map((F, i) => `<span class="${i < cleared ? 'ok' : i === D.floor && !win ? 'fail' : ''}" title="${esc(F.n)}">${i < cleared ? '✔' : i === D.floor && !win ? '✖' : i + 1}</span>`).join('');
+  const dots = D.floors.map((F, i) => `<span class="${i < cleared ? 'ok' : i === D.floor && !win ? 'fail' : ''}" title="${esc(F.n)}">${i < cleared ? '✔' : i === D.floor && !win ? '✖' : i + 1}</span>`).join('');
   const bl = Object.entries(D.bless).map(([id, n]) => `${BLESS_BY[id].icon} ${esc(BLESS_BY[id].n)}${n > 1 ? ` ×${n}` : ''}`).join(' · ');
-  el.innerHTML = `<div class="scBox dgRes ${win ? 'win' : 'lose'}"><div class="scT">${win ? `⚔ 던전 ${N}층 완주!` : cleared ? `💀 원정 실패 · ${cleared}층 돌파` : '💀 원정 실패'}</div><div class="scS">${win ? `생존 ${alive}/${G.heroes.length}` : `${esc(FLOORS[D.floor].n)}에서 파티 전멸`} · ${Math.floor(sec / 60)}분 ${sec % 60}초${D.joints ? ` · 합동 공격 ${D.joints}회` : ''}</div>
+  el.innerHTML = `<div class="scBox dgRes ${win ? 'win' : 'lose'}"><div class="scT">${win ? `⚔ 던전 ${N}층 완주!` : cleared ? `💀 원정 실패 · ${cleared}층 돌파` : '💀 원정 실패'}</div><div class="scS">${win ? `생존 ${alive}/${G.heroes.length}` : `${esc(D.floors[D.floor].n)}에서 파티 전멸`} · ${Math.floor(sec / 60)}분 ${sec % 60}초${D.joints ? ` · 합동 공격 ${D.joints}회` : ''}</div>
     <div class="dgFloors">${dots}</div>
     <div class="dgResParty">${G.heroes.map(h => `<span class="${h.dead > 0 ? 'down' : ''}">${CLASSES[h.cls].icon} ${esc(CLASSES[h.cls].nm)}</span>`).join('')}</div>${bl ? `<div class="dgResBl">${bl}</div>` : ''}
     <div class="scRw">${ranked ? `<div id="dgMedalRes" class="dgMedalRes">🏅 던전 메달 정산 중…</div>${cleared ? '' : '<small>다시 도전해 보세요! 세라가 앞에서 버티는 동안 뒤에서 공격하세요.</small>'}`

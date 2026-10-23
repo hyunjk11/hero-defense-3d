@@ -84,7 +84,7 @@ function burstCircles(list) { const hit = new Set();
   Snd.play('boom', { rate: .8 }); }
 
 // ---------- ③ 해골 소환 ----------
-function summon(e, z) { const n = z.phase === 2 ? B.summon.n2 : B.summon.n, F = FLOORS[G.dg.floor] || FLOORS[FLOORS.length - 1], p = e.g.position;
+function summon(e, z) { const n = z.phase === 2 ? B.summon.n2 : B.summon.n, L = G.dg.floors || FLOORS, F = L[G.dg.floor] || L[L.length - 1], p = e.g.position;
   play(e.m, ANIM(e.m).summon, { once: true, force: true }); z.hold = Math.max(z.hold, 1.1); S.log.summons++; G.shake = Math.max(G.shake || 0, .5);
   banner('💀 해골 소환! 졸개부터 정리하세요', '#d8c8ff', 1500); Snd.roar(p);
   for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + .4; let x = p.x + Math.cos(a) * 2.6, zz = p.z + Math.sin(a) * 2.6; x = Math.max(-20, Math.min(20, x)); zz = Math.max(-12, Math.min(12, zz));

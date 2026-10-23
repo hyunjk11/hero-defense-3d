@@ -59,7 +59,8 @@ export const FLOORS = [
   { n: '5층 · 망령 여왕의 방', hpMul: 1.4, dmgMul: 1.2, gap: 5, every: .7, boss: true,
     waves: [[['grunt', 6], ['imp', 6]], [[DG_BOSS_TYPE, 1], ['grunt', 2]]] },
 ];
-export function waveList(floor, w) { const F = FLOORS[floor], W = F && F.waves[w]; if (!W) return []; const out = []; let left = W.map(([t, n]) => [t, n]);
+// T-1 (무한의 탑 준비): floor = 층 번호(FLOORS 기준, 기존 호출) 또는 층 객체 {waves} (판 진행은 G.dg.floors 의 층 객체를 넘김)
+export function waveList(floor, w) { const F = typeof floor === 'number' ? FLOORS[floor] : floor, W = F && F.waves && F.waves[w]; if (!W) return []; const out = []; let left = W.map(([t, n]) => [t, n]);
   while (left.some(x => x[1] > 0)) for (const x of left) if (x[1] > 0) { out.push(x[0]); x[1]--; } return out; } // 종류를 섞어서 (같은 종류만 몰려 나오지 않게)
 // 임시 보상 (5단계에서 던전 메달·하루 3회 서버 강제로 교체): 돌파한 층마다 영혼석 + 5층까지 완주 보너스
 export const DG_REWARD = { perFloor: 10, clearBonus: 30 };
