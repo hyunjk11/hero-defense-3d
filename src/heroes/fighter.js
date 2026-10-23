@@ -210,7 +210,7 @@ function tigerTexture() { if (tigerTex) return tigerTex; const cv = document.cre
   x.fillStyle = '#fff6a0'; for (const ex of [94, 162]) { x.beginPath(); x.ellipse(ex, 128, 15, 8, ex < 128 ? .35 : -.35, 0, 6.3); x.fill(); }
   x.fillStyle = '#000'; x.beginPath(); x.moveTo(114, 166); x.lineTo(142, 166); x.lineTo(128, 182); x.fill();
   tigerTex = new THREE.CanvasTexture(cv); tigerTex.colorSpace = THREE.SRGBColorSpace; return tigerTex; }
-function tigerGhost(c) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tigerTexture(), transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+function tigerGhost(c) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tigerTexture(), transparent: true, opacity: .9, depthWrite: false, depthTest: false, toneMapped: false })); sp.renderOrder = 5; // 보통 혼합: 밝은 바닥에서도 줄무늬가 보이게
   sp.position.set(c.x, c.y + 2.6, c.z); sp.scale.setScalar(3); scene.add(sp); G.ftN.tiger = (G.ftN.tiger || 0) + 1; let t = 0;
   FX.push(dt => { t += dt; const k = t / .4; sp.scale.setScalar(3 + k * 2.2); sp.position.y = c.y + 2.6 + k * .8; sp.material.opacity = .9 * (1 - k * k); if (k < 1) return true; scene.remove(sp); sp.material.dispose(); return false; }); }
 // hero.js 피격: 백호난무 시전 중이면 받는 피해 ×0.7
@@ -221,15 +221,16 @@ function dragonWave(at, mul) { const h = hero; ftStop(); const p = h.g.position;
   const spd = HIT.PalmS / DW.castT; if (h.ch.acts.PalmS) play(h.ch, 'PalmS', { once: true, force: true, speed: spd }); h.atkT = DW.castT + .4; glow(true, 1);
   Snd.play('magic', { pos: p, rate: .8, force: true }); ringFx(p, 2, h.adv.col, DW.castT); emit(P, p.x, 1.2, p.z, Q.perf ? 12 : 30, h.adv.col, -3, .35, 0, 1.2);
   later(DW.castT, () => { glow(false); if (!hero || hero.dead > 0) return; dragonFly(hero.g.position.clone(), dir, mul); }); return true; }
-function dragonHead(col) { const g = new THREE.Group(), m = ADD(col, .9), w = ADD(0xe8fbff, .95);
-  const head = new THREE.Mesh(new THREE.ConeGeometry(.75, 2, 10).rotateX(Math.PI / 2), m); g.add(head); const jaw = new THREE.Mesh(new THREE.SphereGeometry(.85, 14, 10), ADD(col, .5)); jaw.scale.set(1, .8, 1.2); jaw.position.z = -.5; g.add(jaw);
+const SOLID = (c, o = .9) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, toneMapped: false }); // 보통 혼합 (밝은 바닥에서 가산 혼합은 하얗게 날아감)
+function dragonHead(col) { const g = new THREE.Group(), m = SOLID(0x1a8ad8, .95), w = SOLID(0xf4fbff, 1);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(.75, 2, 10).rotateX(Math.PI / 2), m); g.add(head); const jaw = new THREE.Mesh(new THREE.SphereGeometry(.85, 14, 10), SOLID(0x2ab8f0, .9)); const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 10), ADD(col, .35)); halo.scale.set(1, .8, 1.4); g.add(halo); jaw.scale.set(1, .8, 1.2); jaw.position.z = -.5; g.add(jaw);
   for (const sx of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(.12, 1.3, 6), w); horn.position.set(sx * .45, .7, -.9); horn.rotation.x = -1.1; horn.rotation.z = sx * -.3; g.add(horn);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), ADD(0xfff6a0, 1)); eye.position.set(sx * .38, .32, .1); g.add(eye); }
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.15, 8, 6), SOLID(0xfff27a, 1)); eye.position.set(sx * .38, .32, .1); g.add(eye); }
   return g; }
 function dragonFly(start, dir, mul) { const col = hero.adv.col, dmg = stat.dmg() * DW.mul * mul, hit = new Set(), y = start.y + 1.2, N = Q.perf ? 6 : 12, head = dragonHead(col), body = [], hist = [];
   const side = new THREE.Vector3(dir.z, 0, -dir.x); let dist = 0, t = 0, px = start.x, pz = start.z, done = false;
   head.position.set(start.x, y, start.z); head.lookAt(start.x + dir.x, y, start.z + dir.z); scene.add(head);
-  for (let i = 0; i < N; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.62 * (1 - i / (N + 2)), 12, 8), ADD(i % 2 ? col : 0xbff6ff, .7 - i * .03)); b.position.copy(head.position); b.visible = false; scene.add(b); body.push(b); }
+  for (let i = 0; i < N; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.62 * (1 - i / (N + 2)), 12, 8), SOLID(i % 2 ? 0x1a8ad8 : 0x42c8f4, .9 - i * .03)); b.position.copy(head.position); b.visible = false; scene.add(b); body.push(b); }
   G.shake = Math.max(G.shake || 0, .5); Snd.play('boom', { pos: start, vol: .6, rate: 1.1, force: true }); Snd.whoosh(start, .7, 200, 3600, .7); Snd.play('magic', { pos: start, rate: 1.4, force: true });
   FX.push(dt => { t += dt;
     if (!done) { const st = Math.min(DW.spd * dt, DW.len - dist), x0 = px, z0 = pz; dist += st; px = start.x + dir.x * dist; pz = start.z + dir.z * dist;
