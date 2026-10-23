@@ -713,3 +713,22 @@ body:not(.dungeonRun) #dgJoint{display:none}
   #statOv .xbtn{width:48px;height:48px}#ovTabs .ftab,.statTabs .ftab{min-height:48px;min-width:48px}#twStats{min-height:48px}
   #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}#statPanel .xbtn{min-width:48px;min-height:48px}
 }
+/* ===== 판 종료 통계 (ui/endstats.js): 결과 화면 📊 통계 → #endStats ===== */
+.esBtn{margin:0 8px 0 0}.scBox .esBtn{padding:12px 22px;font-size:17px;background:linear-gradient(#3a3a6a,#1c1c40)}
+#endStats{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;width:min(920px,96vw);max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;overscroll-behavior:contain;padding:14px 16px;display:flex;flex-direction:column;gap:6px;color:#f0e6c8;box-sizing:border-box}
+#endStats{box-shadow:0 0 0 4px #1a1028,0 0 0 5px #c9a24a66,0 12px 40px #000c,0 0 0 200vmax #05030cb0}#endStats.hidden{display:none}#endStats .xbtn{position:absolute;top:8px;right:8px}#esBack{align-self:center;margin-top:4px;padding:8px 26px}
+.esHd .gtitle{margin:0}.esSum{text-align:center;font-size:13px;color:#c9b88a}.esSum b{color:#fff}
+.esSub{font-size:13px;font-weight:bold;color:#ffe08a;border-bottom:1px solid #c9a24a44;margin-top:4px;padding-bottom:2px}.esSub small{font-weight:normal;color:#a898c0;margin-left:6px}
+.esHeroes{display:grid;grid-template-columns:1fr;gap:6px}.esHeroes.n2,.esHeroes.n3,.esHeroes.n4{grid-template-columns:1fr 1fr}
+.esHero{background:#ffffff08;border:1px solid #c9a24a33;border-radius:10px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;min-width:0}.esHero.down{border-color:#ff6a7a55}.esHero.down .esHn{color:#ff9aa8}
+.esHn{font-weight:bold;color:#fff3d6;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden}.esHn em{font-style:normal}.esHn small{margin-left:auto;font-weight:normal;font-size:11.5px;color:#a8c8e0}
+.esG{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px}.esHeroes:not(.n1) .esG{grid-template-columns:repeat(3,minmax(0,1fr))}
+.esC{display:flex;flex-direction:column;align-items:center;font-size:11.5px;padding:2px 3px;border-radius:6px;background:#00000033;min-width:0}.esC span{color:#c9b88a;white-space:nowrap}.esC>b{color:#fff;font-size:14px;white-space:nowrap}.esC .esB{width:80%;height:4px;margin-top:2px}
+.esB{display:block;height:7px;border-radius:4px;background:#ffffff14;overflow:hidden;flex:1;min-width:20px}.esB b{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#c9a24a,#ffe066)}.esB.sk b{background:linear-gradient(90deg,#7a5aff,#c8a0ff)}.esB.tw b{background:linear-gradient(90deg,#3a8aff,#8ad0ff)}.esB.wv b{background:linear-gradient(90deg,#3ab07a,#8affc0)}.esB.sh b{background:linear-gradient(90deg,#c95a8a,#ffa0c8)}
+.esCols{display:grid;grid-template-columns:1fr 1fr;gap:10px}.esCols>div{min-width:0}
+.esTw{display:flex;flex-direction:column;gap:3px;margin-top:4px}.esRow{display:grid;grid-template-columns:minmax(0,10.5em) 1fr auto auto;align-items:center;gap:6px;font-size:12.5px}.esRow.gone{opacity:.7}.esRn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.esRn small{color:#ffd23a}.esRow>b{color:#fff;min-width:3.5em;text-align:right}.esK{color:#a898c0;font-size:11px;white-space:nowrap}
+.esWv{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:2px 10px;margin-top:4px}.esW{display:grid;grid-template-columns:2.6em 1fr 3em;align-items:center;gap:5px;font-size:12px}.esW span{color:#c9b88a;white-space:nowrap}.esW>b{color:#fff;text-align:right;font-weight:normal;white-space:nowrap}.esW.fast>b{color:#8affc0;font-weight:bold}.esW.slow>b{color:#ffb08a;font-weight:bold}.esW.live{opacity:.75}
+.esNone,.esMore{font-size:12px;color:#8a80a0;margin-top:4px}
+@media (max-width:760px){.esCols{grid-template-columns:1fr}.esG{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-height:700px){#endStats{padding:10px 12px;gap:4px}.esHero{padding:4px 6px;gap:2px}.esC>b{font-size:13px}}
+@media (pointer:coarse){.esBtn,#overStats,#esBack{min-height:48px;min-width:48px}#endStats .xbtn{min-width:48px;min-height:48px}}

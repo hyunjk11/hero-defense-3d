@@ -29,6 +29,7 @@ import * as Sh from '../account/shop.js';
 import { initShop, openShop, closeShop, closeMail, closeAdmin, updShop } from './shop.js';
 import { initNotice, showNotices } from './notice.js';
 import { initStats, closeStats } from './stats.js';
+import './endstats.js'; // 판 종료 통계 (결과 화면 📊 통계)
 import { shop as shopBld, SHOP_P, shopFront } from '../world/town.js';
 import { dungeon as dungeonBld, DUNGEON_P, dungeonFront } from '../world/town.js';
 import { initDungeonUI, openDungeon, closeDungeon } from './dungeon.js';
@@ -65,6 +66,7 @@ G.onStageClear = () => {
     <div class="scConds">${ST.STAR_D.map((d, i) => `<div class="${i < stars ? 'got' : ''}">${i < stars ? '★' : '☆'} ${d}</div>`).join('')}</div>
     <div class="scRw">영혼석 <b>+${got + info.souls}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}${info.eliteSouls ? `<br><span class="hardTxt">정예 처치 보너스 영혼석 +${info.eliteSouls}</span>` : ''}${info.unlocked.length ? `<br>🔓 새 ${info.hard ? '하드 ' : ''}스테이지 해금: ${info.unlocked.map(ST.stageNo).join(', ')}` : ''}${info.hardOpen ? `<br><span class="hardTxt">🔥 ${ST.CHAPTERS.find(c => c.id === info.hardOpen).short} 하드 모드가 열렸어요!</span>` : ''}</div><button class="gbtn main" id="scTown">🏠 마을로 귀환</button></div>`;
   el.classList.remove('hidden'); [0, 1, 2].forEach(i => i < stars && setTimeout(() => Snd.play('coin', { force: true, rate: 1 + i * .2 }), 400 + i * 350)); $('scTown').onclick = () => { Snd.play('confirm'); goTown(); };
+  if (G.endStatsShow) G.endStatsShow('clear'); // 📊 통계 버튼 (ui/endstats.js)
 };
 // ---------- 시작 ----------
 export function startFlow() {
