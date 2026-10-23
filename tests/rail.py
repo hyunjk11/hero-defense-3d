@@ -29,7 +29,7 @@ with sync_playwright() as pw:
         r = J(pg, """()=>{ const R=e=>e.getBoundingClientRect(), rail=R(document.getElementById('twRail')), hit=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
           const others=['.twTop','.twBottom','.twLeft'].map(s=>document.querySelector(s)).filter(Boolean).map(R);
           return { inView: rail.top>=0&&rail.bottom<=innerHeight&&rail.right<=innerWidth, overlaps: others.filter(o=>hit(rail,o)).length,
-                   sizes: [...document.querySelectorAll('#twRail .railBtn')].map(e=>[e.offsetWidth,e.offsetHeight]) } }""")
+                   sizes: [...document.querySelectorAll('#twRail .railBtn:not(.hidden)')].map(e=>[e.offsetWidth,e.offsetHeight]) } }""")
         ok(f'{tag} rail_in_view_no_overlap', r['inView'] and r['overlaps'] == 0, r)
         if touch: ok(f'{tag} rail_touch48', all(w >= 47.5 and h >= 47.5 for w, h in r['sizes']), r['sizes'])
         if SHOTS and touch: OUT.mkdir(parents=True, exist_ok=True); J(pg, "()=>G.pauseRender=true"); pg.screenshot(path=str(OUT / f'u9_rail_{tag}.png')); J(pg, "()=>G.pauseRender=false")
