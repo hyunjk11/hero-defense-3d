@@ -255,6 +255,11 @@ with sync_playwright() as pw:
     ok('shop_items', [x[0] for x in stt] == ['dg_steel', 'dg_souls', 'dg_crystal', 'dg_essence', 'dg_title', 'dg_uq_fist'] and stt[3][1] == 'ok' and stt[4][1] == 'lack' and stt[4][2], stt)
     ok('shop_touch44', all(w >= 44 and h >= 44 for w, h in J(pg, "()=>[...document.querySelectorAll('.dgBuy,#dgBack')].map(b=>{ const r=b.getBoundingClientRect(); return [r.width, r.height]; })")))
     es0 = J(pg, "()=>G.gear.Acc.load().mat.essence||0")
+    # Q-1 공용 확인창: 구매 → #gConfirm (메달 가격) · 취소 = 안 삼 · 다시 눌러 확인
+    J(pg, "()=>G.dgLastBuy=null"); pg.click('.dgBuy[data-buy="dg_essence"]'); pg.wait_for_timeout(300)
+    ok('q1_dgshop_confirm', J(pg, "()=>{ const e=document.getElementById('gConfirm'); return !!e && !e.classList.contains('hidden') && e.innerText.includes('던전 상점') && e.innerText.includes('메달'); }"))
+    os.makedirs('shots/improve', exist_ok=True); pg.screenshot(path='shots/improve/confirm_dgshop.png')
+    pg.click('#gcNo'); pg.wait_for_timeout(500); ok('q1_dgshop_cancel', J(pg, "()=>G.dgLastBuy===null && document.getElementById('gConfirm').classList.contains('hidden')") and J(pg, "()=>G.gear.Acc.load().mat.essence||0") == es0 and not hidden(pg, 'dgPanel'))
     pg.click('.dgBuy[data-buy="dg_essence"]'); pg.click('#gcOk'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(300)
     ok('shop_buy_essence', pg.inner_text('#dgShopMedals') == '2' and '우편함' in pg.inner_text('#banner'), pg.inner_text('#dgShopMedals'))
     mid = J(pg, "()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const m=Object.values(d.hd3d_mail).find(m=>m.reward&&m.reward.essence===3); return m&&m.id; }")

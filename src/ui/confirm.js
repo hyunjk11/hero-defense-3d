@@ -1,4 +1,4 @@
-// ================= 공용 확인창 (네이티브 confirm() 대신 · 게임 스타일) =================
+// ================= 공용 확인창 (브라우저 기본 확인창 대신 · 게임 스타일) =================
 // askConfirm({ title, body, ok, cancel, tone:'danger', icon }) → Promise<boolean>
 // Enter = 확인 · Esc = 취소 (캡처 단계에서 처리해 뒤 패널의 Esc 가 같이 닫히지 않음) · 바깥 클릭 = 취소
 // DOM 은 #advConfirm 과 같은 모양(.acBox) — body 에 #gConfirm 한 번만 만들어 재사용. 열린 상태에서 또 부르면 이전 것은 취소(false)
@@ -22,7 +22,6 @@ function ensure() {
   return el;
 }
 function done(v) { if (!pend) return; const r = pend; pend = null; el.classList.add('hidden'); if (!v) Snd.play('ui'); r(v); }
-export const confirmOpen = () => !!pend;
 export function askConfirm({ title = '확인', body = '', ok = '확인', cancel = '취소', tone = '', icon = '' } = {}) {
   ensure(); if (pend) { const r = pend; pend = null; r(false); }
   el.querySelector('.acIco').textContent = icon; el.querySelector('.acIco').style.display = icon ? '' : 'none';
