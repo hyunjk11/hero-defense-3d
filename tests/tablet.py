@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """가로 태블릿 레이아웃 테스트 (headless Chromium, 터치 에뮬레이션, DPR 2).
-모든 화면을 여러 태블릿 크기로 열어 (1) 화면 밖으로 넘치는 요소 (2) 줄바꿈된 핵심 버튼 (3) 44px 미만 터치 대상
+모든 화면을 여러 태블릿 크기로 열어 (1) 화면 밖으로 넘치는 요소 (2) 줄바꿈된 핵심 버튼 (3) 48px 미만 터치 대상 (U-4)
 (4) 콘솔 오류 를 검사한다.
   python3 tests/tablet.py                 # 검사 (실패 시 exit 1)
   python3 tests/tablet.py --audit         # 문제 목록만 출력 (실패 처리 안 함)
@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 MOCK = (pathlib.Path(__file__).parent / 'sbmock.js').read_text(encoding='utf-8')
 ap = argparse.ArgumentParser(); ap.add_argument('--audit', action='store_true'); ap.add_argument('--shots'); ap.add_argument('--sizes'); ap.add_argument('--url'); ap.add_argument('--only'); ap.add_argument('--shotsizes'); ap.add_argument('--short', action='store_true')
 A = ap.parse_args()
-SIZES = [tuple(map(int, s.split('x'))) for s in (A.sizes or '1024x768,1180x820,1366x1024,1280x800,1138x712,960x600').split(',')]
+SIZES = [tuple(map(int, s.split('x'))) for s in (A.sizes or '1024x768,1180x820,1366x1024,1280x800,1138x712,1024x600,960x600').split(',')]
 if A.shots: os.makedirs(A.shots, exist_ok=True)
 
 # 검사 스크립트: roots 안의 보이는 요소가 뷰포트 밖으로 넘치는지 / 지정 요소가 한 줄인지 / 터치 대상 크기
@@ -37,7 +37,7 @@ CHECK = r"""([roots, oneLine, touchSel]) => {
     if (tops.length > 1) wrap.push(`${name(el)} "${el.innerText.replace(/\s+/g, ' ').slice(0, 30)}" lines=${tops.length}`);
   });
   for (const el of document.querySelectorAll(touchSel)) { if (!roots.some(r => el.closest(r)) || !vis(el) || el.disabled && 0) continue; const lb = el.matches('input[type=checkbox]') && el.closest('label'); const r = (lb || el).getBoundingClientRect(); if (r.width < 1) continue; if (el.closest('.smGrid,.smList,#disGrid,.stMap') && clipAnc(el)) { const c = clipAnc(el).getBoundingClientRect(); if (r.bottom < c.top || r.top > c.bottom) continue; }
-    if (r.height < 43.5 || r.width < 43.5) small.push(`${name(el)} ${Math.round(r.width)}x${Math.round(r.height)}`); }
+    if (r.height < 47.5 || r.width < 47.5) small.push(`${name(el)} ${Math.round(r.width)}x${Math.round(r.height)}`); }
   return { out, wrap, small, clipped, coarse: matchMedia('(pointer: coarse)').matches };
 }"""
 ONE = ['#twGo', '#twMenu', '#twBag', '.twTop .pill', '#top .pill', '#startWave', '#retreat', '.tool > span', '.up .row', '.gbtn.main', '#mnNew', '#mnSet', '.ftab', '.chtab b', '#stGo', '#stChalGo', '#scTown', '#overTown', '#over button', '#lgIn', '#lgUp', '#blessClose', '.xbtn', '#warpBtn > span', '#skillBtn > span', '#popOk', '.gtitle']

@@ -1,7 +1,7 @@
 /* 층 (z-index) 토큰 — U-2 (2026-10-23). 값이 클수록 위. 아래 순서: HUD 오버레이 < HUD < 토스트 < 화면 < 관리자 < 연출 < 일시정지 < 결과 < 페이드 < 모달 < 확인창 < 아이템 툴팁 */
 :root{--z-hud-ov:4;--z-hud:5;--z-tip:7;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100}
 /* 디자인 토큰 — U-1 (2026-10-23). 기존과 **같은 값** (시각 변화 0). 알파 붙은 변형(#c9a24a99 등)은 아직 그대로 */
-:root{--gold-line:#c9a24a;--gold-hi:#ffe08a;--gold-txt:#ffe066;--gold-glow:#ffd23a;--ink:#fff3d6;--txt:#f0e6c8;--txt-dim:#e8dcc0;--btn-top:#3a3260;--btn-bot:#221c3a;--r-tab:8px;--r-btn:9px;--r-panel:12px;--r-gpanel:14px;--r-pill:20px;--fs-sm:12px;--fs:13px;--fs-md:15px}
+:root{--gold-line:#c9a24a;--gold-hi:#ffe08a;--gold-txt:#ffe066;--gold-glow:#ffd23a;--ink:#fff3d6;--txt:#f0e6c8;--txt-dim:#e8dcc0;--btn-top:#3a3260;--btn-bot:#221c3a;--r-tab:8px;--r-btn:9px;--r-panel:12px;--r-gpanel:14px;--r-pill:20px;--fs-sm:12px;--fs:13px;--fs-md:15px;--hit:44px}
 #banner,#note{z-index:var(--z-toast)} /* 웨이브 배너·새 몬스터 카드는 📊 오버레이(#statOv) 위 */
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05060c;font-family:"Noto Sans CJK KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#fff;user-select:none;overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 #app{position:fixed;inset:0}#app canvas{display:block}
@@ -714,23 +714,24 @@ body:not(.dungeonRun) #dgJoint{display:none}
   .card:hover{transform:none;box-shadow:none}
 }
 @media (pointer:coarse){
-.gbtn,.ftab,.panel button,#over button,#tinfo button,.perm,.hcard,.chtab,#popOk,#townPop button{min-height:44px}
-  .gbtn.sm{min-height:44px;min-width:44px;padding:8px 12px}
-  .xbtn,#blessClose{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
-  .ftab{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:6px 14px}
-  .gpanel input[type=email],.gpanel input[type=password],.gpanel input:not([type]){min-height:46px;font-size:16px}
+:root{--hit:48px} /* U-4 (2026-10-23): 터치 대상 최소 48px — 아래 규칙은 var(--hit) */
+.gbtn,.ftab,.panel button,#over button,#tinfo button,.perm,.hcard,.chtab,#popOk,#townPop button{min-height:var(--hit)}
+  .gbtn.sm{min-height:var(--hit);min-width:var(--hit);padding:8px 12px}
+  .xbtn,#blessClose{min-width:var(--hit);min-height:var(--hit);display:flex;align-items:center;justify-content:center}
+  .ftab{display:inline-flex;align-items:center;justify-content:center;min-width:var(--hit);padding:6px 14px}
+  .gpanel input[type=email],.gpanel input[type=password],.gpanel input:not([type]){min-height:var(--hit);font-size:16px}
   input[type=checkbox]{width:26px;height:26px;margin:9px;flex:none}
-  input[type=range]{height:44px;min-width:110px}
-  .settings label,#sndPanel .snd{min-height:44px}
-  #cam button{width:46px;height:46px}
+  input[type=range]{height:var(--hit);min-width:110px}
+  .settings label,#sndPanel .snd{min-height:var(--hit)}
+  #cam button{width:var(--hit);height:var(--hit)}
   #help{display:none}
   .card{padding:16px}
-  #heroBox{min-height:44px}
-.mailBtn,#twAdmin,#mnAdmin{min-height:44px;min-width:44px}.amChk input{width:24px;height:24px}#adminPanel input:not([type=checkbox]),#adminPanel textarea{min-height:44px}
-.gfxSeg button{min-height:44px}
-.drRow{flex-wrap:wrap;row-gap:3px}.drRow .drL{flex-basis:100%}.drChips,.drUq{display:flex;gap:5px}.drc{width:44px;height:44px;font-size:20px}.dru{width:62px;height:48px}.dru .ic{font-size:21px}.dru small{font-size:10.5px}
-.modeTog .mt{min-height:44px;min-width:56px;padding:4px 12px}
-#adminPanel select{min-height:44px}.nbX{min-height:44px;min-width:44px}
+  #heroBox{min-height:var(--hit)}
+.mailBtn,#twAdmin,#mnAdmin{min-height:var(--hit);min-width:var(--hit)}.amChk input{width:24px;height:24px}#adminPanel input:not([type=checkbox]),#adminPanel textarea{min-height:var(--hit)}
+.gfxSeg button{min-height:var(--hit)}
+.drRow{flex-wrap:wrap;row-gap:3px}.drRow .drL{flex-basis:100%}.drChips,.drUq{display:flex;gap:5px}.drc{width:var(--hit);height:var(--hit);font-size:20px}.dru{width:62px;height:48px}.dru .ic{font-size:21px}.dru small{font-size:10.5px}
+.modeTog .mt{min-height:var(--hit);min-width:56px;padding:4px 12px}
+#adminPanel select{min-height:var(--hit)}.nbX{min-height:var(--hit);min-width:var(--hit)}
 #statOv .xbtn{width:48px;height:48px}#ovTabs .ftab,.statTabs .ftab{min-height:48px;min-width:48px}#twStats{min-height:48px}
   #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}#statPanel .xbtn{min-width:48px;min-height:48px}
 .esBtn,#overStats,#esBack{min-height:48px;min-width:48px}#endStats .xbtn{min-width:48px;min-height:48px}
