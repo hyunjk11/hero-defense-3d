@@ -56,7 +56,6 @@ function renderOv() { const L = heroesNow(), hud = $('hud'); if (!L.length || !h
 function openOv() { if (!heroesNow().length) return; st.ov = true; st.tabsKey = ''; $('statOv').classList.remove('hidden'); $('statBtn').classList.add('on'); renderOv(); clearInterval(st.timer); st.timer = setInterval(() => { if (st.ov) renderOv(); }, 250); }
 function closeOv() { st.ov = false; clearInterval(st.timer); st.timer = 0; const o = $('statOv'); if (o) o.classList.add('hidden'); const b = $('statBtn'); if (b) b.classList.remove('on'); }
 export function toggleOv() { if (st.ov) closeOv(); else openOv(); Snd.play('ui'); }
-export const statsOpen = () => st.ov;
 
 // 전투 쪽 (버튼·C 키·탭)은 모듈을 불러오면 바로 연결 (?test=1 처럼 마을 흐름 없이 시작해도 동작) · 마을 버튼은 initStats (flow.js 가 다른 창 닫기를 넘김)
 function bindBattle() {
