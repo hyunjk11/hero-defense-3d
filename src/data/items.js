@@ -86,7 +86,7 @@ export const UQ = {
     un: '묘신 냥발 장풍', d: '[E] 거대한 고양이 발 장풍 — 직선 14 · 폭 2.4 관통(비행 포함) 360% 피해 + 밀쳐내기 + 3초간 받는 피해 +20% · 재사용 11초', a3: '끝에서 냥발 도장 폭발 (반경 3.5 · 200% · 기절 1초, 보스 0.3초)' },
 };
 export const UQ_KEYS = Object.keys(UQ);
-export const UQ_RESERVED = ['m_gauntlet']; // 숨긴 버들 전용 고유 무기 (숨김 해제 때 추가) — 지금은 데이터 없음. 서윤(fighter) 고유는 d_fist 로 추가됨 (2026-10-23)
+// 예약: 'm_gauntlet' = 숨긴 버들 전용 고유 무기 (숨김 해제 때 추가) — 지금은 데이터 없음. 서윤(fighter) 고유는 d_fist 로 추가됨 (2026-10-23)
 // 던전 고유 (서버 supabase/schema.sql hd3d_dungeon_finish/buy 가 판정 — 여기 값은 표시·테스트용, tests/dungeon.test.mjs 가 schema.sql 과 비교)
 // 모르비아 처치(메달 원정 완주)마다 5%, 천장 40회(40번째 처치 확정) · 던전 상점 450 메달 · 계정당 1개 (서버 지갑 uniques)
 export const UQ_DG = { key: 'd_fist', drop: .05, pity: 40, price: 450, shop: 'dg_uq_fist' };
