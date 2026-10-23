@@ -1,8 +1,8 @@
 // 챕터별 몬스터 구성 → 웨이브 대기열 (순수 로직, node 테스트 가능: tests/roster.test.mjs)
 import { ETYPES, ROSTERS, ENDLESS_MIX, rosterShare, NEW_TYPES, NEW_WEIGHT, newShare } from '../data/monsters.js';
-import { HARD } from '../data/stages.js';
+import { HARD, hardView } from '../data/stages.js';
 
-export const stageLevel = (stage, n) => n + (stage.idx || 0) * 2;
+export const stageLevel = (stage, n) => n + (stage.idx || 0) * 2 + (stage.lvUp || 0); // lvUp = 하드 구성 레벨 보너스 (stages.js hardView)
 // 레벨 lv에서 등장 가능한 [종류, 가중치]
 export function rosterPool(ch, lv) { const R = ROSTERS[ch]; return R ? R.pool.filter(p => lv >= p[2]).map(p => [p[0], p[1]]) : []; }
 export function pickFrom(pool, rand) { const sum = pool.reduce((a, p) => a + p[1], 0); let x = rand() * sum; for (const p of pool) { x -= p[1]; if (x <= 0) return p[0]; } return pool[pool.length - 1][0]; }
@@ -35,6 +35,7 @@ export const newTypes = (q, seen) => [...new Set(q)].filter(t => !seen.has(t) &&
 const ICON0 = { grunt: '💀', imp: '🗡', golem: '🛡', bat: '🦇', boss: '👑' };
 export const monIcon = t => (ETYPES[t] && ETYPES[t].icon) || ICON0[t] || '💀';
 export function previewWave(stage, n, classic = false, hard = false) {
+  if (hard && stage && !classic && !stage.lvUp) stage = hardView(stage);
   const add = (m, t, w) => { if (w > 0) m.set(t, (m.get(t) || 0) + w); }, out = new Map(); let fresh = [];
   let boss = n % 5 === 0 ? (classic || stage ? 'boss' : endlessBoss(n)) : null;
   const pool = stage && !classic ? rosterPool(stage.ch, stageLevel(stage, n)) : [];

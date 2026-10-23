@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """하드 모드 브라우저 테스트 (2026-10-21, docs/HARD_2026-10-21.md).  python3 tests/hard.py   (단독 실행 — 다른 브라우저 테스트와 병렬 X)
  - 잠김: 새 저장 → 노말/하드 토글의 하드 버튼 잠김, 누르면 해금 방법 안내, 노말 유지
- - 옛 저장 호환: hst 없는 저장(1장 보스 클리어) → 1장 하드 열림, 2장 하드 잠김, 노말 별 그대로
+ - 옛 저장 호환: hst 없는 저장(1장 보스 클리어) → 1장 하드 열림, 2장 하드 잠김(하드 1-6 필요), 노말 별 그대로
  - 원정 지도: 1440×860 / 1024×600 에서 토글·노드·이름표 겹침/잘림 없음, 하드 노드(붉은)·정보 패널(하드 별·보상 2배). 스크린샷 shots/hard/
  - 하드 출정(지도 → 출정 버튼 → hard=1): 하드 표시(상단 🔥 하드), 체력 배수, 웨이브 미리보기 정예, 실제 정예 출현(크기·붉은 고리·체력), 클리어 → 하드 별 저장·노말 별 그대로·보상, 다음 하드 해금
  - 주소만 바꿔 잠긴 하드로 들어오면 노말로, 노말 출정에는 정예 없음, 콘솔 오류 없음"""
@@ -69,7 +69,13 @@ with sync_playwright() as pw:
         shot(pg, f'{OUT}/map_hard_{tag}.png')
         pg.click('.chtab[data-c="2"]'); pg.wait_for_timeout(250)
         h2 = J(pg, "()=>({ hard: document.getElementById('stMap').classList.contains('hard'), locked: document.querySelector('.modeTog .hardB').classList.contains('locked'), title: document.querySelector('.modeTog .hardB').title })")
-        ok(f'ch2_hard_locked@{tag}', not h2['hard'] and h2['locked'] and '2-6' in h2['title'], h2)
+        ok(f'ch2_hard_locked@{tag}', not h2['hard'] and h2['locked'] and '하드 1-6' in h2['title'] and '2장' in h2['title'], h2) # 하드2: 순차 해금 — 하드 1-6 클리어 필요
+        if vw == 1440:
+            pg.click('.chtab[data-c="1"]'); pg.wait_for_timeout(200)
+            if not J(pg, "()=>document.getElementById('stMap').classList.contains('hard')"): pg.click('.modeTog .hardB'); pg.wait_for_timeout(200)
+            pg.click('.snode[data-id="1-3"]'); pg.wait_for_timeout(200); w = J(pg, "()=>({ warn: (document.querySelector('#stInfo .warn')||{}).textContent || '', title: document.querySelector('.snode[data-id=\"1-3\"]').title, go: !!document.getElementById('stGo') })")
+            ok('hard_stage_lock_text', '하드 1-2' in w['warn'] and '하드 1-2' in w['title'] and not w['go'], w)
+            pg.click('.chtab[data-c="2"]'); pg.wait_for_timeout(250)
         if vw == 1024: shot(pg, f'{OUT}/map_ch2_locked_{tag}.png')
         if vw == 1440:
             # ---------- 3. 하드 출정 (지도 → 출정) ----------
@@ -91,7 +97,7 @@ with sync_playwright() as pw:
             el = J(pg, "()=>G.enemies.filter(e=>!e.dead && e.elite).map(e=>({ t:e.type, n:e.E.n, sc:e.g.scale.x, ring: !!e.eliteRing, max:e.max, base:G.ETYPES[e.type].hp, gold:e.E.gold, bg:G.ETYPES[e.type].gold, dps:e.E.dps, bd:G.ETYPES[e.type].dps, spd:e.E.spd, bs:G.ETYPES[e.type].spd }))")
             nrm = J(pg, "()=>G.enemies.filter(e=>!e.dead && !e.elite).slice(0,1).map(e=>({ max:e.max, base:G.ETYPES[e.type].hp, dps:e.E.dps, bd:G.ETYPES[e.type].dps, spd:e.E.spd, bs:G.ETYPES[e.type].spd, hard:e.E.hard }))")
             ok('elite_spawned', len(el) == 1 and el[0]['ring'] and el[0]['sc'] > 1.2 and el[0]['n'].startswith('정예') and abs(el[0]['max'] / (el[0]['base'] * q['hpMul']) - 2.5) < .01 and el[0]['gold'] == round(el[0]['bg'] * 1.25 * 3), el)
-            ok('hard_monster_stats', nrm and nrm[0]['hard'] and abs(nrm[0]['max'] / (nrm[0]['base'] * q['hpMul']) - 1) < .01 and abs(nrm[0]['dps'] / max(1e-9, nrm[0]['bd']) - 1.5) < .01 if nrm[0]['bd'] else True, nrm)
+            ok('hard_monster_stats', nrm and nrm[0]['hard'] and abs(nrm[0]['max'] / (nrm[0]['base'] * q['hpMul']) - 1) < .01 and abs(nrm[0]['dps'] / max(1e-9, nrm[0]['bd']) - J(pg, "()=>G.stageSel.ST.hardDmg(1)")) < .01 if nrm[0]['bd'] else True, nrm)
             ok('hard_monster_speed', nrm and abs(nrm[0]['spd'] / nrm[0]['bs'] - 1.1) < .01, nrm)
             # 정예를 화면 가운데로 (스크린샷)
             J(pg, "()=>{ G.manual=false; const e=G.enemies.find(x=>x.elite&&!x.dead); if (e) { G.cam.target.set(e.g.position.x, 0, e.g.position.z); G.cam.r = 22; } }"); pg.wait_for_timeout(2500)

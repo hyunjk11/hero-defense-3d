@@ -10,7 +10,7 @@ import { banner, setPhaseUI, showNote } from '../ui/hud.js';
 import { select } from '../ui/input.js';
 import { STAGE } from './grid.js';
 import { stageWave, endlessMix, endlessBoss, newTypes, applyElites } from './roster.js';
-import { HARD, hardHp } from '../data/stages.js';
+import { HARD, hardHp, hardView } from '../data/stages.js';
 // 처음 보는 몬스터 (신규 몬스터 알림). 브라우저에 저장해 한 번만 소개
 const SEEN_KEY = 'hd3d_seenMon';
 function seenSet() { if (!G.seenMon) { let a = []; try { a = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch (e) {} G.seenMon = new Set(Array.isArray(a) ? a : []); } return G.seenMon; }
@@ -25,7 +25,7 @@ function startWave() {
   for (let i = 0; i < count; i++) { let t = 'grunt'; const r = rand(); if (r < .32) t = 'imp'; else if (n >= 3 && r > .86) t = 'golem'; else if (n >= 4 && r > .73 && r <= .86) t = 'bat'; q.push(t); }
   let intro = G.classic ? [] : mixNewTypes(q, n);
   if (STAGE) { // 챕터 몬스터 구성(src/data/monsters.js ROSTERS)으로 대기열 교체. 구성이 없는 챕터는 기존 방식(챕터 특색: 숲 = 굴착병, 설원 = 돌격병)
-    const rq = G.classic ? null : stageWave(STAGE, n, count, rand);
+    const rq = G.classic ? null : stageWave(G.hard ? hardView(STAGE) : STAGE, n, count, rand); // 하드2: 구성 레벨 +HARD.lvUp
     if (rq) { q.length = 0; q.push(...rq); intro = []; }
     else { const bias = STAGE.ch === 1 ? ['digger', 2, .22] : STAGE.ch === 2 ? ['charger', 3, .2] : null;
       if (bias && n >= bias[1]) for (let i = 0; i < q.length; i++) if (q[i] === 'grunt' && rand() < bias[2]) q[i] = bias[0]; }
@@ -33,7 +33,7 @@ function startWave() {
   } else if (!G.classic) { const mq = endlessMix(q, n, rand); q.length = 0; q.push(...mq); } // 도전 모드: 웨이브가 오를수록 숲 → 설원 구성이 섞임
   if (boss && !(STAGE && STAGE.boss && n === STAGE.waves)) q.splice(Math.floor(count / 2), 0, G.classic || STAGE ? 'boss' : endlessBoss(n)); // 챕터 보스 스테이지 최종 웨이브: 챕터 보스만 (해골 군주 중복 X)
   if (!G.classic) { const nt = newTypes(q, seenSet()).filter(t => !intro.includes(t) && ETYPES[t].desc); intro = intro.concat(nt); markSeen(intro); }
-  const hard = !!(STAGE && G.hard && !G.classic); G.spawnE = hard ? applyElites(STAGE, n, q) : null; // 하드: 정예 (q 일부 교체, 같은 길이 표시 배열)
+  const hard = !!(STAGE && G.hard && !G.classic); G.spawnE = hard ? applyElites(hardView(STAGE), n, q) : null; // 하드: 정예 (q 일부 교체, 같은 길이 표시 배열)
   G.spawnQ = q; G.spawnT = 1; G.hpMul = hpMul * (STAGE ? STAGE.hp : 1) * (hard ? hardHp(n, STAGE.ch) : 1); const ne = G.spawnE ? G.spawnE.filter(Boolean).length : 0; Snd.horn(); Snd.duck(.4, 2.2); banner((hard ? '🔥 하드 · ' : '') + (STAGE && n === STAGE.waves ? `최종 웨이브 ${n}/${STAGE.waves} · ${STAGE.boss ? '챕터 보스 출현!' : '보스 웨이브!'}` : STAGE ? `웨이브 ${n}/${STAGE.waves}${boss ? ' · 보스 웨이브!' : ''}` : boss ? `웨이브 ${n} · 보스 웨이브!` : intro.length ? `웨이브 ${n} · 신규: ${intro.map(t => ETYPES[t].n).join(', ')}` : `웨이브 ${n}`) + (ne ? ` · 정예 ${ne}` : ''), boss || hard ? '#ff5a6a' : intro.length ? '#ffd27a' : '#ffffff', intro.length ? 2400 : undefined);
   if (intro.length) showNote(intro.slice(0, 4).map(t => ({ name: ETYPES[t].n, desc: ETYPES[t].desc, type: t, icon: ETYPES[t].icon })), 6500 + 900 * Math.min(4, intro.length)); setPhaseUI();
 }
