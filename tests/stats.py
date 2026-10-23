@@ -136,7 +136,10 @@ with sync_playwright() as pw:
     town_login(pg, 'stats2@test.kr')
     tw = J(pg, RECT, 'twStats'); ok('town_tablet_btn_48', tw[5] >= 48, tw)
     pg.tap('#twStats'); pg.wait_for_timeout(1500); ok('town_tablet_open', vis(pg, 'statPanel'))
-    small = J(pg, "()=>[...document.querySelectorAll('#statPanel button')].map(b=>{ const r=b.getBoundingClientRect(); return [b.innerText||b.id, Math.round(r.width), Math.round(r.height)]; }).filter(x=>x[1]<48||x[2]<48)")
+    # 열림 애니메이션(panelIn: scale .96 → 1)이 끝난 뒤 측정 — 느린 박스에선 1.5초 뒤에도 첫 프레임(0.96배)에 머물 수 있음 → 46px 오측정
+    J(pg, "()=>Promise.race([Promise.all(document.getElementById('statPanel').getAnimations({subtree:true}).map(a=>a.finished)), new Promise(r=>setTimeout(r, 8000))])")
+    # 레이아웃 크기(offsetWidth, transform 무관) + 화면 크기(getBoundingClientRect) 둘 다 ≥ 48
+    small = J(pg, "()=>[...document.querySelectorAll('#statPanel button')].map(b=>{ const r=b.getBoundingClientRect(); return [b.innerText||b.id, b.offsetWidth, b.offsetHeight, Math.round(r.width), Math.round(r.height)]; }).filter(x=>x.slice(1).some(v=>v<48))")
     ok('town_tablet_touch_48', not small, small)
     sp = J(pg, RECT, 'statPanel'); ok('town_tablet_in_view', sp[0] >= 0 and sp[1] >= 0 and sp[2] <= 1024 and sp[3] <= 600, sp)
     ow = J(pg, "()=>{ const e=document.getElementById('statBody'); return [...e.querySelectorAll('.stRow')].filter(r=>r.scrollWidth>r.clientWidth+1).length; }"); ok('town_tablet_no_overflow', ow == 0, ow)
