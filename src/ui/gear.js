@@ -117,7 +117,7 @@ function renderSmith() {
         <div class="costs"><span class="cost ${(s.mat.essence || 0) >= c.essence ? '' : 'lack'}"><i class="mi essence"></i>고유 정수 ${c.essence}<small>/${s.mat.essence || 0}</small></span>${costHtml({ souls: c.souls }, s)}</div><button class="gbtn main" id="awkGo">✦ 각성하기</button>`}`; }
     body.innerHTML = `<div class="smCols"><div class="smList">${list.map(x => tile(x, s, x.id === ui.awSel ? 'sel' : '')).join('') || '<div class="emptyMsg">고유 장비 없음</div>'}</div><div class="smMain awkMain">${right}<div class="hintS">고유 정수: 이미 가진 고유를 또 얻으면 ×${UQ_DUP.essence} · 도감 챕터 완성 ×10 · 도전 모드 20웨이브 이후 보스</div></div></div>`;
     body.querySelectorAll('.smList .itile').forEach(b => { b.onclick = () => { ui.awSel = b.dataset.id; Snd.play('select'); renderSmith(); }; tipBind(b); });
-    if ($('awkGo')) $('awkGo').onclick = () => { let r; Acc.update(d => { const o = E.awaken(d, it.id); r = o[1]; return o[0]; }); if (r === 'ok') { Snd.play('upgrade'); Snd.play('levelUp', { force: true }); hooks.cheer(); } else Snd.play('error'); G_lastAwk = r; renderSmith(); hooks.onChange(true); };
+    if ($('awkGo')) $('awkGo').onclick = () => { let r; Acc.update(d => { const o = E.awaken(d, it.id); r = o[1]; return o[0]; }); if (r === 'ok') { Snd.play('upgrade'); Snd.play('levelUp', { force: true }); hooks.cheer(); } else Snd.play('error'); renderSmith(); hooks.onChange(true); };
   } else {
     const h = s.hero; const slots = [['weapon', `무기 (${CLASSES[h].n})`], ['armor', '방어구'], ['acc', '장신구']], sets = clearedSets(s); if (!sets.includes(ui.crSet)) ui.crSet = 0;
     body.innerHTML = `<div class="crSlots">${slots.map(([k, n]) => `<button class="ftab ${ui.crSlot === k ? 'on' : ''}" data-s="${k}">${k === 'weapon' ? weaponIcon(h) : iconKey(k)} ${n}</button>`).join('')}</div>
@@ -147,7 +147,7 @@ export function doEnhance(id, quick) {
     else { Snd.play('error'); ui.res = { id, c: 'fail', t: '강화 실패… (장비는 무사해요)' }; if (el) { el.className = 'enhRes fail'; el.textContent = ui.res.t; } a2 && a2.classList.add('failed'); }
     G_last = res; }, quick ? 10 : 1000);
 }
-let G_last = null, G_lastAwk = null; export const lastEnh = () => G_last; export const lastAwk = () => G_lastAwk;
+let G_last = null; export const lastEnh = () => G_last;
 // 세트 제작이 열린 챕터 = 그 챕터 보스(마지막 스테이지)를 클리어한 챕터
 const clearedSets = s => CH_KEYS.filter(c => { const C = ST.CHAPTERS.find(x => x.id === c); return C && ST.stars(s, C.stages[C.stages.length - 1].id) > 0; });
 function flashMsg(t, c) { const el = $('enhRes'); if (el) { el.className = 'enhRes fail'; el.style.color = c; el.textContent = t; } }
@@ -250,7 +250,6 @@ export function codexClaimable(s) { return CH_KEYS.some(ch => { const C = P.code
 // 견본(표시용, 저장 안 함): 고정 시드
 const sampleR = () => { let q = 12345; return () => (q = (q * 16807) % 2147483647) / 2147483647; };
 export const sampleItem = (ch, row, g) => E.makeItem(cxSlot(row), cxSlot(row) === 'weapon' ? row : P.codexRows()[0], g, sampleR(), ch);
-let lastClaim = null; export const lastCodexClaim = () => lastClaim;
 function renderCodex(s) {
   const tabs = [...CH_KEYS.map(c => [c, `${CHSET[c].badge} ${CHSET[c].n}`, (C => `${C.seen}/${C.total}`)(P.codexState(s, c))]), [0, '◆ 고유', `${Object.keys(UQ).filter(k => E.ownsUnique(s, k)).length}/${Object.keys(UQ).length}`]];
   let h = `<div class="cxTabs">${tabs.map(([c, n, sm]) => `<button class="ftab ${ui.cxTab === c ? 'on' : ''}" data-c="${c}" style="--cc:${c ? CHSET[c].color : UQ_COLOR}">${n} <small>${sm}</small></button>`).join('')}</div>`;
@@ -267,7 +266,7 @@ function renderCodex(s) {
   }
   $('codexBody').innerHTML = h;
   document.querySelectorAll('#codexBody .cxTabs .ftab').forEach(b => b.onclick = () => { ui.cxTab = +b.dataset.c; Snd.play('ui'); hideTip(); renderInv(); });
-  document.querySelectorAll('#codexBody .cxGet').forEach(b => b.onclick = () => { let rw; Acc.update(d => { const o = P.claimCodex(d, b.dataset.k); rw = o[1]; return o[0]; }); lastClaim = rw; if (rw) { Snd.play('levelUp', { force: true }); Snd.play('coins'); hooks.cheer(); } else Snd.play('error'); hooks.onChange(true); renderInv(); });
+  document.querySelectorAll('#codexBody .cxGet').forEach(b => b.onclick = () => { let rw; Acc.update(d => { const o = P.claimCodex(d, b.dataset.k); rw = o[1]; return o[0]; }); if (rw) { Snd.play('levelUp', { force: true }); Snd.play('coins'); hooks.cheer(); } else Snd.play('error'); hooks.onChange(true); renderInv(); });
   const tipOf = b => { if (b.dataset.k) { const k = b.dataset.k, it = S().inv.find(x => x.uq === k) || E.makeUnique(k); return card(it); } const it = sampleItem(+b.dataset.ch, b.dataset.row, +b.dataset.g), na = b.classList.contains('na'); return (na ? `<div class="cxUnseen">${CHSET[+b.dataset.ch].n} 세트는 ${E.GRADES[+b.dataset.g].n} 등급이 나오지 않아요 · 도감 완성에 필요 없음${b.classList.contains('seen') ? ' (특별 획득)' : ''}</div>` : b.classList.contains('seen') ? '' : '<div class="cxUnseen">아직 얻지 못한 장비 (견본)</div>') + card(it); };
   document.querySelectorAll('#codexBody .cxC, #codexBody .uqCell').forEach(b => { b.onpointerenter = e => { if (e.pointerType === 'mouse') showTip(b, tipOf(b)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); };
     b.onclick = () => { showTip(b, tipOf(b)); clearTimeout(tipT); tipT = setTimeout(hideTip, 3200); Snd.play('select'); }; });
