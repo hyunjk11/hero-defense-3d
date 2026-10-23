@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { waveStart, waveEnd } from '../combat/meter.js';
 import { CORE, tileX, tileZ } from '../core/grid.js';
@@ -179,5 +180,5 @@ function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase
     if (r.ok && r.uq) { m.innerHTML += `<div class="dgUqDrop" id="dgUqDrop">🐾 모르비아가 <b>${esc((UQ[r.uq] || {}).n || r.uq)}</b> 을(를) 떨어뜨렸어요! <small>📮 우편함에서 받기</small></div>`; Snd.play('levelUp', { force: true }); Sh.refresh().catch(() => {}); }
     if (r.ok && r.medals > 0) Snd.play('coin', { force: true }); }); }
 }
-function goTownD() { $('fade').classList.add('on'); const q = new URLSearchParams(location.search); q.set('town', '1'); q.delete('dungeon'); q.delete('run'); q.delete('stage'); q.delete('hard'); setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 400); }
+function goTownD() { $('fade').classList.add('on'); go({ town: 1 }, 400); }
 export { finish as dgFinish };
