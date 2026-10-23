@@ -1,7 +1,6 @@
 /* 층 (z-index) 토큰 — U-2 (2026-10-23). 값이 클수록 위. 아래 순서: HUD 오버레이 < HUD < 토스트 < 화면 < 관리자 < 연출 < 일시정지 < 결과 < 페이드 < 모달 < 확인창 < 아이템 툴팁 */
-:root{--z-hud-ov:4;--z-hud:5;--z-tip:7;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100}
+:root{--z-hud-ov:4;--z-hud:5;--z-tip:7;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100;--gold-line:#c9a24a;--gold-hi:#ffe08a;--gold-txt:#ffe066;--gold-glow:#ffd23a;--ink:#fff3d6;--txt:#f0e6c8;--txt-dim:#e8dcc0;--btn-top:#3a3260;--btn-bot:#221c3a;--r-tab:8px;--r-btn:9px;--r-panel:12px;--r-gpanel:14px;--r-pill:20px;--fs-sm:12px;--fs:13px;--fs-md:15px;--hit:44px}
 /* 디자인 토큰 — U-1 (2026-10-23). 기존과 **같은 값** (시각 변화 0). 알파 붙은 변형(#c9a24a99 등)은 아직 그대로 */
-:root{--gold-line:#c9a24a;--gold-hi:#ffe08a;--gold-txt:#ffe066;--gold-glow:#ffd23a;--ink:#fff3d6;--txt:#f0e6c8;--txt-dim:#e8dcc0;--btn-top:#3a3260;--btn-bot:#221c3a;--r-tab:8px;--r-btn:9px;--r-panel:12px;--r-gpanel:14px;--r-pill:20px;--fs-sm:12px;--fs:13px;--fs-md:15px;--hit:44px}
 #banner,#note{z-index:var(--z-toast)} /* 웨이브 배너·새 몬스터 카드는 📊 오버레이(#statOv) 위 */
 small{font-size:max(12px,.8333em)} /* U-6: <small> 기본 'smaller'(5/6) 가 12px 아래로 내려가지 않게 */
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05060c;font-family:"Noto Sans CJK KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#fff;user-select:none;overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -17,7 +16,7 @@ small{font-size:max(12px,.8333em)} /* U-6: <small> 기본 'smaller'(5/6) 가 12p
 .phase{color:#9fe8ff}.phase.night{color:#ff8a9a}
 .panel{position:absolute;background:linear-gradient(#17142aee,#0a0912ee);border:1px solid var(--gold-line);border-radius:var(--r-panel);padding:10px;display:flex;flex-direction:column;gap:6px;width:170px;box-shadow:0 4px 18px #000a}
 .ptitle{color:#e8c86a;font-weight:bold;font-size:13px;letter-spacing:2px;text-align:center}
-#build{left:12px;top:70px;width:180px}#ups{right:12px;top:70px;width:200px}
+#build{left:12px;top:70px;width:180px}#ups{right:12px;top:70px;width:200px;right:calc(12px + env(safe-area-inset-right))}
 .panel button{background:linear-gradient(var(--btn-top),var(--btn-bot));color:var(--ink);border:1px solid #c9a24a99;border-radius:var(--r-tab);padding:7px 8px;font:inherit;font-size:var(--fs);cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;transition:transform .1s,filter .1s}
 .panel button:hover{filter:brightness(1.25);transform:translateY(-1px)}.panel button:active{transform:scale(.96)}
 .panel button small{color:var(--gold-txt);font-size:12px}.panel button.sel{border-color:var(--gold-hi);box-shadow:0 0 10px #ffd23a88;background:linear-gradient(#5a4a20,#2a2010)}
@@ -26,13 +25,13 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #routeMsg{font-size:12px;color:#ff9aa8;min-height:16px;text-align:center;line-height:1.4}
 .up{flex-direction:column;align-items:flex-start!important;gap:2px}.up .row{display:flex;justify-content:space-between;width:100%}
 .up .desc{font-size:12px;color:#bbb}
-#bottom{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:flex-end}
+#bottom{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:flex-end;bottom:calc(14px + env(safe-area-inset-bottom))}
 #heroBox{background:#0c0a16dd;border:1px solid var(--gold-line);border-radius:12px;padding:8px 12px}#heroName{font-size:14px;color:#e8c86a;margin-bottom:4px}
 .bar.hp{width:220px}.bar.hp i{background:linear-gradient(#8aff9a,#20a040)}
 #skillBtn{position:relative;width:84px;height:84px;border-radius:50%;border:3px solid var(--gold-glow);background:radial-gradient(#5a3aa0,#1a1030);color:#fff;font:inherit;font-weight:bold;font-size:14px;cursor:pointer;overflow:hidden;box-shadow:0 0 18px #ffd23a66;display:flex;flex-direction:column;align-items:center;justify-content:center}
 #skillBtn small{color:var(--gold-txt)}#skillName{white-space:nowrap}#skillName.long{font-size:12px;letter-spacing:-.3px}#skillCd{position:absolute;inset:0;background:conic-gradient(#000b var(--p,0%),transparent 0);pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:22px}
 #skillBtn.ready{animation:pulse 1s infinite}@keyframes pulse{50%{box-shadow:0 0 30px var(--gold-glow)}}
-#cam{position:absolute;right:12px;bottom:14px;display:flex;gap:6px}#cam button,#camTop button{width:40px;height:40px;border-radius:50%;border:1px solid var(--gold-line);background:#17142a;color:#fff;font-size:18px;cursor:pointer}
+#cam{position:absolute;right:12px;bottom:14px;display:flex;gap:6px;right:calc(12px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}#cam button,#camTop button{width:40px;height:40px;border-radius:50%;border:1px solid var(--gold-line);background:#17142a;color:#fff;font-size:18px;cursor:pointer}
 #help{position:absolute;left:12px;bottom:14px;font-size:12px;color:#aaa;background:#0008;padding:6px 10px;border-radius:8px}
 #banner{position:absolute;top:22%;left:50%;transform:translate(-50%,-50%) scale(.8);font-size:clamp(22px,3.6vw,42px);font-weight:900;color:#fff;text-shadow:0 0 18px #ff3a5a,0 3px 0 #000;opacity:0;transition:opacity .3s,transform .3s;white-space:normal;text-align:center;line-height:1.25;width:max-content;max-width:min(70vw,max(56vw,calc(100vw - 420px)),880px);text-wrap:balance;overflow-wrap:anywhere;pointer-events:none}
 #banner.long{font-size:clamp(15px,2.1vw,26px);text-shadow:0 0 12px #ff3a5a,0 2px 0 #000}
@@ -47,7 +46,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .card{width:min(220px,calc((100vw - 110px) / 5));box-sizing:border-box;background:linear-gradient(#1c1830f0,#0c0a16f0);border:2px solid var(--gold-line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
 .card:hover{transform:translateY(-8px);box-shadow:0 0 28px #ffd23a88}.card h2{margin:0;color:var(--gold-hi)}.card h2 small{font-size:.62em;color:#d8c8a0;font-weight:600}.card .role{color:#9fe8ff;font-size:13px;margin:2px 0 6px}.card ul{margin:0;padding-left:18px;font-size:13px;color:#ddd;line-height:1.6}
 .card[data-cls=archer]{border-color:#6aff8a}.card[data-cls=mage]{border-color:#b07aff}.card[data-cls=warrior]{border-color:#ff7a5a}
-#over{position:fixed;inset:0;background:#000b;display:flex;flex-direction:column;align-items:center;justify-content:center}#over h1{font-size:60px;color:#ff4a5a;margin:0}#over button{margin-top:16px;padding:12px 30px;font:inherit;font-size:18px;border-radius:10px;border:2px solid var(--gold-line);background:#3a1a2a;color:#fff;cursor:pointer}
+#over{position:fixed;inset:0;background:#000b;display:flex;flex-direction:column;align-items:center;justify-content:center}#over h1{font-size:60px;color:#ff4a5a;margin:0;text-shadow:0 0 24px #ff4a5a88,0 3px 0 #3a0810}#over button{margin-top:16px;padding:12px 30px;font:inherit;font-size:18px;border-radius:10px;border:2px solid var(--gold-line);background:#3a1a2a;color:#fff;cursor:pointer}
 .ptitle.sub{margin-top:4px;font-size:12px;color:var(--gold-line)}
 .ico{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--c);box-shadow:0 0 8px var(--c);margin-right:7px;vertical-align:middle;transform:rotate(45deg)}
 #routeMsg{color:#d8c8a0!important;font-size:12px!important}
@@ -122,11 +121,11 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .hcard small,.perm .desc{color:#bbb;font-size:12px}.hcard.sel{border-color:var(--gold-hi);box-shadow:0 0 10px #ffd23a88;background:linear-gradient(#5a4a20,#2a2010)}
 .perm .row{display:flex;justify-content:space-between}.perm small{color:#d8b0ff}.perm:disabled{opacity:.45}
 .twBottom{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center}
-#twHint{background:#0c0a16dd;border:1px solid var(--gold-line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--txt-dim);display:flex;align-items:center;min-width:0}#twHint.go{border-color:#c07aff;box-shadow:0 0 14px #c07aff}
+#twHint{background:#0c0a16dd;border:1px solid var(--gold-line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--txt-dim);display:flex;align-items:center;min-width:0;flex:0 1 auto}#twHint.go{border-color:#c07aff;box-shadow:0 0 14px #c07aff}
 #twGo{font-size:18px;padding:12px 22px}
 .tlabel{position:absolute;left:0;top:0;background:#0c0a16e0;border:1px solid var(--gold-line);border-radius:8px;padding:4px 10px;font-size:14px;font-weight:bold;color:#ffe9b0;white-space:nowrap;text-align:center}
 .tlabel small{display:block;font-size:12px;color:#ffb070;font-weight:normal}.tlabel.go{border-color:#c07aff;box-shadow:0 0 12px #c07aff;color:#f0d8ff}.tlabel.go small{color:#d8b0ff}
-#townPop{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);text-align:center;min-width:300px;font-size:15px;line-height:1.7}
+#townPop{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);text-align:center;min-width:300px;font-size:15px;line-height:1.7;max-width:calc(100vw - 40px);max-height:calc(100dvh - 40px);overflow:auto}
 #townPop h3{margin:0 0 6px;color:var(--gold-hi)}#townPop .soul{color:#d8b0ff;font-size:20px}#townPop .newbest{color:var(--gold-txt);font-weight:bold}#townPop button{margin-top:10px;padding:8px 26px}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s;z-index:var(--z-fade)}#fade.on{opacity:1}
 #retreat{background:linear-gradient(#2a5a4a,#12302a)!important;justify-content:center!important}
@@ -134,7 +133,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #build #retreat{position:sticky;bottom:0;z-index:1;box-shadow:0 6px 0 #0a0912,0 -4px 10px #0a0912cc}
 #overReward{color:#d8b0ff;font-size:18px}#overTown{margin-left:8px}
 .tlabel.bless{border-color:var(--gold-hi);box-shadow:0 0 14px #ffd27a;color:#fff6d0}.tlabel.bless small{color:var(--gold-hi)}.tlabel.deco{font-size:12px;padding:2px 7px;opacity:.8}
-#twBless{position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:8px;border-color:var(--gold-hi);box-shadow:0 0 30px #ffd27a66,inset 0 0 24px #ffd27a22;background:linear-gradient(#2a2246f2,#120e22f2);animation:blessIn .35s ease-out}
+#twBless{position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:8px;border-color:var(--gold-hi);box-shadow:0 0 30px #ffd27a66,inset 0 0 24px #ffd27a22;background:linear-gradient(#2a2246f2,#120e22f2);animation:blessIn .35s ease-out;z-index:var(--z-panel)}
 #twBless.hidden{display:none}
 @keyframes blessIn{from{opacity:0;transform:translateY(-50%) translateX(30px) scale(.96)}to{opacity:1;transform:translateY(-50%)}}
 #twBless .blessHead{text-align:center}#twBless .gtitle{color:#ffe9a0;text-shadow:0 0 12px #ffd27a}
@@ -242,17 +241,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #top,.twTop,.twBottom,#bottom{width:max-content;max-width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))}
 .twTop,#top{flex-wrap:wrap;justify-content:center;row-gap:6px}
 .pill,.pill .lbl,.pill b,.gbtn,.ftab,.chtab,.tool>span,#twGo,#twMenu,#startWave,#retreat,.tlabel{white-space:nowrap}
-.twBottom{align-items:stretch}#twHint{flex:0 1 auto}
+.twBottom{align-items:stretch;bottom:calc(16px + env(safe-area-inset-bottom))}
 #twGo,#twMenu{flex:none}
 /* 안전 영역 (노치/라운드 화면) */
-#build,.twLeft{left:calc(12px + env(safe-area-inset-left))}#ups{right:calc(12px + env(safe-area-inset-right))}
-#cam{right:calc(12px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}
-#bottom{bottom:calc(14px + env(safe-area-inset-bottom))}.twBottom{bottom:calc(16px + env(safe-area-inset-bottom))}
+#build,.twLeft{left:calc(12px + env(safe-area-inset-left))}
 /* 큰 패널은 화면 높이 안에서 스크롤 */
 .bigPanel{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
 .twLeft,#build,#ups,#tinfo,#twBless{max-height:calc(100dvh - 160px);overflow-y:auto;overscroll-behavior:contain}
 #twBless{max-height:calc(100dvh - 150px)}
-#townPop{max-width:calc(100vw - 40px);max-height:calc(100dvh - 40px);overflow:auto}
 /* 터치 기기: 누를 대상 44px 이상, 호버 의존 효과 제거 */
 /* 컴팩트 레이아웃: 폭 1100px 미만 또는 높이 800px 미만 (가로 태블릿) */
 /* 높이가 낮은 화면 (예: 960x600) */
@@ -761,18 +757,17 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #twBag,.railBtn{position:relative}#twBag.hasNew::after,.railBtn.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
 /* U-5b 패배 화면 #over 를 클리어 결과 카드(#stageClear)와 같은 모양으로 (2026-10-23): 같은 배경·등장 애니메이션·버튼 줄 [🔁 재도전][📊 통계][🏠 마을] (id 그대로, 버튼은 .overBtns 한 줄) */
 #over{z-index:var(--z-result);background:radial-gradient(circle,#3a1020cc,#05030cf0);text-align:center;color:var(--ink);padding:16px}#over>*{animation:panelIn2 .5s cubic-bezier(.3,1.6,.5,1)}
-#over h1{text-shadow:0 0 24px #ff4a5a88,0 3px 0 #3a0810}#overTxt{font-size:16px;color:var(--txt);margin:10px 0 4px}
+#overTxt{font-size:16px;color:var(--txt);margin:10px 0 4px}
 .overBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
 #over .overBtns button{margin:0;padding:12px 26px;font-size:17px;font-weight:bold;border-radius:var(--r-btn);border:1px solid var(--gold-line);background:linear-gradient(var(--btn-top),var(--btn-bot));color:var(--ink);min-height:var(--hit)}
 #over .overBtns #overRetry{background:linear-gradient(#c0304a,#6a1020);border-color:var(--gold-hi)}#over .overBtns #overStats{background:linear-gradient(#3a3a6a,#1c1c40)}
 /* U-9a/Q-15 마을 시설 바로가기 레일 (2026-10-23): 오른쪽 가운데 세로 [🔨 대장간][🔬 연구소][💰 상점][⚔ 던전][✨ 여신탑] — 누르면 바로 패널 (큰 패널보다 아래 층) */
-/* 축복 패널(#twBless)은 레일과 같은 오른쪽 가운데 자리 → 패널이 레일 위에 (레일이 ✕ 닫기 버튼을 가로채던 것, account.py bless_close) */#twBless{z-index:var(--z-panel)}
-.twRail{position:absolute;right:calc(12px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;padding:8px 6px;z-index:3}
+/* 축복 패널(#twBless)은 레일과 같은 오른쪽 가운데 자리 → 패널이 레일 위에 (레일이 ✕ 닫기 버튼을 가로채던 것, account.py bless_close) — z-index 는 위 #twBless 규칙으로 합침 */
+.twRail{position:absolute;right:calc(12px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;padding:8px 6px;z-index:3;max-height:calc(100dvh - 150px);overflow-y:auto;overscroll-behavior:contain}
 .railBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:64px;min-height:var(--hit);padding:5px 2px;font-size:20px;line-height:1.1;letter-spacing:0}
 .railBtn span{font-size:12px;font-weight:bold;color:var(--txt-dim)}.railBtn:hover span{color:var(--gold-hi)}
 @media (max-height:680px){.railBtn{padding:3px 2px;font-size:18px}.twRail{gap:4px;padding:6px 5px}}
 /* U-9b (2026-10-23): .twLeft = 영웅 목록(+장비 보너스)만 — 🎒 가방 · 📊 능력치 · 🎁 상자는 오른쪽 레일 #twRail 위쪽 묶음으로 (id 그대로). 레일 배지 = Q-4a .hasNew 빨간 점 (도감 보상 · 연구 가능 · 축복 가능) */
-.twRail{max-height:calc(100dvh - 150px);overflow-y:auto;overscroll-behavior:contain}
 .railSep{display:block;height:1px;margin:2px 4px;background:var(--gold-line);flex:none}
 .railBtn small,.railBtn b{position:absolute;top:2px;left:3px;font-size:12px;line-height:1;color:var(--txt-dim)}#twChest.railBtn b{left:auto;right:4px;color:var(--gold-txt)}
 @media (max-height:680px){.railBtn span{font-size:12px}.railBtn{min-height:44px}}
