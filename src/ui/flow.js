@@ -21,7 +21,7 @@ import * as E from '../account/equip.js';
 import { initGear, openInv, closeInv, openSmith, closeSmith, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots } from './gear.js';
 import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
-import { initStageSel, openStageSel, closeStageSel } from './stagesel.js';
+import { initStageSel, openStageSel, closeStageSel, rememberStage } from './stagesel.js';
 import * as ST from '../data/stages.js';
 import { STAGE, HARDQ, DUNGEON } from '../core/grid.js';
 import { startDungeonRun } from '../dungeon/run.js';
@@ -49,7 +49,7 @@ const heroN = c => heroLabel(c);
 export function equipLine(eq) { const e = Object.entries(eq || {}).sort((a, b) => b[1] - a[1]); if (!e.length) return ''; return '⚔ 장비 · ' + e.slice(0, 3).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · ') + (e.length > 3 ? ` 외 ${e.length - 3}개` : ''); }
 
 // ---------- 스테이지 ----------
-function departStage(id, hard) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
+function departStage(id, hard) { if (departing) return; departing = true; rememberStage(id, hard); // Q-5 지도·Q-6 재도전/다음 공통 Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
   go({ stage: id, hard }, 500); }
 function startStageRun() { // 저장된 영웅이 유료 영웅이면 서버 소유권(hd3d_owned)을 먼저 확인
   const s0 = Acc.load(); if (CLASSES[s0.hero] && CLASSES[s0.hero].paid) { $('loadTxt').textContent = '영웅 확인 중…'; Sh.verifyOwned().then(() => startStageRun2(true)); } else startStageRun2(false);
@@ -65,10 +65,12 @@ G.onStageClear = () => {
   Acc.update(d => { const hard = !!G.hard, [n, g, l] = P.applyRun(d, { wave, kills, drops: G.runDrops || [], hero: G.hero ? G.hero.cls : undefined, stage: true, ch: STAGE.ch, bossKills: G.runBossKills || [], hard }); let [n2, inf] = P.applyStage(n, STAGE.id, stars, G.hero ? G.hero.cls : undefined, Math.random, hard, G.eliteKills || 0); if (!inf) [n2, inf] = P.applyStage(n, STAGE.id, stars, G.hero ? G.hero.cls : undefined); /* 하드가 (다른 탭 등으로) 잠겨 있으면 노말 기록으로 */ got = g; loot = [...l, ...inf.loot]; info = inf; return n2; }); Acc.flush();
   sessionStorage.setItem('hd3d_lastRun', JSON.stringify({ reason: 'clear', wave, kills, got: got + info.souls, best: false, loot, stage: STAGE.id, stars, first: info.first, unlocked: info.unlocked, hard: !!G.hard, hardOpen: info.hardOpen || 0 }));
   Snd.setMusic('none'); Snd.play('victory', { force: true, exact: true }); Snd.play('levelUp', { force: true, delay: .4 });
+  const sv = Acc.load(), nx = ST.nextStage(sv, STAGE.id, !!G.hard); // Q-6: 다음 스테이지 (하드 판이면 하드 다음 칸)
   const el = $('stageClear'); el.innerHTML = `<div class="scBox"><div class="scT">${G.hard ? '<span class="hardTag">하드</span> ' : ''}스테이지 클리어!</div><div class="scS">${STAGE.no} · ${STAGE.n}</div><div class="scStars">${[0, 1, 2].map(i => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${.35 + i * .35}s">★</i>`).join('')}</div>
     <div class="scConds">${ST.STAR_D.map((d, i) => `<div class="${i < stars ? 'got' : ''}">${i < stars ? '★' : '☆'} ${d}</div>`).join('')}</div>
-    <div class="scRw">영혼석 <b>+${got + info.souls}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}${info.eliteSouls ? `<br><span class="hardTxt">정예 처치 보너스 영혼석 +${info.eliteSouls}</span>` : ''}${info.unlocked.length ? `<br>🔓 새 ${info.hard ? '하드 ' : ''}스테이지 해금: ${info.unlocked.map(ST.stageNo).join(', ')}` : ''}${info.hardOpen ? `<br><span class="hardTxt">🔥 ${ST.CHAPTERS.find(c => c.id === info.hardOpen).short} 하드 모드가 열렸어요!</span>` : ''}</div><button class="gbtn main" id="scTown">🏠 마을로 귀환</button></div>`;
+    <div class="scRw">영혼석 <b>+${got + info.souls}</b>${loot.filter(x => x.chest).length ? ` · 장비 <b>${loot.filter(x => x.chest).length}</b>개` : ''}${lootLines(loot.filter(x => x.it && x.it.uq || x.src === 'essence'))}${info.eliteSouls ? `<br><span class="hardTxt">정예 처치 보너스 영혼석 +${info.eliteSouls}</span>` : ''}${info.unlocked.length ? `<br>🔓 새 ${info.hard ? '하드 ' : ''}스테이지 해금: ${info.unlocked.map(ST.stageNo).join(', ')}` : ''}${info.hardOpen ? `<br><span class="hardTxt">🔥 ${ST.CHAPTERS.find(c => c.id === info.hardOpen).short} 하드 모드가 열렸어요!</span>` : ''}</div><div class="scBtns"><button class="gbtn" id="scRetry" title="같은 스테이지 다시">🔁 재도전</button>${nx ? `<button class="gbtn" id="scNext" title="${ST.stageNo(nx)} ${ST.STAGES[nx].n}">▶ 다음 스테이지</button>` : ''}<button class="gbtn main" id="scTown">🏠 마을로 귀환</button></div></div>`;
   el.classList.remove('hidden'); [0, 1, 2].forEach(i => i < stars && setTimeout(() => Snd.play('coin', { force: true, rate: 1 + i * .2 }), 400 + i * 350)); $('scTown').onclick = () => { Snd.play('confirm'); goTown(); };
+  $('scRetry').onclick = () => departStage(STAGE.id, !!G.hard); if (nx) $('scNext').onclick = () => departStage(nx, !!G.hard);
   if (G.endStatsShow) G.endStatsShow('clear'); // 📊 통계 버튼 (ui/endstats.js)
 };
 // ---------- 시작 ----------
@@ -207,6 +209,8 @@ function bindUI() {
   initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = async () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!(await askConfirm({ title: '마을로 귀환', icon: '🏠', body: '지금까지의 보상을 가지고 마을로 귀환할까요?', ok: '귀환' }))) return; if (G.phase !== 'build') { Snd.play('error'); return; } onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
+  $('overRetry').onclick = () => { if (STAGE) departStage(STAGE.id, !!G.hard); else location.reload(); }; // Q-6: 스테이지 판은 같은 스테이지 재도전 (보상은 onRunEnd 에서 이미 저장)
+  if (STAGE) $('overRetry').textContent = '🔁 재도전';
   addEventListener('keydown', e => { if (G.screen === 'town' && !typing(e)) tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);
   renderer.domElement.addEventListener('pointerdown', e => { if (G.screen !== 'town' || e.button !== 0 || !th) return; const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), rc = new THREE.Raycaster(); rc.setFromCamera(m, camera);
     if (revealing()) return; if (shopBld && rc.intersectObject(shopBld, true).length > 0) { th.goals = null; th.goal = shopFront(); if (Math.hypot(th.g.position.x - SHOP_P.x, th.g.position.z - SHOP_P.y) < 4.4) doOpenShop(); return; }

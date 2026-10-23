@@ -107,3 +107,11 @@ const m = P.merge({ st: { '1-1': 3, '1-2': 1 }, starRw: 0 }, { st: { '1-2': 2, '
     const AD = await import('../src/data/advance.js'); assert.ok(AD.ADV_CH === 3 && ST.chapterUnlocked(P.clean(old), AD.ADV_CH)); }
 }
 console.log('stages tests OK');
+// Q-6 다음 스테이지: 열린 다음 칸만 · 장 경계 넘어감 · 하드는 하드 해금 기준
+{ const e = P.empty(), ids = ST.CHAPTERS.flatMap(c => c.stages.map(x => x.id)); assert.equal(ST.nextStage(e, '1-1'), null, '1-2 잠김');
+  const w = { ...e, st: { '1-1': 1 } }; assert.equal(ST.nextStage(w, '1-1'), '1-2'); assert.equal(ST.nextStage(w, '1-1', true), null, '하드 잠김');
+  const all = { ...e, st: Object.fromEntries(ids.map(i => [i, 3])) }; const C1 = ST.CHAPTERS[0], C2 = ST.CHAPTERS[1];
+  if (C2 && C2.stages.length && !C2.soon) assert.equal(ST.nextStage(all, C1.stages[C1.stages.length - 1].id), C2.stages[0].id, '장 경계');
+  assert.equal(ST.nextStage(all, ids[ids.length - 1]), null, '마지막'); assert.equal(ST.nextStage(all, 'nope'), null);
+  assert.equal(ST.nextStage(all, C1.stages[0].id, true), C1.stages[1].id === undefined ? null : (ST.hardUnlocked(all, C1.stages[1].id) ? C1.stages[1].id : null)); }
+console.log('Q-6 nextStage OK');

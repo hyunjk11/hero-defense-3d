@@ -233,7 +233,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .scBox{text-align:center;color:var(--ink);animation:panelIn2 .5s cubic-bezier(.3,1.6,.5,1)}@keyframes panelIn2{from{transform:scale(.5);opacity:0}}
 .scT{font-size:44px;font-weight:900;color:var(--gold-txt);text-shadow:0 0 20px #ffb03a,0 3px 0 #6a3a00;letter-spacing:4px}.scS{font-size:16px;color:#d8c8a0;margin-bottom:10px}
 .scStars{display:flex;gap:14px;justify-content:center;margin:10px 0}.scStars i{font-style:normal;font-size:70px;color:#3a3450;text-shadow:0 3px 0 #0008;transform:scale(0);animation:starIn .5s cubic-bezier(.3,1.8,.5,1) forwards}.scStars i.on{color:var(--gold-glow);text-shadow:0 0 24px #ffb03a,0 3px 0 #8a5a00}
-@keyframes starIn{to{transform:scale(1)}}.scConds div{color:#a898c0;font-size:13px}.scConds .got{color:var(--gold-txt)}.scRw{margin:12px 0;font-size:15px}.scRw b{color:#d8b0ff}.scBox .gbtn{padding:12px 30px;font-size:17px}
+@keyframes starIn{to{transform:scale(1)}}.scConds div{color:#a898c0;font-size:13px}.scConds .got{color:var(--gold-txt)}.scRw{margin:12px 0;font-size:15px}.scRw b{color:#d8b0ff}.scBox .gbtn{padding:12px 30px;font-size:17px}.scBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}.scBtns .gbtn{margin:0}
 /* 버튼 안쪽 요소가 다시 그려져도 클릭 대상은 항상 버튼 */
 .up *,.perm *,.hcard *,.gbtn *,.snode *,.chtab *{pointer-events:none}
 /* ===== 가로 태블릿 · 터치 대응 ===== */
@@ -638,6 +638,14 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #gConfirm .acBtns{display:flex;gap:10px;justify-content:center;margin-top:14px}#gConfirm .acBtns .gbtn{min-width:120px;min-height:48px}
 /* U-2 겹침 정리 (2026-10-23): 자원 알약 줄 아래로 들어간 건물 라벨은 흐리게 (ui/flow.js twTopRect) · 낮은 화면에서 마을 큰 패널이 자원 알약 줄(.twTop)을 덮지 않게 (반응형 680 블록 끝) */
 .tlabel{transition:opacity .2s}.tlabel.under{opacity:.22}
+/* Q-3 단축키 안내 (H/?) */
+#keyHelp{position:fixed;inset:0;z-index:var(--z-modal);background:#000a;display:flex;align-items:center;justify-content:center}#keyHelp.hidden{display:none}
+.khBox{width:min(860px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;font-size:var(--fs)}.khHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:18px;color:var(--gold-hi)}
+.khCols{display:flex;flex-wrap:wrap;gap:12px}.khSec{flex:1 1 240px;background:#0006;border:1px solid #c9a24a44;border-radius:var(--r-panel);padding:8px 12px}.khSec.now{border-color:var(--gold-line);box-shadow:0 0 10px #ffd23a44}
+.khSec h3{margin:0 0 6px;font-size:var(--fs-md);color:var(--gold-txt)}.khSec h3 small{font-size:var(--fs-sm);color:#9fe8ff;font-weight:normal}
+.khRow{display:flex;gap:8px;align-items:baseline;margin:4px 0}.khRow kbd{flex:none;min-width:44px;text-align:center;background:#2a2446;border:1px solid #6a5a9a;border-bottom-width:3px;border-radius:6px;padding:1px 6px;font:inherit;font-weight:bold;color:var(--ink)}.khRow span{color:var(--txt-dim)}
+.khFoot{margin-top:10px;text-align:center;color:#a898c0;font-size:var(--fs-sm)}
+.pwrLine{font-size:var(--fs);color:var(--txt-dim);margin:4px 0}.pwrLine b{color:var(--ink)}.pwrLine .gup{color:#8aff9a}.pwrLine .gdown{color:#ff8a7a} .acts{flex-wrap:wrap}.acts .pwrLine{flex-basis:100%;text-align:center} /* Q-8 */
 /* ===== 반응형 — U-3 (2026-10-23): 흩어져 있던 @media 블록을 질의별로 한 곳에 (원래 순서 유지). 순서: 좁은 화면(1100/800) → 높이 800 → 폭 → 높이 700·680·640 → 터치(hover:none · pointer:coarse, 마지막 = 48px 규칙이 이김) ===== */
 @media (max-width:1100px), (max-height:800px){
 .pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:12px}.pill b{font-size:15px}.gold b{font-size:17px}.mailBtn{font-size:inherit} /* U-3: 원래 .mailBtn{font:inherit} 가 이 규칙 뒤에 있어 이겼음 — 블록 이동 후에도 같게 */

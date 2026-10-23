@@ -34,6 +34,7 @@ import { separate, updEnemies, updLod } from './monsters/ai.js';
 import { Q } from './render/quality.js';
 import './ui/gfx.js';
 import './ui/speed.js';
+import './ui/help.js'; // Q-3 단축키 안내 (H/?)
 import { hero, heroDamage, heroGoTo, updHero, updParty } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
 import { castLegend, updLegend } from './heroes/legend.js';

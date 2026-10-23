@@ -68,9 +68,9 @@ function renderInv() {
   $('invBonus').innerHTML = bonusHtml(E.bonus(s, h));
   $('invFilt').innerHTML = [['all', '전체'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${ui.invF === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('');
   $('invGrid').innerHTML = list.length ? list.map(it => tile(it, s, it.id === ui.invSel ? 'sel' : '')).join('') : '<div class="emptyMsg">장비가 없어요. 출정해서 5웨이브마다 보상 상자를, 보스에게서 장비를 얻거나 대장간에서 제작하세요!</div>';
-  const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 보상 상자를 열 수 없어요 — 대장간에서 분해해 공간을 만드세요.' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : '';
+  const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 보상 상자를 열 수 없어요 — 대장간에서 분해해 공간을 만드세요. <button class="gbtn sm" id="invToDis">⚒ 분해하러 가기</button>' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : ''; if ($('invToDis')) $('invToDis').onclick = () => { Snd.play('ui'); ui.smTab = 'dis'; openSmith(); }; // Q-10 가방 가득 → 대장간 분해 탭
   let act = '';
-  if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${clsN(sel.h)} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${clsN(who)}에게서 가져오기)` : ''}</button>`; }
+  if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${clsN(sel.h)} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${clsN(who)}에게서 가져오기)` : ''}</button>${pwrLine(cur && cur.id !== sel.id ? cur : null, sel)}`; }
   $('invDetail').innerHTML = sel ? card(sel, cur && cur.id !== sel.id ? cur : null) + `<div class="acts">${act}</div>` : '<div class="hintS">장비를 눌러 자세히 보기 · 마우스를 올리면 비교</div>';
   document.querySelectorAll('#invPanel .itile[data-id]').forEach(b => { b.onclick = () => { ui.invSel = b.dataset.id; Snd.play('select'); renderInv(); };
     b.onpointerenter = e => { if (e.pointerType !== 'mouse') return; const it = S().inv.find(x => x.id === b.dataset.id); if (!it) return; const c = S().inv.find(x => x.id === (S().eq[h] || {})[it.s]); showTip(b, card(it, c && c.id !== it.id ? c : null)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); }; });
@@ -88,6 +88,8 @@ export function hideTip() { $('itemTip').classList.add('hidden'); }
 export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; $('smithPanel').classList.remove('hidden'); closeInv(); renderSmith(); }
 export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; $('smithPanel').classList.add('hidden'); hideTip(); }
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');
+// Q-8 (2026-10-23): 전투력 변화 한 줄 (장착 버튼 옆 · 강화 미리보기). a 없음 = 빈 칸에 장착
+const pwrLine = (a, b, pre = '') => { const p0 = a ? E.power(a) : 0, p1 = E.power(b), d = p1 - p0; return `<div class="pwrLine">${pre}전투력 ${a ? `${p0} → ` : ''}<b>${p1}</b> <span class="${d > 0 ? 'gup' : d < 0 ? 'gdown' : ''}">(${d > 0 ? '+' : ''}${d})</span></div>`; };
 function renderSmith() {
   if (!ui.smith) return; const s = S();
   $('smMats').innerHTML = `<span><i class="mi souls"></i>${s.souls}</span><span><i class="mi steel"></i>강철 ${s.mat.steel}</span><span><i class="mi crystal"></i>마력석 ${s.mat.crystal}</span><span class="essM" title="고유 정수 — 고유 장비 각성 재료 (고유 중복 획득·도감 보상·도전 모드 보스)"><i class="mi essence"></i>고유 정수 ${s.mat.essence || 0}</span>`;
@@ -99,7 +101,7 @@ function renderSmith() {
     if (it) { const c = E.enhCost(it), max = it.e >= E.MAXE, nx = { ...it, e: it.e + 1 };
       right = `<div class="anvil" id="anvil"><div class="bigTile g${it.g}${it.uq ? ' uq' : ''}" style="--gc:${GCi(it)}"><span class="ic">${icon(it)}</span><span class="en">+${it.e}</span></div><div class="hammer" id="hammer">🔨</div><div class="sparks" id="sparks"></div><div class="enhRes ${ui.res && ui.res.id === it.id ? ui.res.c : ''}" id="enhRes">${ui.res && ui.res.id === it.id ? ui.res.t : ''}</div></div>
         <div class="enhInfo"><div class="in" style="color:${GC(it.g)}">${esc(it.n)}</div>${lskHtml(it)}${max ? '<div class="maxT">✦ 최대 강화 +10 ✦</div>' : `<div class="lv">+${it.e} <b>→</b> <span>+${it.e + 1}</span></div>
-        <div class="sl">${E.STAT[it.m[0]]} ${E.mainVal(it)}% <b>→</b> <span class="gup">${E.mainVal(nx)}%</span></div><div class="rate">성공 확률 <b style="color:${E.ENH_RATE[it.e] >= 70 ? '#8aff9a' : E.ENH_RATE[it.e] >= 40 ? '#ffe066' : '#ff9a7a'}">${E.ENH_RATE[it.e]}%</b> <small>(실패해도 장비는 사라지지 않아요)</small></div>
+        <div class="sl">${E.STAT[it.m[0]]} ${E.mainVal(it)}% <b>→</b> <span class="gup">${E.mainVal(nx)}%</span></div>${pwrLine(it, nx, '강화 후 ')}<div class="rate">성공 확률 <b style="color:${E.ENH_RATE[it.e] >= 70 ? '#8aff9a' : E.ENH_RATE[it.e] >= 40 ? '#ffe066' : '#ff9a7a'}">${E.ENH_RATE[it.e]}%</b> <small>(실패해도 장비는 사라지지 않아요)</small></div>
         <div class="costs">${costHtml(c, s)}</div><button class="gbtn main" id="enhGo" ${ui.busy ? 'disabled' : ''}>🔨 강화하기</button>`}</div>`; }
     body.innerHTML = `<div class="smCols"><div class="smList">${list.map(x => tile(x, s, x.id === ui.smSel ? 'sel' : '')).join('') || '<div class="emptyMsg">장비 없음</div>'}</div><div class="smMain">${right}</div></div>`;
     body.querySelectorAll('.smList .itile').forEach(b => { b.onclick = () => { if (ui.busy) return; ui.res = null; ui.smSel = b.dataset.id; Snd.play('select'); renderSmith(); }; tipBind(b); });
@@ -107,12 +109,12 @@ function renderSmith() {
   } else if (ui.smTab === 'dis') {
     const list = sorted(s.inv.filter(x => !eqOf(s, x.id) && !x.uq), s); for (const id of [...ui.dis]) if (!list.some(x => x.id === id)) ui.dis.delete(id); // 고유는 분해 불가 (목록에서 제외)
     const y = { steel: 0, crystal: 0 }; for (const id of ui.dis) { const r = E.dismantleYield(s.inv.find(x => x.id === id)); y.steel += r.steel; y.crystal += r.crystal; }
-    body.innerHTML = `<div class="disBulk">${E.GRADES.map((g, i) => `<button class="ftab gb" data-g="${i}" style="--gc:${g.c}">${g.n} 전체</button>`).join('')}<button class="ftab" data-g="x">선택 해제</button></div>
+    body.innerHTML = `<div class="disBulk">${E.GRADES.map((g, i) => `<button class="ftab gb" data-g="${i}" style="--gc:${g.c}">${g.n} 전체</button>`).join('')}${[1, 2].map(i => `<button class="ftab le" data-le="${i}" title="${E.GRADES.slice(0, i + 1).map(g => g.n).join('·')} 모두 선택 (장착·고유 제외)">${E.GRADES[i].n} 이하 모두</button>`).join('')}<button class="ftab" data-g="x">선택 해제</button></div>
       <div class="smGrid" id="disGrid">${list.map(x => tile(x, s, ui.dis.has(x.id) ? 'pick' : '')).join('') || '<div class="emptyMsg">분해할 수 있는 장비가 없어요 (장착 중인 장비는 분해되지 않아요)</div>'}</div>
       <div class="disFoot"><div>획득 예정: <b><i class="mi steel"></i>강철 ${y.steel}</b> · <b><i class="mi crystal"></i>마력석 ${y.crystal}</b></div><button class="gbtn main" id="disGo" ${ui.dis.size ? '' : 'disabled'}>⚒ 분해하기 (${ui.dis.size}개)</button></div>
       <div class="hintS">분해: 일반 강철2 · 고급 4 · 희귀 8+마력석1 · 영웅 12+3 · 전설 20+8 (강화 수치당 강철 +2)${s.inv.some(x => x.uq) ? ' · ◆ 고유 장비는 분해할 수 없어요' : ''}</div>`;
     body.querySelectorAll('#disGrid .itile').forEach(b => { b.onclick = () => { const id = b.dataset.id; ui.dis.has(id) ? ui.dis.delete(id) : ui.dis.add(id); Snd.play('select'); renderSmith(); }; tipBind(b); });
-    body.querySelectorAll('.disBulk .ftab').forEach(b => b.onclick = () => { Snd.play('ui'); if (b.dataset.g === 'x') ui.dis.clear(); else list.filter(x => x.g === +b.dataset.g).forEach(x => ui.dis.add(x.id)); renderSmith(); });
+    body.querySelectorAll('.disBulk .ftab').forEach(b => b.onclick = () => { Snd.play('ui'); if (b.dataset.g === 'x') ui.dis.clear(); else list.filter(x => b.dataset.le != null ? x.g <= +b.dataset.le : x.g === +b.dataset.g).forEach(x => ui.dis.add(x.id)); renderSmith(); });
     $('disGo').onclick = () => doDismantle();
   } else if (ui.smTab === 'awk') { // 각성: 고유 정수로 고유 궁극기 강화 (항상 성공)
     const list = sorted(s.inv.filter(x => x.uq), s); if (!list.some(x => x.id === ui.awSel)) ui.awSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.awSel);
