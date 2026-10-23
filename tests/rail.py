@@ -35,6 +35,8 @@ with sync_playwright() as pw:
             pg.click(f'#twRail .railBtn[data-go="{k}"]'); pg.wait_for_timeout(500)
             others = [p for p in BIG if p != pid and vis(pg, p)]
             ok(f'{tag} rail_{k}_opens', vis(pg, pid) and not others, others)
+            # 넓은 패널(상점 등)은 좁은 화면에서 레일을 덮음 → 실제 사용처럼 Esc 로 닫고 다음 시설
+            pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
         # 열린 패널의 .ui-x 닫기 버튼 = 오른쪽 위 · 터치 48 (panelIn 애니메이션 뒤 측정)
         pg.click('#twRail .railBtn[data-go="smith"]'); pg.wait_for_timeout(700)
         x = J(pg, "()=>{ const e=document.querySelector('#smithPanel .ui-x'), p=document.getElementById('smithPanel').getBoundingClientRect(), r=e.getBoundingClientRect(); return [e.offsetWidth, e.offsetHeight, Math.round(p.right-r.right), Math.round(r.top-p.top)] }")
