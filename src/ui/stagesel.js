@@ -1,7 +1,7 @@
 // ================= 스테이지 선택 지도 (출정의 문) =================
 import { Snd } from '../audio/audio.js';
 import { $ } from '../core/util.js';
-import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import * as Acc from '../account/account.js';
 import * as ST from '../data/stages.js';
 import * as P from '../account/progress.js';
@@ -12,7 +12,7 @@ import { card, showTip, hideTip, sampleItem, weaponIcon, iconKey, icon } from '.
 
 const ICONS = { forest: ['🌲', '🍄', '🍃', '🌳'], snow: ['❄️', '⛄', '🌨️', '❄️'], volcano: ['🌋', '🔥', '☄️', '🔥'], ruins: ['🏛️', '🗿', '🕸️', '🏺'] };
 let ui = { open: false, ch: 1, sel: null, hard: false }, hooks = { challenge: () => {}, start: () => {} };
-export function initStageSel(h) { hooks = { ...hooks, ...h }; $('stClose').onclick = () => closeStageSel(); escLayer('stage', 40, () => ui.open, () => closeStageSel()); }
+export function initStageSel(h) { hooks = { ...hooks, ...h }; $('stClose').onclick = () => closeStageSel(); }
 function current(s) { for (const ch of ST.CHAPTERS) for (const st of ch.stages) if (ST.stageUnlocked(s, st.id) && !ST.stars(s, st.id)) return st.id; return null; }
 // Q-5 (2026-10-23): 마지막 출정 기억 (localStorage hd3d_lastStage {id, hard}) — 지도를 다시 열면 그 챕터·노말/하드로. 그 칸을 깼으면 다음 열린 칸, 잠겼으면 무시(진행 중 칸)
 const LAST = 'hd3d_lastStage';
@@ -23,9 +23,10 @@ export function rememberStage(id, hard) { try { localStorage.setItem(LAST, JSON.
 export function openStageSel() {
   const s = Acc.load(); if (!ui.open) { Snd.play('confirm'); Snd.play('magic', { rate: .7 }); }
   ui.open = true; if (!ui.sel) recall(s); const cur = current(s); if (cur && !ui.sel) { ui.sel = cur; ui.ch = ST.STAGES[cur].ch; } if (!ui.sel) ui.sel = ST.CHAPTERS[0].stages[0].id;
-  $('stagePanel').classList.remove('hidden'); render();
+  SP.show(); render();
 }
-export function closeStageSel(silent) { if (ui.open && !silent) Snd.play('ui'); ui.open = false; $('stagePanel').classList.add('hidden'); hideTip(); }
+export function closeStageSel(silent) { if (ui.open && !silent) Snd.play('ui'); ui.open = false; SP.hide(); hideTip(); }
+const SP = definePanel('stage', { id: 'stagePanel', z: 40, isOpen: () => ui.open, close: s => closeStageSel(s) });
 const starStr = n => [0, 1, 2].map(i => `<i class="${i < n ? 'on' : ''}">★</i>`).join('');
 function render() {
   if (!ui.open) return; const s = Acc.load(), C = ui.ch === 0 ? null : ST.CHAPTERS.find(c => c.id === ui.ch);

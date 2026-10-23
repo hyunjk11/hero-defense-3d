@@ -60,8 +60,9 @@ export function updShop(dt) {
 }
 
 // ---------- 상점 ----------
-export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (PKEYS.includes(k)) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; $('shopPanel').classList.remove('hidden'); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
-export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; $('shopPanel').classList.add('hidden'); }
+export function openShop(k) { if (!ui.shop) { Snd.play('coins'); Snd.play('confirm'); } if (PKEYS.includes(k)) ui.prod = k; hooks.closeOthers('shop'); ui.shop = true; SHP.show(); preview(); if (pv) { if (pv.key !== ui.prod) pvSet(ui.prod); pv.spin = 6.28; } render(); if (Acc.A.user) Sh.refresh().then(render); }
+export function closeShop(silent) { if (ui.shop && !silent) Snd.play('ui'); ui.shop = false; SHP.hide(); }
+const SHP = definePanel('shop', { id: 'shopPanel', z: 40, isOpen: () => ui.shop, close: s => closeShop(s) });
 function itemState(k) {
   const A = Acc.A, st = Sh.S.status;
   if (!A.user) return { cls: 'guest', btn: '🔒 로그인 후 구매 가능', dis: true, note: '게스트는 구매할 수 없어요. 메뉴에서 로그인해 주세요.' };
@@ -126,7 +127,7 @@ export function initShop(h) {
   $('shopClose').onclick = () => closeShop(); $('mailClose').onclick = () => closeMail(); initAdmin({ closeOthers: k => hooks.closeOthers(k), onChange: () => hooks.onChange() });
   $('twMail').onclick = () => { if (ui.mail) closeMail(); else openMail(); }; $('twAdmin').onclick = () => openAdmin(); $('mnAdmin').onclick = () => openAdmin();
   Sh.onShop(() => render()); Acc.onChange(() => badge());
-  escLayer('admin', 50, () => adminOpen(), () => closeAdmin()); escLayer('shop', 40, () => ui.shop, () => closeShop());
+  escLayer('admin', 50, () => adminOpen(), () => closeAdmin());
   badge();
 }
 G.shop = { Sh, openShop, closeShop, openMail, closeMail, openAdmin, closeAdmin, ui: () => ui, pvKey: () => (pv && pv.ch && pv.ch.g.visible ? pv.key : null) };

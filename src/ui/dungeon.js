@@ -2,7 +2,7 @@
 // 로즈는 서버 소유 기록(account/shop.js heroOwned ← hd3d_owned)이 확인될 때만 파티에 들어감. 버들은 숨김 플래그로 제외 (data/dungeon.js dungeonParty)
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
-import { escLayer } from './keys.js';
+import { definePanel } from './panel.js';
 import { askConfirm } from './confirm.js';
 import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
@@ -65,10 +65,10 @@ function render() { if (view === 'shop') return renderShop(); const p = $('dgPan
     <div class="dgGo"><button id="dgShopBtn" class="gbtn">🏪 던전 상점</button><button id="dgStart" class="gbtn main">⚔ 원정 출발</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgStart').onclick = () => depart(); $('dgShopBtn').onclick = () => { Snd.play('ui'); view = 'shop'; renderShop(); refreshDay(); }; paintDay();
   p.querySelectorAll('.dgCard.pick').forEach(b => b.onclick = () => { const r = togglePick(party, b.dataset.cls, cands); if (r.msg) { Snd.play('error'); banner(r.msg, '#ffb06a', 1100); return; } Snd.play('select'); savePick(r.pick); render(); }); }
-export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; view = 'party'; $('dgPanel').classList.remove('hidden'); Snd.play('ui'); refreshDay();
+export function openDungeon() { if (departing || !DG_OPEN) return; /* 공개 전(DG_LIVE=false): 건물은 '준비 중' */ H.closeOthers(); open = true; view = 'party'; DP.show(); Snd.play('ui'); refreshDay();
   if (Acc.A.user && !checking) { checking = true; render(); Sh.verifyOwned().finally(() => { checking = false; if (open) render(); }); } else render(); }
-escLayer('dungeon', 40, () => open, () => closeDungeon());
-export function closeDungeon(quiet) { if (!open) return; open = false; $('dgPanel').classList.add('hidden'); if (!quiet) Snd.play('ui'); }
+const DP = definePanel('dungeon', { id: 'dgPanel', z: 40, isOpen: () => open, close: q => closeDungeon(q) });
+export function closeDungeon(quiet) { if (!open) return; open = false; DP.hide(); if (!quiet) Snd.play('ui'); }
 // 출발: 로그인 계정은 서버 입장 등록(하루 3회) 성공 때 메달 원정, 게스트·서버 업데이트 전·오프라인은 연습 원정. 횟수 초과·정지는 출발 막음
 async function depart() { if (departing) return; departing = true; const b = $('dgStart'); if (b) { b.disabled = true; b.textContent = '입장 확인 중…'; }
   const r = await DS.dgStart(); G.dgEntry = r;
