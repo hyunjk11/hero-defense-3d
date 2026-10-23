@@ -3,6 +3,7 @@ import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $, QS } from '../core/util.js';
 import { askConfirm } from './confirm.js';
+import { escLayer, typing } from './keys.js';
 import { go } from '../core/nav.js';
 import { CLASSES, VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
@@ -204,7 +205,7 @@ function bindUI() {
   initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = async () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!(await askConfirm({ title: '마을로 귀환', icon: '🏠', body: '지금까지의 보상을 가지고 마을로 귀환할까요?', ok: '귀환' }))) return; if (G.phase !== 'build') { Snd.play('error'); return; } onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
-  addEventListener('keydown', e => { if (G.screen === 'town') tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);
+  addEventListener('keydown', e => { if (G.screen === 'town' && !typing(e)) tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);
   renderer.domElement.addEventListener('pointerdown', e => { if (G.screen !== 'town' || e.button !== 0 || !th) return; const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), rc = new THREE.Raycaster(); rc.setFromCamera(m, camera);
     if (revealing()) return; if (shopBld && rc.intersectObject(shopBld, true).length > 0) { th.goals = null; th.goal = shopFront(); if (Math.hypot(th.g.position.x - SHOP_P.x, th.g.position.z - SHOP_P.y) < 4.4) doOpenShop(); return; }
     if (lab && rc.intersectObject(lab, true).length > 0) { th.goals = null; th.goal = labFront(); if (Math.hypot(th.g.position.x - LAB.x, th.g.position.z - LAB.y) < 4.6) doOpenLab(); return; }
@@ -224,7 +225,7 @@ function bindUI() {
   initLab({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
   initStats({ beforeOpen: () => { closeDungeon(true); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStageSel(true); } }); // 📊 능력치 (마을 패널 · 전투 C 키)
   initGear({ onChange: () => refreshTown(), cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });
-  addEventListener('keydown', e => { if (e.key === 'Escape' && blessOpen) closeBless(); });
+  escLayer('bless', 40, () => blessOpen, () => closeBless()); escLayer('advConfirm', 60, () => !$('advConfirm').classList.contains('hidden'), () => closeAdvConfirm());
 }
 function syncSet() { const C = Snd.cfg; $('stBgm').value = Math.round(C.bgm * 100); $('stSfx').value = Math.round(C.sfx * 100); $('stBgmOn').checked = C.bgmOn; $('stSfxOn').checked = C.sfxOn; $('stBgMute').checked = C.bgMute !== false; }
 

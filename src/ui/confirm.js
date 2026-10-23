@@ -4,13 +4,14 @@
 // DOM 은 #advConfirm 과 같은 모양(.acBox) — body 에 #gConfirm 한 번만 만들어 재사용. 열린 상태에서 또 부르면 이전 것은 취소(false)
 import { Snd } from '../audio/audio.js';
 import { esc } from '../core/util.js';
+import { escLayer } from './keys.js';
 
 let el = null, pend = null;
 function ensure() {
   if (el) return el;
   el = document.createElement('div'); el.id = 'gConfirm'; el.className = 'hidden';
   el.innerHTML = '<div class="acBox" role="dialog" aria-modal="true"><div class="acIco"></div><h3 class="gcT"></h3><div class="gcB"></div><div class="acBtns"><button class="gbtn main" id="gcOk"></button><button class="gbtn" id="gcNo"></button></div></div>';
-  document.body.appendChild(el);
+  document.body.appendChild(el); escLayer('confirm', 100, () => !!pend, () => done(false));
   el.addEventListener('click', e => { if (e.target === el) done(false); });
   el.querySelector('#gcOk').onclick = () => done(true); el.querySelector('#gcNo').onclick = () => done(false);
   addEventListener('keydown', e => { if (!pend) return;

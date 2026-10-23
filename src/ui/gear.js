@@ -1,6 +1,7 @@
 // ================= 장비 UI: 가방(장착/비교) · 대장간(강화/분해/제작) · 보상 상자 개봉 =================
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { escLayer } from './keys.js';
 import { askConfirm } from './confirm.js';
 import { CLASSES, HERO_KEYS, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
@@ -275,5 +276,6 @@ function renderCodex(s) {
 export function refreshGear() { renderInv(); renderSmith(); }
 function bind() {
   $('invClose').onclick = () => closeInv(); $('smClose').onclick = () => closeSmith();
-  addEventListener('keydown', e => { if (e.key === 'Escape') { if (revealing()) return; closeInv(); closeSmith(); } if (e.key.toLowerCase() === 'i' && document.activeElement?.tagName !== 'INPUT' && !$('scr_town').classList.contains('hidden')) ui.inv ? closeInv() : openInv(); });
+  escLayer('reveal', 90, () => revealing(), () => {}); escLayer('inv', 41, () => ui.inv, () => closeInv()); escLayer('smith', 40, () => ui.smith, () => closeSmith());
+  addEventListener('keydown', e => { if (e.key.toLowerCase() === 'i' && document.activeElement?.tagName !== 'INPUT' && !$('scr_town').classList.contains('hidden')) ui.inv ? closeInv() : openInv(); });
 }
