@@ -21,7 +21,7 @@ function refreshHud() {
   $('gold').textContent = G.gold; $('wave').textContent = G.wave; setBar('coreBar', 'coreTr', G.coreHp / G.coreMax); if (G.coreHb) G.coreHb.set(G.coreHp / G.coreMax); $('coreTxt').textContent = `${Math.max(0, G.coreHp)}/${G.coreMax}`;
   refreshWavePrev(); $('enemyCnt').textContent = `적 ${G.enemies.filter(e => !e.dead).length + (G.spawnQ ? G.spawnQ.length : 0)}`;
   document.querySelectorAll('.up').forEach(b => { const k = b.dataset.up, c = upCost(k); const h = `<span class="row"><span>${UPS[k].n} Lv.${G.ups[k]}</span><small>${c}G</small></span><span class="desc">${UPS[k].d}</span>`; if (b._h !== h) { b._h = h; b.innerHTML = h; }
-    const tt = k === 'bar' ? `바리케이드 체력 ${Math.round(barHpAt(G.ups.bar, G.advBar || 1))} → ${Math.round(barHpAt(G.ups.bar + 1, G.advBar || 1))}` : upPreview(G.hero, k); if (b._tt !== tt) { b._tt = tt; b.title = tt ? `${UPS[k].n}: ${tt}` : ''; b.dataset.nx = tt; } /* Q-7: 지금 → 다음 (툴팁 · data-nx) */
+    const tt = k === 'bar' ? `바리케이드 체력 ${Math.round(barHpAt(G.ups.bar, (G.advBar || 1) * (G.barRes || 1)))} → ${Math.round(barHpAt(G.ups.bar + 1, (G.advBar || 1) * (G.barRes || 1)))}` : upPreview(G.hero, k); if (b._tt !== tt) { b._tt = tt; b.title = tt ? `${UPS[k].n}: ${tt}` : ''; b.dataset.nx = tt; } /* Q-7: 지금 → 다음 (툴팁 · data-nx) */
     const dis = G.gold < c; if (b.disabled !== dis) b.disabled = dis; }); // 바뀔 때만 다시 그림 (매 프레임 innerHTML 교체 → 클릭 씹힘 방지)
   document.querySelectorAll('.tool').forEach(b => { const T2 = TOWERS[b.dataset.tool]; if (T2) b.disabled = G.gold < T2.cost; if (b.dataset.tool === 'barricade') b.disabled = G.gold < BARRICADE.cost; });
   const s = G.sel;
