@@ -36,6 +36,7 @@ import { initNotice, showNotices } from './notice.js';
 import { initStats, closeStats } from './stats.js';
 import './endstats.js'; // 판 종료 통계 (결과 화면 📊 통계)
 import { equipLine, lootLines, onRunEnd, goTown, initResult } from './result.js'; // C-9: 판 결과·보상 저장
+import { afterIntro, doAuth, toMenu, refreshMenu, refreshLogin, initAuth } from './auth.js'; // C-9: 로그인·메인 메뉴
 export { equipLine, goTown } from './result.js'; // 기존 import 경로 호환
 import { shop as shopBld, SHOP_P, shopFront } from '../world/town.js';
 import { dungeon as dungeonBld, DUNGEON_P, dungeonFront } from '../world/town.js';
@@ -63,7 +64,7 @@ function startStageRun2(logged) {
   const C = ST.CHAPTERS.find(c => c.id === STAGE.ch); setTimeout(() => banner(`${G.hard ? '🔥 하드 · ' : ''}${STAGE.no} ${STAGE.n} · 웨이브 ${STAGE.waves} · ${C.propN}`, G.hard ? '#ff6a4a' : C.color, 3200), 500);
   const bt = equipLine(G.equip); if (bt) setTimeout(() => banner(bt, '#ffe08a', 2200), 3900);
 }
-initResult({ departStage: (id, hard) => departStage(id, hard) });
+initResult({ departStage: (id, hard) => departStage(id, hard) }); initAuth({ show: id => show(id) });
 // ---------- 시작 ----------
 export function startFlow() {
   const s = Acc.load(); if (s.settings.audio) { Object.assign(Snd.cfg, s.settings.audio); Snd.apply(); }
@@ -76,29 +77,6 @@ export function startFlow() {
   showSelect(); $('select').classList.add('hidden'); show('intro'); // 인트로: 세 영웅이 포즈를 취하는 3D 무대 재사용
 }
 async function resume() { showSelect(); $('select').classList.add('hidden'); const ok = await Acc.autoLogin(); if (!ok && Acc.A.mode !== 'guest') { show('login'); refreshLogin(); return; } if (!ok) Acc.playGuest(); enterTown(); }
-async function afterIntro() {
-  Snd.unlock(); Snd.play('confirm'); show('login'); refreshLogin(); $('lgMsg').textContent = '';
-  if (Acc.hasSession()) { $('lgMsg').textContent = '자동 로그인 중…'; setBusy(true); const ok = await Acc.autoLogin(); setBusy(false); if (ok) { toMenu(); return; } $('lgMsg').textContent = Acc.A.msg || '세션이 만료되었습니다. 다시 로그인해 주세요.'; }
-}
-function setBusy(b) { document.querySelectorAll('#scr_login button').forEach(x => x.disabled = b); }
-function refreshLogin() { const st = $('lgStatus'); if (st) st.textContent = Acc.A.user ? `로그인됨: ${Acc.A.user.email}` : ''; }
-async function doAuth(kind) {
-  const email = $('lgEmail').value.trim(), pw = $('lgPw').value; Snd.play('ui');
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $('lgMsg').textContent = '이메일을 정확히 입력해 주세요.'; return; }
-  if (pw.length < 6) { $('lgMsg').textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
-  setBusy(true); $('lgMsg').textContent = kind === 'up' ? '회원가입 중…' : '로그인 중…';
-  try { await (kind === 'up' ? Acc.signUp(email, pw) : Acc.signIn(email, pw)); $('lgMsg').textContent = ''; Snd.play('confirm'); toMenu(); }
-  catch (e) { $('lgMsg').textContent = e.message || String(e); Snd.play('error'); }
-  setBusy(false);
-}
-function toMenu() { show('menu'); refreshMenu(); }
-function refreshMenu() {
-  if (G.screen !== 'menu') return; const s = Acc.load(), A = Acc.A;
-  $('mnAcct').innerHTML = A.user ? `<b>${esc(A.user.email)}</b><br><span class="sync s_${A.sync}">${Acc.SYNC_TXT[A.sync] || ''}</span>` : `<b>게스트</b><br><span class="sync">이 기기에만 저장됩니다</span>`;
-  if (document.activeElement !== $('mnNick')) $('mnNick').value = s.nick || '';
-  $('mnCont').disabled = !(s.stats.runs > 0 || s.souls > 0); $('mnSummary').innerHTML = `영혼석 <b>${s.souls}</b> · 최고 웨이브 <b>${s.bestWave}</b> · 출정 ${s.stats.runs}회`;
-  $('mnAuth').textContent = A.user ? '로그아웃' : '로그인 / 회원가입';
-}
 
 // ---------- 마을 ----------
 // U-2: 자원 알약 줄(.twTop) 아래로 들어간 건물 라벨은 흐리게 (겹침 방지) — 사각형은 0.5초마다만 측정
