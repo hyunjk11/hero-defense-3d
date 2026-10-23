@@ -96,6 +96,7 @@ with sync_playwright() as pw:
     if not J(pg, "()=>!!document.querySelector('#disGrid .itile.pick[data-id=\"hi1\"]')"): pg.click('#disGrid .itile[data-id="hi1"]')
     pg.click('#disGo'); pg.wait_for_timeout(300); pg.keyboard.press('Enter'); pg.wait_for_function("()=>!G.gear.Acc.load().inv.some(x=>x.id==='hi1')", timeout=10000)
     ok('q1_enter_confirms', hidden(pg, 'gConfirm') and not hidden(pg, 'smithPanel'))
+    pg.wait_for_timeout(600); s2 = J(pg, "()=>G.gear.Acc.load()")  # 제작 비교 기준 = 확인창 분해(hi1 → 강철·마력석 증가) 뒤 저장
     pg.click('#smTabs .ftab[data-t="craft"]'); pg.click('.crSlots .ftab[data-s="armor"]'); pg.click('.crGo[data-r="fine"]'); pg.wait_for_timeout(1500)
     s3 = J(pg, "()=>G.gear.Acc.load()"); ok('craft', len(s3['inv']) == len(s2['inv']) + 1 and s3['inv'][-1]['s'] == 'armor' and s3['inv'][-1]['g'] >= 1 and s3['mat']['crystal'] == s2['mat']['crystal'] - 2, (len(s2['inv']), len(s3['inv']), s3['inv'][-1], s2['mat'], s3['mat']))
     ok('craft_reveal', not hidden(pg, 'chestOv')); pg.click('.cvStage'); pg.wait_for_timeout(200); ok('reveal_closes', hidden(pg, 'chestOv'))
