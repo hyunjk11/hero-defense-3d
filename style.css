@@ -133,7 +133,6 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 /* U-8 (2026-10-23): 낮은 화면에서 #build 가 넘쳐도 '마을로 귀환' 은 패널 아래에 붙어 항상 보임 */
 #build #retreat{position:sticky;bottom:0;z-index:1;box-shadow:0 6px 0 #0a0912,0 -4px 10px #0a0912cc}
 #overReward{color:#d8b0ff;font-size:18px}#overTown{margin-left:8px}
-.twTip{font-size:12px;color:#d8c8a0;line-height:1.5;background:#0a0812aa;border:1px dashed #c9a24a66;border-radius:8px;padding:6px 8px}.twTip b{color:var(--gold-hi)}
 .tlabel.bless{border-color:var(--gold-hi);box-shadow:0 0 14px #ffd27a;color:#fff6d0}.tlabel.bless small{color:var(--gold-hi)}.tlabel.deco{font-size:12px;padding:2px 7px;opacity:.8}
 #twBless{position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:8px;border-color:var(--gold-hi);box-shadow:0 0 30px #ffd27a66,inset 0 0 24px #ffd27a22;background:linear-gradient(#2a2246f2,#120e22f2);animation:blessIn .35s ease-out}
 #twBless.hidden{display:none}
@@ -652,7 +651,6 @@ body:not(.dungeonRun) #dgJoint{display:none}
   .twTop,#top{top:calc(8px + env(safe-area-inset-top));gap:6px}
   .twAcct{top:calc(48px + env(safe-area-inset-top))}
   .twLeft{top:calc(64px + env(safe-area-inset-top));width:206px;padding:10px;gap:5px;max-height:calc(100dvh - 150px)}
-  .twTip{font-size:12px;padding:5px 7px}
   #twHint{font-size:12px;padding:6px 10px;max-width:min(520px,calc(100vw - 260px))}
   #twGo{font-size:17px;padding:10px 18px}
   #build,#ups,#tinfo{top:calc(60px + env(safe-area-inset-top))}
@@ -760,7 +758,7 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #sndPanel{right:calc(12px + env(safe-area-inset-right));bottom:auto;top:calc(54px + env(safe-area-inset-top));z-index:var(--z-hud-top);max-height:calc(100dvh - 140px);overflow-y:auto}
 @media (pointer:coarse){#camTop button{width:var(--hit);height:var(--hit)}#sndPanel{top:calc(68px + env(safe-area-inset-top))}}
 /* Q-4a 알림 배지 (2026-10-23): 받을 도감 보상이 있으면 🎒 가방 버튼 오른쪽 위 빨간 점 (.ui-badge 모양 = .newDot) */
-#twBag{position:relative}#twBag.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
+#twBag,.railBtn{position:relative}#twBag.hasNew::after,.railBtn.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
 /* U-5b 패배 화면 #over 를 클리어 결과 카드(#stageClear)와 같은 모양으로 (2026-10-23): 같은 배경·등장 애니메이션·버튼 줄 [🔁 재도전][📊 통계][🏠 마을] (id 그대로, 버튼은 .overBtns 한 줄) */
 #over{z-index:var(--z-result);background:radial-gradient(circle,#3a1020cc,#05030cf0);text-align:center;color:var(--ink);padding:16px}#over>*{animation:panelIn2 .5s cubic-bezier(.3,1.6,.5,1)}
 #over h1{text-shadow:0 0 24px #ff4a5a88,0 3px 0 #3a0810}#overTxt{font-size:16px;color:var(--txt);margin:10px 0 4px}
@@ -773,3 +771,9 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .railBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:64px;min-height:var(--hit);padding:5px 2px;font-size:20px;line-height:1.1;letter-spacing:0}
 .railBtn span{font-size:12px;font-weight:bold;color:var(--txt-dim)}.railBtn:hover span{color:var(--gold-hi)}
 @media (max-height:680px){.railBtn{padding:3px 2px;font-size:18px}.twRail{gap:4px;padding:6px 5px}}
+/* U-9b (2026-10-23): .twLeft = 영웅 목록(+장비 보너스)만 — 🎒 가방 · 📊 능력치 · 🎁 상자는 오른쪽 레일 #twRail 위쪽 묶음으로 (id 그대로). 레일 배지 = Q-4a .hasNew 빨간 점 (도감 보상 · 연구 가능 · 축복 가능) */
+.twRail{max-height:calc(100dvh - 150px);overflow-y:auto;overscroll-behavior:contain}
+.railSep{display:block;height:1px;margin:2px 4px;background:var(--gold-line);flex:none}
+.railBtn small,.railBtn b{position:absolute;top:2px;left:3px;font-size:12px;line-height:1;color:var(--txt-dim)}#twChest.railBtn b{left:auto;right:4px;color:var(--gold-txt)}
+@media (max-height:680px){.railBtn span{font-size:12px}.railBtn{min-height:44px}}
+@media (pointer:coarse){.railBtn{min-height:var(--hit)}}

@@ -13,6 +13,7 @@ import { altOk, ensureModels, heroAssets, makeHeroModel, modelsReady, play } fro
 import { showSelect, choose } from './select.js';
 import * as Acc from '../account/account.js';
 import * as P from '../account/progress.js';
+import * as GR from '../data/growth.js';
 import * as AD from '../data/advance.js';
 import { initAdv, renderAdv, closeConfirm as closeAdvConfirm, resetPreview as resetAdvPreview } from './advance.js';
 import { labels as TL, buildTown as buildTownScene, updTown, townPass, LAKE, LR, PORTAL, tower } from '../world/town.js';
@@ -162,11 +163,18 @@ function lootLines(L) { const ch = L.filter(x => x.chest), uq = L.filter(x => x.
 function doOpenShop() { openShop(); }
 function popup(html) { const p = $('townPop'); p.innerHTML = html + '<br><button id="popOk">확인</button>'; p.classList.remove('hidden'); $('popOk').onclick = () => { Snd.play('ui'); p.classList.add('hidden'); }; }
 function doOpenLab() { closeBless(); closeShopUI(); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); openLab(); }
+// 레일 배지 (Q-4 나머지, 2026-10-23): 지금 살 수 있는 연구(타워 3종 중 하나라도) · 지금 영웅이 살 수 있는 여신의 축복
+export function railBadges(s, cls) {
+  const lab = GR.TTYPES.some(t => GR.RKEYS.some(k => !GR.resBlock(s, t, k)));
+  const L = s.heroLv[cls] || {}, bless = Object.keys(P.PERM).some(k => { const lv = L[k] || 0; return lv < P.permMax(s, cls) && s.souls >= P.permCost(k, lv); });
+  return { lab, bless };
+}
 function refreshTown() {
   renderLab();
   if (G.screen !== 'town') return; if (P.backfillList(Acc.load()).length) Acc.update(d => P.backfill(d)[0]); // 기존 유저 고유 소급 지급 (조건을 이미 채운 고유 → 상자, id 고정이라 여러 번·여러 기기에서도 1개)
   const s = Acc.load(), A = Acc.A, cls = Sh.usableHero(s.hero), L = s.heroLv[cls];
   $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP); $('twBag').classList.toggle('hasNew', codexClaimable(s)); /* Q-4a 도감 보상 배지 */
+  { const rb = railBadges(s, cls); document.querySelectorAll('#twRail .railBtn[data-go]').forEach(b => b.classList.toggle('hasNew', !!rb[b.dataset.go])); } /* 레일 배지: 연구 가능 · 축복 가능 */
   const nc = (s.chests || []).length; $('twChest').classList.toggle('hidden', !nc); $('twChestN').textContent = nc;
   $('twBonus').innerHTML = `<div class="lbl">${heroN(cls)} 장비 보너스</div>` + bonusHtml(E.bonus(s, cls)); $('twBest').textContent = s.bestWave; $('twRuns').textContent = s.stats.runs; $('twKills').textContent = s.stats.kills;
   $('twAcct').innerHTML = A.user ? `${esc(s.nick || A.user.email)} · <span class="sync s_${A.sync}">${Acc.SYNC_TXT[A.sync] || ''}</span>` : `${esc(s.nick || '게스트')} · <span class="sync">게스트 (이 기기 저장)</span>`;
@@ -210,7 +218,7 @@ function bindUI() {
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
   // U-9a/Q-15 (2026-10-23): 오른쪽 '시설 바로가기' 레일 — 걷지 않고 바로 패널 열기 (걷기 경로는 그대로). 다른 큰 패널은 닫고 엶
   const railGo = { smith: () => { closeDungeon(true); closeBless(); closeShopUI(); closeStageSel(true); openSmith(); }, lab: () => { closeDungeon(true); doOpenLab(); }, shop: () => { closeDungeon(true); doOpenShop(); }, dungeon: () => openDungeon(), bless: () => { closeDungeon(true); openBless(); } };
-  document.querySelectorAll('#twRail .railBtn').forEach(b => { if (b.dataset.go === 'dungeon' && !DG_OPEN) b.classList.add('hidden'); b.onclick = e => { e.stopPropagation(); const f = railGo[b.dataset.go]; if (f) f(); }; });
+  document.querySelectorAll('#twRail .railBtn[data-go]').forEach(b => { if (b.dataset.go === 'dungeon' && !DG_OPEN) b.classList.add('hidden'); b.onclick = e => { e.stopPropagation(); const f = railGo[b.dataset.go]; if (f) f(); }; });
   $('twGo').onclick = () => { closeDungeon(true); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); openStageSel(); };
   initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
   $('retreat').onclick = async () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!(await askConfirm({ title: '마을로 귀환', icon: '🏠', body: '지금까지의 보상을 가지고 마을로 귀환할까요?', ok: '귀환' }))) return; if (G.phase !== 'build') { Snd.play('error'); return; } onRunEnd('retreat'); };
