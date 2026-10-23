@@ -752,8 +752,8 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #statOv .ui-x{top:6px;right:6px;width:var(--hit);height:var(--hit)}#blessClose.ui-x{top:10px;right:10px;padding:0}#endStats .ui-x{top:8px;right:8px}
 .ui-panel>.gtitle:first-of-type,#twBless .blessHead{padding-left:calc(var(--hit) + 6px);padding-right:calc(var(--hit) + 6px)}
 @media (pointer:coarse){#statOv .ui-x{width:var(--hit);height:var(--hit)}}
-/* U-7a 전투 HUD (2026-10-23): 하단 #cam 을 두 묶음으로 보이게 — [📊 C][❚❚ P][×1 F] 게임 흐름 | [♬][⟲][⟳] 소리·카메라. 흐름 버튼에 키 글자 배지(터치에서도 보임). 위치 이동(U-7b)은 보류 */
-#cam button{position:relative}#cam button[data-key]::after{content:attr(data-key);position:absolute;right:-5px;bottom:-5px;min-width:18px;height:18px;padding:0 3px;box-sizing:border-box;border-radius:9px;background:#0b0914;border:1px solid var(--gold-line);color:var(--gold-txt);font:bold 12px/16px sans-serif;letter-spacing:0;text-align:center;pointer-events:none}
+/* U-7a 전투 HUD (2026-10-23): 하단 #cam 을 두 묶음으로 보이게 — [📊 C][❚❚ P][×1 F] 게임 흐름 | [♬][⟲][⟳] 소리·카메라. 흐름 버튼에 키 글자 배지(터치에서도 보임, 버튼 안쪽 모서리 — 밖으로 나가면 scrollWidth 가 늘어 tablet.py clipped). 위치 이동(U-7b)은 보류 */
+#cam button{position:relative}#cam button[data-key]::after{content:attr(data-key);position:absolute;right:1px;bottom:1px;min-width:15px;height:15px;padding:0 2px;box-sizing:border-box;border-radius:8px;background:#0b0914;border:1px solid var(--gold-line);color:var(--gold-txt);font:bold 10px/13px sans-serif;letter-spacing:0;text-align:center;pointer-events:none}
 #cam .camGrp2{margin-left:14px}
 /* Q-4a 알림 배지 (2026-10-23): 받을 도감 보상이 있으면 🎒 가방 버튼 오른쪽 위 빨간 점 (.ui-badge 모양 = .newDot) */
 #twBag{position:relative}#twBag.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
