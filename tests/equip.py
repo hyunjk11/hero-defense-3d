@@ -86,6 +86,17 @@ with sync_playwright() as pw:
     pg.click('.disBulk .ftab[data-g="0"]'); cnt = pg.locator('#disGrid .itile.pick').count(); ys = J(pg, "()=>{ const s=G.gear.Acc.load(); return [...document.querySelectorAll('#disGrid .itile.pick')].reduce((a,b)=>a+G.gear.E.dismantleYield(s.inv.find(x=>x.id===b.dataset.id)).steel,0) }"); pg.click('#disGo'); pg.wait_for_function(f"()=>G.gear.Acc.load().inv.length==={n0}-{cnt}", timeout=10000); pg.wait_for_timeout(200)
     s2 = J(pg, "()=>G.gear.Acc.load()"); ok('bulk_dismantle', cnt >= 1 and len(s2['inv']) == n0 - cnt and s2['mat']['steel'] == st0 + ys, (cnt, ys, st0, s2['mat']))
     ok('equipped_not_dismantled', all(any(x['id'] == i for x in s2['inv']) for i in ['wpn1', 'arm1', 'acc1']))
+    # Q-9 '고급 이하 모두' = 등급 ≤1 전부 선택 (장착·고유 제외) · Q-10 가방 가득 → [분해하러 가기] = 대장간 분해 탭
+    J(pg, """()=>{ const {Acc,E}=G.gear; let q=11; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; Acc.update(d=>{ [0,1,2].forEach((g,i)=>d.inv.push({...E.makeItem('armor','archer',g,r), id:'q9g'+g})); return d; }); }""")
+    pg.click('#smTabs .ftab[data-t="enh"]'); pg.click('#smTabs .ftab[data-t="dis"]'); pg.wait_for_timeout(200); pg.click('.disBulk .ftab[data-le="1"]')
+    pk = J(pg, "()=>{ const s=G.gear.Acc.load(), pick=[...document.querySelectorAll('#disGrid .itile.pick')].map(b=>b.dataset.id), all=[...document.querySelectorAll('#disGrid .itile')].map(b=>s.inv.find(x=>x.id===b.dataset.id)); return [pick.sort().join(), all.filter(x=>x.g<=1).map(x=>x.id).sort().join(), pick.includes('q9g2')] }")
+    ok('q9_le_select', pk[0] == pk[1] and 'q9g0' in pk[0] and 'q9g1' in pk[0] and not pk[2], pk)
+    pg.click('.disBulk .ftab[data-g="x"]'); ok('q9_clear', pg.locator('#disGrid .itile.pick').count() == 0)
+    J(pg, """()=>{ const {Acc,E}=G.gear; let q=13; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; Acc.update(d=>{ let k=0; while (d.inv.length < E.CAP) d.inv.push({...E.makeItem('armor','archer',0,r), id:'q10f'+(k++)}); return d; }); G.gear.closeSmith(true); G.gear.openInv(); }"""); pg.wait_for_timeout(300)
+    ok('q10_full_button', pg.locator('#invToDis').count() == 1 and pg.is_visible('#invToDis'))
+    pg.click('#invToDis'); pg.wait_for_timeout(300)
+    ok('q10_goes_dis_tab', not hidden(pg, 'smithPanel') and J(pg, "()=>document.querySelector('#smTabs .ftab.on').dataset.t") == 'dis' and pg.locator('#disGrid').count() == 1)
+    J(pg, "()=>G.gear.Acc.update(d=>{ d.inv=d.inv.filter(x=>!/^q(9g|10f)/.test(x.id)); return d; })"); pg.click('#smTabs .ftab[data-t="enh"]'); pg.click('#smTabs .ftab[data-t="dis"]'); pg.wait_for_timeout(200)
     # Q-1 공용 확인창: 영웅 등급 분해 → #gConfirm (네이티브 confirm 아님) · Esc = 취소(대장간은 그대로) · Enter = 분해
     J(pg, """()=>{ const {Acc,E}=G.gear; let q=7; const r=()=>{ q=(q*16807)%2147483647; return q/2147483647; }; Acc.update(d=>{ d.inv.push({...E.makeItem('armor','archer',3,r), id:'hi1'}); return d; }); }""")
     pg.click('#smTabs .ftab[data-t="enh"]'); pg.click('#smTabs .ftab[data-t="dis"]'); pg.wait_for_timeout(200); pg.click('#disGrid .itile[data-id="hi1"]'); pg.click('#disGo'); pg.wait_for_timeout(300)

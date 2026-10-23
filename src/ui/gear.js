@@ -68,7 +68,7 @@ function renderInv() {
   $('invBonus').innerHTML = bonusHtml(E.bonus(s, h));
   $('invFilt').innerHTML = [['all', '전체'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${ui.invF === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('');
   $('invGrid').innerHTML = list.length ? list.map(it => tile(it, s, it.id === ui.invSel ? 'sel' : '')).join('') : '<div class="emptyMsg">장비가 없어요. 출정해서 5웨이브마다 보상 상자를, 보스에게서 장비를 얻거나 대장간에서 제작하세요!</div>';
-  const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 보상 상자를 열 수 없어요 — 대장간에서 분해해 공간을 만드세요.' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : '';
+  const full = s.inv.length >= E.CAP; $('invMsg').innerHTML = full ? '⚠ 가방이 가득 찼어요! 보상 상자를 열 수 없어요 — 대장간에서 분해해 공간을 만드세요. <button class="gbtn sm" id="invToDis">⚒ 분해하러 가기</button>' : s.inv.length >= E.CAP - 5 ? `가방이 거의 찼어요 (${E.CAP - s.inv.length}칸 남음)` : ''; if ($('invToDis')) $('invToDis').onclick = () => { Snd.play('ui'); ui.smTab = 'dis'; openSmith(); }; // Q-10 가방 가득 → 대장간 분해 탭
   let act = '';
   if (sel) { const who = eqOf(s, sel.id); act = !E.canEquip(sel, h) ? `<div class="warn">${clsN(sel.h)} 전용 무기예요</div>` : who === h ? `<button class="gbtn" id="invUneq">해제</button>` : `<button class="gbtn main" id="invEq">장착${who ? ` (${clsN(who)}에게서 가져오기)` : ''}</button>`; }
   $('invDetail').innerHTML = sel ? card(sel, cur && cur.id !== sel.id ? cur : null) + `<div class="acts">${act}</div>` : '<div class="hintS">장비를 눌러 자세히 보기 · 마우스를 올리면 비교</div>';
@@ -107,12 +107,12 @@ function renderSmith() {
   } else if (ui.smTab === 'dis') {
     const list = sorted(s.inv.filter(x => !eqOf(s, x.id) && !x.uq), s); for (const id of [...ui.dis]) if (!list.some(x => x.id === id)) ui.dis.delete(id); // 고유는 분해 불가 (목록에서 제외)
     const y = { steel: 0, crystal: 0 }; for (const id of ui.dis) { const r = E.dismantleYield(s.inv.find(x => x.id === id)); y.steel += r.steel; y.crystal += r.crystal; }
-    body.innerHTML = `<div class="disBulk">${E.GRADES.map((g, i) => `<button class="ftab gb" data-g="${i}" style="--gc:${g.c}">${g.n} 전체</button>`).join('')}<button class="ftab" data-g="x">선택 해제</button></div>
+    body.innerHTML = `<div class="disBulk">${E.GRADES.map((g, i) => `<button class="ftab gb" data-g="${i}" style="--gc:${g.c}">${g.n} 전체</button>`).join('')}${[1, 2].map(i => `<button class="ftab le" data-le="${i}" title="${E.GRADES.slice(0, i + 1).map(g => g.n).join('·')} 모두 선택 (장착·고유 제외)">${E.GRADES[i].n} 이하 모두</button>`).join('')}<button class="ftab" data-g="x">선택 해제</button></div>
       <div class="smGrid" id="disGrid">${list.map(x => tile(x, s, ui.dis.has(x.id) ? 'pick' : '')).join('') || '<div class="emptyMsg">분해할 수 있는 장비가 없어요 (장착 중인 장비는 분해되지 않아요)</div>'}</div>
       <div class="disFoot"><div>획득 예정: <b><i class="mi steel"></i>강철 ${y.steel}</b> · <b><i class="mi crystal"></i>마력석 ${y.crystal}</b></div><button class="gbtn main" id="disGo" ${ui.dis.size ? '' : 'disabled'}>⚒ 분해하기 (${ui.dis.size}개)</button></div>
       <div class="hintS">분해: 일반 강철2 · 고급 4 · 희귀 8+마력석1 · 영웅 12+3 · 전설 20+8 (강화 수치당 강철 +2)${s.inv.some(x => x.uq) ? ' · ◆ 고유 장비는 분해할 수 없어요' : ''}</div>`;
     body.querySelectorAll('#disGrid .itile').forEach(b => { b.onclick = () => { const id = b.dataset.id; ui.dis.has(id) ? ui.dis.delete(id) : ui.dis.add(id); Snd.play('select'); renderSmith(); }; tipBind(b); });
-    body.querySelectorAll('.disBulk .ftab').forEach(b => b.onclick = () => { Snd.play('ui'); if (b.dataset.g === 'x') ui.dis.clear(); else list.filter(x => x.g === +b.dataset.g).forEach(x => ui.dis.add(x.id)); renderSmith(); });
+    body.querySelectorAll('.disBulk .ftab').forEach(b => b.onclick = () => { Snd.play('ui'); if (b.dataset.g === 'x') ui.dis.clear(); else list.filter(x => b.dataset.le != null ? x.g <= +b.dataset.le : x.g === +b.dataset.g).forEach(x => ui.dis.add(x.id)); renderSmith(); });
     $('disGo').onclick = () => doDismantle();
   } else if (ui.smTab === 'awk') { // 각성: 고유 정수로 고유 궁극기 강화 (항상 성공)
     const list = sorted(s.inv.filter(x => x.uq), s); if (!list.some(x => x.id === ui.awSel)) ui.awSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.awSel);
