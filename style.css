@@ -747,3 +747,8 @@ body:not(.dungeonRun) #dgJoint{display:none}
   #statOv{width:min(360px,calc(100vw - 430px))}#cam #statBtn{width:48px;height:48px}#statPanel .xbtn{min-width:48px;min-height:48px}
 .esBtn,#overStats,#esBack{min-height:48px;min-width:48px}#endStats .xbtn{min-width:48px;min-height:48px}
 }
+/* U-5 공용 패널 (2026-10-23): 큰 패널·여신탑·능력치 오버레이·결과 통계·단축키 안내 닫기 버튼을 .ui-x 하나로 — 오른쪽 위 고정 var(--hit) 정사각. 패널 크기 표시 .ui-panel--md/--wide (= .bigPanel / .bigPanel.wide) */
+.ui-x{position:absolute;top:10px;right:10px;min-width:var(--hit);min-height:var(--hit);padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;z-index:2}
+#statOv .ui-x{top:6px;right:6px;width:var(--hit);height:var(--hit)}#blessClose.ui-x{top:10px;right:10px;padding:0}#endStats .ui-x{top:8px;right:8px}
+.ui-panel>.gtitle:first-of-type,#twBless .blessHead{padding-left:calc(var(--hit) + 6px);padding-right:calc(var(--hit) + 6px)}
+@media (pointer:coarse){#statOv .ui-x{width:var(--hit);height:var(--hit)}}

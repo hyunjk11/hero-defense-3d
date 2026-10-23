@@ -33,7 +33,7 @@ export function renderEnd(A = G.endStats || snapEnd()) {
     <div class="esCols"><div>${A.dungeon && !A.towerCount ? `<div class="esSub">피해 비중</div><div class="esTw">${shareHtml}</div>` : `<div class="esSub">타워별 피해${A.towerCount ? ` · ${A.towerCount}개` : ''}</div><div class="esTw">${tw}</div>`}</div>
     <div><div class="esSub">웨이브별 클리어 시간${A.fastest ? ` <small>최단 ${esc(waveLabel(A.fastest.n))} ${fmtClock(A.fastest.sec)}${A.slowest && A.slowest !== A.fastest ? ` · 최장 ${esc(waveLabel(A.slowest.n))} ${fmtClock(A.slowest.sec)}` : ''}</small>` : ''}</div><div class="esWv">${wv}</div></div></div>`; }
 function panel() { let p = $('endStats'); if (!p) { p = document.createElement('div'); p.id = 'endStats'; p.className = 'gpanel esPanel hidden'; p.setAttribute('role', 'dialog');
-  p.innerHTML = '<button id="esClose" class="gbtn sm xbtn" title="닫기 (Esc)">✕</button><div id="esBody"></div><button id="esBack" class="gbtn">← 결과로</button>'; document.body.appendChild(p);
+  p.innerHTML = '<button id="esClose" class="gbtn sm xbtn ui-x" title="닫기 (Esc)">✕</button><div id="esBody"></div><button id="esBack" class="gbtn">← 결과로</button>'; document.body.appendChild(p);
   $('esClose').onclick = $('esBack').onclick = () => { Snd.play('ui'); closeEnd(); }; } return p; }
 export function openEnd() { if (!st.kind) return; const p = panel(); $('esBody').innerHTML = renderEnd(); p.classList.remove('hidden'); p.scrollTop = 0; st.open = true; }
 export function closeEnd() { st.open = false; const p = $('endStats'); if (p) p.classList.add('hidden'); }
