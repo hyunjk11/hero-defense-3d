@@ -18,6 +18,7 @@ def ok(name, cond, info=''): res[name] = bool(cond); print(('OK  ' if cond else 
 J = lambda pg, js: pg.evaluate(js)
 hidden = lambda pg, id: J(pg, f"()=>{{ const e=document.getElementById('{id}'); return !e || e.classList.contains('hidden'); }}")
 conf = lambda pg: not hidden(pg, 'gConfirm')
+ANIM_DONE = "()=>document.querySelector('#gConfirm .acBox').getAnimations().every(a=>a.playState!=='running')"
 def shot(pg, name): J(pg, "()=>G.pauseRender=true"); pg.wait_for_timeout(400); pg.screenshot(path=f'{OUT}/{name}.png'); J(pg, "()=>G.pauseRender=false")
 def boot(b, vw, vh, touch=False, q=''):
     c = b.new_context(viewport={'width': vw, 'height': vh}, has_touch=touch); c.add_init_script(MOCK); pg = c.new_page()
@@ -34,7 +35,7 @@ with sync_playwright() as pw:
     # U-2 층 순서 (z-index 토큰): 아이템 툴팁 > 확인창 > 모달(전직·관리자 확인) > 연출(상자) > 관리자 패널 · 배너/새 몬스터 > 📊 오버레이
     Z = J(pg, "()=>Object.fromEntries(['itemTip','gConfirm','advConfirm','admConfirm','chestOv','adminPanel','banner','note','statOv','fade','loading'].map(i=>{ const e=document.getElementById(i); return [i, e ? +getComputedStyle(e).zIndex||0 : null]; }))")
     ok('u2_layers', Z['itemTip'] > Z['advConfirm'] and Z['admConfirm'] > Z['chestOv'] > Z['adminPanel'] and Z['banner'] > Z['statOv'] and Z['note'] > Z['statOv'] and Z['fade'] > Z['chestOv'], Z)
-    pg.click('#mnNew'); pg.wait_for_timeout(300)
+    pg.click('#mnNew'); pg.wait_for_timeout(300); pg.wait_for_function(ANIM_DONE, timeout=20000)
     ok('new_confirm_shown', conf(pg) and '새로 시작' in pg.inner_text('#gConfirm') and J(pg, "()=>document.getElementById('gConfirm').classList.contains('danger')"), pg.inner_text('#gConfirm') if conf(pg) else '')
     ok('new_focus_ok', J(pg, "()=>document.activeElement && document.activeElement.id")=='gcOk')
     shot(pg, 'confirm_new')
@@ -56,7 +57,7 @@ with sync_playwright() as pw:
     # 전투 귀환 (1-1 출정)
     pg.goto(url + '?seed=12345&flow=1&stage=1-1&run=1'); pg.wait_for_function("()=>window.G&&G.ready&&G.stage&&G.phase==='build'", timeout=240000); pg.wait_for_timeout(500)
     J(pg, "()=>{ G.manual=true; }"); pg.keyboard.press('c'); pg.wait_for_timeout(400); ok('statov_open', J(pg, "()=>G.statsUI.isOpen()"))
-    pg.click('#retreat'); pg.wait_for_timeout(400)
+    pg.click('#retreat'); pg.wait_for_timeout(400); pg.wait_for_function(ANIM_DONE, timeout=20000)
     ok('retreat_confirm_shown', conf(pg) and '귀환' in pg.inner_text('#gConfirm') and not J(pg, "()=>document.getElementById('gConfirm').classList.contains('danger')"))
     shot(pg, 'confirm_retreat')
     pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
@@ -72,7 +73,7 @@ with sync_playwright() as pw:
         J(pg, "()=>import('./src/ui/flow.js').then(m=>m.enterTown())"); pg.wait_for_function("()=>G.screen==='town'", timeout=60000); pg.wait_for_timeout(600)
     J(pg, "()=>G.openDungeon()"); pg.wait_for_function("()=>!document.getElementById('dgPanel').classList.contains('hidden') && document.getElementById('dgStart')", timeout=30000); pg.wait_for_timeout(1500)
     pg.click('#dgStart'); pg.wait_for_function("()=>window.G&&G.dungeon&&G.phase==='wave'&&G.heroes&&G.heroes.length>=3", timeout=300000); pg.wait_for_timeout(300); J(pg, "()=>{ G.manual=true; }")
-    pg.click('#dgGiveUp'); pg.wait_for_timeout(300)
+    pg.click('#dgGiveUp'); pg.wait_for_timeout(300); pg.wait_for_function(ANIM_DONE, timeout=20000)
     ok('giveup_confirm_shown', conf(pg) and '원정 포기' in pg.inner_text('#gConfirm') and J(pg, "()=>document.getElementById('gcOk').classList.contains('danger')"))
     shot(pg, 'confirm_giveup')
     pg.click('#gcNo'); pg.wait_for_timeout(400); ok('giveup_no_continues', not conf(pg) and J(pg, "()=>!!G.dungeon && G.screen!=='town'"))
@@ -81,8 +82,8 @@ with sync_playwright() as pw:
     c.close()
     # ===== 태블릿 1024×600 터치 =====
     c, pg = boot(b, 1024, 600, touch=True)
-    pg.tap('#mnNew'); pg.wait_for_timeout(400)
-    R = J(pg, "()=>{ const r=e=>{ const b=document.getElementById(e).getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; }; const x=document.querySelector('#gConfirm .acBox').getBoundingClientRect(); return { ok:r('gcOk'), no:r('gcNo'), inside: x.left>=0 && x.top>=0 && x.right<=innerWidth && x.bottom<=innerHeight }; }")
+    pg.tap('#mnNew'); pg.wait_for_timeout(400); pg.wait_for_function(ANIM_DONE, timeout=20000)  # 등장 애니메이션(축소→원래 크기) 끝난 뒤 측정 · 촬영
+    R = J(pg, "()=>{ const r=e=>{ const b=document.getElementById(e); return [b.offsetWidth, b.offsetHeight]; }; const x=document.querySelector('#gConfirm .acBox').getBoundingClientRect(); return { ok:r('gcOk'), no:r('gcNo'), inside: x.left>=0 && x.top>=0 && x.right<=innerWidth && x.bottom<=innerHeight }; }")
     ok('tablet_btn_48', conf(pg) and min(R['ok'] + R['no']) >= 48 and R['inside'], R)
     shot(pg, 'confirm_tablet')
     pg.tap('#gcNo'); pg.wait_for_timeout(300); ok('tablet_tap_cancel', not conf(pg) and J(pg, "()=>G.screen")=='menu')
