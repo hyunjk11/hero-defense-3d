@@ -66,7 +66,9 @@ function bindBattle() {
   $('statClose').onclick = () => { Snd.play('ui'); closeStats(); };
   $('statTabs').onclick = e => { const b = e.target.closest('[data-h]'); if (!b || b.dataset.h === st.cls) return; Snd.play('select'); st.cls = b.dataset.h; renderTown(); };
   addEventListener('keydown', e => { const tag = document.activeElement && document.activeElement.tagName; if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-    if (e.key === 'Escape') { closeStats(); if (st.ov) closeOv(); return; }
+    const E = G.endStatsUI, endOn = G.phase === 'over' && E && E.kind(); // 결과 화면: C = 📊 통계 (ui/endstats.js)
+    if (e.key === 'Escape') { closeStats(); if (st.ov) closeOv(); if (E && E.isOpen()) E.close(); return; }
+    if (endOn && (e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) { E.toggle(); return; }
     if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && !$('hud').classList.contains('hidden') && G.phase !== 'select') toggleOv(); });
   G.statsUI = { townData, liveStats, openStats, closeStats, toggleOv, isOpen: () => st.ov, townOpen: () => st.town };
 }
