@@ -5,6 +5,7 @@ import { ETYPES } from '../src/data/monsters.js';
 import { waveList } from '../src/data/dungeon.js';
 let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
 const W = '2026-10-19';
+t('표시 · 시작 층 내림', () => { const F = S.spireFloor(13, W); assert.ok(S.floorLabel(F, 0).startsWith('🗼 13층 · 🔴 정예')); assert.ok(S.floorLabel(F, 1).endsWith('웨이브 2/2')); assert.equal(S.snapFrom(23), 21); assert.equal(S.snapFrom(1), 1); assert.equal(S.snapFrom(0), 1); assert.equal(S.snapFrom('x'), 1); assert.equal(S.snapFrom(26), 26); });
 t('공개 스위치 꺼짐', () => { assert.equal(S.SP_LIVE, false); assert.equal(S.SP_OPEN, false); });
 t('층 종류: 보스 주기', () => { assert.equal(S.floorType(10), 'boss'); assert.equal(S.floorType(5), 'mid'); assert.equal(S.floorType(15), 'mid'); assert.equal(S.floorType(3), 'elite'); assert.equal(S.floorType(8), 'elite'); assert.equal(S.floorType(1), 'normal'); assert.equal(S.floorType(13), 'elite'); });
 t('배수 단조 증가 · 표 값', () => { for (let n = 2; n <= 120; n++) { assert.ok(S.hpMul(n) > S.hpMul(n - 1)); assert.ok(S.dmgMul(n) > S.dmgMul(n - 1)); assert.ok(S.countOf(n) >= S.countOf(n - 1)); assert.ok(S.everyOf(n) <= S.everyOf(n - 1)); }
@@ -15,7 +16,7 @@ t('어픽스 개수 · 충돌 없음 · 구현된 것만', () => { for (let n = 
   for (const a of A) { assert.ok(S.SP_AFFIX_BY[a].on); for (const b of A) if (a !== b) assert.ok(!S.clash(a, b)); } }
   assert.equal(S.affixCount(5), 0); assert.equal(S.affixCount(6), 1); assert.equal(S.affixCount(10), 0); assert.equal(S.affixCount(21), 2); assert.equal(S.affixCount(25), 1); assert.equal(S.affixCount(41), 3); });
 t('몬스터: 전부 존재 · 제외 종류 없음 · waveList 호환', () => { for (let n = 1; n <= 120; n++) { const F = S.spireFloor(n, W); assert.equal(F.elite.length, F.waves.length);
-  F.waves.forEach((w, i) => { for (const [k] of w) assert.ok(ETYPES[k] || k.startsWith('sp_'), k); for (const [k] of w) assert.ok(!S.SP_EXCLUDE.includes(k)); assert.ok(waveList(F, i).length > 0); }); } });
+  F.waves.forEach((w, i) => { for (const [k] of w) assert.ok(ETYPES[k], k); for (const [k] of w) assert.ok(!S.SP_EXCLUDE.includes(k)); assert.ok(waveList(F, i).length > 0); }); } });
 t('보스 로테이션 · 각성 · 중간 보스 교대', () => { assert.equal(S.bossOf(10).id, 'sp_forest'); assert.equal(S.bossOf(50).id, 'dg_lich'); assert.equal(S.bossOf(60).id, 'sp_forest'); assert.ok(S.bossOf(60).awaken); assert.ok(!S.bossOf(50).awaken);
   assert.equal(S.bossOf(5).id, 'boss'); assert.equal(S.bossOf(15).id, 'knights'); assert.equal(S.bossOf(7), null); assert.equal(S.spireFloor(50, W).waves.at(-1)[0][0], 'dg_lich'); });
 t('주차 키 = KST 월요일', () => { assert.equal(S.weekKey(Date.parse('2026-10-25T14:59:59Z')), '2026-10-19'); assert.equal(S.weekKey(Date.parse('2026-10-25T15:00:00Z')), '2026-10-26'); assert.equal(S.weekKey(Date.parse('2026-10-18T15:00:00Z')), '2026-10-19'); assert.equal(S.prevWeek('2026-10-26'), '2026-10-19'); });

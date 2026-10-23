@@ -114,7 +114,7 @@ export function spireFloor(n, week = weekKey()) {
   if (type === 'normal' || type === 'elite') { const nw = type === 'elite' ? 2 : 3, e0 = type === 'elite' ? Math.min(4, 2 + Math.floor(n / 15)) : 0;
     for (let w = 0; w < nw; w++) { waves.push(mixWave(n, cnt, r)); elite.push(e0 + plusE); } }
   else { waves.push(mixWave(n, cnt, r)); elite.push(plusE); // 호위 웨이브
-    const last = B.knights ? [[B.base, B.knights], ['grunt', 4]] : [[B.id, 1], [B.escort || 'grunt', B.escort ? 4 : 2]];
+    const last = B.knights ? [[B.base, B.knights], ['grunt', 4]] : [[B.base, 1], [B.escort || 'grunt', B.escort ? 4 : 2]];
     waves.push(last); elite.push(B.knights ? B.knights : 0); }
   const bless = (isBossFloor(n) ? 1 : 0) + (aff.includes('blessed') ? 1 : 0);
   return { n: `${n}층 · ${bandOf(n).n}`, floor: n, type, hpMul: hpMul(n), dmgMul: dmgMul(n), gap, every: everyOf(n), boss: type === 'boss' || type === 'mid',
@@ -149,3 +149,11 @@ export function minSecBetween(from, top) { let s = 0; for (let n = int(from); n 
 // 경과 시간 sec 로 인정되는 최고 층 (from−1 이면 하나도 못 깸) · 한 도전 최대 +30층
 export function capTop(from, top, sec) { from = int(from); let t = Math.min(Math.floor(+top || 0), from - 1 + SP_SERVER.maxPerRun), s = 0, ok = from - 1;
   for (let n = from; n <= t; n++) { s += minSecOf(n); if (s > sec) break; ok = n; } return ok; }
+
+// ---------- 표시 (HUD · 배너) ----------
+export const affixIcons = A => (A || []).map(id => SP_AFFIX_BY[id] ? SP_AFFIX_BY[id].icon + SP_AFFIX_BY[id].n : id).join(' ');
+export function floorLabel(F, wave) { const T = SP_TYPE[F.type] || SP_TYPE.normal, parts = [`🗼 ${F.floor}층`];
+  if (F.type !== 'normal') parts.push(`${T.icon} ${F.bossInfo ? F.bossInfo.n : T.n}`); if (F.affixes && F.affixes.length) parts.push(affixIcons(F.affixes));
+  if (wave !== undefined) parts.push(`웨이브 ${Math.max(1, wave + 1)}/${F.waves.length}`); return parts.join(' · '); }
+// 연습 탑 시작 층: URL ?spire=N → 체크포인트(1·6·11…)로 내림 (서버 검증은 T-7)
+export const snapFrom = n => { n = Math.floor(+n || 1); return n < 1 ? 1 : 1 + 5 * Math.floor((n - 1) / 5); };
