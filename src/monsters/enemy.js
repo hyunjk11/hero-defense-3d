@@ -47,7 +47,7 @@ function eliteMark(e) { _eRingG ||= shareGeo(new THREE.RingGeometry(.66, 1, 40))
 // ================= 적 =================
 // at = { x, z, tile } 이면 포털 대신 그 자리에서 (분열한 슬라임 등) — 포털 순번·출현 연출 없음
 function spawnEnemy(type, hpMul, at, elite = false) {
-  const hard = !!(G.hard && STAGE), E = hard ? hardE(type, !!elite) : ETYPES[type], m = makeEnemyModel(type), hp = E.hp * hpMul; scene.add(m.g);
+  const hard = !!(G.hard && STAGE), E = hard ? hardE(type, !!elite) : G.spireE ? G.spireE(type, !!elite) : ETYPES[type], /* 🗼 무한의 탑만 G.spireE (dungeon/spire.js) */ m = makeEnemyModel(type), hp = E.hp * hpMul; scene.add(m.g);
   if (E.elite) m.g.scale.setScalar(HARD.eliteScale);
   const sp = at ? at.tile : SPAWNS.length > 1 ? SPAWNS[(G.spawnIdx = ((G.spawnIdx || 0) + 1)) % SPAWNS.length] : SPAWN, side = sp[0] <= 0 || sp[0] >= GW - 1; // 여러 포털이면 번갈아
   if (at) m.g.position.set(at.x, 0, at.z); else { m.g.position.set(tileX(sp[0]) + (side ? (sp[0] <= 0 ? .4 : -.4) : rnd(-.5, .5)), 0, tileZ(sp[1]) + (side ? rnd(-.5, .5) : sp[1] <= 0 ? .4 : -.4)); m.g.rotation.y = side ? (sp[0] <= 0 ? Math.PI / 2 : -Math.PI / 2) : (sp[1] <= 0 ? 0 : Math.PI); }
