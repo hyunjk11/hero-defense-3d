@@ -35,13 +35,13 @@ with sync_playwright() as pw:
         r = J(pg, """(k)=>{ const D=G.dg; D.q=[k,k,k]; D.spawnT=0; G.dgDmg=1; const near=e=>Math.min(...G.heroes.filter(h=>h.dead<=0).map(h=>Math.hypot(h.g.position.x-e.g.position.x, h.g.position.z-e.g.position.z)));
             const S={spawned:0, d0:null, dmin:1e9, hurt:false, killed:0, moved:0, t:0, alive:0};
             const seen=new Map();
-            for (let i=0;i<250;i++) { G.sim(.1); D.gapT=1e9; S.t=+(i*.1).toFixed(1);
+            for (let i=0;i<250;i++) { G.sim(.1); D.gapT=1e9; G.heroes.forEach(h=>{ if (h.dead<=0 && h.hp<h.max*.35) { h.hp=h.max; S.saves=(S.saves||0)+1; } }); /* 전멸로 판이 끝나지 않게 (적합성만 봄, 균형은 T-5) */ S.t=+(i*.1).toFixed(1);
               for (const e of G.enemies) if (e.type===k && !seen.has(e)) seen.set(e, {x:e.g.position.x, z:e.g.position.z, d0:null});
               for (const [e,s] of seen) { if (e.dead) continue; if (e.state==='spawn') continue; const d=near(e); if (s.d0===null) s.d0=d; S.dmin=Math.min(S.dmin,d); S.moved=Math.max(S.moved, Math.hypot(e.g.position.x-s.x, e.g.position.z-s.z)); if (e.hp<e.max-0.5) S.hurt=true; }
               if (i>30 && !D.q.length && [...seen.keys()].every(e=>e.dead)) break; }
             S.spawned=seen.size; S.killed=[...seen.keys()].filter(e=>e.dead).length; S.alive=S.spawned-S.killed; if (S.killed) S.hurt=true;
             const d0s=[...seen.values()].map(s=>s.d0).filter(x=>x!==null); S.d0=d0s.length?Math.round(Math.min(...d0s)):null; S.dmin=Math.round(S.dmin); S.moved=Math.round(S.moved);
-            S.down=G.heroes.filter(h=>h.dead>0).length; return S; }""", k)
+            S.down=G.heroes.filter(h=>h.dead>0).length; S.over=!!G.dg.over; return S; }""", k)
         approach = r['dmin'] <= 6 or (r['d0'] is not None and r['d0'] - r['dmin'] >= 4)
         good = not errs and r['spawned'] >= 3 and approach and r['hurt']
         summ[k] = {'ok': good, **r, 'errs': errs[:2]}
