@@ -14,7 +14,6 @@ import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 
 let open = false, checking = false, departing = false, view = 'party', buying = false, H = { closeOthers: () => {} };
-export const dungeonOpen = () => open;
 export function initDungeonUI(o) { H = { ...H, ...o };
   if ($('dgPanel')) return; const p = document.createElement('div'); p.id = 'dgPanel'; p.className = 'gpanel bigPanel wide hidden'; $('scr_town').appendChild(p); }
 // 고른 파티 (이 기기에만 저장 · 출발 때 서버 소유로 다시 거름 — dungeon/run.js)
