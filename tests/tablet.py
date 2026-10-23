@@ -50,6 +50,23 @@ def rec(screen, size, m):
 def J(pg, js, a=None): return pg.evaluate(js, a) if a is not None else pg.evaluate(js)
 def hidden(pg, id): return J(pg, f"()=>document.getElementById('{id}').classList.contains('hidden')")
 
+# CSS 리팩터 검증 (U-1/U-3, 2026-10-23): CSSALT=경로(서버 루트 기준, 예 tests/logs/alt.css) 이면 화면마다 현재 style.css 와 그 파일을
+# 같은 DOM 에서 바꿔 끼워 모든 요소의 계산 스타일을 비교 → tests/logs/cssalt.txt 에 차이 기록 (전환·애니메이션 멈춘 상태)
+CSSALT = os.environ.get('CSSALT'); ALTN = [0]
+SWAP = r"""async (alt) => {
+  const st = document.createElement('style'); st.textContent = '*,*::before,*::after{transition:none!important;animation-play-state:paused!important}'; document.head.appendChild(st);
+  const link = document.querySelector('link[rel=stylesheet][href*="style.css"]'), orig = link.getAttribute('href');
+  const snap = () => { const o = {}; let i = 0; for (const e of document.querySelectorAll('body *')) { if (e.closest('#townLabels,#fx')) { i++; continue; } const cs = getComputedStyle(e), k = (e.id ? '#' + e.id : e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '')) + '@' + (i++); const v = {}; for (const p of cs) if (!p.startsWith('--')) v[p] = cs.getPropertyValue(p); o[k] = v; } return o; };
+  const load = href => new Promise(r => { link.onload = r; link.onerror = r; link.setAttribute('href', href); });
+  const A = snap(); await load(alt); await new Promise(r => requestAnimationFrame(r)); const B = snap(); await load(orig); st.remove();
+  const out = []; for (const k in A) { const b = B[k]; if (!b) continue; for (const p in A[k]) if (A[k][p] !== b[p]) out.push(k + ' ' + p + ' ' + JSON.stringify(A[k][p]).slice(0, 50) + ' -> ' + JSON.stringify(b[p]).slice(0, 50)); }
+  return out; }"""
+def cssalt(pg, tag):
+    d = J(pg, SWAP, CSSALT); ALTN[0] += len(d)
+    with open(os.path.join(os.path.dirname(__file__), 'logs', 'cssalt.txt'), 'a') as f:
+        f.write(f'== {tag} {len(d)}\n' + ''.join(x + '\n' for x in d[:80]))
+    print(('OK  ' if not d else 'FAIL'), 'cssalt', tag, len(d), d[:3], flush=True)
+
 RAF = "()=>new Promise(r=>{ G.pauseRender=false; requestAnimationFrame(()=>requestAnimationFrame(()=>{ G.pauseRender=true; r(); })); })"
 def sweep(pg, screen, roots, prep=None, settle=250, shot=True):
     if A.only and screen not in A.only.split(','): return
@@ -60,6 +77,7 @@ def sweep(pg, screen, roots, prep=None, settle=250, shot=True):
         try: pg.wait_for_function("()=>document.getAnimations().every(a=>a.playState!=='running'||a.effect.getComputedTiming().iterations===Infinity)", timeout=8000)  # 등장 애니메이션(scale) 끝난 뒤 측정
         except Exception: pass
         rec(screen, (w, h), J(pg, CHECK, [roots, ONE, TOUCH]))
+        if CSSALT and f'{w}x{h}' in os.environ.get('CSSALT_SIZES', '1024x768,960x600,1280x800'): cssalt(pg, f'{screen}@{w}x{h}')
         if A.shots and shot and (not A.shotsizes or f'{w}x{h}' in A.shotsizes.split(',')):
             J(pg, RAF); pg.screenshot(path=f'{A.shots}/{screen}_{w}.png' if A.short else f'{A.shots}/{screen}_{w}x{h}.png', timeout=180000)
     J(pg, "()=>{ G.pauseRender=false }")
