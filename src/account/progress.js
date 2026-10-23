@@ -5,6 +5,7 @@ import * as GR from '../data/growth.js';
 import { HERO_KEYS, DEFAULT_HERO, VISIBLE_HEROES, isHidden } from '../data/heroes.js';
 import * as AD from '../data/advance.js';
 import * as RI from './rewarditems.js';
+import * as SX from './steel.js';
 import { CHSET, CH_KEYS, chOdds, UQ, uqOfChapter, CHAL_UQ, UQ_DROP, UQ_PITY, CHAL_ESS, CODEX_RW } from '../data/items.js';
 // save = { inv[], chests[], eq{cls:{weapon,armor,acc}}, mat{steel,crystal}, v, hero, souls, bestWave, heroLv{cls:{hp,atk}}, stats{runs,kills,waves,souls}, settings{audio{}}, nick }
 export const HEROES = HERO_KEYS; // gunner·mechanic = 유료 영웅 (소유 여부는 서버 hd3d_owned, account/shop.js)
@@ -21,7 +22,7 @@ export function clean(d) {
   for (const h of HEROES) { const l = obj(obj(d.heroLv)[h]), mx = AD.permMax(e, h); e.heroLv[h] = { hp: int(l.hp, 0, mx), atk: int(l.atk, 0, mx) }; }
   for (const k of STATS) e.stats[k] = int(obj(d.stats)[k]);
   const a = obj(obj(d.settings).audio); if (Object.keys(a).length) e.settings.audio = { bgm: Math.max(0, Math.min(1, num(a.bgm, .6))), sfx: Math.max(0, Math.min(1, num(a.sfx, .8))), bgmOn: a.bgmOn !== false, sfxOn: a.sfxOn !== false };
-  e.nick = typeof d.nick === 'string' ? d.nick.trim().slice(0, 12) : ''; E.cleanEquip(d, e, HEROES); cleanStages(d, e); e.research = GR.cleanResearch(d.research); e.mailLog = cleanMailLog(d.mailLog); return e;
+  e.nick = typeof d.nick === 'string' ? d.nick.trim().slice(0, 12) : ''; E.cleanEquip(d, e, HEROES); cleanStages(d, e); e.research = GR.cleanResearch(d.research); e.mailLog = cleanMailLog(d.mailLog); SX.cleanSteel(d, e); return e;
 }
 // 게스트 저장 → 계정 첫 로그인 병합: 수치는 큰 값, 영웅/설정은 기기(local) 우선, 닉네임은 계정(cloud) 우선
 export function merge(local, cloud) {
@@ -31,7 +32,7 @@ export function merge(local, cloud) {
   for (const h of HEROES) for (const k of ['hp', 'atk']) m.heroLv[h][k] = Math.min(AD.permMax(m, h), Math.max(a.heroLv[h][k], b.heroLv[h][k]));
   for (const k of STATS) m.stats[k] = Math.max(a.stats[k], b.stats[k]);
   if (cloud == null || a.stats.runs >= b.stats.runs) m.hero = a.hero;
-  if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); for (const id in { ...a.hst, ...b.hst }) m.hst[id] = Math.max(a.hst[id] || 0, b.hst[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); m.mailLog = cleanMailLog([...a.mailLog, ...b.mailLog]); return m;
+  if (a.settings.audio) m.settings.audio = a.settings.audio; m.nick = b.nick || a.nick; E.mergeEquip(a, b, m, HEROES); for (const id in { ...a.st, ...b.st }) m.st[id] = Math.max(a.st[id] || 0, b.st[id] || 0); for (const id in { ...a.hst, ...b.hst }) m.hst[id] = Math.max(a.hst[id] || 0, b.hst[id] || 0); m.starRw = Math.max(a.starRw, b.starRw); m.research = GR.mergeResearch(a.research, b.research); m.mailLog = cleanMailLog([...a.mailLog, ...b.mailLog]); SX.mergeSteel(a, b, m); return m;
 }
 // 우편 보상 장부(S-3): 영혼석·재료를 세이브에 더한 우편 id (양의 정수, 중복 없음, 최근 MAIL_LOG_MAX개). 응답 유실 후 재시도 때 두 번 더하지 않게
 export const MAIL_LOG_MAX = 300;
@@ -68,6 +69,9 @@ export function applyRun(save, { wave, kills, drops = [], hero, stage, ch, bossK
 // 하드: 5웨이브마다 상자 등급이 HARD.tierUp 단계 높음 (같은 난수 소비)
 export function hardChests(wave, hero, r = Math.random, ch) { const out = []; for (let w = 5; w <= wave; w += 5) out.push(E.randomItem(hero, E.chestOdds(w / 5 + ST.HARD.tierUp), r, undefined, ch)); return out; }
 // 타워 연구소: 연구 1레벨 구매. 반환 [save, 성공]
+// 강철 교환·바리케이드 보강 (account/steel.js) — clean 한 세이브에 적용. 반환 [save, 결과]
+export function exchangeSteel(save, n, now) { const s = clean(save); const [, r, got] = SX.exchange(s, n, now); return [s, r, got]; }
+export function buyBar(save) { const s = clean(save); return [s, SX.buyBar(s)[1]]; }
 export function buyResearch(save, type, k) { const s = clean(save); return [s, GR.buyResearch(s, type, k)]; }
 export const permMax = (s, hero) => AD.permMax(s, hero); // 전직하면 10 → 15 (그 영웅만)
 export function buyPerm(save, hero, k) {

@@ -154,6 +154,21 @@ export function dismantle(save, ids) { const got = { steel: 0, crystal: 0 }; let
 export const SET_COST = 1.2;
 export const craftCost = (R, ch) => (ch ? Object.fromEntries(Object.entries(R.cost).map(([k, v]) => [k, Math.ceil(v * SET_COST)])) : R.cost);
 export function craft(save, recipe, slot, hero, r = Math.random, ch) { const R = RECIPES.find(x => x.k === recipe); if (!R) return [save, 'none']; if (save.inv.length >= CAP) return [save, 'full']; ch = CHSET[ch] ? +ch : undefined; const cost = craftCost(R, ch); if (!afford(save, cost)) return [save, 'poor']; pay(save, cost); const it = randomItem(hero, R.odds, r, slot, ch); save.inv.push(it); codexAdd(save, it); return [save, 'ok', it]; }
+// 🎲 옵션 재설정 (2026-10-24, 강철만): 보조 옵션(종류+수치)을 makeItem 과 같은 규칙으로 다시 굴림 (챕터 세트면 그 챕터 가중치). 일반(보조 옵션 없음)·고유(표 고정)는 불가
+export const REROLL_COST = [0, 25, 40, 60, 90]; // 등급별 강철
+export const canReroll = it => !!(it && !it.uq && SUBN[it.g] > 0);
+export const rerollCost = it => ({ steel: REROLL_COST[it.g] || 0 });
+export function rollSubs(it, r = Math.random) { const C = it.c && CHSET[it.c] ? CHSET[it.c] : null, pool = Object.keys(SUBV).filter(k => k !== it.m[0]), out = [];
+  for (let i = 0; i < SUBN[it.g]; i++) { const k = C ? pool.splice(pool.indexOf(wpick(pool, C.subW, r)), 1)[0] : pool.splice(Math.floor(r() * pool.length), 1)[0]; out.push([k, Math.round(SUBV[k] * (1 + .4 * it.g) * (.7 + r() * .6))]); }
+  return out; }
+// 굴리기 = 강철 소모 + 후보 반환 (아직 적용 안 함). 반환 [save, 'ok'|'poor'|'no'|'none', 후보 sub]
+export function reroll(save, id, r = Math.random) { const it = save.inv.find(x => x.id === id); if (!it) return [save, 'none']; if (!canReroll(it)) return [save, 'no']; const c = rerollCost(it).steel;
+  if ((save.mat.steel || 0) < c) return [save, 'poor']; save.mat.steel -= c; return [save, 'ok', rollSubs(it, r)]; }
+// 후보 적용: 그 장비에 나올 수 있는 모양(개수·종류·범위)일 때만. 반환 [save, 성공]
+export const subRange = (g, k) => [Math.round(SUBV[k] * (1 + .4 * g) * .7), Math.round(SUBV[k] * (1 + .4 * g) * 1.3)];
+export function validSubs(it, sub) { if (!canReroll(it) || !Array.isArray(sub) || sub.length !== SUBN[it.g]) return false; const seen = new Set();
+  return sub.every(p => Array.isArray(p) && p.length === 2 && Object.prototype.hasOwnProperty.call(SUBV, p[0]) && p[0] !== it.m[0] && !seen.has(p[0]) && seen.add(p[0]) && Number.isInteger(p[1]) && p[1] >= subRange(it.g, p[0])[0] && p[1] <= subRange(it.g, p[0])[1]); }
+export function applySubs(save, id, sub) { const it = save.inv.find(x => x.id === id); if (!it || !validSubs(it, sub)) return [save, false]; it.sub = sub.map(p => [p[0], p[1]]); return [save, true]; }
 // 각성 (고유 전용, 항상 성공): 고유 정수 + 영혼석. 반환 [save, 'ok'|'max'|'poor'|'none']
 export const awakeCost = it => ({ essence: AWAKE_COST[it.a || 0], souls: AWAKE_SOULS[it.a || 0] });
 export function awaken(save, id) { const it = save.inv.find(x => x.id === id); if (!it || !it.uq) return [save, 'none']; if ((it.a || 0) >= AWAKE_MAX) return [save, 'max']; const c = awakeCost(it);

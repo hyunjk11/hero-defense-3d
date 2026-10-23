@@ -774,3 +774,11 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .railBtn small,.railBtn b{position:absolute;top:2px;left:3px;font-size:12px;line-height:1;color:var(--txt-dim)}#twChest.railBtn b{left:auto;right:4px;color:var(--gold-txt)}
 @media (max-height:680px){.railBtn span{font-size:12px}.railBtn{min-height:44px}}
 @media (pointer:coarse){.railBtn{min-height:var(--hit)}}
+
+/* 강철 사용처 (2026-10-24): 대장간 🎲 재설정 · ⚖ 교환 · 연구소 🧱 바리케이드 보강 */
+.rrMain .itemCard,.rrMain .icard{max-width:280px}.rrBox{display:flex;gap:10px;align-items:center;justify-content:center}.rrCol{background:#1a1430;border:1px solid #c9a24a66;border-radius:10px;padding:8px 10px;min-width:150px}.rrCol.new{border-color:#7affb0aa;box-shadow:0 0 10px #7affb044}
+.rrH{font-size:12px;color:var(--gold-hi);margin-bottom:4px;text-align:center}.rrLine{display:flex;gap:6px;align-items:baseline;font-size:13px}.rrLine b{margin-left:auto}.rrLine small{color:#9aa0c0;font-size:11px}.rrArrow{font-size:22px;color:var(--gold-hi)}.rrActs{display:flex;gap:8px}
+.xchBox{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px}.xchRate{display:flex;align-items:center;gap:12px;font-size:18px}.xchRate b{color:var(--gold-hi);font-size:24px}.xchLeft{font-size:15px}.xchLeft b{color:#8aff9a;font-size:18px}.xchLeft small{color:#9aa0c0}
+.xchPips{display:flex;gap:3px;width:min(420px,90%)}.xchPips i{flex:1;height:6px;border-radius:3px;background:linear-gradient(90deg,#3ac0ff,#bff0ff)}.xchPips i.on{background:#2a3050}
+.xchBtns{display:flex;gap:10px}.xchBtns .gbtn{min-height:var(--hit);min-width:120px;display:flex;flex-direction:column;align-items:center}.xchBtns .gbtn small{font-size:11px;opacity:.85}.xchMsg{min-height:20px;color:#ffb07a;font-size:13px}
+.labBarRow{margin-top:10px;border-color:#ffb03a99;background:linear-gradient(#3a2e20,#1a1410)}.labBarRow .lrTag{font-size:11px;color:#ffd27a;font-weight:normal}.labBarRow .lrPips i.on{background:linear-gradient(90deg,#ffb03a,#ffe0a0);box-shadow:0 0 5px #ffb03a}

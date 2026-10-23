@@ -7,6 +7,8 @@ import { askConfirm } from './confirm.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import * as Acc from '../account/account.js';
 import * as E from '../account/equip.js';
+import * as P from '../account/progress.js';
+import * as SX from '../account/steel.js';
 import { closeLab } from './lab.js';
 import * as ST from '../data/stages.js';
 import { closeStats } from './stats.js';
@@ -19,7 +21,7 @@ import { iconKey, weaponIcon, icon, setOf, GCi, clsN, GC, eqOf, sorted, tile, ls
 export { iconKey, weaponIcon, icon, uqSrcText, lskHtml, card, bonusHtml, heroDots } from './itemview.js'; // 기존 import 경로 호환
 import { reveal, revealing, chestCount, openChestUI, lastChestBatch, initChest } from './chest.js';
 export { reveal, revealing, chestCount, openChestUI, lastChestBatch } from './chest.js'; // 기존 import 경로 호환
-let ui = { inv: false, smith: false, invSel: null, invF: 'all', invTab: 'bag', cxTab: 1, smTab: 'enh', smSel: null, awSel: null, dis: new Set(), crSlot: 'weapon', crSet: 0, busy: false };
+let ui = { inv: false, smith: false, invSel: null, invF: 'all', invTab: 'bag', cxTab: 1, smTab: 'enh', smSel: null, awSel: null, dis: new Set(), crSlot: 'weapon', crSet: 0, busy: false, rrSel: null, rrCand: null, xchMsg: '' };
 let hooks = { onChange: () => {}, cheer: () => {} };
 export function initGear(h) { hooks = { ...hooks, ...h }; bind(); }
 const S = () => Acc.load(), hero = () => S().hero;
@@ -56,7 +58,7 @@ export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; 
 export function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------
-export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; SMP.show(); closeInv(); renderSmith(); }
+export function openSmith() { closeLab(true); closeStats(); if (!ui.smith) ui.xchMsg = ''; if (!ui.smith) { Snd.play('hitArmor'); Snd.play('confirm'); } ui.smith = true; SMP.show(); closeInv(); renderSmith(); }
 export function closeSmith(silent) { if (ui.smith && !silent) Snd.play('ui'); ui.smith = false; SMP.hide(); hideTip(); }
 const SMP = definePanel('smith', { id: 'smithPanel', z: 40, isOpen: () => ui.smith, close: s => closeSmith(s) });
 const costHtml = (c, s) => [['souls', '영혼석', s.souls], ['steel', '강철', s.mat.steel], ['crystal', '마력석', s.mat.crystal]].filter(([k]) => c[k]).map(([k, n, have]) => `<span class="cost ${have >= c[k] ? '' : 'lack'}"><i class="mi ${k}"></i>${n} ${c[k]}<small>/${have}</small></span>`).join('');
@@ -65,7 +67,7 @@ const pwrLine = (a, b, pre = '') => { const p0 = a ? E.power(a) : 0, p1 = E.powe
 function renderSmith() {
   if (!ui.smith) return; const s = S();
   $('smMats').innerHTML = `<span><i class="mi souls"></i>${s.souls}</span><span><i class="mi steel"></i>강철 ${s.mat.steel}</span><span><i class="mi crystal"></i>마력석 ${s.mat.crystal}</span><span class="essM" title="고유 정수 — 고유 장비 각성 재료 (고유 중복 획득·도감 보상·도전 모드 보스)"><i class="mi essence"></i>고유 정수 ${s.mat.essence || 0}</span>`;
-  document.querySelectorAll('#smTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === ui.smTab); b.onclick = () => { if (ui.busy) return; ui.smTab = b.dataset.t; Snd.play('ui'); hideTip(); renderSmith(); }; });
+  document.querySelectorAll('#smTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === ui.smTab); b.onclick = () => { if (ui.busy) return; ui.smTab = b.dataset.t; ui.xchMsg = ''; Snd.play('ui'); hideTip(); renderSmith(); }; });
   const body = $('smBody');
   if (ui.smTab === 'enh') {
     const list = sorted(s.inv, s); if (!list.some(x => x.id === ui.smSel)) ui.smSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.smSel);
@@ -88,6 +90,27 @@ function renderSmith() {
     body.querySelectorAll('#disGrid .itile').forEach(b => { b.onclick = () => { const id = b.dataset.id; ui.dis.has(id) ? ui.dis.delete(id) : ui.dis.add(id); Snd.play('select'); renderSmith(); }; tipBind(b); });
     body.querySelectorAll('.disBulk .ftab').forEach(b => b.onclick = () => { Snd.play('ui'); if (b.dataset.g === 'x') ui.dis.clear(); else list.filter(x => b.dataset.le != null ? x.g <= +b.dataset.le : x.g === +b.dataset.g).forEach(x => ui.dis.add(x.id)); renderSmith(); });
     $('disGo').onclick = () => doDismantle();
+  } else if (ui.smTab === 'rr') { // 🎲 옵션 재설정 (강철만, docs/STEEL_2026-10-24.md): 굴리면 강철 소모 → 새 옵션을 보고 적용/유지 선택
+    const list = sorted(s.inv.filter(E.canReroll), s); if (!list.some(x => x.id === ui.rrSel)) { ui.rrSel = list[0]?.id || null; ui.rrCand = null; } const it = s.inv.find(x => x.id === ui.rrSel);
+    if (ui.rrCand && (!it || ui.rrCand.id !== it.id)) ui.rrCand = null;
+    let right = '<div class="hintS">재설정할 장비가 없어요 (고급 이상 · 고유 제외)</div>';
+    if (it) { const c = E.rerollCost(it), cand = ui.rrCand && ui.rrCand.sub, row = (p, cls = '') => `<div class="rrLine ${cls}"><span>${E.STAT[p[0]]}</span><b>+${p[1]}%</b><small>(${E.subRange(it.g, p[0]).join('~')})</small></div>`;
+      right = `${card(it)}<div class="rrBox"><div class="rrCol"><div class="rrH">현재 옵션</div>${it.sub.map(p => row(p)).join('')}</div>${cand ? `<div class="rrArrow">➜</div><div class="rrCol new"><div class="rrH">새 옵션</div>${cand.map(p => row(p, 'gup')).join('')}</div>` : ''}</div>
+        ${cand ? `<div class="pwrLine">전투력 ${E.power(it)} → <b>${E.power({ ...it, sub: cand })}</b></div><div class="rrActs"><button class="gbtn main" id="rrApply">✔ 새 옵션 적용</button><button class="gbtn" id="rrKeep">↩ 기존 유지</button></div>`
+        : `<div class="costs">${costHtml(c, s)}</div><button class="gbtn main" id="rrGo" ${s.mat.steel >= c.steel ? '' : 'disabled'}>🎲 옵션 재설정</button>`}`; }
+    body.innerHTML = `<div class="smCols"><div class="smList">${list.map(x => tile(x, s, x.id === ui.rrSel ? 'sel' : '')).join('') || '<div class="emptyMsg">장비 없음</div>'}</div><div class="smMain rrMain">${right}<div class="hintS">보조 옵션의 종류와 수치를 다시 굴려요 (주 옵션·강화 수치는 그대로) · 강철만 사용: 고급 ${E.REROLL_COST[1]} · 희귀 ${E.REROLL_COST[2]} · 영웅 ${E.REROLL_COST[3]} · 전설 ${E.REROLL_COST[4]} · 새 옵션이 마음에 안 들면 기존 유지 (강철은 돌려받지 못해요)</div></div></div>`;
+    body.querySelectorAll('.smList .itile').forEach(b => { b.onclick = () => { if (ui.rrCand && ui.rrCand.id !== b.dataset.id) ui.rrCand = null; ui.rrSel = b.dataset.id; Snd.play('select'); renderSmith(); }; tipBind(b); });
+    if ($('rrGo')) $('rrGo').onclick = () => { let r, sub; Acc.update(d => { const o = E.reroll(d, it.id); r = o[1]; sub = o[2]; return o[0]; }); if (r === 'ok') { ui.rrCand = { id: it.id, sub }; Snd.play('hitArmor'); Snd.play('magic', { vol: .4 }); } else Snd.play('error'); renderSmith(); hooks.onChange(true); };
+    if ($('rrApply')) $('rrApply').onclick = () => { const c = ui.rrCand; let ok = false; Acc.update(d => { const o = E.applySubs(d, c.id, c.sub); ok = o[1]; return o[0]; }); ui.rrCand = null; if (ok) { Snd.play('upgrade'); hooks.cheer(); } else Snd.play('error'); renderSmith(); hooks.onChange(true); };
+    if ($('rrKeep')) $('rrKeep').onclick = () => { ui.rrCand = null; Snd.play('ui'); renderSmith(); };
+  } else if (ui.smTab === 'xch') { // ⚖ 강철 → 영혼석 교환 (하루 상한, 한국 시간 0시 초기화)
+    const X = SX.XCH, used = SX.xchUsed(s), left = X.daily - used, mx = SX.xchMax(s), btn = (n, lbl) => `<button class="gbtn ${n === mx && n > 1 ? 'main' : ''} xchGo" data-n="${n}" ${n >= 1 && n <= mx ? '' : 'disabled'}>${lbl}<small>강철 ${n * X.steel} → 영혼석 ${n * X.souls}</small></button>`;
+    body.innerHTML = `<div class="xchBox"><div class="xchRate"><span class="cost"><i class="mi steel"></i>강철 ${X.steel}</span><b>➜</b><span class="cost"><i class="mi souls"></i>영혼석 ${X.souls}</span></div>
+      <div class="xchLeft">오늘 남은 교환 <b id="xchLeftN">${left}</b>/${X.daily}회 <small>(한국 시간 0시에 초기화)</small></div><div class="xchPips">${Array.from({ length: X.daily }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="xchBtns">${btn(1, '1회')}${btn(5, '5회')}${btn(mx, `최대 ${mx}회`)}</div><div class="xchMsg" id="xchMsg">${ui.xchMsg || (left <= 0 ? '오늘 교환을 모두 썼어요. 내일 다시 오세요!' : s.mat.steel < X.steel ? `강철이 부족해요 (1회에 ${X.steel})` : '')}</div>
+      <div class="hintS">남는 강철을 영혼석으로 바꿔요 · 하루 최대 강철 ${X.steel * X.daily} → 영혼석 ${X.souls * X.daily} · 영혼석은 출정이 주 수입이에요 (교환은 보조)</div></div>`;
+    body.querySelectorAll('.xchGo').forEach(b => b.onclick = () => { if (b.disabled) return; let r, got; Acc.update(d => { const o = P.exchangeSteel(d, +b.dataset.n); r = o[1]; got = o[2]; return o[0]; });
+      if (r === 'ok') { Snd.play('coins'); ui.xchMsg = `<span class="gotPop">강철 ${got.steel} → 영혼석 +${got.souls} 교환 완료!</span>`; } else { Snd.play('error'); ui.xchMsg = r === 'cap' ? '오늘 교환 횟수가 부족해요' : '강철이 부족해요'; } renderSmith(); hooks.onChange(true); });
   } else if (ui.smTab === 'awk') { // 각성: 고유 정수로 고유 궁극기 강화 (항상 성공)
     const list = sorted(s.inv.filter(x => x.uq), s); if (!list.some(x => x.id === ui.awSel)) ui.awSel = list[0]?.id || null; const it = s.inv.find(x => x.id === ui.awSel);
     let right = '<div class="hintS">고유 장비가 없어요. 챕터 보스 첫 처치·별 만점·도전 모드 기록으로 얻을 수 있어요!</div>';
