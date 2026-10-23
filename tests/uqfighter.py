@@ -65,7 +65,7 @@ with sync_playwright() as pw:
     it = J(pg, UQI); ok('shop_ok_450', it and 'ok' in it['cls'].split() and not it['dis'], it)
     ok('shop_touch44', J(pg, "()=>{ const r=document.querySelector('.dgBuy[data-buy=dg_uq_fist]').getBoundingClientRect(); return r.width>=44 && r.height>=44; }"))
     shot(pg, 'uq_shop', '#dgPanel')
-    J(pg, "()=>G.dgLastBuy=null"); pg.click('.dgBuy[data-buy="dg_uq_fist"]'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(400)
+    J(pg, "()=>G.dgLastBuy=null"); pg.click('.dgBuy[data-buy="dg_uq_fist"]'); pg.click('#gcOk'); pg.wait_for_function("()=>G.dgLastBuy && G.dgLastBuy.ok", timeout=20000); pg.wait_for_timeout(400)
     it = J(pg, UQI); ok('shop_bought_owned', pg.inner_text('#dgShopMedals') == '0' and it and 'own' in it['cls'].split() and '보유 중' in it['btn'] and it['dis'], it)
     D = db(pg); u = list(D['users'].values())[0]['id']; W = D['dg_wallet'][u]
     ok('server_wallet', W['uniques'] == ['d_fist'] and W['spent'] == 450 and [x['item'] for x in D['dg_buys']] == ['dg_uq_fist'], W)

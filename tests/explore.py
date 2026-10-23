@@ -106,6 +106,7 @@ def click_retreat(pg):
     except Exception as e:
         note('BUG?', 'retreat not clickable; at point: ' + json.dumps(J(pg, HIT), ensure_ascii=False) + ' ' + str(e).split('\n')[-1][:200])
         J(pg, "()=>document.getElementById('retreat').click()")
+    pg.wait_for_timeout(300); J(pg, "()=>{ const p=document.getElementById('gConfirm'); if (p && !p.classList.contains('hidden')) document.getElementById('gcOk').click(); }")  # Q-1 게임 확인창
     pg.wait_for_timeout(3000)
 def retreat_to_town(pg):
     ph = J(pg, "()=>G.phase")

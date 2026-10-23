@@ -732,3 +732,10 @@ body:not(.dungeonRun) #dgJoint{display:none}
 @media (max-width:760px){.esCols{grid-template-columns:1fr}.esG{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-height:700px){#endStats{padding:10px 12px;gap:4px}.esHero{padding:4px 6px;gap:2px}.esC>b{font-size:13px}}
 @media (pointer:coarse){.esBtn,#overStats,#esBack{min-height:48px;min-width:48px}#endStats .xbtn{min-width:48px;min-height:48px}}
+/* 공용 확인창 #gConfirm (ui/confirm.js, 2026-10-23 Q-1) — #advConfirm 과 같은 모양, 모달 층 */
+#gConfirm{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:65}#gConfirm.hidden{display:none}
+#gConfirm .acBox{width:min(380px,92vw);padding:16px 18px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(#2a2246,#120e22);color:#fff3d6;text-align:center;box-shadow:0 0 30px #ffe08a55;animation:blessIn2 .25s ease-out}
+#gConfirm.danger .acBox{border-color:#ff7a7a;box-shadow:0 0 30px #ff4a4a55}
+#gConfirm h3{margin:0 0 8px;color:#ffe08a;font-size:18px}#gConfirm.danger h3{color:#ffb0a0}#gConfirm .acIco{font-size:36px}
+#gConfirm .gcB{font-size:15px;line-height:1.5;color:#e8dcc0}
+#gConfirm .acBtns{display:flex;gap:10px;justify-content:center;margin-top:14px}#gConfirm .acBtns .gbtn{min-width:120px;min-height:48px}

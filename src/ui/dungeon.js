@@ -2,6 +2,7 @@
 // 로즈는 서버 소유 기록(account/shop.js heroOwned ← hd3d_owned)이 확인될 때만 파티에 들어감. 버들은 숨김 플래그로 제외 (data/dungeon.js dungeonParty)
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
+import { askConfirm } from './confirm.js';
 import { go } from '../core/nav.js';
 import { G } from '../core/state.js';
 import { CLASSES } from '../data/heroes.js';
@@ -50,7 +51,7 @@ function renderShop() { const p = $('dgPanel'); if (!p) return; const D = DS.DGS
     <div class="dgInfo"><small>${esc(note)}</small></div><div class="dgGo"><button id="dgBack" class="gbtn">← 원정 준비</button></div>`;
   $('dgClose').onclick = () => closeDungeon(); $('dgBack').onclick = () => { Snd.play('ui'); view = 'party'; render(); };
   p.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buy(b.dataset.buy)); }
-async function buy(id) { const it = DG_SHOP_BY[id]; if (!it || buying) return; if (!confirm(`${it.n} 을(를) 던전 메달 ${it.price}개로 살까요?`)) return;
+async function buy(id) { const it = DG_SHOP_BY[id]; if (!it || buying) return; if (!(await askConfirm({ title: '던전 상점', icon: '🏅', body: `${it.n} 을(를) 던전 메달 ${it.price}개로 살까요?`, ok: '구매' })) || buying) return;
   buying = true; renderShop(); const r = await DS.dgBuy(id); buying = false; Snd.play(r.ok ? 'confirm' : 'error'); banner(r.msg, r.ok ? '#9affb0' : '#ffb06a', 2200); G.dgLastBuy = r;
   if (r.ok && r.mail) Sh.refresh().catch(() => {}); if (!r.ok && DS.DGS.st === 'ok') refreshDay(); if (open && view === 'shop') renderShop(); }
 function render() { if (view === 'shop') return renderShop(); const p = $('dgPanel'); if (!p) return; const s = Acc.load(), cands = dungeonParty(c => Sh.heroOwned(c)), party = pickParty(cands, loadPick()), F = FLOORS[0];

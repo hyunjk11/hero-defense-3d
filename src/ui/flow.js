@@ -2,6 +2,7 @@
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
 import { $, QS } from '../core/util.js';
+import { askConfirm } from './confirm.js';
 import { go } from '../core/nav.js';
 import { CLASSES, VISIBLE_HEROES, heroLabel } from '../data/heroes.js';
 import { G } from '../core/state.js';
@@ -193,7 +194,7 @@ function bindUI() {
   $('lgIn').onclick = () => doAuth('in'); $('lgUp').onclick = () => doAuth('up'); $('lgPw').addEventListener('keydown', e => { if (e.key === 'Enter') doAuth('in'); });
   $('lgGuest').onclick = () => { Snd.play('confirm'); Acc.playGuest(); toMenu(); };
   $('mnCont').onclick = () => { Snd.play('confirm'); enterTown(); };
-  $('mnNew').onclick = () => { const s = Acc.load(); if ((s.stats.runs > 0 || s.souls > 0) && !confirm('새로 시작하면 영혼석·영웅 강화·기록이 모두 초기화됩니다. 계속할까요?')) return;
+  $('mnNew').onclick = async () => { const s = Acc.load(); if ((s.stats.runs > 0 || s.souls > 0) && !(await askConfirm({ title: '새로 시작', icon: '⚠', body: '새로 시작하면 영혼석·영웅 강화·기록이 모두 초기화됩니다.\n계속할까요?', ok: '새로 시작', tone: 'danger' }))) return;
     Snd.play('confirm'); Acc.store({ ...P.empty(), nick: s.nick, settings: s.settings }); enterTown(); };
   $('mnSet').onclick = () => { Snd.play('ui'); $('mnSettings').classList.toggle('hidden'); syncSet(); };
   for (const id of ['stBgm', 'stSfx', 'stBgmOn', 'stSfxOn', 'stBgMute']) $(id).addEventListener('input', () => { const C = Snd.cfg; C.bgm = $('stBgm').value / 100; C.sfx = $('stSfx').value / 100; C.bgmOn = $('stBgmOn').checked; C.sfxOn = $('stSfxOn').checked; C.bgMute = $('stBgMute').checked; Snd.apply(); Snd.bgSync(); Snd.save(); });
@@ -201,7 +202,7 @@ function bindUI() {
   $('mnAuth').onclick = async () => { Snd.play('ui'); if (Acc.A.user) { await Acc.signOut(); } else Acc.A.mode = ''; show('login'); refreshLogin(); };
   $('twGo').onclick = () => { closeDungeon(true); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); openStageSel(); };
   initStageSel({ challenge: () => depart(), start: (id, hard) => departStage(id, hard) }); $('twMenu').onclick = () => { Snd.play('ui'); closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); if (th) { town.remove(th.g); th = null; } town.visible = false; G.phase = 'menu'; cam.target.set(0, 1.5, 22); cam.r = 13.5; cam.phi = 1.3; toMenu(); };
-  $('retreat').onclick = () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!confirm('지금까지의 보상을 가지고 마을로 귀환할까요?')) return; onRunEnd('retreat'); };
+  $('retreat').onclick = async () => { if (G.phase !== 'build') { Snd.play('error'); return; } if (!(await askConfirm({ title: '마을로 귀환', icon: '🏠', body: '지금까지의 보상을 가지고 마을로 귀환할까요?', ok: '귀환' }))) return; if (G.phase !== 'build') { Snd.play('error'); return; } onRunEnd('retreat'); };
   $('overTown').onclick = () => goTown();
   addEventListener('keydown', e => { if (G.screen === 'town') tKeys[e.key.toLowerCase()] = true; }); addEventListener('keyup', e => tKeys[e.key.toLowerCase()] = false);
   renderer.domElement.addEventListener('pointerdown', e => { if (G.screen !== 'town' || e.button !== 0 || !th) return; const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), rc = new THREE.Raycaster(); rc.setFromCamera(m, camera);

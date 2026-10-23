@@ -120,7 +120,7 @@ with sync_playwright() as pw:
             J(pg, "()=>{ G.wave=4; G.startWave(); }"); q = J(pg, "()=>({ e: G.spawnE, hpMul: G.hpMul })"); ok('normal_no_elites', q['e'] is None and abs(q['hpMul'] - (1.16 ** 4) * 0.9) < 1e-6, q)
             # 하드 출정 중 귀환 → 마을, 저장 유지
             pg.goto(url + '?seed=12345&flow=1&stage=1-2&run=1&hard=1'); go_stage_wait(pg); ok('hard_1_2_run', J(pg, "()=>G.hard===true"))
-            J(pg, "()=>{ G.manual=true; G.wave=1; }"); pg.click('#retreat'); pg.wait_for_function("()=>window.G&&G.screen==='town'", timeout=120000); pg.wait_for_timeout(500)
+            J(pg, "()=>{ G.manual=true; G.wave=1; }"); pg.click('#retreat'); pg.click('#gcOk'); pg.wait_for_function("()=>window.G&&G.screen==='town'", timeout=120000); pg.wait_for_timeout(500)
             s2 = J(pg, "()=>G.gear.Acc.load()"); ok('retreat_keeps_progress', s2['hst'].get('1-1', 0) >= 1 and s2['st'] == s0['st'] and 'hard' not in J(pg, "()=>location.search"), (s2['hst'], J(pg, "()=>location.search")))
         c.close()
     print('console errors:', errs); ok('no_console_errors', not errs)
