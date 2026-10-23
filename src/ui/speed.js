@@ -27,5 +27,6 @@ setInterval(() => { const r = inRun(); if (!r && (G.paused || G.speed !== 1)) { 
   if (r && !wasRun && keepSpeed() && LS('hd3d_speed') === '2' && G.speed !== 2) { G.speed = 2; sync(); } wasRun = r; }, 300); // 판 시작 때 기억한 배속
 // 태블릿: 앱 전환·화면 끔(탭 숨김) 때 판 중이면 자동 일시정지 (돌아오면 오버레이에서 계속하기)
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && inRun() && !G.manual) setPaused(true); });
-{ const kb = $('stKeepSpd'); if (kb) { kb.checked = keepSpeed(); kb.addEventListener('change', () => { LS('hd3d_keepSpeed', kb.checked ? '1' : '0'); if (kb.checked) LS('hd3d_speed', String(G.speed)); }); } }
+// Q-11a: 메뉴 설정(#stKeepSpd)과 전투 설정(#sndKeepSpd) 두 칸이 같은 값 (서로 맞춤)
+{ const kbs = ['stKeepSpd', 'sndKeepSpd'].map(id => $(id)).filter(Boolean); kbs.forEach(kb => { kb.checked = keepSpeed(); kb.addEventListener('change', () => { LS('hd3d_keepSpeed', kb.checked ? '1' : '0'); if (kb.checked) LS('hd3d_speed', String(G.speed)); kbs.forEach(o => { o.checked = kb.checked; }); }); }); }
 G.setPaused = setPaused; G.setSpeed = setSpeed; sync();

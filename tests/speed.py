@@ -50,6 +50,11 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.phase = 'build'; }"); pg.wait_for_timeout(700); ok('q5_keep_speed_next_run', sp0 == 1 and J(pg, '()=>G.speed') == 2 and pg.inner_text('#speedBtn') == '×2', (sp0, J(pg, '()=>G.speed')))
     J(pg, "()=>{ const k = document.getElementById('stKeepSpd'); k.checked = false; k.dispatchEvent(new Event('change')); G.phase = 'over'; }"); pg.wait_for_timeout(700); J(pg, "()=>{ G.phase = 'build'; }"); pg.wait_for_timeout(700)
     ok('q5_off_starts_x1', J(pg, '()=>G.speed') == 1); J(pg, "()=>{ localStorage.removeItem('hd3d_keepSpeed'); localStorage.removeItem('hd3d_speed'); }")
+    # Q-11a 전투 설정 #sndKeepSpd 와 메뉴 설정 #stKeepSpd 는 같은 값
+    J(pg, "()=>{ const k = document.getElementById('sndKeepSpd'); k.checked = true; k.dispatchEvent(new Event('change')); }")
+    ok('q11_keep_synced', J(pg, "()=>document.getElementById('stKeepSpd').checked && localStorage.getItem('hd3d_keepSpeed') === '1'"))
+    J(pg, "()=>{ const k = document.getElementById('stKeepSpd'); k.checked = false; k.dispatchEvent(new Event('change')); }")
+    ok('q11_keep_synced_off', J(pg, "()=>!document.getElementById('sndKeepSpd').checked && localStorage.getItem('hd3d_keepSpeed') === '0'"))
     J(pg, '()=>{ G.manual = true; }'); b.close()
 print('errors', errs[:5]); ok('no_console_errors', not errs)
 print('ALL OK' if all(res.values()) else 'FAILED'); sys.exit(0 if all(res.values()) else 1)

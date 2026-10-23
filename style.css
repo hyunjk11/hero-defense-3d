@@ -752,3 +752,20 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #statOv .ui-x{top:6px;right:6px;width:var(--hit);height:var(--hit)}#blessClose.ui-x{top:10px;right:10px;padding:0}#endStats .ui-x{top:8px;right:8px}
 .ui-panel>.gtitle:first-of-type,#twBless .blessHead{padding-left:calc(var(--hit) + 6px);padding-right:calc(var(--hit) + 6px)}
 @media (pointer:coarse){#statOv .ui-x{width:var(--hit);height:var(--hit)}}
+/* U-7a 전투 HUD (2026-10-23): 하단 #cam 을 두 묶음으로 보이게 — [📊 C][❚❚ P][×1 F] 게임 흐름 | [♬][⟲][⟳] 소리·카메라. 흐름 버튼에 키 글자 배지(터치에서도 보임, 버튼 안쪽 모서리 — 밖으로 나가면 scrollWidth 가 늘어 tablet.py clipped). 위치 이동(U-7b)은 보류 */
+#cam button{position:relative}#cam button[data-key]::after{content:attr(data-key);position:absolute;right:1px;bottom:1px;min-width:15px;height:15px;padding:0 2px;box-sizing:border-box;border-radius:8px;background:#0b0914;border:1px solid var(--gold-line);color:var(--gold-txt);font:bold 10px/13px sans-serif;letter-spacing:0;text-align:center;pointer-events:none}
+#cam .camGrp2{margin-left:14px}
+/* Q-4a 알림 배지 (2026-10-23): 받을 도감 보상이 있으면 🎒 가방 버튼 오른쪽 위 빨간 점 (.ui-badge 모양 = .newDot) */
+#twBag{position:relative}#twBag.hasNew::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 6px #ff5a5a;pointer-events:none}
+/* U-5b 패배 화면 #over 를 클리어 결과 카드(#stageClear)와 같은 모양으로 (2026-10-23): 같은 배경·등장 애니메이션·버튼 줄 [🔁 재도전][📊 통계][🏠 마을] (id 그대로, 버튼은 .overBtns 한 줄) */
+#over{z-index:var(--z-result);background:radial-gradient(circle,#3a1020cc,#05030cf0);text-align:center;color:var(--ink);padding:16px}#over>*{animation:panelIn2 .5s cubic-bezier(.3,1.6,.5,1)}
+#over h1{text-shadow:0 0 24px #ff4a5a88,0 3px 0 #3a0810}#overTxt{font-size:16px;color:var(--txt);margin:10px 0 4px}
+.overBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
+#over .overBtns button{margin:0;padding:12px 26px;font-size:17px;font-weight:bold;border-radius:var(--r-btn);border:1px solid var(--gold-line);background:linear-gradient(var(--btn-top),var(--btn-bot));color:var(--ink);min-height:var(--hit)}
+#over .overBtns #overRetry{background:linear-gradient(#c0304a,#6a1020);border-color:var(--gold-hi)}#over .overBtns #overStats{background:linear-gradient(#3a3a6a,#1c1c40)}
+/* U-9a/Q-15 마을 시설 바로가기 레일 (2026-10-23): 오른쪽 가운데 세로 [🔨 대장간][🔬 연구소][💰 상점][⚔ 던전][✨ 여신탑] — 누르면 바로 패널 (큰 패널보다 아래 층) */
+/* 축복 패널(#twBless)은 레일과 같은 오른쪽 가운데 자리 → 패널이 레일 위에 (레일이 ✕ 닫기 버튼을 가로채던 것, account.py bless_close) */#twBless{z-index:var(--z-panel)}
+.twRail{position:absolute;right:calc(12px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;padding:8px 6px;z-index:3}
+.railBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:64px;min-height:var(--hit);padding:5px 2px;font-size:20px;line-height:1.1;letter-spacing:0}
+.railBtn span{font-size:12px;font-weight:bold;color:var(--txt-dim)}.railBtn:hover span{color:var(--gold-hi)}
+@media (max-height:680px){.railBtn{padding:3px 2px;font-size:18px}.twRail{gap:4px;padding:6px 5px}}
