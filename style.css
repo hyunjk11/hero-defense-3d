@@ -1,5 +1,5 @@
 /* 층 (z-index) 토큰 — U-2 (2026-10-23). 값이 클수록 위. 아래 순서: HUD 오버레이 < HUD < 토스트 < 화면 < 관리자 < 연출 < 일시정지 < 결과 < 페이드 < 모달 < 확인창 < 아이템 툴팁 */
-:root{--z-hud-ov:4;--z-hud:5;--z-tip:5;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100}
+:root{--z-hud-ov:4;--z-hud:5;--z-tip:7;--z-panel:5;--z-hud-top:6;--z-toast:8;--z-screen:20;--z-admin:30;--z-reveal:40;--z-pause:44;--z-result:45;--z-fade:50;--z-modal:60;--z-confirm:65;--z-tooltip:100}
 /* 디자인 토큰 — U-1 (2026-10-23). 기존과 **같은 값** (시각 변화 0). 알파 붙은 변형(#c9a24a99 등)은 아직 그대로 */
 :root{--gold-line:#c9a24a;--gold-hi:#ffe08a;--gold-txt:#ffe066;--gold-glow:#ffd23a;--ink:#fff3d6;--txt:#f0e6c8;--txt-dim:#e8dcc0;--btn-top:#3a3260;--btn-bot:#221c3a;--r-tab:8px;--r-btn:9px;--r-panel:12px;--r-gpanel:14px;--r-pill:20px;--fs-sm:12px;--fs:13px;--fs-md:15px}
 #banner,#note{z-index:var(--z-toast)} /* 웨이브 배너·새 몬스터 카드는 📊 오버레이(#statOv) 위 */
@@ -658,6 +658,8 @@ body:not(.dungeonRun) #dgJoint{display:none}
 #gConfirm .gcB{font-size:15px;line-height:1.5;color:var(--txt-dim)}
 #gConfirm .acBtns{display:flex;gap:10px;justify-content:center;margin-top:14px}#gConfirm .acBtns .gbtn{min-width:120px;min-height:48px}
 
+/* U-2 겹침 정리 (2026-10-23): 자원 알약 줄 아래로 들어간 건물 라벨은 흐리게 (ui/flow.js twTopRect) · 낮은 화면에서 마을 큰 패널이 자원 알약 줄(.twTop)을 덮지 않게 (반응형 680 블록 끝) */
+.tlabel{transition:opacity .2s}.tlabel.under{opacity:.22}
 /* ===== 반응형 — U-3 (2026-10-23): 흩어져 있던 @media 블록을 질의별로 한 곳에 (원래 순서 유지). 순서: 좁은 화면(1100/800) → 높이 800 → 폭 → 높이 700·680·640 → 터치(hover:none · pointer:coarse, 마지막 = 48px 규칙이 이김) ===== */
 @media (max-width:1100px), (max-height:800px){
 .pill{padding:5px 11px;font-size:13px;gap:6px}.pill .lbl{font-size:11px}.pill b{font-size:15px}.gold b{font-size:17px}
@@ -720,6 +722,7 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .dgBT{font-size:22px}.dgBS{margin:4px 0 10px;font-size:12.5px}.dgBc{width:200px;min-height:140px;padding:10px}.dgBi{font-size:30px}#dgJoint{bottom:calc(96px + env(safe-area-inset-bottom));min-height:46px;font-size:15px}
 .dgCard{width:140px;gap:3px}.dgLv{display:none}.dgInfo{font-size:12px;line-height:1.4}
 .dgDay{font-size:12px;margin-top:4px}.dgDay small{display:none}.dgShop{gap:6px;margin:6px 0 2px}.dgShopIt{width:150px;padding:6px}.dgShopIt small{min-height:0;font-size:11px}.dgSIc{font-size:22px}
+#scr_town .bigPanel{top:calc(50% + 25px);max-height:calc(100dvh - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
 }
 @media (max-height:640px){
 .stInfo{gap:5px;font-size:12px}.stInfo .sn{font-size:15px}.stInfo .sd{font-size:11px}

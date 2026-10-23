@@ -135,6 +135,11 @@ with sync_playwright() as pw:
     c = b.new_context(viewport={'width': 1024, 'height': 600}, has_touch=True, is_mobile=True, device_scale_factor=2); c.add_init_script(MOCK); pg = c.new_page(); hook(pg)
     town_login(pg, 'stats2@test.kr')
     tw = J(pg, RECT, 'twStats'); ok('town_tablet_btn_48', tw[5] >= 48, tw)
+    # U-2: 자원 알약 줄(.twTop) 과 겹치는 건물 라벨은 흐리게(.under) — 흐리지 않은 라벨은 알약 줄과 안 겹침
+    J(pg, RAF); pg.wait_for_timeout(700); J(pg, RAF)
+    LB = J(pg, "()=>{ const t=document.querySelector('#scr_town .twTop').getBoundingClientRect(), hit=r=>!(r.right<=t.left||t.right<=r.left||r.bottom<=t.top||t.bottom<=r.top); const L=[...document.querySelectorAll('#townLabels .tlabel')].filter(e=>e.style.display!=='none'); return {n:L.length, bad:L.filter(e=>!e.classList.contains('under')&&hit(e.getBoundingClientRect())).map(e=>e.innerText.slice(0,12)), under:L.filter(e=>e.classList.contains('under')).length, top:t.bottom}; }")
+    ok('u2_labels_not_under_top', LB['n'] > 0 and not LB['bad'], LB)
+    os.makedirs('shots/improve', exist_ok=True); J(pg, RAF); pg.wait_for_timeout(300); pg.screenshot(path='shots/improve/u2_town_labels_tablet.png', timeout=240000)
     pg.tap('#twStats'); pg.wait_for_timeout(1500); ok('town_tablet_open', vis(pg, 'statPanel'))
     # 열림 애니메이션(panelIn: scale .96 → 1)이 끝난 뒤 측정 — 느린 박스에선 1.5초 뒤에도 첫 프레임(0.96배)에 머물 수 있음 → 46px 오측정
     J(pg, "()=>Promise.race([Promise.all(document.getElementById('statPanel').getAnimations({subtree:true}).map(a=>a.finished)), new Promise(r=>setTimeout(r, 8000))])")
@@ -142,8 +147,9 @@ with sync_playwright() as pw:
     small = J(pg, "()=>[...document.querySelectorAll('#statPanel button')].map(b=>{ const r=b.getBoundingClientRect(); return [b.innerText||b.id, b.offsetWidth, b.offsetHeight, Math.round(r.width), Math.round(r.height)]; }).filter(x=>x.slice(1).some(v=>v<48))")
     ok('town_tablet_touch_48', not small, small)
     sp = J(pg, RECT, 'statPanel'); ok('town_tablet_in_view', sp[0] >= 0 and sp[1] >= 0 and sp[2] <= 1024 and sp[3] <= 600, sp)
+    tt = J(pg, "()=>document.querySelector('#scr_town .twTop').getBoundingClientRect().bottom"); ok('u2_panel_below_top', sp[1] >= tt - 1, [sp[1], tt])
     ow = J(pg, "()=>{ const e=document.getElementById('statBody'); return [...e.querySelectorAll('.stRow')].filter(r=>r.scrollWidth>r.clientWidth+1).length; }"); ok('town_tablet_no_overflow', ow == 0, ow)
-    shot(pg, 'town_tablet')
+    shot(pg, 'town_tablet'); pg.screenshot(path='shots/improve/u2_statpanel_tablet.png', timeout=240000)
     pg.tap('#statClose'); pg.wait_for_timeout(300); ok('town_tablet_close', not vis(pg, 'statPanel'))
     c.close(); b.close()
 ok('no_console_errors', not errs, errs[:5])

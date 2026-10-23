@@ -108,6 +108,8 @@ function refreshMenu() {
 }
 
 // ---------- 마을 ----------
+// U-2: 자원 알약 줄(.twTop) 아래로 들어간 건물 라벨은 흐리게 (겹침 방지) — 사각형은 0.5초마다만 측정
+let _twR = null, _twRt = -9; const twTopRect = () => { const now = performance.now(); if (now - _twRt > 500) { _twRt = now; const e = document.querySelector('#scr_town .twTop'); _twR = e && e.offsetParent ? e.getBoundingClientRect() : null; } return _twR; };
 function buildTown() {
   town = new THREE.Group(); town.position.copy(TOWN); scene.add(town); buildTownScene(town);
   portalPos = new THREE.Vector3(PORTAL.x, 0, TOWN_Z + PORTAL.y); labels = TL;
@@ -235,7 +237,7 @@ export function updFlow(dt) {
   const inTown = !!(town && town.visible);
   if (inTown !== sunInTown) { sunInTown = inTown; const o = inTown ? TOWN : _zero; sun.position.set(-22 + o.x, 42, 26 + o.z); sun.target.position.copy(o); sun.target.updateMatrixWorld(); } // 마을에서도 그림자
   if (!inTown) return; updTown(G.t, dt); updShop(dt);
-  for (const L of labels) { L.obj.getWorldPosition(_v); _v.y += L.y; _v.project(camera); const vis = G.screen === 'town' && _v.z < 1; L.el.style.display = vis ? '' : 'none'; if (vis) L.el.style.transform = `translate(-50%,-100%) translate(${(_v.x + 1) / 2 * innerWidth}px,${(1 - _v.y) / 2 * innerHeight}px)`; }
+  for (const L of labels) { L.obj.getWorldPosition(_v); _v.y += L.y; _v.project(camera); const vis = G.screen === 'town' && _v.z < 1; L.el.style.display = vis ? '' : 'none'; if (vis) { const lx = (_v.x + 1) / 2 * innerWidth, ly = (1 - _v.y) / 2 * innerHeight, R = twTopRect(); L.el.style.transform = `translate(-50%,-100%) translate(${lx}px,${ly}px)`; if (!L.h) { L.h = L.el.offsetHeight; L.w = L.el.offsetWidth; } L.el.classList.toggle('under', !!R && ly - L.h < R.bottom && lx + L.w / 2 > R.left && lx - L.w / 2 < R.right); } }
   if (!th || G.screen !== 'town') return; th.mixer.update(dt);
   const fwd = new THREE.Vector3(-Math.sin(cam.theta), 0, -Math.cos(cam.theta)), right = new THREE.Vector3(-fwd.z, 0, fwd.x), mv = new THREE.Vector3();
   if (tKeys.w || tKeys.arrowup) mv.add(fwd); if (tKeys.s || tKeys.arrowdown) mv.sub(fwd); if (tKeys.d || tKeys.arrowright) mv.add(right); if (tKeys.a || tKeys.arrowleft) mv.sub(right);
