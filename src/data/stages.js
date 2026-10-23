@@ -82,7 +82,6 @@ export function hardUnlocked(save, id) { const S = STAGES[id]; if (!S || !hardCh
 export const hardLockText = ch => `🔒 노말 ${stageNo(bossOf(ch) ? bossOf(ch).id : '')} 보스를 처치하면 하드가 열려요`;
 // 스테이지 보상 영혼석: 하드 = 노말의 HARD.souls 배 (첫 클리어·재도전 모두)
 export const stageRewardH = (id, first, hard) => stageReward(id, first) * (hard ? HARD.souls : 1);
-export const PREFIX = { 1: '숲의 ', 2: '서리 ', 3: '화염 ', 4: '폐허의 ' };
 // 폐허: 고대 성벽 칸 목록 (용암과 같은 꺾은선 규칙)
 export const wallTiles = (S, GW = 24, GH = 16) => lavaTiles(S, GW, GH, 'walls');
 // 용암 강 칸 목록 (꺾은선 → 칸, 포털·코어 주변 1칸 제외). 순수 함수: 렌더/경로/테스트 공용
