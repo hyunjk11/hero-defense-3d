@@ -21,7 +21,7 @@ import * as E from '../account/equip.js';
 import { initGear, openInv, closeInv, openSmith, closeSmith, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots } from './gear.js';
 import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
-import { initStageSel, openStageSel, closeStageSel } from './stagesel.js';
+import { initStageSel, openStageSel, closeStageSel, rememberStage } from './stagesel.js';
 import * as ST from '../data/stages.js';
 import { STAGE, HARDQ, DUNGEON } from '../core/grid.js';
 import { startDungeonRun } from '../dungeon/run.js';
@@ -49,7 +49,7 @@ const heroN = c => heroLabel(c);
 export function equipLine(eq) { const e = Object.entries(eq || {}).sort((a, b) => b[1] - a[1]); if (!e.length) return ''; return '⚔ 장비 · ' + e.slice(0, 3).map(([k, v]) => `${E.STAT[k]} +${v}%`).join(' · ') + (e.length > 3 ? ` 외 ${e.length - 3}개` : ''); }
 
 // ---------- 스테이지 ----------
-function departStage(id, hard) { if (departing) return; departing = true; Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
+function departStage(id, hard) { if (departing) return; departing = true; rememberStage(id, hard); // Q-5 지도·Q-6 재도전/다음 공통 Snd.play('meteorCast', { force: true }); Snd.play('confirm'); $('fade').classList.add('on');
   go({ stage: id, hard }, 500); }
 function startStageRun() { // 저장된 영웅이 유료 영웅이면 서버 소유권(hd3d_owned)을 먼저 확인
   const s0 = Acc.load(); if (CLASSES[s0.hero] && CLASSES[s0.hero].paid) { $('loadTxt').textContent = '영웅 확인 중…'; Sh.verifyOwned().then(() => startStageRun2(true)); } else startStageRun2(false);

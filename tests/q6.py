@@ -45,6 +45,11 @@ with sync_playwright() as pw:
     J(pg, "()=>{ window.__mark = 1 }"); pg.click('#scRetry'); pg.wait_for_function("()=>!window.__mark", timeout=30000); pg.wait_for_function(LOADED, timeout=120000)
     ok('clear_retry_same_stage', J(pg, "()=>G.stage.id") == '1-2', pg.url)
     s = J(pg, "()=>G.gear.Acc.load()"); ok('saved_before_nav', (s['st'] or {}).get('1-1', 0) > 0 and (s['st'] or {}).get('1-2', 0) > 0, s.get('st'))
+    # Q-5 지도 기억: 마지막 출정 칸 (깼으면 다음 열린 칸) · 하드 토글 — 진행 중 칸(1-4)이 아니라 1-2 로 열림
+    J(pg, "()=>{ G.gear.Acc.update(d=>{ d.st={'1-1':3,'1-2':2,'1-3':1}; return d; }); localStorage.setItem('hd3d_lastStage', JSON.stringify({id:'1-1', hard:false})); }")
+    pg.goto(url + '?seed=12345&flow=1&town=1'); pg.wait_for_function("()=>window.G&&G.ready&&G.screen==='town'", timeout=120000); pg.wait_for_timeout(800)
+    J(pg, "()=>G.stageSel.openStageSel()"); pg.wait_for_timeout(400)
+    ok('q5_map_recalls_next_of_last', pg.locator('.snode.sel[data-id="1-2"]').count() == 1 and pg.locator('.snode.cur[data-id="1-4"]').count() == 1, J(pg, "()=>[...document.querySelectorAll('.snode.sel')].map(e=>e.dataset.id)"))
     print('errors', errs); ok('no_console_errors', not errs)
     b.close()
 print('ALL OK' if all(res.values()) else 'FAILED'); sys.exit(0 if all(res.values()) else 1)
