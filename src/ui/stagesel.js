@@ -43,23 +43,23 @@ function render() {
   const un = ST.chapterUnlocked(s, C.id), hun = ST.hardChapterUnlocked(s, C.id); if (!hun) ui.hard = false; const H = ui.hard, cc = H ? '#ff4a3a' : C.color;
   const isU = id => H ? ST.hardUnlocked(s, id) : ST.stageUnlocked(s, id), starOf = id => H ? ST.hstars(s, id) : ST.stars(s, id);
   map.classList.toggle('hard', H);
-  // 노말/하드 토글 (지도 왼쪽 위): 하드는 그 챕터 노말 보스를 깨야 열림 — 잠기면 누를 때 해금 방법 안내
-  const tog = un ? `<div class="modeTog" role="group" aria-label="난이도"><button class="mt ${H ? '' : 'on'}" data-m="n">노말</button><button class="mt hardB ${H ? 'on' : ''} ${hun ? '' : 'locked'}" data-m="h" title="${hun ? '하드: 몬스터 강화 · 정예 출현 · 보상 2배' : ST.hardLockText(C.id).replace('🔒 ', '')}">${hun ? '🔥' : '🔒'} 하드</button></div>` : '';
+  // 노말/하드 토글 (지도 왼쪽 위): 하드는 노말처럼 순차 해금 (하드 1-1 = 노말 1장 보스, 그 뒤 = 앞 하드 스테이지 클리어; 챕터를 넘어 이어짐) — 잠기면 누를 때 해금 방법 안내
+  const tog = un || hun ? `<div class="modeTog" role="group" aria-label="난이도"><button class="mt ${H ? '' : 'on'}" data-m="n">노말</button><button class="mt hardB ${H ? 'on' : ''} ${hun ? '' : 'locked'}" data-m="h" title="${hun ? '하드: 몬스터 강화 · 정예 출현 · 보상 2배' : ST.hardLockText(C.id).replace('🔒 ', '')}">${hun ? '🔥' : '🔒'} 하드</button></div>` : '';
   map.innerHTML = floaties(ICONS[C.theme]) + (H ? '<div class="hardVeil"></div>' : '') + `<svg class="stPath" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${pos.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ')}" /></svg>`
-    + C.stages.map((st, i) => { const u = isU(st.id), k = starOf(st.id), cur = u && !k; return `<button class="snode ${u ? '' : 'locked'} ${cur ? 'cur' : ''} ${st.boss ? 'boss' : ''} ${H ? 'hard' : ''} ${ui.sel === st.id ? 'sel' : ''}" data-id="${st.id}" style="left:${pos[i][0]}%;top:${pos[i][1]}%;--cc:${cc}"><span class="num">${u ? (st.boss ? '👑' : st.no) : '🔒'}</span>${!H && st.boss && !E.ownsUnique(s, P.dropPreview(st.id, s.hero, s).uq[0].k) ? '<i class="uqNode" title="고유 장비 첫 처치 보상">💎</i>' : ''}<span class="stars">${starStr(k)}</span><span class="nm">${st.n}</span></button>`; }).join('')
-    + tog + (un ? '' : `<div class="lockVeil">🔒 ${ST.CHAPTERS.find(c => c.id === C.id - 1).n}의 보스를 처치하면 열려요</div>`);
+    + C.stages.map((st, i) => { const u = isU(st.id), k = starOf(st.id), cur = u && !k; return `<button class="snode ${u ? '' : 'locked'} ${cur ? 'cur' : ''} ${st.boss ? 'boss' : ''} ${H ? 'hard' : ''} ${ui.sel === st.id ? 'sel' : ''}" data-id="${st.id}"${H && !u ? ` title="${ST.hardStageLockText(st.id).replace('🔒 ', '')}"` : ''} style="left:${pos[i][0]}%;top:${pos[i][1]}%;--cc:${cc}"><span class="num">${u ? (st.boss ? '👑' : st.no) : '🔒'}</span>${!H && st.boss && !E.ownsUnique(s, P.dropPreview(st.id, s.hero, s).uq[0].k) ? '<i class="uqNode" title="고유 장비 첫 처치 보상">💎</i>' : ''}<span class="stars">${starStr(k)}</span><span class="nm">${st.n}</span></button>`; }).join('')
+    + tog + (un || H ? '' : `<div class="lockVeil">🔒 ${ST.CHAPTERS.find(c => c.id === C.id - 1).n}의 보스를 처치하면 열려요</div>`);
   map.querySelectorAll('.snode').forEach(b => b.onclick = () => { ui.sel = b.dataset.id; Snd.play('select'); render(); });
   map.querySelectorAll('.modeTog .mt').forEach(b => b.onclick = e => { e.stopPropagation(); const want = b.dataset.m === 'h';
     if (want && !hun) { Snd.play('error'); showTip(b, `<div class="hardLock">${ST.hardLockText(C.id)}</div>`); clearTimeout(tipT); tipT = setTimeout(hideTip, 3200); return; }
     if (want === ui.hard) return; ui.hard = want; Snd.play(want ? 'magic' : 'select'); const c2 = C.stages.find(x => (want ? ST.hardUnlocked(s, x.id) && !ST.hstars(s, x.id) : ST.stageUnlocked(s, x.id) && !ST.stars(s, x.id))); if (c2) ui.sel = c2.id; render(); });
   const S = ST.STAGES[ui.sel] || C.stages[0], u = isU(S.id), k = starOf(S.id), HD = ST.HARD, r2 = v => Math.round(v * 100) / 100;
   info.innerHTML = `<div class="sn">${H ? '<span class="hardTag">하드</span> ' : ''}${S.no} · ${S.n}${S.boss ? ' <span class="bossT">챕터 보스</span>' : ''}</div>
-    <div class="sd">${H ? `웨이브 ${S.waves} · 체력 ×${r2(S.hp * ST.hardHp(9, S.ch))}${S.boss ? ` (보스 ×${r2(S.hp * ST.hardHp(9, S.ch) * HD.bossHp)})` : ''} · 피해 ×${HD.dmg} · 속도 +${Math.round((HD.spd - 1) * 100)}% · 정예 ${HD.eliteFrom}웨이브~` : `웨이브 ${S.waves} · 몬스터 포털 ${S.spawns.length}개 · 몬스터 체력 ×${S.hp}`}</div>
+    <div class="sd">${H ? `웨이브 ${S.waves} · 체력 ×${r2(S.hp * ST.hardHp(9, S.ch))}${S.boss ? ` (보스 ×${r2(S.hp * ST.hardHp(9, S.ch) * HD.bossHp)})` : ''} · 피해 ×${ST.hardDmg(S.ch)} · 속도 +${Math.round((HD.spd - 1) * 100)}% · 정예 ${HD.eliteFrom}웨이브~` : `웨이브 ${S.waves} · 몬스터 포털 ${S.spawns.length}개 · 몬스터 체력 ×${S.hp}`}</div>
     <div class="prop" style="--cc:${C.color}"><b>${C.propN}</b> ${C.propD}</div>
     <div class="conds">${ST.STAR_D.map((d, i) => `<div class="${i < k ? 'got' : ''}">${i < k ? '★' : '☆'} ${d}</div>`).join('')}</div>
     ${H ? `<div class="rw hardRw">보상: 영혼석 <b>${ST.stageRewardH(S.id, !k, true)}</b> (×${HD.souls})${k ? ' (재도전) + 장비 50%' : ' + 장비 1개'} <span style="color:${C.color}">(등급 +${HD.tierUp})</span> · 정예 처치 +${HD.eliteSouls}</div>`
       : `<div class="rw">보상: 영혼석 ${ST.stageReward(S.id, !k)}${k ? ' (재도전)' : ` + <span style="color:${C.color}">${C.short} 장비</span> 1개 (첫 클리어)`}</div>`}${dropHtml(P.dropPreview(S.id, s.hero, s, H))}
-    ${u ? `<button class="gbtn main bigGo ${H ? 'hardGo' : ''}" id="stGo">${H ? '🔥 하드 출정!' : '⚔ 출정!'}</button>` : `<div class="warn">🔒 ${H ? '이전 하드 스테이지' : '이전 스테이지'}를 클리어하면 열려요</div>`}`;
+    ${u ? `<button class="gbtn main bigGo ${H ? 'hardGo' : ''}" id="stGo">${H ? '🔥 하드 출정!' : '⚔ 출정!'}</button>` : `<div class="warn ${H ? 'hardLockW' : ''}">${H ? ST.hardStageLockText(S.id) : '🔒 이전 스테이지를 클리어하면 열려요'}</div>`}`;
   if ($('stGo')) $('stGo').onclick = () => { closeStageSel(true); hooks.start(S.id, H); };
   bindTips(info, s);
 }

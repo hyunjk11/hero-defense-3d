@@ -19,18 +19,19 @@ import { meterAdd, towerAdd } from '../combat/meter.js';
 import { lootFx } from '../render/loot.js';
 import { BOSS_DROP, bossOdds, randomItem, GRADES } from '../account/equip.js';
 import { initAbilities, armorOf, crackHit, absorbShield, onKilled } from './abilities.js';
-import { HARD } from '../data/stages.js';
+import { HARD, hardDmg } from '../data/stages.js';
 import { shareGeo } from '../render/toon.js';
 import * as THREE from 'three';
 
 // ---------- 하드 모드: 종류별 강화 수치 (캐시). 체력은 웨이브 배수(G.hpMul)에 HARD.hp 가 이미 곱해짐 → 여기서는 보스·정예 추가분만 E.hp 에 넣음
 // (분열 새끼는 e.max / e.E.hp = G.hpMul 로 태어나므로 정예·보스 추가 체력은 물려받지 않음)
+const DM = () => hardDmg(STAGE ? STAGE.ch : 1); // 하드2: 챕터별 피해 배수 (HARD.dmgCh)
 const HARD_E = new Map(), DMG_KEYS = ['tower', 'hero', 'dps', 'bar', 'block'];
 function scaleAb(ab, boss) { if (!ab) return ab; const o = {}; for (const [k, v] of Object.entries(ab)) { if (!v || typeof v !== 'object') { o[k] = v; continue; } const c = { ...v };
-  for (const d of DMG_KEYS) if (typeof c[d] === 'number' && k !== 'shield') c[d] = c[d] * (d === 'tower' ? HARD.towerDmg : HARD.dmg); if (boss && typeof c.every === 'number') { c.every *= HARD.bossCd; if (typeof c.first === 'number') c.first *= HARD.bossCd; } o[k] = c; } return o; }
+  for (const d of DMG_KEYS) if (typeof c[d] === 'number' && k !== 'shield') c[d] = c[d] * (d === 'tower' ? HARD.towerDmg : DM()); if (boss && typeof c.every === 'number') { c.every *= HARD.bossCd; if (typeof c.first === 'number') c.first *= HARD.bossCd; } o[k] = c; } return o; }
 export function hardE(type, elite) { const key = type + (elite ? '*' : ''); let H = HARD_E.get(key); if (H) return H; const E = ETYPES[type];
-  H = { ...E, dps: E.dps * HARD.dmg, spd: E.spd * HARD.spd, gold: Math.round(E.gold * HARD.killGold), hard: true }; const chBoss = !!E.boss && type !== 'boss'; // 챕터 보스만 추가 체력·빠른 스킬 (5·10웨이브 해골 군주는 기본 하드 배수만)
-  if (E.sprint) H.sprint = E.sprint * HARD.spd; if (E.towerDps) H.towerDps = E.towerDps * HARD.towerDmg; if (E.bomb) H.bomb = { ...E.bomb, tower: E.bomb.tower * HARD.towerDmg, bar: E.bomb.bar * HARD.dmg, hero: E.bomb.hero * HARD.dmg };
+  H = { ...E, dps: E.dps * DM(), spd: E.spd * HARD.spd, gold: Math.round(E.gold * HARD.killGold), hard: true }; const chBoss = !!E.boss && type !== 'boss'; // 챕터 보스만 추가 체력·빠른 스킬 (5·10웨이브 해골 군주는 기본 하드 배수만)
+  if (E.sprint) H.sprint = E.sprint * HARD.spd; if (E.towerDps) H.towerDps = E.towerDps * HARD.towerDmg; if (E.bomb) H.bomb = { ...E.bomb, tower: E.bomb.tower * HARD.towerDmg, bar: E.bomb.bar * DM(), hero: E.bomb.hero * DM() };
   if (E.ab) H.ab = scaleAb(E.ab, chBoss); if (chBoss) H.hp = E.hp * HARD.bossHp;
   if (elite) Object.assign(H, { elite: true, hp: E.hp * HARD.eliteHp, h: E.h * HARD.eliteScale, gold: Math.round(E.gold * HARD.killGold * HARD.eliteGold), core: E.core + HARD.eliteCore, n: '정예 ' + E.n });
   HARD_E.set(key, H); return H; }
