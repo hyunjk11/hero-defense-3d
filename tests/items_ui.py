@@ -76,6 +76,10 @@ with sync_playwright() as pw:
         J(pg, """async()=>{ const g=await import(new URL('src/ui/gear.js', document.baseURI).href); const el=document.querySelector('#stInfo .dru[data-k="s_staff"]'); g.showTip(el, g.card({...G.gear.E.makeUnique('r_guns'), a:2, e:5})); }"""); pg.wait_for_timeout(200)
         rb = J(pg, RIB); ok(f'{tag}_uq_tip_long_name_clear', rb and '노블레스' in rb['name'] and not any(l['hit'] for l in rb['lines']) and all(l['inCard'] for l in rb['lines']) and rb['fits'], rb)
         shot(pg, f'{OUT}/tip_long_{tag}.png')
+        # U-10: 화면 오른쪽 아래 구석 요소의 툴팁도 화면 안 (왼쪽·위로 뒤집기)
+        tf = J(pg, """async()=>{ const g=await import(new URL('src/ui/gear.js', document.baseURI).href); const d=document.createElement('div'); d.style.cssText='position:fixed;right:4px;bottom:4px;width:40px;height:40px'; document.body.appendChild(d);
+          g.showTip(d, g.card({...G.gear.E.makeUnique('r_guns'), a:2, e:5})); const r=document.getElementById('itemTip').getBoundingClientRect(); d.remove(); return {l:Math.round(r.left),t:Math.round(r.top),r:Math.round(r.right),b:Math.round(r.bottom),vw:innerWidth,vh:innerHeight}; }""")
+        ok(f'{tag}_u10_tip_in_view', tf['l'] >= 0 and tf['t'] >= 0 and tf['r'] <= tf['vw'] and tf['b'] <= tf['vh'], tf)
         pg.mouse.move(5, 5); J(pg, "()=>document.getElementById('itemTip').classList.add('hidden')"); pg.wait_for_timeout(100)
         pg.click('.chtab[data-c="0"]'); pg.wait_for_timeout(200); ok(f'{tag}_challenge_milestones', pg.locator('#stMap .chalMs .msC').count() == 3 and pg.locator('#stMap .chalMs .msC.have').count() == 1, pg.inner_text('#stMap .chalMs').replace('\n', ' '))
         if tag == 'desktop': shot(pg, f'{OUT}/stage_challenge.png')

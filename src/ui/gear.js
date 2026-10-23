@@ -78,7 +78,10 @@ function renderInv() {
   if ($('invEq')) $('invEq').onclick = () => { Acc.update(d => E.equip(d, h, sel.id)[0]); Snd.play('upgrade'); hooks.cheer(); hooks.onChange(); };
   if ($('invUneq')) $('invUneq').onclick = () => { Acc.update(d => E.unequip(d, h, sel.s)); Snd.play('ui'); hooks.onChange(); };
 }
-export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; t.classList.remove('hidden'); const r = el.getBoundingClientRect(); let x = r.right + 8, y = r.top; if (x + 230 > innerWidth) x = r.left - 238; t.style.left = x + 'px'; t.style.top = Math.min(y, innerHeight - t.offsetHeight - 8) + 'px'; }
+// U-10 (2026-10-23): 오른쪽에 자리가 없으면 왼쪽, 양쪽 다 없으면 화면 안으로 · 아래로 넘치면 위로 올림 (높이는 CSS max-height 로 화면 안)
+export function showTip(el, html) { const t = $('itemTip'); t.innerHTML = html; t.classList.remove('hidden'); const r = el.getBoundingClientRect(), M = 8, W = t.offsetWidth || 230, H = t.offsetHeight;
+  let x = r.right + M; if (x + W > innerWidth - M) x = r.left - W - M; if (x < M) x = Math.max(M, Math.min(innerWidth - W - M, r.left));
+  const y = Math.max(M, Math.min(r.top, innerHeight - H - M)); t.style.left = x + 'px'; t.style.top = y + 'px'; }
 export function hideTip() { $('itemTip').classList.add('hidden'); }
 
 // ---------- 대장간 ----------

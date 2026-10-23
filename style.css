@@ -168,7 +168,7 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 .icard .sl{display:flex;justify-content:space-between;gap:6px;padding:2px 0;color:#ddd}.icard .sl.main{color:#fff3c0;font-weight:bold;border-bottom:1px solid #ffffff22}.icard .sl i{font-style:normal;font-size:11px}.gup{color:#8aff9a}.gdn{color:#ff8a8a}.cmpn{font-size:10px;color:#a898c0;margin-top:4px}
 .icard.g4{animation:legend 1.6s ease-in-out infinite}
 .acts{margin-top:8px;display:flex;gap:6px}.acts .gbtn{flex:1}
-#itemTip{position:fixed;z-index:var(--z-tooltip);width:230px;pointer-events:none}#itemTip.hidden{display:none}
+#itemTip{position:fixed;z-index:var(--z-tooltip);width:230px;pointer-events:none;max-height:calc(100dvh - 16px);overflow:hidden}#itemTip.hidden{display:none}
 .smMats{display:flex;gap:14px;justify-content:center;font-size:13px;color:#ffe9b0}
 .smCols{display:flex;gap:14px}.smList{width:250px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;max-height:340px;overflow:auto}.smMain{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
 .anvil{position:relative;width:260px;height:170px;display:flex;align-items:flex-end;justify-content:center;background:radial-gradient(ellipse at 50% 100%,#ff8a3a44,transparent 60%)}
