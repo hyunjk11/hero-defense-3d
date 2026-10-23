@@ -33,7 +33,7 @@ CMPH = """async()=>{ const ES=await import('./src/data/endstats.js'), A=G.endSta
   return bad; }"""
 TOWERS = """()=>{ const A=G.endStats, live=(G.dmTowers||[]).filter(t=>(t.dmT||0)>0||(t.dmK||0)>0); const rows=[...document.querySelectorAll('#endStats .esRow')].map(r=>r.innerText.replace(/\\n/g,' '));
   return { n: rows.length, want: Math.min(6, live.length), sorted: A.towers.every((t,i)=>!i||A.towers[i-1].dmT>=t.dmT), sum: Math.round(live.reduce((s,t)=>s+t.dmT,0)), other: Math.round(G.dmOther.tot), names: rows.slice(0,3) }; }"""
-WAVES = """()=>{ const A=G.endStats, W=[...document.querySelectorAll('#endStats .esW')]; return { n: W.length, log: G.waveLog.length, labels: W.map(w=>w.querySelector('span').innerText), times: W.map(w=>w.querySelector('b').innerText), sec: A.waves.map(w=>Math.round(w.sec*10)/10), live: W.filter(w=>w.classList.contains('live')).length, fast: W.filter(w=>w.classList.contains('fast')).length }; }"""
+WAVES = """()=>{ const A=G.endStats, W=[...document.querySelectorAll('#endStats .esW')]; return { n: W.length, log: G.waveLog.length, labels: W.map(w=>w.querySelector('span').innerText), times: W.map(w=>w.querySelector(':scope > b').innerText), sec: A.waves.map(w=>Math.round(w.sec*10)/10), live: W.filter(w=>w.classList.contains('live')).length, fast: W.filter(w=>w.classList.contains('fast')).length }; }"""
 SMALL = "()=>[...document.querySelectorAll('#endStats button, #scStats, #overStats')].filter(b=>b.offsetParent).map(b=>{ const r=b.getBoundingClientRect(); return [b.id||b.innerText, b.offsetWidth, b.offsetHeight, Math.round(r.width), Math.round(r.height)]; }).filter(x=>x.slice(1).some(v=>v<48))"
 def boot(b, vw, vh, save_js=None, touch=False):
     c = b.new_context(viewport={'width': vw, 'height': vh}, has_touch=touch, is_mobile=touch, device_scale_factor=2 if touch else 1); c.add_init_script(MOCK); pg = c.new_page(); hook(pg)
@@ -49,7 +49,7 @@ def play_waves(pg, n, tower=True):  # 실제 웨이브 (미터에 영웅·타워
     for _ in range(n):
         J(pg, "()=>G.startWave()")
         for _ in range(80):
-            if J(pg, "()=>{ G.sim(2); return G.phase!=='wave'; }"): break
+            if J(pg, "()=>{ const e=G.enemies.find(e=>!e.dead); if (e && G.hero && G.hero.dead<=0) G.hero.g.position.set(e.g.position.x+3, 0, e.g.position.z); G.sim(2); return G.phase!=='wave'; }"): break  # 영웅을 적 옆으로 (영웅 피해도 쌓이게)
 def finish_stage(pg):
     J(pg, "()=>{ G.manual=true; G.wave=G.stage.waves-1; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9,'#fff',false); G.spawnQ=[]; G.spawnE=null; G.sim(1); }")
     for _ in range(40):
@@ -102,7 +102,8 @@ with sync_playwright() as pw:
     J(pg, "()=>{ G.gold=9999; const s=T_.grassNearRoute(4, 3, []); G.build(s[0], s[1], 'magic'); G.startWave(); }")
     for _ in range(30):
         if J(pg, "()=>{ G.sim(2); return G.hero.dm.hits>5 && G.dmOther.tot>0; }"): break
-    ok('over_btn_hidden_before', not vis(pg, 'overStats'))
+    J(pg, "()=>{ if (G.phase==='build') { G.startWave(); G.sim(1); } }")  # 진행 중 웨이브에서 패배
+    ok('over_btn_hidden_before', not vis(pg, 'overStats') and J(pg, "()=>G.phase") == 'wave')
     J(pg, "()=>import('./src/core/waves.js').then(m=>m.gameOver())"); pg.wait_for_timeout(500)
     ok('over_screen', vis(pg, 'over') and vis(pg, 'overStats') and J(pg, "()=>G.endStatsUI.kind()") == 'over')
     pg.click('#overStats'); pg.wait_for_timeout(300); ok('over_opens', vis(pg, 'endStats'))
