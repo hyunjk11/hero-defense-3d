@@ -36,7 +36,7 @@ assert.deepEqual(Object.values(SHOP.items).map(i => i.hero).sort(), [...paid].so
 for (const h of paid) { assert.equal(SHOP.items['hero_' + h].hero, h); assert.ok(sql.includes(`when 'hero_${h}' then '{"hero":"${h}"}'`), `schema reward ${h}`);
   assert.ok((sql.match(new RegExp(`'hero_${h}'`, 'g')) || []).length >= 6, `schema item checks hero_${h}`); assert.ok(new RegExp(`r ->> 'hero' in \\([^)]*'${h}'`).test(sql), `schema valid_reward ${h}`); }
 // UI 아이콘 표는 CLASSES.icon 에서 생성 (gear.js 에 영웅 이모지 하드코딩 금지)
-const gear = R('src/ui/gear.js'); assert.ok(/HERO_KEYS\.map\(k => \[k, CLASSES\[k\]\.icon\]\)/.test(gear), 'gear ICON from CLASSES');
+const gear = R('src/ui/itemview.js'); assert.ok(/HERO_KEYS\.map\(k => \[k, CLASSES\[k\]\.icon\]\)/.test(gear), 'gear ICON from CLASSES');
 // ---------- 숨긴 영웅 (CLASSES[k].hidden) ----------  플래그 하나로: 선택 줄·마을 카드·상점·모델 로딩·새 드롭·저장 영웅 이전
 assert.deepEqual([...HIDDEN_HEROES], HERO_KEYS.filter(k => CLASSES[k].hidden)); assert.deepEqual(VISIBLE_HEROES, HERO_KEYS.filter(k => !CLASSES[k].hidden));
 assert.ok(VISIBLE_HEROES.length >= 1 && !isHidden(DEFAULT_HERO) && !CLASSES[DEFAULT_HERO].paid, 'DEFAULT_HERO = 보이는 무료 영웅');
