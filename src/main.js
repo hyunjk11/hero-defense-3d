@@ -1,3 +1,4 @@
+import './ui/settings.js'; // Q-11b 설정 칸 DOM (다른 UI 모듈보다 먼저)
 import { Snd } from './audio/audio.js';
 import * as THREE from 'three';
 import { $, rand, rnd } from './core/util.js';
