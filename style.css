@@ -129,6 +129,8 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #townPop h3{margin:0 0 6px;color:var(--gold-hi)}#townPop .soul{color:#d8b0ff;font-size:20px}#townPop .newbest{color:var(--gold-txt);font-weight:bold}#townPop button{margin-top:10px;padding:8px 26px}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s;z-index:var(--z-fade)}#fade.on{opacity:1}
 #retreat{background:linear-gradient(#2a5a4a,#12302a)!important;justify-content:center!important}
+/* U-8 (2026-10-23): 낮은 화면에서 #build 가 넘쳐도 '마을로 귀환' 은 패널 아래에 붙어 항상 보임 */
+#build #retreat{position:sticky;bottom:0;z-index:1;box-shadow:0 6px 0 #0a0912,0 -4px 10px #0a0912cc}
 #overReward{color:#d8b0ff;font-size:18px}#overTown{margin-left:8px}
 .twTip{font-size:12px;color:#d8c8a0;line-height:1.5;background:#0a0812aa;border:1px dashed #c9a24a66;border-radius:8px;padding:6px 8px}.twTip b{color:var(--gold-hi)}
 .tlabel.bless{border-color:var(--gold-hi);box-shadow:0 0 14px #ffd27a;color:#fff6d0}.tlabel.bless small{color:var(--gold-hi)}.tlabel.deco{font-size:11px;padding:2px 7px;opacity:.8}
