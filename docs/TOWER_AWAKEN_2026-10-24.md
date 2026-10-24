@@ -9,4 +9,4 @@
 - [x] W-3 UI: #tAwk 체크리스트(연구소 + 판 안, 종류별) · #tUp 문구/미리보기 · input.js 클릭 · style.css · 도움말
 - [x] W-4 Q.perf 분기 · endstats ✨ · G 레지스트리
 - [x] W-5 tests/awaken.py (1440×860) · hard_balance 참고 — 18 검사 OK. hard_balance 는 생략: aw=false 수치 동일(awaken.test.mjs 회귀 동일성), 초월은 연구소 만렙 이후 추가 단계라 기존 하드 밸런스 수치 변경 없음
-- [ ] W-6 스위트 · CHANGELOG · 병합 · Pages · 스크린샷
+- [x] W-6 스위트 · CHANGELOG · 병합 · Pages · 스크린샷 — node·regress(0 콘솔 오류, diffs 0)·awaken 18·tower 27·hard 34·stages 22·gfx 15·autoskill 29 모두 OK
