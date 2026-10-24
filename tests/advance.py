@@ -53,8 +53,8 @@ EXP = {  # 분기 → (스탯 확인 JS, 기대)
   ('archer', 'wind'): "Math.abs(G.hero.C.rate-2.5)<1e-6", ('archer', 'hawk'): "Math.abs(G.hero.C.range-14.3)<1e-6 && Math.abs(G.hero.C.dmg-24*1.7)<1e-6",
   ('mage', 'flame'): "G.hero.C.aoe===3", ('mage', 'frost'): "Math.abs(G.hero.C.rate-.95*1.1)<1e-6",
   ('warrior', 'paladin'): "G.hero.C.hp===1250 && G.hero.C.armor===.55", ('warrior', 'berserk'): "G.hero.C.armor===.25 && Math.abs(G.hero.C.rate-1.69)<1e-6",
-  ('fighter', 'tiger'): "Math.abs(G.hero.C.dmg-26*.9)<1e-6 && Math.abs(G.hero.C.rate-2.6*1.2)<1e-6 && G.hero.C.hp===760 && G.hero.ft.o.fin===.35 && G.hero.ft.o.jpFull===1.2",
-  ('fighter', 'dragon'): "Math.abs(G.hero.C.dmg-26*1.2)<1e-6 && Math.abs(G.hero.C.rate-2.6*.9)<1e-6 && G.hero.ft.o.jpFull===.8 && G.hero.ft.o.jpFullMul===3 && Math.abs(G.hero.ft.o.jpW-1.56)<1e-6",
+  ('fighter', 'tiger'): "Math.abs(G.hero.C.dmg-26*.9)<1e-6 && Math.abs(G.hero.C.rate-2.08*1.2)<1e-6 && G.hero.C.hp===760 && G.hero.ft.o.fin===.35 && G.hero.ft.o.jpFull===1.2",
+  ('fighter', 'dragon'): "Math.abs(G.hero.C.dmg-26*1.2)<1e-6 && Math.abs(G.hero.C.rate-2.08*.9)<1e-6 && G.hero.ft.o.jpFull===.8 && G.hero.ft.o.jpFullMul===3 && Math.abs(G.hero.ft.o.jpW-1.56)<1e-6",
   ('gunner', 'duel'): "Math.abs(G.hero.C.rate-4.2*1.2)<1e-6", ('gunner', 'thorn'): "Math.abs(G.hero.C.dmg-13*2.5)<1e-6 && Math.abs(G.hero.C.rate-4.2*.45)<1e-6 && Math.abs(G.hero.C.range-8.5*1.4)<1e-6 && G.hero.ch.key==='rose_rifle_meshy'",
 }
 ATK = { 'wind': "G.advN.multi>0", 'hawk': "G.advN.ap>0", 'flame': "G.advN.burn>0 && G.advN.burnTick>0", 'frost': "G.advN.freeze>0",
@@ -64,8 +64,8 @@ SKL = { 'wind': (1.6, "G.advN.skill_storm===1 && G.enemies.some(e=>!e.dead&&e.sl
   'flame': (1.8, "G.advN.skill_meteors===1 && G.enemies.filter(e=>!e.dead&&e.hp<1e6).length>=3"), 'frost': (1.15, "G.advN.glacierFreeze>=3 && G.advN.comet===12 && G.enemies.some(e=>!e.dead&&e.frozen&&e.stunT>1.5)"),
   'paladin': (1.2, "G.advN.sanctHit>0 && G.hero.sanctT>2 && G.enemies.some(e=>!e.dead&&e.slowT>0)"), 'berserk': (.5, "G.hero.spinT>3 && G.hero.spinR>4.3 && G.hero.spinSpd===1.3"),
   'duel': (2.0, "G.hero.roseT>0 && Math.abs(G.hero.roseDur-2.6875*1.4)<1e-3"), 'thorn': (1.4, "G.advN.skill_pierceshot===1 && G.advN.pierceshot===1 && G.advN.snipeN>=2"),
-  'tiger': (1.3, "G.ftN.tf===1 && G.ftN.tfFin===1 && G.ftN.tfHits>=7 && G.ftN.tiger===1 && !G.hero.ft.leap && G.hero.skillCd>5"),
-  'dragon': (1.2, "G.ftN.dw===1 && G.ftN.dwHits>=3 && G.ftN.dwStun>=3 && !G.ftN.tf && G.hero.skillCd>5 && G.enemies.some(e=>!e.dead&&e.stunT>0)") }
+  'tiger': (1.3, "G.ftN.tq===1 && G.ftN.tqImpact===1 && G.ftN.tqHits>=3 && G.ftN.tqWave===1 && G.ftN.tiger===1 && !G.hero.ft.leap && G.hero.skillCd>5"),  # 백호진천권(2026-10-24 패치)
+  'dragon': (1.2, "G.ftN.dw===1 && G.ftN.dwHits>=3 && G.ftN.dwStun>=3 && !G.ftN.tq && G.hero.skillCd>5 && G.enemies.some(e=>!e.dead&&e.stunT>0)") }
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     if ONLY != 'game':
@@ -132,10 +132,10 @@ with sync_playwright() as pw:
             ok(f'{br}_attack', J(pg, f"()=>{ATK[br]}"), J(pg, "()=>G.advN"))
             if br == 'hawk': J(pg, CLEAR); J(pg, LINE, [3, 4])  # 일섬 저격: 일직선 위 적 3명
             if br == 'dragon': J(pg, CLEAR); J(pg, LINE, [4, 3])  # 천룡파: 일직선 위 적 4명 (길이 16 안)
-            if br == 'tiger':  # 백호난무 시전 중 받는 피해 -30% (방어 .25 뒤): 즉시 피격 100 → 52.5
+            if br == 'tiger':  # 백호진천권 시전 중 받는 피해 -30% (방어 .25 뒤): 즉시 피격 100 → 52.5
                 J(pg, "()=>{ G.hero.hp=G.hero.max; G.hero.skillCd=0; G.hero.atkT=0; }"); pg.mouse.move(5, 5); J(pg, AIM); pg.keyboard.press('q'); J(pg, "()=>G.sim(.3)")
-                g = J(pg, "()=>{ const L=G.hero.ft.leap, h0=G.hero.hp; G.heroDamage(100); return [L&&L.kind, h0-G.hero.hp]; }"); ok('tiger_guard', g[0] == 'fury' and abs(g[1] - 52.5) < 1e-6, g)
-                J(pg, "()=>G.sim(1.2)"); J(pg, "()=>{ G.ftN.tf=0; G.ftN.tfFin=0; G.ftN.tfHits=0; G.ftN.tiger=0; }")
+                g = J(pg, "()=>{ const L=G.hero.ft.leap, h0=G.hero.hp; G.heroDamage(100); return [L&&L.kind, h0-G.hero.hp]; }"); ok('tiger_guard', g[0] == 'quake' and abs(g[1] - 52.5) < 1e-6, g)
+                J(pg, "()=>G.sim(1.2)"); J(pg, "()=>{ G.ftN.tq=0; G.ftN.tqImpact=0; G.ftN.tqHits=0; G.ftN.tqWave=0; G.ftN.tiger=0; }")
                 g = J(pg, "()=>{ const h0=G.hero.hp; G.heroDamage(100); return h0-G.hero.hp; }"); ok('tiger_guard_off', abs(g - 75) < 1e-6, g)
             mid, cond = SKL[br]; cast(pg, mid, br not in ('hawk', 'dragon'))
             ok(f'{br}_skill', J(pg, f"()=>{cond}"), J(pg, "()=>[G.advN, G.hero.skillCd, G.projs.map(p=>p.kind), G.mouseGround.toArray(), G.hero.g.position.toArray()]"))

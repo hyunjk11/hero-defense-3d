@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """유료 영웅 진서윤(격투가) 테스트 (가짜 Supabase tests/sbmock.js, 네트워크 없음).  python3 tests/seoyun.py [--shots]
 잠김(마을 카드·상점 상품) → 구매 신청 → (구버전 서버: '서버 업데이트 필요') → 관리자 승인 → 우편 받기 → 해금·선택 → 출정 →
-3연타(주먹·주먹·돌려차기 넉백) → 장풍(약 0.4초 / 완전 1.2초 관통) → [Q] 냥냥 진각(도약·내려찍기·기절) → 던전 출전 고르기(서윤 bruiser AI) →
+3연타(주먹·주먹·돌려차기 · 넉백 없음 · 공속 2.08) → 장풍(약 0.4초 / 완전 1.2초 관통 · 사거리 밖 모든 적) ↔ 근접 전환 → [Q] 냥냥 진각(도약·내려찍기·기절) → 🐯 백호진천권(제자리·피해·충격파·연출 정리) · 🐉 천룡파 유도 → 던전 출전 고르기(서윤 bruiser AI) →
 태블릿 1024x600 터치 ≥44px → 모델 못 받을 때 대체 모델 · 콘솔 오류 0 · NaN/검은 화면 없음.
 스크린샷 shots/seoyun/: select.png, shop.png, combo.png, jangpung.png, slam.png, dungeon_pick.png, dungeon_run.png, tablet_town.png, tablet_run.png, fallback.png"""
 import sys, os, pathlib, io
@@ -118,8 +118,16 @@ with sync_playwright() as pw:
     ok('combo_ratio', (n1['jab'] - n0['jab']) >= 2 * (n1['kick'] - n0['kick']) - 1, n1)
     ok('combo_damage', J(pg, DMG) > d0)
     pos1 = J(pg, "()=>window.__bp.map(e=>[e.g.position.x,e.g.position.z])")
-    ok('kick_knockback', max(((a[0] - b_[0]) ** 2 + (a[1] - b_[1]) ** 2) ** .5 for a, b_ in zip(pos0, pos1)) > .5, (pos0, pos1))
+    ok('kick_no_knockback', max(((a[0] - b_[0]) ** 2 + (a[1] - b_[1]) ** 2) ** .5 for a, b_ in zip(pos0, pos1)) < .2, (pos0, pos1))  # 2026-10-24 패치: 발차기 넉백 제거
+    ok('rate_minus20', abs(J(pg, "()=>G.hero.C.rate") - 2.08) < 1e-6, J(pg, "()=>G.hero.C.rate"))
     ok('no_charge_when_melee', n1['charge'] == n0['charge'], n1)
+    # 2026-10-24 패치: 거리 전환 — 사거리(2.6) 밖 '일반 지상 적' 에게도 장풍 (근접 주먹 X) → 가까워지면 다시 주먹
+    J(pg, CLEAR); J(pg, "()=>{ G.hero.cd=0; G.hero.atkT=0; G.hero.ft.n=0; G.sim(.3); }"); J(pg, PUT, [['grunt', 6, 0]]); n0 = J(pg, FTN)
+    J(pg, "()=>G.sim(1.6)"); n1 = J(pg, FTN)
+    ok('jp_far_ground', n1['charge'] > n0['charge'] and n1['jpFull'] > n0['jpFull'] and n1['jab'] == n0['jab'] and J(pg, DMG) > 0, n1)
+    J(pg, CLEAR); J(pg, "()=>{ G.hero.ft.jp=null; G.sim(.6); }"); J(pg, PUT, [['grunt', 1.8, 0]]); n0 = J(pg, FTN); J(pg, "()=>G.sim(1.2)"); n1 = J(pg, FTN)
+    ok('melee_near_ground', n1['jab'] > n0['jab'] and n1['charge'] == n0['charge'], n1)
+    J(pg, CLEAR); J(pg, "()=>{ G.hero.ft.jp=null; G.sim(.6); }")
     # 장풍 약: 박쥐 1마리(비행) 7 앞 → 충전 0.7초 → 근접 적 등장 → 약 장풍 발사
     J(pg, CLEAR); J(pg, "()=>{ G.hero.cd=0; G.hero.atkT=0; G.hero.ft.n=0; G.sim(.3); }"); J(pg, PUT, [['bat', 7, 0]]); n0 = J(pg, FTN); d0 = J(pg, DMG)
     J(pg, "()=>G.sim(.7)"); ok('charge_started', J(pg, "()=>!!G.hero.ft.jp && G.hero.ft.glow.some(x=>x.g.visible)") and J(pg, FTN)['charge'] == n0['charge'] + 1, J(pg, FTN))
@@ -157,6 +165,44 @@ with sync_playwright() as pw:
     J(pg, CLEAR); J(pg, "()=>G.sim(8)"); ok('respawn', J(pg, "()=>G.hero.dead<=0 && G.hero.hp===G.hero.max"))
     ok('no_nan', J(pg, FIN)); fl = frame(pg, None, 15, .3)
     ok('not_black', min(c1, jp, jw, sl, fl) > 25, (c1, jp, jw, sl, fl))
+    c.close()
+    # ===== 3b) 2026-10-24 패치: 🐯 백호진천권(제자리 땅 내려치기) · 🐉 천룡파(유도) =====
+    c = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); c.add_init_script(MOCK); pg = boot(c)
+    login(pg, 'tq@test.kr'); J(pg, OWN, 'hero_fighter'); town(pg); sstat(pg); pg.wait_for_function(f"()=>{SH}.heroOwned('fighter')", timeout=20000)
+    def depart(br):
+        J(pg, "(br)=>G.gear.Acc.update(d=>{ d.hero='fighter'; d.adv={...(d.adv||{}), fighter:{b:br, n:1}}; return d; })", br)
+        J(pg, "()=>G.stageSel.departStage('1-1')"); pg.wait_for_function("()=>window.G&&G.ready&&G.phase==='build'&&G.hero&&G.hero.cls==='fighter'", timeout=240000); pg.wait_for_timeout(500)
+        J(pg, "()=>{ G.manual=true; G.hero.C={...G.hero.C, armor:1}; }"); J(pg, SPOT); J(pg, "()=>G.sim(.3)")
+    depart('tiger')
+    ok('tq_hud', J(pg, "()=>G.hero.adv && G.hero.adv.k==='tiger' && document.getElementById('skillName').textContent==='백호진천권' && !!G.hero.ch.acts.QuakeS"), J(pg, "()=>[document.getElementById('skillName').textContent, Object.keys(G.hero.ch.acts)]"))
+    # 앞·뒤·옆 지상 적 6 (반경 4.6 안) + 바깥 지상 2 (6.2 · 충격파만) + 박쥐 1
+    J(pg, PUT, [['grunt', 2.5, 0], ['grunt', -2.5, .5], ['imp', 0, 3], ['grunt', 0, -3.2], ['grunt', 3, 2.5], ['imp', -2.8, -2.4], ['grunt', 6.2, 0], ['grunt', -6.2, 1], ['bat', 2, -1]])
+    J(pg, "()=>{ G.hero.cd=0; G.hero.atkT=0; G.hero.skillCd=0; G.ftN.tq=0; G.ftN.tqImpact=0; G.ftN.tqHits=0; G.ftN.tqStop=0; G.ftN.tqWaveHits=0; G.ftN.tiger=0; }")
+    n0 = J(pg, FTN); p0 = J(pg, "()=>G.hero.g.position.toArray()")
+    pg.keyboard.press('q'); J(pg, "()=>G.sim(.2)")
+    L = J(pg, "()=>{ const L=G.hero.ft.leap; return L && [L.kind, G.hero.g.position.y, G.hero.skillCd, G.ftN.tqLive||0, !!L.hit]; }")
+    ok('tq_cast_in_place', L and L[0] == 'quake' and abs(L[1] - p0[1]) < .05 and L[2] > 5 and L[3] > 0 and not L[4], L)
+    J(pg, "()=>G.sim(.25)"); imp = frame(pg, 'tq_impact', 12, .5, .85); n1 = J(pg, FTN)
+    pos = J(pg, "()=>G.hero.g.position.toArray()")
+    ok('tq_no_jump', ((pos[0] - p0[0]) ** 2 + (pos[2] - p0[2]) ** 2) ** .5 < .15 and abs(pos[1] - p0[1]) < .05, (p0, pos))
+    ok('tq_impact', n1.get('tqImpact') == 1 and n1.get('tqStop') == 1 and n1.get('tiger') == 1 and n1.get('tqHits', 0) >= 6, n1)
+    ok('tq_damage_stun', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); const L=window.__bp.slice(0,6); return L.every(e=>e.max-e.hp >= stat.dmg()*5*0.6 && e.stunT>0); }"), J(pg, "()=>window.__bp.map(e=>[Math.round(e.max-e.hp), +(e.stunT||0).toFixed(2)])"))
+    ok('tq_bat_untouched', J(pg, "()=>!(window.__bp[8].stunT>0)"))
+    ok('tq_fx_spawned', J(pg, "()=>(G.ftN.tqLive||0) >= 8"), J(pg, "()=>G.ftN.tqLive"))
+    J(pg, "()=>G.sim(.6)"); aft = frame(pg, 'tq_after', 12, .5, .85)
+    ok('tq_shockwave', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); return G.ftN.tqWave===1 && G.ftN.tqWaveHits>=8 && [6,7].every(i=>window.__bp[i].max-window.__bp[i].hp >= stat.dmg()*2*0.6); }"), J(pg, "()=>[G.ftN.tqWave, G.ftN.tqWaveHits, window.__bp.map(e=>Math.round(e.max-e.hp))]"))
+    ok('tq_cast_ends', J(pg, "()=>!G.hero.ft.leap && G.hero.skillCd>3"))
+    J(pg, "()=>{ G.hero.cd=99; G.sim(3); G.hero.cd=0; }"); ok('tq_fx_cleaned', J(pg, "()=>(G.ftN.tqLive||0)===0"), J(pg, "()=>G.ftN.tqLive"))
+    ok('tq_no_nan', J(pg, FIN)); ok('tq_not_black', min(imp, aft) > 25, (imp, aft))
+    # 🐉 천룡파: 축에서 벗어난 적 3 (직선 폭 밖) → 용이 꺾어 쫓아가 맞힘
+    J(pg, CLEAR); town(pg); depart('dragon')
+    J(pg, PUT, [['grunt', 6, 3.5], ['grunt', 10, -4], ['grunt', 14, 4]])
+    J(pg, "()=>{ const h=G.hero.g.position, f=G.hero.face; G.mouseGround.set(h.x+Math.sin(f)*8, 0, h.z+Math.cos(f)*8); G.hero.cd=0; G.hero.atkT=0; G.hero.skillCd=0; G.ftN.dw=0; G.ftN.dwHits=0; G.ftN.dwTurn=0; G.ftN.dwHome=0; }")
+    pg.mouse.move(5, 5); pg.keyboard.press('q'); J(pg, "()=>G.sim(.55)"); dr = frame(pg, 'dragon_homing', 15, .5, .85)
+    J(pg, "()=>G.sim(1.2)"); n2 = J(pg, FTN)
+    ok('dw_homing', n2.get('dw') == 1 and n2.get('dwTurn', 0) > 0 and n2.get('dwHits', 0) >= 3, n2)
+    ok('dw_offaxis_hit', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); return window.__bp.every(e=>e.max-e.hp >= stat.dmg()*5*0.6); }"), J(pg, "()=>window.__bp.map(e=>Math.round(e.max-e.hp))"))
+    J(pg, "()=>G.sim(2)"); ok('dw_cleaned', J(pg, "()=>(G.ftN.dwLive||0)===0"), J(pg, "()=>G.ftN.dwLive")); ok('dw_not_black', dr > 25 and J(pg, FIN), dr)
     c.close()
     # ===== 4) 던전 원정: 출전 고르기 → 서윤(bruiser) AI =====
     c = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); c.add_init_script(MOCK); pg = boot(c, '?seed=12345&rng=777&flow=1&dgtest=1')
