@@ -70,7 +70,8 @@ const killCount = () => Object.values(G.stats.kills || {}).reduce((a, b) => a + 
 // 층 시작: 쓰러진 영웅 = 체력 30% 로 복귀, 살아남은 영웅 = 15% 회복 (생명의 샘 축복: +50%), 파티를 방 가운데로
 function startFloor(f, heal = 0, ult0 = 0) {
   D.floor = f; D.wave = -1; D.q = []; D.blessing = null; D.nextT = 0; if (G.spire) SPR.ensureFloors(D); const off = [[0, 0], [-2.2, 1.8], [-2.2, -1.8], [-4, 0]];
-  G.heroes.forEach((h, i) => { const down = h.dead > 0; if (f > 0) { h.hp = Math.min(h.max, nextFloorHp(h.hp, h.max, down) + h.max * heal); h.ult = Math.max(h.ult || 0, ult0); }
+  const hk = G.spire ? SPR.healKOf(D.floors[f]) : 1; // 🗼 💔 저주: 층 사이 회복 −50% (쓰러짐 30% 복귀는 그대로)
+  G.heroes.forEach((h, i) => { const down = h.dead > 0; if (f > 0) { h.hp = hk === 1 ? Math.min(h.max, nextFloorHp(h.hp, h.max, down) + h.max * heal) : Math.min(h.max, down ? nextFloorHp(h.hp, h.max, true) + h.max * heal * hk : h.hp + (nextFloorHp(h.hp, h.max, false) - h.hp + h.max * heal) * hk); h.ult = Math.max(h.ult || 0, ult0); }
     if (down && f > 0) { h.dead = 0; h.hb.show(true); h.path = []; play(h.ch, 'Cheer', { once: true }); h.atkT = 1.2; }
     if (f > 0) { h.g.position.set(tileX(CORE[0]) + off[i][0], 0, tileZ(CORE[1]) + off[i][1]); h.path = []; h.aiGoal = null; h.face = -Math.PI / 2; if (down) { emit(PT, h.g.position.x, 1, h.g.position.z, 40, 0x8aff9a, 5, .8); ringFx(h.g.position, 2.5, 0x8aff9a, .6); } } });
   if (G.hero.dead > 0) { const n = G.heroes.find(h => h.dead <= 0); if (n) setControlled(n); }
@@ -91,7 +92,7 @@ export function updDungeon(dt) {
   if (G.spire) SPR.spireTick(F, dt); // 🗼 🌿 재생 어픽스
   // 궁극기 게이지: 전투 중 매초 + 처치마다 (살아있는 영웅 전원) · 재생 축복
   const k = killCount(), nk = Math.max(0, k - D.k0), combat = G.enemies.some(e => !e.dead); D.k0 = k;
-  for (const h of G.heroes) { if (h.dead > 0) continue; const M = G.dgM(h); h.ult = Math.min(ULT_MAX, (h.ult || 0) + ultGain(dt, nk, combat, M.ult)); if (M.regen && h.hp < h.max) h.hp = Math.min(h.max, h.hp + h.max * M.regen * dt); }
+  for (const h of G.heroes) { if (h.dead > 0) continue; const M = G.dgM(h); h.ult = Math.min(ULT_MAX, (h.ult || 0) + ultGain(dt, nk, combat, M.ult)); if (M.regen && h.hp < h.max) h.hp = Math.min(h.max, h.hp + h.max * M.regen * dt * (G.spire ? SPR.healKOf(D.floors[D.floor]) : 1)); }
   D.hudT = (D.hudT || 0) - dt; if (D.hudT <= 0) { D.hudT = .15; refreshBar(); }
 }
 // 층 돌파: 마지막 층이면 완주, 아니면 축복 3택1 → 다음 층
@@ -125,7 +126,7 @@ function joint() { if (D.over || D.blessing || G.paused || !jointReady(G.heroes)
   refreshBar(); return true; }
 G.dgJoint = joint;
 
-function nextWave() { const F = D.floors[D.floor]; G.dgDmg = F.dmgMul || 1; D.wave++; G.wave = D.wave + 1; waveStart(G.waveLog, `${F.floor || D.floor + 1}-${D.wave + 1}`, G.t); D.q = waveList(F, D.wave); D.qe = G.spire ? SPR.eliteQueue(F, D.wave, D.q) : null; D.spawnT = .6; D.gapT = F.gap; Snd.horn(); if (D.wave > 0) banner(`웨이브 ${D.wave + 1} / ${F.waves.length}`, '#ffd27a', 1400); }
+function nextWave() { const F = D.floors[D.floor]; G.dgDmg = F.dmgMul || 1; if (G.spire) G.hpMul = F.hpMul; /* 🗼 소환·보호막이 층 체력 배수를 따름 */ D.wave++; G.wave = D.wave + 1; waveStart(G.waveLog, `${F.floor || D.floor + 1}-${D.wave + 1}`, G.t); D.q = waveList(F, D.wave); D.qe = G.spire ? SPR.eliteQueue(F, D.wave, D.q) : null; D.spawnT = .6; D.gapT = F.gap; Snd.horn(); if (D.wave > 0) banner(`웨이브 ${D.wave + 1} / ${F.waves.length}`, '#ffd27a', 1400); }
 
 // ---------- 역할 AI (조작하지 않는 영웅, hero.js updParty 가 그 영웅 문맥으로 호출) ----------
 const _v = new THREE.Vector3(), pos = o => ({ x: o.g.position.x, z: o.g.position.z });

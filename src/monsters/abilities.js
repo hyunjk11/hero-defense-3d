@@ -85,7 +85,8 @@ function begin(e, k, S) {
   if (k === 'lavapool') { const tws = towersNear(p, S.range, S.n, tw => tw.meltT > 0 || tw.warnT > 0); if (!tws.length) return null;
     for (const tw of tws) { tw.warnT = S.windup; tw.warnC = 0xff6a1a; ringFx(twPos(tw), 1.8, 0xff5a1a, S.windup); } play(e.m, 'Taunt', { speed: 1.1 }); Snd.play('meteorCast', { pos: p, rate: .6, vol: .7 }); return { k, S, t: S.windup, tws }; }
   if (k === 'meteor') { const n = S.n + (e.enraged ? e.E.ab.enrage.extra : 0), pts = towersNear(p, S.range, n, () => false).map(twPos), h = nearestHero(party(), p.x, p.z); // 파티: 가장 가까운 영웅을 노림
-    if (h && h.dead <= 0 && h.g.position.distanceTo(p) <= S.range) pts.push(h.g.position.clone().setY(0)); if (!pts.length) return null;
+    if (S.heroes) { const k = S.heroes + (e.enraged ? e.E.ab.enrage.extra : 0); for (const o of party().filter(o => o.dead <= 0 && o.g.position.distanceTo(p) <= S.range).sort((a, b) => a.g.position.distanceToSquared(p) - b.g.position.distanceToSquared(p)).slice(0, k)) pts.push(o.g.position.clone().setY(0)); } // 🗼 탑 sp_fire: 가까운 영웅 여러 명
+    else if (h && h.dead <= 0 && h.g.position.distanceTo(p) <= S.range) pts.push(h.g.position.clone().setY(0)); if (!pts.length) return null;
     for (const q of pts) meteors.push({ q, t: -S.windup, S, mark: meteorMark(q, S.r), m: null }); play(e.m, 'Taunt', { speed: 1.3 }); Snd.play('meteorCast', { pos: p, rate: .5 });
     txt(p.x, e.E.h + 1, p.z, '☄ 화염 운석!', '#ff8a4a', true); return { k, S, t: Math.min(1, S.windup) }; }
   if (k === 'perch') { if (e.cracked) return null; ringFx(p, 1.8, 0xb0a8c8, S.windup); txt(p.x, e.E.h + .6, p.z, '🗿 석상화', '#d8d0f0'); Snd.play('breakRock', { pos: p, rate: 1.8, vol: .35 }); return { k, S, t: S.windup }; }

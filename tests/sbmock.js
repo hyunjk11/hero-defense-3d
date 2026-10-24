@@ -1,5 +1,5 @@
 // Fake supabase-js createClient for tests/account.py (hero-defense-3d) (no network, no emails). Server state lives in localStorage '__mockdb'
-// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, noAdmin2: 2026-10-22 관리자 확장 SQL 미실행(새 RPC/테이블 없음), oldSchema: 격투가 서윤(hero_fighter) 추가 전 schema.sql (상품·보상 검사에 fighter 없음), confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실, noDungeon: 던전 5단계(2026-10-23) SQL 미실행 — hd3d_dungeon_* 함수 없음 · 보상 medals 거부}). Installed as window.__hd3dSupabaseMock.
+// so it survives reloads; flags in localStorage '__mockflags' ({offline, noTables, noShop, noAdmin2: 2026-10-22 관리자 확장 SQL 미실행(새 RPC/테이블 없음), oldSchema: 격투가 서윤(hero_fighter) 추가 전 schema.sql (상품·보상 검사에 fighter 없음), confirm, loseSave: 저장은 서버에 반영되고 응답만 유실, loseClaim: 우편 받기 성공 후 응답 유실, noDungeon: 던전 5단계(2026-10-23) SQL 미실행 — hd3d_dungeon_* 함수 없음 · 보상 medals 거부, noSpire: 무한의 탑 T-6(2026-10-24) SQL 미실행 — hd3d_spire_* 없음}). Installed as window.__hd3dSupabaseMock.
 // 던전 5단계(hd3d_dungeon_status/start/finish/buy · 하루 3회(KST) · token 1회 · 층당 20초 상한 · 메달 우편)도 흉내 — 판 시작 시각은 __mockdb.dg_runs[token].started (테스트가 앞당길 수 있음).
 // 관리자 확장(supabase/schema.sql 2026-10-22)도 흉내: hd3d_admins(owner)·hd3d_bans·hd3d_notices·hd3d_admin_log·hd3d_broadcasts + 권한 검사(관리자/owner/정지) 그대로.
 (() => {
@@ -208,8 +208,56 @@
         if (it.reward || it.uq) mid = mail(d, me, '🏪 던전 상점 구매품', `${it.name} — 던전 메달 ${it.price}개로 구매했습니다. '받기'를 눌러 수령하세요.`, it.uq ? { items: [{ k: 'uq', u: it.uq }] } : { ...it.reward });
         d.dg_buys.push({ user_id: me, item: a.p_item, price: it.price, mail_id: mid }); return R({ ok: true, item: a.p_item, price: it.price, medals: w.medals, mail: mid, titles: w.titles.slice(), uniques: UQW(w).uniques.slice() }); }
     }
+    // ---------- 🗼 무한의 탑 T-6 (schema.sql 2026-10-24 흉내) — flags.noSpire = 탑 SQL 미실행 (hd3d_spire_* 없음) ----------
+    const SPF = ['hd3d_spire_status', 'hd3d_spire_start', 'hd3d_spire_ping', 'hd3d_spire_finish', 'hd3d_spire_rank'];
+    const SPC = { dailyCap: 30, maxPerRun: 30, minNormal: 25, minBoss: 40, pingMinSec: 125, expireH: 3 }; // = schema hd3d_spire_const() = src/data/spire.js SP_SERVER
+    const kstWeek = () => { const k = new Date(Date.now() + 9 * 3600e3), dow = (k.getUTCDay() + 6) % 7; return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate() - dow)).toISOString().slice(0, 10); };
+    const spMin = (f, t) => t < f ? 0 : SPC.minNormal * (t - f + 1) + (SPC.minBoss - SPC.minNormal) * (Math.floor(t / 5) - Math.floor((f - 1) / 5));
+    const spFirst = n => { if (n < 5 || n % 5 || (n > 100 && n % 10)) return null; return { floor: n, souls: n <= 100 ? 300 + 100 * (n / 5) : 0, medals: n % 10 ? 0 : n <= 100 ? 5 + n / 10 : 10, title: n === 30 ? 'spire_30' : n === 50 ? 'spire_50' : null }; };
+    function sp(fn, a) {
+      if (flags().noSpire) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };
+      const me = uid(); if (!me) return { data: null, error: { code: '42501', message: 'not authenticated' } };
+      const d = db(); d.sp_runs = d.sp_runs || {}; d.sp_best = d.sp_best || {}; d.sp_weeks = d.sp_weeks || {}; d.dg_wallet = d.dg_wallet || {}; d.hd3d_mail = d.hd3d_mail || {};
+      const R = data => { put(d); return { data, error: null }; }, mine = Object.values(d.sp_runs).filter(r => r.user_id === me), B = d.sp_best[me] || { best: 0, at: null, cleared: 0 };
+      const wkey = (u, w) => u + '|' + w, wrank = (u, w) => { const x = d.sp_weeks[wkey(u, w)]; if (!x || !x.best) return null;
+        return 1 + Object.values(d.sp_weeks).filter(o => o.week === w && o.best > 0 && (o.best > x.best || (o.best === x.best && o.at < x.at))).length; };
+      const record = (r, top) => { r.top = Math.max(r.top, top); const b = d.sp_best[me] = d.sp_best[me] || { best: 0, at: null, cleared: 0 }; let nb = false;
+        if (top > b.best) { b.best = top; b.at = Date.now(); nb = true; }
+        if (top >= r.from) { const k = wkey(me, r.week), x = d.sp_weeks[k]; if (!x || x.best < top) d.sp_weeks[k] = { user_id: me, week: r.week, best: top, at: Date.now() }; }
+        const rw = { floors: [], souls: 0, medals: 0, titles: [], mail: null };
+        if (top >= b.cleared + 5) { for (let n = b.cleared + 5; n <= top; n += 5) { const x = spFirst(n); if (x) { rw.floors.push(n); rw.souls += x.souls; rw.medals += x.medals; if (x.title) rw.titles.push(x.title); } }
+          b.cleared = Math.floor(top / 5) * 5;
+          if (rw.souls || rw.medals) rw.mail = mail(d, me, '🗼 무한의 탑 첫 돌파', `무한의 탑 ${rw.floors.join('·')}층을 처음 돌파했습니다! '받기'를 눌러 보상을 받으세요.`, { ...(rw.souls ? { souls: rw.souls } : {}), ...(rw.medals ? { medals: rw.medals } : {}) });
+          if (rw.titles.length) { const W = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; for (const t of rw.titles) if (!W.titles.includes(t)) W.titles.push(t); } }
+        const wb = d.sp_weeks[wkey(me, r.week)]; return { top: r.top, best: b.best, new_best: nb, week_best: wb ? wb.best : 0, reward: rw }; };
+      if (fn === 'hd3d_spire_status') { const used = mine.filter(r => r.day === kstDay()).length, wk = kstWeek(), wb = d.sp_weeks[wkey(me, wk)], cp = [1]; for (let k = 5; k <= B.best; k += 5) cp.push(k + 1);
+        return { data: { ok: true, day: kstDay(), week: wk, limit: SPC.dailyCap, used, left: Math.max(0, SPC.dailyCap - used), best: B.best, best_at: B.at, cleared: B.cleared, checkpoints: cp, week_best: wb ? wb.best : 0, week_rank: wrank(me, wk), banned: banned(), active: mine.some(r => r.status === 'active') }, error: null }; }
+      if (fn === 'hd3d_spire_rank') { if (!['week', 'all'].includes(a.p_kind || 'week')) return { data: { ok: false, reason: 'bad_kind' }, error: null };
+        const kind = a.p_kind || 'week', wk = a.p_week || kstWeek(), prof = d.hd3d_profiles || {};
+        const L = (kind === 'week' ? Object.values(d.sp_weeks).filter(x => x.week === wk).map(x => ({ u: x.user_id, f: x.best, at: x.at })) : Object.entries(d.sp_best).map(([u, x]) => ({ u, f: x.best, at: x.at }))).filter(x => x.f > 0 && !(d.hd3d_bans || {})[x.u]).sort((p, q) => q.f - p.f || p.at - q.at); // 정지 계정 제외
+        const top = L.slice(0, 50).map((x, i) => ({ rank: i + 1, nick: (prof[x.u] && prof[x.u].nickname) || '용사', floor: x.f, at: new Date(x.at).toISOString(), me: x.u === me })), mi = L.findIndex(x => x.u === me);
+        return { data: { ok: true, kind, week: kind === 'week' ? wk : null, top, me: mi < 0 ? null : { rank: mi + 1, floor: L[mi].f } }, error: null }; }
+      if (banned()) return { data: null, error: { code: '42501', message: 'banned', hint: 'banned' } };
+      if (fn === 'hd3d_spire_start') { const f = Math.floor(+a.p_from || 0); if (!(f === 1 || (f > 1 && f % 5 === 1 && f - 1 <= B.best))) return { data: { ok: false, reason: 'bad_from', best: B.best }, error: null };
+        const used = mine.filter(r => r.day === kstDay()).length; if (used >= SPC.dailyCap) return { data: { ok: false, reason: 'daily_limit', limit: SPC.dailyCap, used, left: 0 }, error: null };
+        for (const r of mine) if (r.status === 'active') Object.assign(r, { status: 'abandoned', finished: Date.now() });
+        const token = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ Math.random() * 16 >> c / 4).toString(16));
+        d.sp_runs[token] = { token, user_id: me, day: kstDay(), week: kstWeek(), from: f, top: f - 1, status: 'active', started: Date.now(), pingAt: null, pingFloor: null };
+        return R({ ok: true, token, from: f, best: B.best, limit: SPC.dailyCap, used: used + 1, left: SPC.dailyCap - used - 1 }); }
+      const r = d.sp_runs[a.p_token]; if (!r || r.user_id !== me) return { data: { ok: false, reason: 'bad_token' }, error: null };
+      if (r.status !== 'active') return { data: { ok: false, reason: 'used', status: r.status, top: r.top }, error: null };
+      const sec = (Date.now() - r.started) / 1000; if (sec > SPC.expireH * 3600) { Object.assign(r, { status: 'abandoned' }); return R({ ok: false, reason: 'expired', top: r.top }); }
+      if (fn === 'hd3d_spire_ping') { const fl = Math.floor(+a.p_floor || 0), last = r.pingFloor == null ? r.from - 1 : r.pingFloor;
+        if (fl % 5 || fl <= last || fl > r.from - 1 + SPC.maxPerRun) return { data: { ok: false, reason: 'bad_floor', last }, error: null };
+        if (sec < spMin(r.from, fl) || (Date.now() - (r.pingAt || r.started)) / 1000 < SPC.pingMinSec * ((fl - last) / 5)) return { data: { ok: false, reason: 'too_fast', last }, error: null };
+        r.pingAt = Date.now(); r.pingFloor = fl; return R({ ok: true, floor: fl, ...record(r, fl) }); }
+      if (fn === 'hd3d_spire_finish') { const req = Math.max(Math.floor(+a.p_top || 0), r.from - 1), want = Math.min(req, r.from - 1 + SPC.maxPerRun); let ok = r.from - 1;
+        for (let n = r.from; n <= want && spMin(r.from, n) <= sec; n++) ok = n; const top = Math.max(ok, r.top);
+        Object.assign(r, { status: 'done', finished: Date.now(), capped: top < req, summary: a.p_summary || null }); return R({ ok: true, capped: top < req, from: r.from, ...record(r, top) }); }
+    }
     async function rpc(fn, a) {
       log('rpc:' + fn); if (flags().offline) return { data: null, error: { message: 'TypeError: Failed to fetch' } };
+      if (SPF.includes(fn)) { if (flags().noTables) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } }; return sp(fn, a || {}); }
       if (DGF.includes(fn)) { if (flags().noTables) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } }; return dg(fn, a || {}); }
       const SHOPF = ['hd3d_claim_mail', 'hd3d_admin_approve', 'hd3d_admin_reject', 'hd3d_admin_send_mail', 'hd3d_is_admin', 'hd3d_is_owner'];
       if (flags().noTables || (flags().noShop && (SHOPF.includes(fn) || ADM2F.includes(fn))) || (flags().noAdmin2 && (ADM2F.includes(fn) || fn === 'hd3d_is_owner'))) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };

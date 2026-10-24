@@ -63,7 +63,7 @@ function updEnemies(dt) {
     // 영웅과 근접 전투
     const th = G.heroes.length > 1 ? nearestHero(G.heroes, g.position.x, g.position.z) : hero; // 파티: 가장 가까운 살아있는 영웅 (1명이면 기존 그대로)
     const hd = th && th.dead <= 0 ? Math.hypot(th.g.position.x - g.position.x, th.g.position.z - g.position.z) : 99;
-    if (hd < 1.25 + E.h * .2) { faceTo(g, th.g.position.x, th.g.position.z, dt, 14); play(e.m, E.dig, { speed: 1.2 }); e.atkCd -= dt; if (e.atkCd <= 0) { e.atkCd = .85; heroDamage(E.dps * .85, th); } continue; }
+    if (hd < 1.25 + E.h * .2) { faceTo(g, th.g.position.x, th.g.position.z, dt, 14); play(e.m, E.dig, { speed: 1.2 }); e.atkCd -= dt; if (e.atkCd <= 0) { e.atkCd = .85; heroDamage(E.dps * .85 * (G.spireAtkK ? G.spireAtkK(e) : 1), th); } continue; } /* 🗼 😡 광폭 (탑에서만 G.spireAtkK) */
     if (G.dungeon) { chase(e, dt, spd); continue; } // 던전 원정: 경로 대신 영웅 추적 (타워·코어 없음)
     if (e.ai !== 'basic') { const r = special(e, dt, slowK); if (r === true) continue; }
     if (e.next && enterCost(tileAt(e.next[0], e.next[1])) === Infinity) e.next = null;
