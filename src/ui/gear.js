@@ -15,25 +15,27 @@ import { closeStats } from './stats.js';
 import { UQ_COLOR, UQ_DUP, AWAKE_MAX, CHSET, CH_KEYS, chOdds } from '../data/items.js';
 
 import * as CX from './codex.js';
+import { renderStorage } from './storage.js';
 import { codexClaimable } from './codex.js';
 export { codexClaimable, sampleItem } from './codex.js';
 import { iconKey, weaponIcon, icon, setOf, GCi, clsN, GC, eqOf, sorted, tile, lskHtml, card, bonusHtml } from './itemview.js';
 export { iconKey, weaponIcon, icon, uqSrcText, lskHtml, card, bonusHtml, heroDots } from './itemview.js'; // 기존 import 경로 호환
 import { reveal, revealing, chestCount, openChestUI, lastChestBatch, initChest } from './chest.js';
 export { reveal, revealing, chestCount, openChestUI, lastChestBatch } from './chest.js'; // 기존 import 경로 호환
-let ui = { inv: false, smith: false, invSel: null, invF: 'all', invTab: 'bag', cxTab: 1, smTab: 'enh', smSel: null, awSel: null, dis: new Set(), crSlot: 'weapon', crSet: 0, busy: false, rrSel: null, rrCand: null, xchMsg: '' };
+let ui = { inv: false, smith: false, invSel: null, invF: 'all', invTab: 'bag', cxTab: 1, smTab: 'enh', smSel: null, awSel: null, dis: new Set(), crSlot: 'weapon', crSet: 0, busy: false, rrSel: null, rrCand: null, xchMsg: '', stoF: { slot: 'all', grade: 'all' }, stoSort: 'grade', stoSel: null, stoMsg: '' };
 let hooks = { onChange: () => {}, cheer: () => {} };
 export function initGear(h) { hooks = { ...hooks, ...h }; bind(); }
 const S = () => Acc.load(), hero = () => S().hero;
 // ---------- 가방 ----------
-export function openInv() { closeLab(true); closeStats(); ui.inv = true; IP.show(); Snd.play('ui'); closeSmith(true); renderInv(); }
+export function openInv(tab) { if (tab === 'stor' || tab === 'bag' || tab === 'codex') ui.invTab = tab; closeLab(true); closeStats(); ui.inv = true; IP.show(); Snd.play('ui'); closeSmith(true); renderInv(); }
 export function closeInv() { if (ui.inv) Snd.play('ui'); ui.inv = false; IP.hide(); hideTip(); }
 const IP = definePanel('inv', { id: 'invPanel', z: 41, isOpen: () => ui.inv, close: () => closeInv() });
 function renderInv() {
   if (!ui.inv) return; const s = S(), h = s.hero, eq = s.eq[h] || {};
-  $('invTabs').innerHTML = [['bag', '🎒 가방'], ['codex', '📖 도감']].map(([k, n]) => `<button class="ftab ${ui.invTab === k ? 'on' : ''}" data-v="${k}">${n}${k === 'codex' && codexClaimable(s) ? ' <i class="newDot"></i>' : ''}</button>`).join('');
-  document.querySelectorAll('#invTabs .ftab').forEach(b => b.onclick = () => { ui.invTab = b.dataset.v; Snd.play('ui'); hideTip(); renderInv(); });
-  const cx = ui.invTab === 'codex'; for (const id of ['invTopW', 'invFilt', 'invMidW', 'invMsg']) $(id).classList.toggle('hidden', cx); $('codexBody').classList.toggle('hidden', !cx); if (cx) { $('invHead').innerHTML = `📖 장비 도감 · <span style="color:#ffe08a">${heroLabel(h)}</span>`; renderCodex(s); return; }
+  $('invTabs').innerHTML = [['bag', '🎒 가방'], ['stor', '📦 창고'], ['codex', '📖 도감']].map(([k, n]) => `<button class="ftab ${ui.invTab === k ? 'on' : ''}" data-v="${k}">${n}${k === 'codex' && codexClaimable(s) ? ' <i class="newDot"></i>' : ''}</button>`).join('');
+  document.querySelectorAll('#invTabs .ftab').forEach(b => b.onclick = () => { ui.invTab = b.dataset.v; ui.stoMsg = ''; Snd.play('ui'); hideTip(); renderInv(); });
+  const cx = ui.invTab === 'codex', so = ui.invTab === 'stor'; for (const id of ['invTopW', 'invFilt', 'invMidW', 'invMsg']) $(id).classList.toggle('hidden', cx || so); $('codexBody').classList.toggle('hidden', !cx); $('storBody').classList.toggle('hidden', !so); $('invPanel').classList.toggle('wide', so);
+  if (so) { renderStorage(s, STC); return; } if (cx) { $('invHead').innerHTML = `📖 장비 도감 · <span style="color:#ffe08a">${heroLabel(h)}</span>`; renderCodex(s); return; }
   const list = sorted(s.inv.filter(x => ui.invF === 'all' || x.s === ui.invF), s);
   const sel = s.inv.find(x => x.id === ui.invSel), cur = sel ? s.inv.find(x => x.id === eq[sel.s]) : null;
   $('invHead').innerHTML = `🎒 가방 <b class="${s.inv.length >= E.CAP ? 'full' : ''}">${s.inv.length}/${E.CAP}</b> · <span style="color:#ffe08a">${heroLabel(h)}</span>`;
@@ -172,6 +174,8 @@ initChest({ ui, hooks: () => hooks, S: () => S(), openSmith: () => openSmith(), 
 // ---------- 도감 → ui/codex.js (C-10b) ----------
 const CXC = { ui, hooks: () => hooks, renderInv: () => renderInv(), S: () => S(), tipLater: () => { clearTimeout(tipT); tipT = setTimeout(hideTip, 3200); } };
 function renderCodex(s) { return CX.renderCodex(s, CXC); }
+// ---------- 📦 창고 → ui/storage.js (2026-10-24) ----------
+const STC = { ui, hooks: () => hooks, renderInv: () => renderInv(), showTip: (el, h) => showTip(el, h), hideTip: () => hideTip() };
 export function refreshGear() { renderInv(); renderSmith(); }
 function bind() {
   $('invClose').onclick = () => closeInv(); $('smClose').onclick = () => closeSmith();
