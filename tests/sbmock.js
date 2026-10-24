@@ -109,7 +109,7 @@
     }
     // ---------- 관리자 확장 (schema.sql 2026-10-22 흉내) ----------
     const ADM2F = ['hd3d_my_status', 'hd3d_admin_users', 'hd3d_admin_user', 'hd3d_admin_grant_hero', 'hd3d_admin_revoke_hero', 'hd3d_admin_broadcast_count', 'hd3d_admin_broadcast', 'hd3d_admin_notice_save', 'hd3d_admin_notice_active',
-      'hd3d_admin_ban', 'hd3d_admin_unban', 'hd3d_admin_orders', 'hd3d_admin_refund', 'hd3d_admin_log_list', 'hd3d_owner_admins', 'hd3d_owner_add_admin', 'hd3d_owner_remove_admin'];
+      'hd3d_admin_ban', 'hd3d_admin_unban', 'hd3d_admin_orders', 'hd3d_admin_refund', 'hd3d_admin_log_list', 'hd3d_owner_admins', 'hd3d_owner_add_admin', 'hd3d_owner_remove_admin', 'hd3d_admin_spire', 'hd3d_admin_spire_reset'];
     const STS = ['pending', 'approved', 'rejected', 'refunded'];
     const logA = (d, action, target, detail) => { d.hd3d_admin_log = d.hd3d_admin_log || {}; const id = nid(d); d.hd3d_admin_log[id] = { id, admin_id: uid(), admin_email: sess().user.email, action, target_user: target || null, target_email: target && d.users[target] ? d.users[target].email : null, detail: detail || null, created_at: now() }; };
     const reason = r => { const t = String(r == null ? '' : r).trim(); return t.length >= 1 && t.length <= 200 ? t : null; };
@@ -140,7 +140,21 @@
           return { data: { ok: true, total: f.length, offset: off, limit: lim, rows: f.slice(off, off + lim).map(id => card(d, id)) }, error: null }; }
         case 'hd3d_admin_user': { const c = card(d, a.p_user); if (!c) return NO('no_user'); const by = (o, n) => Object.values(o).filter(x => (x.user_id || x.target_user) === a.p_user).sort((x, y) => (x.created_at < y.created_at ? 1 : -1)).slice(0, n);
           return { data: { ok: true, user: c, orders: by(d.hd3d_orders, 30), mail: by(d.hd3d_mail, 30).map(m => ({ id: m.id, title: m.title, reward: m.reward, claimed: m.claimed, revoked: !!m.revoked, created_at: m.created_at })), log: Object.values(d.hd3d_admin_log).filter(l => l.target_user === a.p_user).sort((x, y) => y.id - x.id).slice(0, 20),
+            ...(flags().noSpire || flags().noSpire9 ? {} : { spire: (() => { const b = (d.sp_best || {})[a.p_user] || { best: 0, cleared: 0 }, rs = Object.values(d.sp_runs || {}).filter(r => r.user_id === a.p_user).sort((x, y) => y.started - x.started), w = (d.sp_weeks || {})[a.p_user + '|' + kstWeek()];
+              return { best: b.best, cleared: b.cleared, week_best: w ? w.best : 0, today: rs.filter(r => r.day === kstDay()).length, runs: rs.length, recent: rs.slice(0, 10).map(r => ({ from: r.from, top: r.top, status: r.status, capped: !!r.capped, sec: Math.round(((r.finished || r.pingAt || Date.now()) - r.started) / 1000), need: spMin(r.from, r.top), at: new Date(r.started).toISOString() })) }; })() }),
             ...(flags().noDungeon ? {} : { dungeon: (() => { const w = (d.dg_wallet || {})[a.p_user] || { medals: 0, earned: 0, spent: 0 }, rs = Object.values(d.dg_runs || {}).filter(r => r.user_id === a.p_user); return { medals: w.medals, earned: w.earned, spent: w.spent, uniques: w.uniques || [], uq_pity: w.uq_pity || 0, today: rs.filter(r => r.day === kstDay()).length, runs: rs.length }; })() }) }, error: null }; }
+        case 'hd3d_admin_spire': case 'hd3d_admin_spire_reset': { if (flags().noSpire || flags().noSpire9) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };
+          d.sp_runs = d.sp_runs || {}; d.sp_best = d.sp_best || {}; d.sp_weeks = d.sp_weeks || {};
+          if (fn === 'hd3d_admin_spire_reset') { const r = reason(a.p_reason); if (!r) return NO('bad_reason'); if (!d.users[a.p_user]) return NO('no_user'); const b = d.sp_best[a.p_user], k = a.p_user + '|' + kstWeek(), prev = b ? b.best : 0, wp = d.sp_weeks[k] ? d.sp_weeks[k].best : 0;
+            if (b) { b.best = 0; b.at = null; } delete d.sp_weeks[k]; for (const x of Object.values(d.sp_runs)) if (x.user_id === a.p_user && x.status === 'active') Object.assign(x, { status: 'abandoned', finished: Date.now() });
+            L('spire_reset', a.p_user, { reason: r, best: prev, week_best: wp }); return R({ ok: true, prev, week_prev: wp }); }
+          const days = Math.min(60, Math.max(1, Math.floor(+a.p_days || 7))), lim = Math.min(200, Math.max(1, Math.floor(+a.p_limit || 50))), since = Date.now() - days * 864e5, runs = Object.values(d.sp_runs).filter(x => x.started > since && x.top >= x.from);
+          const gain = {}; for (const x of runs) gain[x.user_id + '|' + x.day] = (gain[x.user_id + '|' + x.day] || 0) + (x.top - x.from + 1);
+          const rows = runs.map(x => { const sec = Math.round(((x.finished || x.pingAt || Date.now()) - x.started) / 1000), need = spMin(x.from, x.top), dg = gain[x.user_id + '|' + x.day];
+            return { id: x.token, user_id: x.user_id, nick: (d.hd3d_profiles[x.user_id] || {}).nickname || '용사', email: (d.users[x.user_id] || {}).email || null, from: x.from, top: x.top, status: x.status, sec, need, day_gain: dg,
+              flags: [sec < need * 1.25 ? 'fast' : null, x.capped ? 'capped' : null, dg > 50 ? 'day50' : null].filter(Boolean), best: (d.sp_best[x.user_id] || {}).best || 0, banned: !!d.hd3d_bans[x.user_id], at: new Date(x.finished || x.started).toISOString(), summary: x.summary || null, _t: x.finished || x.started }; })
+            .filter(x => x.flags.length).sort((p, q) => q._t - p._t).slice(0, lim).map(({ _t, ...x }) => x);
+          return { data: { ok: true, days, rows }, error: null }; }
         case 'hd3d_admin_grant_hero': case 'hd3d_admin_revoke_hero': { if (!ITEMOK(a.p_item)) return NO('bad_item'); const r = reason(a.p_reason); if (!r) return NO('bad_reason'); const k = a.p_user + ':' + a.p_item;
           if (fn === 'hd3d_admin_grant_hero') { if (!d.users[a.p_user]) return NO('no_user'); if (d.hd3d_owned[k]) return NO('already'); d.hd3d_owned[k] = { user_id: a.p_user, item: a.p_item, source_mail: null, created_at: now() }; L('hero_grant', a.p_user, { item: a.p_item, reason: r }); return R({ ok: true }); }
           if (!d.hd3d_owned[k]) return NO('not_owned'); delete d.hd3d_owned[k]; let n = 0; for (const m of Object.values(d.hd3d_mail)) if (m.user_id === a.p_user && !m.claimed && !m.revoked && m.reward && 'hero_' + m.reward.hero === a.p_item) { m.revoked = true; n++; }
@@ -209,9 +223,11 @@
         d.dg_buys.push({ user_id: me, item: a.p_item, price: it.price, mail_id: mid }); return R({ ok: true, item: a.p_item, price: it.price, medals: w.medals, mail: mid, titles: w.titles.slice(), uniques: UQW(w).uniques.slice() }); }
     }
     // ---------- 🗼 무한의 탑 T-6 (schema.sql 2026-10-24 흉내) — flags.noSpire = 탑 SQL 미실행 (hd3d_spire_* 없음) ----------
-    const SPF = ['hd3d_spire_status', 'hd3d_spire_start', 'hd3d_spire_ping', 'hd3d_spire_finish', 'hd3d_spire_rank'];
+    const SPF = ['hd3d_spire_status', 'hd3d_spire_start', 'hd3d_spire_ping', 'hd3d_spire_finish', 'hd3d_spire_rank', 'hd3d_spire_claim_week']; // claim_week = T-9 (flags.noSpire9 = T-9 미실행)
     const SPC = { dailyCap: 30, maxPerRun: 30, minNormal: 25, minBoss: 40, pingMinSec: 125, expireH: 3 }; // = schema hd3d_spire_const() = src/data/spire.js SP_SERVER
     const kstWeek = () => { const k = new Date(Date.now() + 9 * 3600e3), dow = (k.getUTCDay() + 6) % 7; return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate() - dow)).toISOString().slice(0, 10); };
+    const lastWk = () => { const k = new Date(kstWeek() + 'T00:00:00Z'); k.setUTCDate(k.getUTCDate() - 7); return k.toISOString().slice(0, 10); };
+    const wrw = W => ({ souls: Math.min(1500, W * 30), medals: Math.min(25, Math.floor(W / 5) * 2) }), wtitle = r => (r === 1 ? 'spire_w1' : r >= 2 && r <= 10 ? 'spire_w10' : null); // = schema hd3d_spire_week_reward/title
     const spMin = (f, t) => t < f ? 0 : SPC.minNormal * (t - f + 1) + (SPC.minBoss - SPC.minNormal) * (Math.floor(t / 5) - Math.floor((f - 1) / 5));
     const spFirst = n => { if (n < 5 || n % 5 || (n > 100 && n % 10)) return null; return { floor: n, souls: n <= 100 ? 300 + 100 * (n / 5) : 0, medals: n % 10 ? 0 : n <= 100 ? 5 + n / 10 : 10, title: n === 30 ? 'spire_30' : n === 50 ? 'spire_50' : null }; };
     function sp(fn, a) {
@@ -231,13 +247,23 @@
           if (rw.titles.length) { const W = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; for (const t of rw.titles) if (!W.titles.includes(t)) W.titles.push(t); } }
         const wb = d.sp_weeks[wkey(me, r.week)]; return { top: r.top, best: b.best, new_best: nb, week_best: wb ? wb.best : 0, reward: rw }; };
       if (fn === 'hd3d_spire_status') { const used = mine.filter(r => r.day === kstDay()).length, wk = kstWeek(), wb = d.sp_weeks[wkey(me, wk)], cp = [1]; for (let k = 5; k <= B.best; k += 5) cp.push(k + 1);
-        return { data: { ok: true, day: kstDay(), week: wk, limit: SPC.dailyCap, used, left: Math.max(0, SPC.dailyCap - used), best: B.best, best_at: B.at, cleared: B.cleared, checkpoints: cp, week_best: wb ? wb.best : 0, week_rank: wrank(me, wk), banned: banned(), active: mine.some(r => r.status === 'active') }, error: null }; }
+        return { data: { ok: true, day: kstDay(), week: wk, limit: SPC.dailyCap, used, left: Math.max(0, SPC.dailyCap - used), best: B.best, best_at: B.at, cleared: B.cleared, checkpoints: cp, week_best: wb ? wb.best : 0, week_rank: wrank(me, wk), banned: banned(), active: mine.some(r => r.status === 'active'),
+          ...(flags().noSpire9 ? {} : { unclaimed: Object.values(d.sp_weeks).filter(x => x.user_id === me && x.week < wk && !x.claimed && x.best > 0).sort((p, q) => (p.week < q.week ? 1 : -1)).slice(0, 8).map(x => { const rk = wrank(me, x.week); return { week: x.week, best: x.best, rank: rk, title: x.week === lastWk() ? wtitle(rk) : null, ...wrw(x.best) }; }),
+            titles: ((d.dg_wallet[me] || {}).titles || []).filter(t => /^spire_/.test(t)).sort() }) }, error: null }; }
       if (fn === 'hd3d_spire_rank') { if (!['week', 'all'].includes(a.p_kind || 'week')) return { data: { ok: false, reason: 'bad_kind' }, error: null };
         const kind = a.p_kind || 'week', wk = a.p_week || kstWeek(), prof = d.hd3d_profiles || {};
         const L = (kind === 'week' ? Object.values(d.sp_weeks).filter(x => x.week === wk).map(x => ({ u: x.user_id, f: x.best, at: x.at })) : Object.entries(d.sp_best).map(([u, x]) => ({ u, f: x.best, at: x.at }))).filter(x => x.f > 0 && !(d.hd3d_bans || {})[x.u]).sort((p, q) => q.f - p.f || p.at - q.at); // 정지 계정 제외
         const top = L.slice(0, 50).map((x, i) => ({ rank: i + 1, nick: (prof[x.u] && prof[x.u].nickname) || '용사', floor: x.f, at: new Date(x.at).toISOString(), me: x.u === me })), mi = L.findIndex(x => x.u === me);
         return { data: { ok: true, kind, week: kind === 'week' ? wk : null, top, me: mi < 0 ? null : { rank: mi + 1, floor: L[mi].f } }, error: null }; }
       if (banned()) return { data: null, error: { code: '42501', message: 'banned', hint: 'banned' } };
+      if (fn === 'hd3d_spire_claim_week') { if (flags().noSpire9) return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}` } };
+        const wk = a.p_week || lastWk(); if (new Date(wk + 'T00:00:00Z').getUTCDay() !== 1) return { data: { ok: false, reason: 'bad_week' }, error: null };
+        if (wk >= kstWeek()) return { data: { ok: false, reason: 'not_ended', week: wk }, error: null };
+        const x = d.sp_weeks[wkey(me, wk)]; if (!x || !(x.best > 0)) return { data: { ok: false, reason: 'no_record', week: wk }, error: null }; if (x.claimed) return { data: { ok: false, reason: 'claimed', week: wk }, error: null };
+        const rk = wrank(me, wk), rw = wrw(x.best), last = wk === lastWk(), title = last ? wtitle(rk) : null; x.claimed = true;
+        const mid = rw.souls || rw.medals ? mail(d, me, '🗼 무한의 탑 주간 보상', `${wk} 주 최고 ${x.best}층 (주간 ${rk || '-'}위) 보상입니다. '받기'를 눌러 받으세요.`, { ...(rw.souls ? { souls: rw.souls } : {}), ...(rw.medals ? { medals: rw.medals } : {}) }) : null;
+        if (last) { const W = d.dg_wallet[me] = d.dg_wallet[me] || { medals: 0, earned: 0, spent: 0, titles: [] }; W.titles = [...new Set([...(W.titles || []).filter(t => t !== 'spire_w1' && t !== 'spire_w10'), ...(title ? [title] : [])])].sort(); }
+        return R({ ok: true, week: wk, best: x.best, rank: rk, souls: rw.souls, medals: rw.medals, title, mail: mid }); }
       if (fn === 'hd3d_spire_start') { const f = Math.floor(+a.p_from || 0); if (!(f === 1 || (f > 1 && f % 5 === 1 && f - 1 <= B.best))) return { data: { ok: false, reason: 'bad_from', best: B.best }, error: null };
         const used = mine.filter(r => r.day === kstDay()).length; if (used >= SPC.dailyCap) return { data: { ok: false, reason: 'daily_limit', limit: SPC.dailyCap, used, left: 0 }, error: null };
         for (const r of mine) if (r.status === 'active') Object.assign(r, { status: 'abandoned', finished: Date.now() });

@@ -28,6 +28,8 @@ export const orders = (status, q, off = 0, lim = 20) => call('hd3d_admin_orders'
 export const refund = (id, reason) => call('hd3d_admin_refund', { p_order_id: id, p_reason: reason });
 export const logs = (action, off = 0, lim = 30) => call('hd3d_admin_log_list', { p_action: action || null, p_offset: off, p_limit: lim });
 export const admins = () => call('hd3d_owner_admins');
+export const spireSuspects = (days = 7, lim = 50) => call('hd3d_admin_spire', { p_days: days, p_limit: lim }); // 🗼 무한의 탑 T-9
+export const spireReset = (id, reason) => call('hd3d_admin_spire_reset', { p_user: id, p_reason: reason });
 export const addAdmin = email => call('hd3d_owner_add_admin', { p_email: email });
 export const removeAdmin = email => call('hd3d_owner_remove_admin', { p_email: email });
 // 공지 목록 (테이블 RLS: 사용자 = 게시 중인 것만, 관리자 = 전체). 반환 { ok, list, missing }

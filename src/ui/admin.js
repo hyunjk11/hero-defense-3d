@@ -14,6 +14,7 @@ import * as RI from '../account/rewarditems.js';
 import { GRADES, SLOTS, SLOT_KEYS } from '../account/equip.js';
 import { CHSET, CH_KEYS, UQ } from '../data/items.js';
 import { SHOP } from '../config/shop.js';
+import { SP_OPEN } from '../data/spire.js';
 
 const fmtD = s => { const d = new Date(s); return !s || isNaN(d) ? '—' : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const ST_N = { pending: '승인 대기', approved: '승인됨', rejected: '거절됨', refunded: '환불됨' };
@@ -23,7 +24,7 @@ const heroName = h => (CLASSES[h] ? heroLabel(h) : h), advName = (h, b) => { con
 const rwText = rw => Sh.rewardText(rw);
 let isOpen = false, hooks = { closeOthers: () => {}, onChange: () => {} }, fresh = false;
 const st = { tab: 'orders', msg: null, ord: { status: '', q: '', off: 0, lim: 20, data: null, legacy: false }, usr: { q: '', off: 0, lim: 20, data: null, sel: null, detail: null },
-  ntc: { list: null, edit: null }, log: { action: '', off: 0, lim: 30, data: null }, adm: { list: null }, busy: false, rw: { ud: [], am: [], bc: [] } };
+  ntc: { list: null, edit: null }, log: { action: '', off: 0, lim: 30, data: null }, adm: { list: null }, spr: { days: 7, data: null, err: null }, busy: false, rw: { ud: [], am: [], bc: [] } };
 const adminOpen = () => isOpen;
 const paintMsg = () => { const m = $('admMsg'), x = st.msg; if (m) m.innerHTML = x ? `<span class="${x.ok ? 'ok' : 'bad'}">${x.ok ? '✅' : '⚠'} ${esc(x.t)}</span>` : ''; };
 const msg = (t, ok = false) => { st.msg = t ? { t, ok } : null; paintMsg(); };
@@ -35,9 +36,9 @@ export function closeAdmin(silent) {
   if (isOpen && !silent) Snd.play('ui'); isOpen = false; AP.hide(); $('admConfirm').classList.add('hidden');
 }
 const AP = definePanel('admin', { id: 'adminPanel', z: 50, isOpen: adminOpen, close: s => closeAdmin(s) });
-function setTab(t) { if (t === 'admins' && !Sh.isOwnerUI()) t = 'orders'; st.tab = t; msg(''); fresh = true; renderAdmin(); load(t); }
+function setTab(t) { if ((t === 'admins' && !Sh.isOwnerUI()) || (t === 'spire' && !SP_OPEN)) t = 'orders'; st.tab = t; msg(''); fresh = true; renderAdmin(); load(t); }
 async function load(t) {
-  if (t === 'orders') return loadOrders(); if (t === 'users') return st.usr.sel ? loadUser(st.usr.sel) : loadUsers(); if (t === 'notice') return loadNotices(); if (t === 'log') return loadLog(); if (t === 'admins') return loadAdmins();
+  if (t === 'orders') return loadOrders(); if (t === 'users') return st.usr.sel ? loadUser(st.usr.sel) : loadUsers(); if (t === 'notice') return loadNotices(); if (t === 'log') return loadLog(); if (t === 'admins') return loadAdmins(); if (t === 'spire') return loadSpire();
 }
 const need = r => { if (!r.ok) msg(r.msg); return r.ok; };
 
@@ -89,9 +90,9 @@ const badge = (t, c) => `<em class="aBadge ${c}">${t}</em>`;
 
 export function renderAdmin() {
   if (!isOpen) return;
-  const own = Sh.isOwnerUI(); document.querySelectorAll('#admTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === st.tab); if (b.dataset.t === 'admins') b.classList.toggle('hidden', !own); });
-  if (st.tab === 'admins' && !own) st.tab = 'orders';
-  setBody(({ orders: hOrders, users: hUsers, mail: hMail, broadcast: hBroadcast, notice: hNotice, log: hLog, admins: hAdmins })[st.tab]());
+  const own = Sh.isOwnerUI(); document.querySelectorAll('#admTabs .ftab').forEach(b => { b.classList.toggle('on', b.dataset.t === st.tab); if (b.dataset.t === 'admins') b.classList.toggle('hidden', !own); if (b.dataset.t === 'spire') b.classList.toggle('hidden', !SP_OPEN); });
+  if ((st.tab === 'admins' && !own) || (st.tab === 'spire' && !SP_OPEN)) st.tab = 'orders';
+  setBody(({ orders: hOrders, users: hUsers, mail: hMail, broadcast: hBroadcast, notice: hNotice, log: hLog, admins: hAdmins, spire: hSpire })[st.tab]());
   paintMsg();
 }
 
@@ -149,6 +150,7 @@ function hUser() {
     <div class="udCard"><div class="udH">진행 요약</div>${parts.map(p => `<div class="udLine">${esc(p)}</div>`).join('')}</div>
     <div class="udCard"><div class="udH">유료 영웅 (서버 소유권)</div>${heroes}</div>
     <div class="udCard"><div class="udH">던전 (서버)</div>${D.dungeon ? `<div class="udKv" id="udDungeon"><span>던전 메달</span><b>🏅 ${+D.dungeon.medals || 0}</b><span>모은/쓴 메달</span><b>${+D.dungeon.earned || 0} / ${+D.dungeon.spent || 0}</b><span>오늘 입장</span><b>${+D.dungeon.today || 0} / 3</b><span>전체 원정</span><b>${+D.dungeon.runs || 0}</b></div>` : `<div class="hintS">${esc(L.UPDATE_MSG)} (던전 메달)</div>`}</div>
+${SP_OPEN ? spireCard(D) : ''}
     <div class="udCard"><div class="udH">계정 상태</div><div class="udBanRow">${banBox}</div></div>
   </div><div class="udCol">
     <div class="udCard admForm"><div class="udH">이 사용자에게 우편 보내기</div><label>제목<input id="udTitle" maxlength="60" value="운영자의 선물"></label><label>내용<textarea id="udBody" maxlength="1000" rows="2">모험에 도움이 되길 바랍니다!</textarea></label>${rwForm('ud')}<button class="gbtn main" data-act="umail">✉ 우편 보내기</button></div>
@@ -198,6 +200,26 @@ function hAdmins() {
     <div class="hintS">하위 관리자는 관리자 관리(이 탭)를 뺀 모든 관리자 기능을 쓸 수 있어요. 최고 관리자는 삭제할 수 없어요.</div>` +
     (!list ? '<div class="emptyMsg">불러오는 중…</div>' : `<div class="admTable">${list.map(a => `<div class="admRow admAdm"><div class="aWho"><b>${esc(a.nickname || '—')} ${a.owner ? badge('최고 관리자', 'own') : badge('관리자', 'adm')}</b><small>${esc(a.email || '')}</small></div><div class="aDate"><small>추가 ${fmtD(a.created_at)}</small></div><div class="aAct">${a.owner ? '' : `<button class="gbtn sm danger" data-act="aremove" data-email="${esc(a.email)}">삭제</button>`}</div></div>`).join('')}</div>`);
 }
+
+// ---------- 🗼 무한의 탑 이상 기록 (T-9) — 서버가 시간 하한은 강제하지만 전투 자체는 검증 못 함 → 하한 근처 · 층 깎임 · 하루 +50층을 표시 ----------
+const SP_FLAG = { fast: ['⚡ 하한 근처', 'ban'], capped: ['✂ 층 깎임', 'own'], day50: ['📈 하루 +50층', 'own'] };
+const spFlags = f => (f || []).map(k => badge((SP_FLAG[k] || [k])[0], (SP_FLAG[k] || [0, ''])[1])).join(' ');
+const spSec = (s, n) => `${Math.round(+s || 0)}초 / 최소 ${Math.round(+n || 0)}초${n ? ` (×${((+s || 0) / n).toFixed(2)})` : ''}`;
+async function loadSpire() { const r = await Adm.spireSuspects(st.spr.days, 50); st.spr.data = r.ok ? r.data : null; st.spr.err = r.ok ? null : r.msg; renderAdmin(); }
+function hSpire() { const S = st.spr, rows = (S.data && S.data.rows) || [];
+  const list = S.err ? `<div class="hintS">${esc(S.err)}</div>` : !S.data ? '<div class="hintS">불러오는 중…</div>' : rows.length ? rows.map(x => { const sm = x.summary && typeof x.summary === 'object' ? x.summary : null;
+    return `<div class="spAdmRow"><div class="spAdmU"><b>${esc(x.nick || '용사')}</b> <small>${esc(x.email || '')}</small>${x.banned ? ' ' + badge('정지됨', 'ban') : ''}</div>
+      <div class="spAdmR">${+x.from}층 → <b>${+x.top}층</b> · ${spSec(x.sec, x.need)} · 그날 +${+x.day_gain || 0}층 · 최고 ${+x.best || 0}층 · <small>${fmtD(x.at)}</small></div>
+      <div class="spAdmF">${spFlags(x.flags)}${sm && Array.isArray(sm.party) ? ` <small>파티 ${esc(sm.party.map(h => heroName(h)).join('·'))}</small>` : ''}</div>
+      <button class="gbtn sm" data-act="spopen" data-id="${esc(x.user_id)}">유저 보기</button></div>`; }).join('') : '<div class="hintS">이상 기록 없음 👍</div>';
+  return `<div class="admBar"><b>🗼 무한의 탑 이상 기록</b><select id="spaDays" data-change="spdays" aria-label="기간">${[1, 7, 30].map(d => `<option value="${d}" ${d === S.days ? 'selected' : ''}>최근 ${d}일</option>`).join('')}</select><button class="gbtn sm" data-act="spreload">새로고침</button></div>
+    <div class="hintS">⚡ 경과 시간이 서버 최소 시간의 1.25배 미만 · ✂ 서버가 층 수를 깎음(너무 빠름) · 📈 하루에 50층 넘게 오름 — 전투는 기기에서 계산되므로 <b>의심 표시일 뿐</b>이에요. 유저 상세에서 기록 초기화/정지</div>
+    <div class="spAdmList" id="spAdmList">${list}</div>`; }
+function spireCard(D) { const P = D.spire;
+  if (!P) return `<div class="udCard"><div class="udH">🗼 무한의 탑 (서버)</div><div class="hintS">${esc(L.UPDATE_MSG)} (무한의 탑)</div></div>`;
+  const rec = (P.recent || []).map(r => `<li>${+r.from}→<b>${+r.top}층</b> · ${spSec(r.sec, r.need)} · ${r.status === 'done' ? '완료' : r.status === 'active' ? '진행 중' : '포기'}${r.capped ? ' · ' + badge('✂ 층 깎임', 'own') : ''} · <small>${fmtD(r.at)}</small></li>`).join('') || '<li class="hintS">없음</li>';
+  return `<div class="udCard"><div class="udH">🗼 무한의 탑 (서버)</div><div class="udKv" id="udSpire"><span>최고 층</span><b>${+P.best || 0}층</b><span>첫 돌파 보상</span><b>${+P.cleared || 0}층까지</b><span>이번 주</span><b>${+P.week_best || 0}층</b><span>오늘 / 전체 도전</span><b>${+P.today || 0} / ${+P.runs || 0}</b></div>
+    <ul class="udList spAdmRec">${rec}</ul><button class="gbtn sm danger" data-act="spreset">🗼 탑 기록 초기화</button></div>`; }
 
 // ---------- 동작 ----------
 const ACT = {
@@ -253,6 +275,12 @@ const ACT = {
   ntcancel: () => { st.ntc.edit = null; fresh = true; Snd.play('ui'); renderAdmin(); },
   ntoff: async b => { const r = await Adm.noticeActive(+b.dataset.id, false); msg(r.ok ? '공지를 내렸어요.' : r.msg, r.ok); Snd.play(r.ok ? 'ui' : 'error'); loadNotices(); },
   nton: async b => { const r = await Adm.noticeActive(+b.dataset.id, true); msg(r.ok ? '공지를 게시했어요.' : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); loadNotices(); },
+  spreload: () => { Snd.play('ui'); loadSpire(); },
+  spdays: t => { st.spr.days = +t.value || 7; st.spr.data = null; renderAdmin(); loadSpire(); },
+  spopen: b => { Snd.play('select'); st.usr.detail = null; st.usr.sel = b.dataset.id; fresh = true; setTab('users'); },
+  spreset: async () => { const c = st.usr.detail.user, P = st.usr.detail.spire || {};
+    const ok = await confirmBox({ title: '🗼 탑 기록 초기화', html: `<b>${esc(c.nickname || '')}</b> (${esc(c.email || '')}) 의 무한의 탑 <b>최고 기록(${+P.best || 0}층)과 이번 주 기록</b>을 0으로 되돌리고 진행 중 도전을 끝냅니다.<br>첫 돌파 보상 기준(${+P.cleared || 0}층)은 그대로라 <b>보상을 다시 받을 수 없어요</b>. 이미 보낸 우편은 그대로입니다.`, reason: true, yes: '초기화' });
+    if (!ok) return; const r = await Adm.spireReset(c.id, ok.reason); msg(r.ok ? `탑 기록을 초기화했어요 (이전 최고 ${r.data.prev}층).` : r.msg, r.ok); Snd.play(r.ok ? 'confirm' : 'error'); loadUser(c.id); },
   lfilter: () => { st.log.action = $('alAct').value; st.log.off = 0; loadLog(); },
   lreload: () => { Snd.play('ui'); loadLog(); },
   lpage: b => { st.log.off = +b.dataset.off || 0; loadLog(); },
