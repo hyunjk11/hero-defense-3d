@@ -3,6 +3,7 @@ import { $, esc } from '../core/util.js';
 import { askConfirm } from './confirm.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
+import { floorLabel } from '../data/spire.js';
 import { BLESS_BY, ULT_MAX, jointReady } from '../data/dungeon.js';
 // 원정 상태 D = G.dg (dungeon/run.js 가 만듦 — 이 모듈이 먼저 평가되므로 함수 안에서 읽음)
 export function refreshTop() { const D = G.dg; const b = $('dgBl'); if (b) b.innerHTML = Object.entries(D.bless).map(([id, n]) => `<i title="${esc(BLESS_BY[id].n)}">${BLESS_BY[id].icon}${n > 1 ? `<sub>${n}</sub>` : ''}</i>`).join(''); }
@@ -18,7 +19,7 @@ export function buildHud({ pick, joint, giveUp }) { const D = G.dg;
   if (!$('dgFlash')) { const f = document.createElement('div'); f.id = 'dgFlash'; $('stageClear').parentNode.appendChild(f); }
   refreshBar(); refreshTop();
 }
-export function refreshBar() { const D = G.dg; const L = D.floors, F = L[D.floor], fl = $('dgFloor'); if (fl) fl.textContent = `${F.n} (${D.floor + 1}/${L.length}) · 웨이브 ${Math.max(1, D.wave + 1)}/${F.waves.length}`;
+export function refreshBar() { const D = G.dg; const L = D.floors, F = L[D.floor], fl = $('dgFloor'); if (!F) return; if (G.spire) { if (fl) fl.textContent = floorLabel(F, D.wave) + (D.nextT > 0 ? ' · ✔ 돌파!' : ''); } else if (fl) fl.textContent = `${F.n} (${D.floor + 1}/${L.length}) · 웨이브 ${Math.max(1, D.wave + 1)}/${F.waves.length}`;
   const jb = $('dgJoint'); if (jb) { const L = G.heroes.filter(h => h.dead <= 0), m = L.length ? Math.min(...L.map(h => h.ult || 0)) : 0, rd = jointReady(G.heroes) && !D.blessing; jb.classList.toggle('ready', rd); jb.disabled = !rd;
     jb.style.setProperty('--p', Math.round(m) + '%'); const jp = $('dgJp'); if (jp) jp.textContent = rd ? 'Space' : Math.floor(m) + '%'; }
   document.querySelectorAll('#dgBar .dgP').forEach(b => { const h = G.heroes[+b.dataset.i]; if (!h) return; b.classList.toggle('ctl', h === G.hero); b.classList.toggle('down', h.dead > 0);
