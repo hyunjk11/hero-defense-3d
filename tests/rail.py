@@ -23,7 +23,7 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
     for vw, vh, touch in ((1024, 600, True), (1440, 860, False)):
         tag = f'{vw}x{vh}'; c, pg = town(b, vw, vh, touch)
-        ok(f'{tag} rail_visible', vis(pg, 'twRail') and pg.locator('#twRail .railBtn:not(.hidden)').count() == 7)
+        ok(f'{tag} rail_visible', vis(pg, 'twRail') and pg.locator('#twRail .railBtn:not(.hidden)').count() == 8)
         # U-9b: .twLeft = 영웅 목록만 — 가방·능력치·상자는 레일 (id 그대로)
         ok(f'{tag} u9b_left_heroes_only', J(pg, "()=>!document.querySelector('.twLeft #twBag,.twLeft #twStats,.twLeft #twChest') && !!document.querySelector('#twRail #twBag') && !!document.querySelector('#twRail #twStats') && !!document.querySelector('#twRail #twChest') && !!document.querySelector('.twLeft #twHeroes')"))
         r = J(pg, """()=>{ const R=e=>e.getBoundingClientRect(), rail=R(document.getElementById('twRail')), hit=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;

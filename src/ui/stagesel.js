@@ -78,7 +78,7 @@ function dropHtml(D) {
 let tipT = 0;
 function bindTips(root, s) {
   const html = b => { if (b.dataset.tip === 'set') { const it = sampleItem(+b.dataset.ch, b.dataset.sl === 'weapon' ? b.dataset.h : b.dataset.sl, +b.dataset.g); return `<div class="cxUnseen">견본 · 이 스테이지 최고 등급 ${GRADES[+b.dataset.g].n}</div>${card(it)}`; }
-    const k = b.dataset.k || b.dataset.uq; const it = s.inv.find(x => x.uq === k) || E.makeUnique(k); return card(it); };
+    const k = b.dataset.k || b.dataset.uq; const it = E.allItems(s).find(x => x.uq === k) || E.makeUnique(k); return card(it); };
   root.querySelectorAll('.drc, .dru, .msC').forEach(b => { b.onpointerenter = e => { if (e.pointerType === 'mouse') showTip(b, html(b)); }; b.onpointerleave = e => { if (e.pointerType === 'mouse') hideTip(); };
     b.onclick = e => { e.stopPropagation(); showTip(b, html(b)); clearTimeout(tipT); tipT = setTimeout(hideTip, 3200); Snd.play('select'); }; });
 }

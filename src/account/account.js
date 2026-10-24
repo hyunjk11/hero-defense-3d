@@ -5,11 +5,14 @@
 // 탭 숨김/페이지 닫힘(S-4): visibilitychange(hidden)·pagehide 에서 즉시 저장, 이때 요청은 fetch keepalive 로 보냄
 import { SUPABASE } from '../config/supabase.js';
 import * as P from './progress.js';
+import * as ST from './storage.js';
 import { ls } from '../core/store.js';
 import { isHidden } from '../data/heroes.js';
 
 const T = SUPABASE.tables, AUTH_KEY = 'hd3dSbAuth', K_SAVE = 'hd3d_save', K_GUEST = 'hd3d_guest', K_UID = 'hd3d_uid', K_DIRTY = 'hd3d_dirty', K_MODE = 'hd3d_mode';
 const mergedKey = uid => 'hd3d_merged_' + uid, tsKey = uid => 'hd3d_cloud_ts_' + uid;
+// 📦 창고 (2026-10-24): 서버에는 창고를 압축해서 저장(ST.packSave) · 이 계정의 마지막 동기화 창고를 기기에 따로 보관 → 옛 클라이언트가 'stor' 없이 덮어쓴 행을 읽으면 복구(ST.healStor)
+const storKey = uid => 'hd3d_stor_' + uid, storBak = (uid, d) => { const p = ST.packSave(d); ls.set(storKey(uid), JSON.stringify({ stor: p.stor || [], storX: d.storX || 0 })); };
 const parse = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 
 export const A = { sb: null, user: null, tables: 'unknown', sync: 'local', msg: '', listeners: [], mode: ls.get(K_MODE) || '', conflicts: 0, leaving: false, banned: false }; // mode: '' | 'guest' | 'account'
@@ -101,16 +104,16 @@ async function loadCloud() {
   if (!A.user) return; const uid = A.user.id;
   try {
     const { data: row, error } = await A.sb.from(T.progress).select('data, merged, updated_at').eq('user_id', uid).maybeSingle(); if (error) throw error;
-    const local = load(), cloud = row?.data || null, seen = ls.get(tsKey(uid)); let d;
+    const local = load(), cloud = ST.healStor(row?.data || null, parse(ls.get(storKey(uid)))), healed = !!(row?.data && cloud !== row.data), seen = ls.get(tsKey(uid)); let d;
     if (ls.get(mergedKey(uid)) !== '1') { d = P.merge(local, cloud); ls.set(mergedKey(uid), '1'); }
     else if (ls.get(K_DIRTY) === '1' && cloud && row.updated_at !== seen) { d = P.merge(local, cloud); A.conflicts++; } // 이 기기에 안 올린 진행 + 그 사이 다른 기기 저장 → 병합
     else if (ls.get(K_DIRTY) === '1' || !cloud) d = local; else d = P.clean(cloud);
     if (row) ls.set(tsKey(uid), row.updated_at); else ls.del(tsKey(uid));
-    store(d, { cloud: false });
+    store(d, { cloud: false }); storBak(uid, load());
     const pr = await A.sb.from(T.profiles).select('nickname').eq('id', uid).maybeSingle();
     if (!pr.error && pr.data?.nickname) store({ ...load(), nick: pr.data.nickname }, { cloud: false });
     else if (!pr.error) await saveNick(load().nick || (A.user.email || '용사').split('@')[0].slice(0, 12));
-    if (!cloud || cloud.hero !== load().hero || JSON.stringify(P.clean(cloud)) !== JSON.stringify(load())) await save(); else { A.sync = 'saved'; ls.del(K_DIRTY); }
+    if (!cloud || healed || cloud.hero !== load().hero || JSON.stringify(P.clean(cloud)) !== JSON.stringify(load())) await save(); else { A.sync = 'saved'; ls.del(K_DIRTY); }
   } catch (e) { A.sync = 'offline'; A.msg = koErr(e); schedule(true); }
   emit();
 }
@@ -135,13 +138,13 @@ async function saveOnce() {
   if (!A.user || A.tables !== 'ok') return false; clearTimeout(timer); A.sync = 'saving'; emit(); const uid = A.user.id;
   try {
     for (let i = 0; i < 4; i++) {
-      const base = ls.get(tsKey(uid)), data = load(), row = { data, merged: true };
+      const base = ls.get(tsKey(uid)), data = load(), row = { data: ST.packSave(data), merged: true };
       const r = base ? await A.sb.from(T.progress).update(row).eq('user_id', uid).eq('updated_at', base).select('updated_at')
         : await A.sb.from(T.progress).insert({ user_id: uid, ...row }).select('updated_at');
       if (r.error && !(!base && r.error.code === '23505')) throw r.error;
       const ok = !r.error && Array.isArray(r.data) && r.data[0];
       if (!A.user || A.user.id !== uid) return false;
-      if (ok) { ls.set(tsKey(uid), ok.updated_at); if (JSON.stringify(load()) === JSON.stringify(data)) ls.del(K_DIRTY); retry = 0; A.sync = ls.get(K_DIRTY) === '1' ? 'pending' : 'saved'; emit(); return true; }
+      if (ok) { ls.set(tsKey(uid), ok.updated_at); storBak(uid, data); if (JSON.stringify(load()) === JSON.stringify(data)) ls.del(K_DIRTY); retry = 0; A.sync = ls.get(K_DIRTY) === '1' ? 'pending' : 'saved'; emit(); return true; }
       // 충돌: 다른 기기가 먼저 저장함 → 서버 행을 읽어 병합한 뒤 그 시각 기준으로 다시
       const c = await A.sb.from(T.progress).select('data, updated_at').eq('user_id', uid).maybeSingle(); if (c.error) throw c.error;
       if (!A.user || A.user.id !== uid) return false;

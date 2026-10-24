@@ -86,7 +86,7 @@
 | `frameN` | monsters/ai.js | 0 | 계측/카운터 (테스트·통계용) |
 | `ftN` | heroes/fighter.js | 25 | 계측/카운터 (테스트·통계용) |
 | `fxs` | core/state.js | 0 | 기본 상태 (state.js 초기값) |
-| `gear` | ui/flow.js | 237 |  |
+| `gear` | ui/flow.js | 237 | 장비 UI·세이브 핸들 (E·Acc·P·openInv…). 2026-10-24 📦 창고: 새 키 `G.gear.SG` = account/storage.js 모듈 (테스트용 · 새 최상위 G 속성 없음), `openInv('stor')` 로 창고 탭 |
 | `GH` | main.js | 23 | main.js 가 노출하는 값/함수 |
 | `GL` | main.js | 8 | main.js 가 노출하는 값/함수 |
 | `gold` | core/state.js · core/waves.js · dungeon/run.js · monsters/enemy.js · ui/flow.js · ui/input.js · world/towers.js | 60 | 기본 상태 (state.js 초기값) |

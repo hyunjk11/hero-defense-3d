@@ -21,6 +21,7 @@ import { labels as TL, buildTown as buildTownScene, updTown, townPass, LAKE, LR,
 let smithNear = false, portalNear = false;
 import { sun } from '../render/scene.js';
 import * as E from '../account/equip.js';
+import * as SG from '../account/storage.js';
 import { initGear, openInv, closeInv, openSmith, closeSmith, refreshGear, reveal, revealing, openChestUI, chestCount, lastChestBatch, doEnhance, lastEnh, bonusHtml, heroDots, codexClaimable } from './gear.js';
 import { banner } from './hud.js';
 import { smith, SMITH } from '../world/town.js';
@@ -106,7 +107,7 @@ G.townGoal = (x, z) => { if (th) th.goal = new THREE.Vector3(x, 0, z); };
 G.townLab = () => { const f = labFront(); return [LAB.x, LAB.y, f.x, f.z]; }; G.closeLab = closeLab;
 G.townTower = () => [LAKE.x, LAKE.y]; G.townSmith = () => [SMITH.x, SMITH.y]; G.townShop = () => { const f = shopFront(); return [SHOP_P.x, SHOP_P.y, f.x, f.z]; };
 G.stageSel = { openStageSel, departStage, ST };
-G.gear = { E, Acc, P, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal, openChestUI, chestCount, lastChestBatch };
+G.gear = { E, Acc, P, SG, openInv, openSmith, closeSmith, doEnhance, lastEnh, reveal, openChestUI, chestCount, lastChestBatch };
 // 마을 단상 영웅: 전직 전용 몸(소총 로즈)이 있으면 그 모델 (지연 로딩 → 도착하면 교체, 실패하면 기본 모델 유지). pvA = 전직 탭에서 미리 보는 분기
 let pvA = null;
 function endPv() { const had = pvA; pvA = null; if (had && town && town.visible && th) spawnTownHero(); heroRingColor(); } // 미리보기 끝: 저장된 분기 모델·링 색으로
@@ -137,7 +138,7 @@ function refreshTown() {
   renderLab();
   if (G.screen !== 'town') return; if (P.backfillList(Acc.load()).length) Acc.update(d => P.backfill(d)[0]); // 기존 유저 고유 소급 지급 (조건을 이미 채운 고유 → 상자, id 고정이라 여러 번·여러 기기에서도 1개)
   const s = Acc.load(), A = Acc.A, cls = Sh.usableHero(s.hero), L = s.heroLv[cls];
-  $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP); $('twBag').classList.toggle('hasNew', codexClaimable(s)); /* Q-4a 도감 보상 배지 */
+  $('twSouls').textContent = s.souls; $('twSteel').textContent = s.mat.steel; $('twCrystal').textContent = s.mat.crystal; $('twBagN').textContent = `${s.inv.length}/${E.CAP}`; $('twStorN').textContent = `${(s.stor || []).length}/${SG.storCap(s)}`; $('twBagN').classList.toggle('full', s.inv.length >= E.CAP); $('twBag').classList.toggle('hasNew', codexClaimable(s)); /* Q-4a 도감 보상 배지 */
   { const rb = railBadges(s, cls); document.querySelectorAll('#twRail .railBtn[data-go]').forEach(b => b.classList.toggle('hasNew', !!rb[b.dataset.go])); } /* 레일 배지: 연구 가능 · 축복 가능 */
   const nc = (s.chests || []).length; $('twChest').classList.toggle('hidden', !nc); $('twChestN').textContent = nc;
   $('twBonus').innerHTML = `<div class="lbl">${heroN(cls)} 장비 보너스</div>` + bonusHtml(E.bonus(s, cls)); $('twBest').textContent = s.bestWave; $('twRuns').textContent = s.stats.runs; $('twKills').textContent = s.stats.kills;
@@ -189,7 +190,7 @@ function bindUI() {
     const p = new THREE.Vector3(); if (!rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return; p.sub(TOWN).setY(0);
     if (towerHit || Math.hypot(p.x - LAKE.x, p.z - LAKE.y) < LR + .3) { routeToTower(); if (Math.hypot(th.g.position.x - LAKE.x, th.g.position.z - LAKE.y) < 3.4) openBless(); }
     else { th.goal = p; th.goals = null; } });
-  $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeShopUI(); closeStageSel(true); closeLab(true); openInv(); }; $('twChest').onclick = () => { if (revealing()) return; closeShopUI(); closeStageSel(true); closeLab(true); closeBless(); openChestUI(); };
+  $('blessClose').onclick = () => closeBless(); $('twBag').onclick = () => { closeShopUI(); closeStageSel(true); closeLab(true); openInv(); }; $('twStor').onclick = () => { closeShopUI(); closeStageSel(true); closeLab(true); openInv('stor'); }; $('twChest').onclick = () => { if (revealing()) return; closeShopUI(); closeStageSel(true); closeLab(true); closeBless(); openChestUI(); };
   initDungeonUI({ closeOthers: () => { closeBless(); closeShopUI(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); } });
   initNotice();
   initShop({ onChange: () => refreshTown(), closeOthers: k => { closeBless(); closeLab(true); closeSmith(true); closeInv(); closeStats(); closeStageSel(true); if (k !== 'shop') closeShop(true); if (k !== 'mail') closeMail(true); }, cheer: () => { if (th) { play(th, 'Cheer', { once: true }); th.cheerT = 1.6; } } });

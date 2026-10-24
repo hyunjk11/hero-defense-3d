@@ -1,6 +1,7 @@
 // 장비 시스템 (순수 로직, DOM·네트워크 없음 → node 테스트 가능)
 import { DEFAULT_HERO, isHidden } from '../data/heroes.js';
 import { CHSET, chOdds, UQ, UQ_DUP, AWAKE_MAX, AWAKE_COST, AWAKE_SOULS, CH_KEYS } from '../data/items.js';
+import { unpackItem } from './storpack.js';
 export { CHSET, UQ };
 // item = { id, s: 'weapon'|'armor'|'acc', h?: 영웅(무기만), g: 등급 0..4, n: 이름, m: [스탯, 값], sub: [[스탯, 값]...], e: 강화 0..10, u?: 전설 스킬, c?: 챕터 세트 1..4, uq?: 고유 키(id = 'u_'+uq, g=4), a?: 각성 0..5 }
 export const GRADES = [
@@ -78,8 +79,10 @@ export function makeItem(slot, hero, g, r = Math.random, ch) {
 export const uqId = k => 'u_' + k;
 export function makeUnique(k, e = 0, a = 0) { const U = UQ[k]; if (!U) return null; const it = { id: uqId(k), s: U.s, g: 4, uq: k, n: U.n, m: [...U.m], sub: U.sub.map(p => [...p]), e, a };
   if (U.h) it.h = U.h; return it; }
-// 이미 계정에 있는 고유? (기록 uqLog · 가방 · 상자)
-export const ownsUnique = (save, k) => !!((save.uqLog || {})[k] || (save.inv || []).some(x => x.uq === k) || (save.chests || []).some(c => c.it && c.it.uq === k));
+// 이미 계정에 있는 고유? (기록 uqLog · 가방 · 📦 창고 · 상자)
+export const ownsUnique = (save, k) => !!((save.uqLog || {})[k] || (save.inv || []).some(x => x.uq === k) || (save.stor || []).some(x => x.uq === k) || (save.chests || []).some(c => c.it && c.it.uq === k));
+// 계정이 가진 장비 전부 (가방 + 📦 창고, 상자 제외) — 고유 카드 표시·도감 등
+export const allItems = save => [...(save.inv || []), ...(save.stor || [])];
 export const mainVal = it => Math.round(it.m[1] * (1 + .1 * it.e) * 10) / 10;
 export function itemStats(it) { const o = {}; if (!it) return o; o[it.m[0]] = mainVal(it); for (const [k, v] of it.sub) o[k] = (o[k] || 0) + v; return o; }
 export function power(it) { const s = itemStats(it); return Math.round(Object.values(s).reduce((a, b) => a + b, 0) * 10 + it.g * 20); }
@@ -101,13 +104,14 @@ export function chestsFor(wave, hero, r = Math.random, ch) { const out = []; for
 // 가방에 넣기 (가득 차면 자동 분해 → 재료). 반환: [save, 결과목록{it, auto}]
 // ---------- 보관 중인 보상 상자 (미개봉) ----------
 // save.chests = [{ id, src, it: 획득 시 미리 굴려 둔 장비, souls: 개봉 시 영혼석 }] — 개봉해야 가방에 들어감. 가방이 가득 차면 상자는 그대로 보관.
+export const STOR_HARD = 300, STOR_STEPS = 4; // 📦 창고: 세이브 정리 상한(일반 장비) · 확장 단계 수 (용량·비용은 account/storage.js)
 export const CHEST_CAP = 200, CHEST_SRC = ['chest', 'boss', 'stage', 'star', 'unique'], CHEST_SOULS = [4, 6, 10, 16, 30], BATCH = 10;
 export const chestOf = (it, src) => ({ id: 'c' + it.id, src: CHEST_SRC.includes(src) ? src : 'chest', it, souls: it.uq ? 0 : CHEST_SOULS[it.g] || 0 });
 // 상자로 보관 (보관함도 가득 차면 예전처럼 자동 분해). 반환: 결과목록{it, src, auto, chest?}
 export function addChests(save, list) {
   if (!Array.isArray(save.chests)) save.chests = []; const ids = new Set(save.chests.map(c => c.id)); const res = [];
   for (const { it, src } of list) { const c = chestOf(it, src);
-    if (it.uq) { if (!ids.has(c.id) && !(save.inv || []).some(x => x.id === it.id)) { save.chests.push(c); ids.add(c.id); res.push({ it, src, auto: false, chest: c.id }); } continue; } // 고유: 보관함 상한 예외 · 자동 분해 없음
+    if (it.uq) { if (!ids.has(c.id) && !allItems(save).some(x => x.id === it.id)) { save.chests.push(c); ids.add(c.id); res.push({ it, src, auto: false, chest: c.id }); } continue; } // 고유: 보관함 상한 예외 · 자동 분해 없음
     if (save.chests.filter(x => !x.it.uq).length < CHEST_CAP && !ids.has(c.id)) { save.chests.push(c); ids.add(c.id); res.push({ it, src, auto: false, chest: c.id }); }
     else { const y = dismantleYield(it); for (const k in y) save.mat[k] += y[k]; res.push({ it, src, auto: true, y }); } }
   return res;
@@ -116,11 +120,11 @@ export function addChests(save, list) {
 // 열린 상자는 save.chests에서 즉시 제거 → 같은 상자를 두 번 열 수 없음(중복 보상 없음). 저장은 호출하는 쪽에서 한 번만.
 // 반환 [save, { opened:[{it, src, souls}], souls, left, full(가방이 부족해 못 연 상자가 있음), blocked(못 연 개수) }]
 export function openChests(save, n = Infinity, ids = null) {
-  if (!Array.isArray(save.chests)) save.chests = []; const L = save.chests, have = new Set(save.inv.map(x => x.id));
+  if (!Array.isArray(save.chests)) save.chests = []; const L = save.chests, have = new Set(allItems(save).map(x => x.id));
   const want = (ids ? L.filter(c => ids.includes(c.id)) : L.slice()).slice(0, Math.max(0, Math.floor(n === Infinity ? L.length : +n || 0)));
   let free = Math.max(0, CAP - save.inv.length); const opened = []; let souls = 0, blocked = 0;
   for (const c of want) {
-    if (have.has(c.it.id)) { L.splice(L.indexOf(c), 1); continue; } // 이미 가방에 있는 장비(다른 기기에서 열림) → 상자만 정리
+    if (have.has(c.it.id)) { L.splice(L.indexOf(c), 1); continue; } // 이미 가방·창고에 있는 장비(다른 기기에서 열림) → 상자만 정리
     const uq = !!c.it.uq; if (!uq && free <= 0) { blocked++; continue; } // 고유는 가방이 가득 차도 개봉 (최대 15개)
     L.splice(L.indexOf(c), 1); save.inv.push(c.it); have.add(c.it.id); if (!uq) free--; codexAdd(save, c.it); souls += c.souls; opened.push({ it: c.it, src: c.src, souls: c.souls });
   }
@@ -199,10 +203,14 @@ export function cleanItem(x, heroes) {
 export function cleanEquip(d, e, heroes) {
   const seen = new Set(), all = (Array.isArray(d.inv) ? d.inv : []).map(x => cleanItem(x, heroes)).filter(x => x && !seen.has(x.id) && seen.add(x.id)), keep = new Set(all.filter(x => !x.uq).slice(0, CAP + 20));
   e.inv = all.filter(x => x.uq || keep.has(x)); // CAP+20 자르기는 일반 장비만 (고유는 항상 유지)
+  // 📦 창고 (2026-10-24): 문자열(서버 압축)·객체 둘 다 → cleanItem. 가방에 같은 id 가 있으면 가방 쪽만 (중복 없음). 넘친 가방 장비(CAP+20 초과)는 버리지 않고 창고로.
+  // 창고 용량(storCap)은 '넣을 때'만 막음 — 병합으로 넘쳐도 잃지 않음. STOR_HARD 는 망가진 세이브 방어용 상한 (일반 장비만, 고유는 항상 유지)
+  const seenS = new Set(e.inv.map(x => x.id)), stor = [...(Array.isArray(d.stor) ? d.stor : []).map(x => cleanItem(unpackItem(x), heroes)), ...all.filter(x => !x.uq && !keep.has(x))].filter(x => x && !seenS.has(x.id) && seenS.add(x.id)), keepS = new Set(stor.filter(x => !x.uq).slice(0, STOR_HARD));
+  e.stor = stor.filter(x => x.uq || keepS.has(x)); const sx = fin(d.storX, 0, STOR_STEPS, 0); if (sx) e.storX = sx; // 확장 단계 (0이면 키 생략)
   const m = d.mat && typeof d.mat === 'object' ? d.mat : {}; e.mat = { steel: fin(m.steel, 0, 1e7, 0), crystal: fin(m.crystal, 0, 1e7, 0) }; const es = fin(m.essence, 0, 1e7, 0); if (es) e.mat.essence = es; // 고유 정수 (0이면 키 생략 → 옛 세이브 모양 그대로)
   e.eq = {}; const eq = d.eq && typeof d.eq === 'object' ? d.eq : {};
   for (const h of heroes) { e.eq[h] = {}; for (const sl of SLOT_KEYS) { const id = (eq[h] || {})[sl], it = e.inv.find(x => x.id === id); if (it && it.s === sl && canEquip(it, h) && !isEquipped(e, id)) e.eq[h][sl] = id; } }
-  const seenC = new Set(), have = new Set(e.inv.map(x => x.id)); e.chests = [];
+  const seenC = new Set(), have = new Set(allItems(e).map(x => x.id)); e.chests = [];
   let nc = 0; for (const c of Array.isArray(d.chests) ? d.chests : []) { if (!c || typeof c !== 'object') continue; const it = cleanItem(c.it, heroes); if (!it || have.has(it.id)) continue; const id = 'c' + it.id; if (seenC.has(id)) continue; if (!it.uq && nc >= CHEST_CAP) continue; seenC.add(id);
     e.chests.push({ id, src: it.uq ? 'unique' : CHEST_SRC.includes(c.src) ? c.src : 'chest', it, souls: it.uq ? 0 : fin(c.souls, 0, 100, 0) }); if (!it.uq) nc++; }
   cleanUq(d, e); return e;
@@ -212,19 +220,22 @@ export function cleanEquip(d, e, heroes) {
 export const CODEX_ROWS = h => [...h, 'armor', 'acc'];
 export function cleanUq(d, e) {
   const L = d.uqLog && typeof d.uqLog === 'object' ? d.uqLog : {}; e.uqLog = {}; for (const k in L) if (UQ[k] && L[k]) e.uqLog[k] = 1;
-  for (const it of [...e.inv, ...e.chests.map(c => c.it)]) if (it.uq) e.uqLog[it.uq] = 1;
+  for (const it of [...allItems(e), ...e.chests.map(c => c.it)]) if (it.uq) e.uqLog[it.uq] = 1;
   const Pt = d.uqPity && typeof d.uqPity === 'object' ? d.uqPity : {}; e.uqPity = {}; for (const k in Pt) if (UQ[k] && !e.uqLog[k]) { const v = fin(Pt[k], 0, 999, 0); if (v) e.uqPity[k] = v; }
   const C = d.codex && typeof d.codex === 'object' ? d.codex : {}; e.codex = {}; const rows = new Set(CODEX_ROWS(Object.keys(e.eq || {})));
   for (const ch of CH_KEYS) { const o = C[ch] && typeof C[ch] === 'object' ? C[ch] : {}; for (const r in o) if (rows.has(r)) { const v = fin(o[r], 0, 31, 0); if (v) (e.codex[ch] ||= {})[r] = v; } }
-  for (const it of e.inv) codexAdd(e, it);
+  for (const it of allItems(e)) codexAdd(e, it);
   e.codexRw = [...new Set((Array.isArray(d.codexRw) ? d.codexRw : []).filter(k => typeof k === 'string' && /^[1-9]:[a-z]+$/.test(k) && CHSET[k.split(':')[0]] && (k.split(':')[1] === 'all' || rows.has(k.split(':')[1]))))];
   return e;
 }
 export function mergeEquip(a, b, m, heroes) {
-  const inv = [...b.inv].map(x => { const o = x.uq && a.inv.find(y => y.id === x.id); return o ? { ...x, e: Math.max(x.e, o.e), a: Math.max(x.a || 0, o.a || 0) } : x; }); for (const it of a.inv) if (!inv.some(x => x.id === it.id)) inv.push(it); // 같은 고유는 강화·각성 큰 값
+  // 가방·📦 창고: id 기준 합집합 (같은 고유는 강화·각성 큰 값). 한 장비는 한 곳에만 — 위치: 병합된 장착에 쓰이면 가방, 아니면 기기(a) 위치, 기기에 없으면 계정(b) 위치
   const eq = {}; for (const h of heroes) eq[h] = { ...(b.eq[h] || {}), ...(a.eq[h] || {}) };
+  const aAll = allItems(a), aStor = new Set((a.stor || []).map(x => x.id)), bStor = new Set((b.stor || []).map(x => x.id)), eqd = new Set(); for (const h in eq) for (const sl in eq[h]) eqd.add(eq[h][sl]);
+  const pool = [...allItems(b)].map(x => { const o = x.uq && aAll.find(y => y.id === x.id); return o ? { ...x, e: Math.max(x.e, o.e), a: Math.max(x.a || 0, o.a || 0) } : x; }), ids = new Set(pool.map(x => x.id)); for (const it of aAll) if (!ids.has(it.id)) { pool.push(it); ids.add(it.id); }
+  const inStor = it => !eqd.has(it.id) && (aAll.some(y => y.id === it.id) ? aStor.has(it.id) : bStor.has(it.id)), inv = pool.filter(x => !inStor(x)), stor = pool.filter(inStor);
   const chests = [...(b.chests || [])]; for (const c of a.chests || []) if (!chests.some(x => x.id === c.id)) chests.push(c);
   const uqLog = { ...(a.uqLog || {}), ...(b.uqLog || {}) }, uqPity = {}; for (const k in { ...a.uqPity, ...b.uqPity }) uqPity[k] = Math.max((a.uqPity || {})[k] || 0, (b.uqPity || {})[k] || 0);
   const codex = {}; for (const c of [a.codex || {}, b.codex || {}]) for (const ch in c) for (const r in c[ch]) (codex[ch] ||= {})[r] = ((codex[ch] || {})[r] || 0) | c[ch][r];
-  return cleanEquip({ inv, eq, chests, mat: { steel: Math.max(a.mat.steel, b.mat.steel), crystal: Math.max(a.mat.crystal, b.mat.crystal), essence: Math.max(a.mat.essence || 0, b.mat.essence || 0) }, uqLog, uqPity, codex, codexRw: [...(a.codexRw || []), ...(b.codexRw || [])] }, m, heroes);
+  return cleanEquip({ inv, stor, storX: Math.max(fin(a.storX, 0, STOR_STEPS, 0), fin(b.storX, 0, STOR_STEPS, 0)), eq, chests, mat: { steel: Math.max(a.mat.steel, b.mat.steel), crystal: Math.max(a.mat.crystal, b.mat.crystal), essence: Math.max(a.mat.essence || 0, b.mat.essence || 0) }, uqLog, uqPity, codex, codexRw: [...(a.codexRw || []), ...(b.codexRw || [])] }, m, heroes);
 }
