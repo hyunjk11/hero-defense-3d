@@ -54,10 +54,53 @@ export function branchFor(type, branch, mods) { const B = branch && BRANCH[type]
 export const starsFor = xp => xp >= XP_NEED[2] ? 3 : xp >= XP_NEED[1] ? 2 : 1;
 // 시작 XP: Lv4 = ★★ + (★★→★★★ 구간 60%)
 export function startXp(research, type) { const r = research && research[type]; if (!r || !r.start) return 0; return r.start >= 4 ? Math.round(XP_NEED[1] + (XP_NEED[2] - XP_NEED[1]) * .6) : Math.round(XP_NEED[1] * .2 * r.start); }
-// 타워 실전 수치: 기본(단계 L) × 별 × 분기 × 연구. 성장/연구 없으면 TOWERS 값 그대로
-export function towerStats(type, lvl, stars = 1, branch = null, mods = null) {
+// 타워 실전 수치: 기본(단계 L) × 별 × 분기 × 연구 (× ✨초월 aw). 성장/연구 없으면 TOWERS 값 그대로 · aw=false 면 기존 결과와 완전히 같음
+export function towerStats(type, lvl, stars = 1, branch = null, mods = null, aw = false) {
   const D = TOWERS[type], L = lvl - 1, S = STAR[(stars || 1) - 1], B = branchFor(type, branch, mods) || {}, M = mods || { dmg: 1, rate: 1, rng: 1 };
   const o = { dmg: D.dmg[L] * S.dmg * (B.dmg || 1) * M.dmg, rate: D.rate[L] * S.rate * (B.rate || 1) * M.rate, range: D.range[L] * S.rng * (B.rng || 1) * M.rng };
   if (D.splash) o.splash = D.splash[L] * (B.splash || 1) * (M.splash || 1); if (D.chain) { o.chain = B.chainSet || D.chain[L] + (B.chainAdd || 0); o.slow = (B.slowSet || D.slow[L]) + (M.slowAdd || 0); o.falloff = B.falloff || .85; o.hop = B.hop || 3.8; }
+  if (aw) { const A = AWK[type]; o.dmg *= AWK.dmg; if (A.rate) o.rate *= A.rate; if (D.chain) { o.chain += branch === 'frost' ? A.frostChainAdd : A.chainAdd; o.slow = Math.min(A.slowCap, o.slow + A.slowAdd); } }
   return o;
 }
+
+// ================= ✨ 초월 (하드 스테이지 전용 4번째 단계, docs/TOWER_AWAKEN_2026-10-24.md) =================
+// 판 안 상태만 (tw.awk · G.awkOpen) — 저장/스키마 변경 없음. 수치는 이 표 하나에서만 조정
+export const AWK = {
+  needLab: true, // 사용자 결정 (2026-10-24): 연구소 3종 연구 전부 최대 AND 판 안 조건 — 둘 다 필수
+  maxPerType: 2, cost: { arrow: 240, cannon: 320, magic: 340 }, dmg: 1.3, hp: 1.3,
+  arrow: { n: '천궁', icon: '🏹', c: '#fff3a0', rate: 1.1, pierce: 2, pierceR: 3.5, pierceK: [.8, .65], volleyEvery: 6, volleyN: 5, volleyK: .6, multiAdd: 1, snipeX2: 2,
+    d: '공속 +10% · 화살 꿰뚫기 2회(3.5 안 다음 적 80%→65%) · 6타마다 일제사격 5발(각 60%, 공중 포함)' },
+  cannon: { n: '화염 포루', icon: '💣', c: '#ff5a2a', poolR: 2.2, poolT: 3, tick: .5, poolK: .08, poolMax: 8, clusterAdd: 2, lineT: 2, lineW: .8,
+    d: '착탄 지점 불바다(반경 2.2 · 3초, 0.5초마다 착탄 피해 8%, 지상 · 겹치면 가장 센 1개)' },
+  magic: { n: '뇌전 첨탑', icon: '🔮', c: '#ffe27a', chainAdd: 2, frostChainAdd: 1, slowAdd: .1, slowCap: .8, boltEvery: 8, boltR: 3, boltK: 2, stunT: .8, stunBoss: .25, bossCd: 4, frostEvery: 3,
+    d: '연쇄 +2 · 둔화 +10%p(최대 80%) · 8타마다 천뢰(반경 3 광역 200% + 기절 0.8초, 보스 0.25초)' },
+};
+// 분기별 덧붙임 설명 (UI)
+export const AWK_BR = { multi: '동시 대상 3→4', snipe: '꿰뚫기도 방어 무시 · 일제사격 대신 6타마다 피해 ×2', blast: '집속탄 3→5발', pierce: '지나간 직선에 2초 불길', storm: '연쇄 감쇠 그대로', frost: '연쇄 +1만 · 빙결 주기 4→3타' };
+// 연구소: 한 종류의 4개 연구가 모두 최대인가
+export function labMaxed(research, type) { const r = research && research[type]; return !!r && RKEYS.every(k => (r[k] | 0) >= RES[k].max); }
+// 판 안: 그 종류 타워 1기 이상이 Lv.3 + ★★★ + 진화
+export const awkTowerDone = tw => !!tw && !tw.dead && tw.lvl >= 3 && (tw.stars || 1) >= 3 && !!tw.branch;
+// 종류별 상태 (🔒 체크리스트): { lab: {arrow:bool..}, stage: {arrow:bool..}, labOk, stageOk, ok }
+export function awakenStatus(towers, hard, research, needLab = AWK.needLab) {
+  const lab = {}, stage = {}; for (const t of TTYPES) { lab[t] = labMaxed(research, t); stage[t] = (towers || []).some(w => w.type === t && awkTowerDone(w)); }
+  const labOk = !needLab || TTYPES.every(t => lab[t]), stageOk = TTYPES.every(t => stage[t]); return { lab, stage, labOk, stageOk, ok: !!hard && labOk && stageOk };
+}
+export const awakenReady = (towers, hard, research, needLab = AWK.needLab) => awakenStatus(towers, hard, research, needLab).ok;
+export const awkCost = type => AWK.cost[type];
+// 초월 가능 여부: null 이면 가능, 아니면 사유
+export function awkBlock(tw, towers, gold, open) {
+  if (!tw || tw.dead || !AWK[tw.type]) return '타워 없음'; if (tw.awk) return '초월 완료'; if (!open) return '초월 잠김';
+  if (!awkTowerDone(tw)) return 'Lv.3·★★★·진화 필요'; if ((towers || []).filter(w => w !== tw && !w.dead && w.type === tw.type && w.awk).length >= AWK.maxPerType) return `종류별 최대 ${AWK.maxPerType}기`;
+  if (gold < awkCost(tw.type)) return '골드 부족'; return null;
+}
+// 초월 분기 덧씌움: 동시 대상 +1 · 집속탄 +2 · 서리 빙결 주기 3
+export function awkBranch(type, branch, B) { if (!B) return B; const o = { ...B };
+  if (branch === 'multi') o.targets = (B.targets || 1) + AWK.arrow.multiAdd; else if (branch === 'blast') o.cluster = (B.cluster || 0) + AWK.cannon.clusterAdd; else if (branch === 'frost') o.freezeEvery = AWK.magic.frostEvery; return o; }
+// 꿰뚫기 k번째(1부터) 피해 = 원래 화살 피해 × pierceK[k-1]
+export const pierceDmg = (base, k) => base * (AWK.arrow.pierceK[k - 1] || 0);
+// 불바다 틱: 적마다 덮는 불바다 중 가장 센 1개만. pools = [{x,z,r,dmg} | {x,z,x2,z2,w,dmg}(직선)], enemies = [{x,z,fly}] → 적 index → dmg
+export function poolHits(pools, enemies) { const out = new Map();
+  enemies.forEach((e, i) => { if (e.fly) return; let best = 0; for (const p of pools) { if (!(p.dmg > best)) continue; if (inPool(p, e.x, e.z)) best = p.dmg; } if (best > 0) out.set(i, best); }); return out; }
+export function inPool(p, x, z) { if (p.x2 === undefined) { const dx = x - p.x, dz = z - p.z; return dx * dx + dz * dz <= p.r * p.r; }
+  const vx = p.x2 - p.x, vz = p.z2 - p.z, L2 = vx * vx + vz * vz || 1e-9, k = Math.max(0, Math.min(1, ((x - p.x) * vx + (z - p.z) * vz) / L2)), dx = x - (p.x + vx * k), dz = z - (p.z + vz * k); return dx * dx + dz * dz <= p.w * p.w; }
