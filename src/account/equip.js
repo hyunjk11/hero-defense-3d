@@ -205,7 +205,7 @@ export function cleanEquip(d, e, heroes) {
   e.inv = all.filter(x => x.uq || keep.has(x)); // CAP+20 자르기는 일반 장비만 (고유는 항상 유지)
   // 📦 창고 (2026-10-24): 문자열(서버 압축)·객체 둘 다 → cleanItem. 가방에 같은 id 가 있으면 가방 쪽만 (중복 없음). 넘친 가방 장비(CAP+20 초과)는 버리지 않고 창고로.
   // 창고 용량(storCap)은 '넣을 때'만 막음 — 병합으로 넘쳐도 잃지 않음. STOR_HARD 는 망가진 세이브 방어용 상한 (일반 장비만, 고유는 항상 유지)
-  const stor = [...(Array.isArray(d.stor) ? d.stor : []).map(x => cleanItem(unpackItem(x), heroes)), ...all.filter(x => !x.uq && !keep.has(x))].filter(x => x && !seen.has(x.id) && seen.add(x.id)), keepS = new Set(stor.filter(x => !x.uq).slice(0, STOR_HARD));
+  const seenS = new Set(e.inv.map(x => x.id)), stor = [...(Array.isArray(d.stor) ? d.stor : []).map(x => cleanItem(unpackItem(x), heroes)), ...all.filter(x => !x.uq && !keep.has(x))].filter(x => x && !seenS.has(x.id) && seenS.add(x.id)), keepS = new Set(stor.filter(x => !x.uq).slice(0, STOR_HARD));
   e.stor = stor.filter(x => x.uq || keepS.has(x)); const sx = fin(d.storX, 0, STOR_STEPS, 0); if (sx) e.storX = sx; // 확장 단계 (0이면 키 생략)
   const m = d.mat && typeof d.mat === 'object' ? d.mat : {}; e.mat = { steel: fin(m.steel, 0, 1e7, 0), crystal: fin(m.crystal, 0, 1e7, 0) }; const es = fin(m.essence, 0, 1e7, 0); if (es) e.mat.essence = es; // 고유 정수 (0이면 키 생략 → 옛 세이브 모양 그대로)
   e.eq = {}; const eq = d.eq && typeof d.eq === 'object' ? d.eq : {};

@@ -7,7 +7,7 @@ import * as Acc from '../account/account.js';
 import * as E from '../account/equip.js';
 import * as SG from '../account/storage.js';
 import { card, tile } from './itemview.js';
-const GN = g => (g === 'all' ? '전체' : g === 'uq' ? '◆ 고유' : E.GRADES[g].n);
+const GN = g => (g === 'all' ? '모든 등급' : g === 'uq' ? '◆ 고유' : E.GRADES[g].n);
 export function renderStorage(s, X) { const ui = X.ui, f = ui.stoF, cap = SG.storCap(s), used = SG.storUsed(s), nx = SG.nextCost(s), x = SG.storX(s);
   const bag = SG.sortItems(SG.storable(s).filter(it => SG.matches(it, f)), ui.stoSort), st = SG.sortItems((s.stor || []).filter(it => SG.matches(it, f)), ui.stoSort), eqN = s.inv.length - SG.storable(s).length;
   const all = [...s.inv, ...(s.stor || [])], sel = ui.stoSel && all.find(it => it.id === ui.stoSel), selIn = sel ? ((s.stor || []).includes(sel) ? 'stor' : 'bag') : null, selEq = sel && E.isEquipped(s, sel.id);
@@ -15,7 +15,7 @@ export function renderStorage(s, X) { const ui = X.ui, f = ui.stoF, cap = SG.sto
   const pct = Math.min(100, Math.round(used / cap * 100));
   $('storBody').innerHTML = `<div class="stoTop"><div class="stoCap"><div class="stoBar"><i style="width:${pct}%"></i></div><span id="stoCapN">📦 ${used}/${cap}칸</span></div>
     ${nx ? `<div class="stoExp"><span>칸 확장 +${SG.STOR.step} <small>(${x}/${SG.STOR.steps}단계 · 최대 ${SG.storMax()}칸)</small></span><button class="gbtn sm stoExpGo" data-pay="steel" ${s.mat.steel >= nx.steel ? '' : 'disabled'}><i class="mi steel"></i>강철 ${nx.steel}</button><button class="gbtn sm stoExpGo" data-pay="souls" ${s.souls >= nx.souls ? '' : 'disabled'}><i class="mi souls"></i>영혼석 ${nx.souls}</button></div>` : `<div class="stoExp"><span class="maxT">✦ 최대 확장 ${SG.storMax()}칸 ✦</span></div>`}</div>
-    <div class="stoFilt"><div class="ftabs" id="stoSlot">${[['all', '전체'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${f.slot === k ? 'on' : ''}" data-v="${k}">${n}</button>`).join('')}</div>
+    <div class="stoFilt"><div class="ftabs" id="stoSlot">${[['all', '모든 부위'], ['weapon', '무기'], ['armor', '방어구'], ['acc', '장신구']].map(([k, n]) => `<button class="ftab ${f.slot === k ? 'on' : ''}" data-v="${k}">${n}</button>`).join('')}</div>
       <div class="ftabs" id="stoGrade">${SG.GRADE_F.map(g => `<button class="ftab ${String(f.grade) === String(g) ? 'on' : ''}" data-v="${g}" ${typeof g === 'number' ? `style="color:${E.GRADES[g].c}"` : ''}>${GN(g)}</button>`).join('')}</div>
       <select id="stoSort" class="stoSort" title="정렬">${Object.entries(SG.SORTS).map(([k, n]) => `<option value="${k}" ${ui.stoSort === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     <div class="stoCols"><div class="stoCol"><div class="stoH"><span>🎒 가방 <b class="${s.inv.length >= E.CAP ? 'full' : ''}">${s.inv.length}/${E.CAP}</b>${eqN ? ` <small>(장착 ${eqN}개 제외)</small>` : ''}</span><button class="gbtn sm" id="stoAllIn" ${bag.length && used < cap ? '' : 'disabled'}>일괄 보관 ▶</button></div>
