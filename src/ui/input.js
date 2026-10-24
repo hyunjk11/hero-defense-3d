@@ -14,6 +14,8 @@ import { refreshTile, tileAt } from '../world/terrain.js';
 import { computeDist } from '../world/pathfinding.js';
 import { addBarricade, barMaxHp, removeBarricade } from '../world/barricades.js';
 import { placeTower, repairAll, repairTower, sellTower, upgradeTower } from '../world/towers.js';
+import { awakenTower } from '../world/growth.js';
+import { AWK } from '../data/growth.js';
 import { groundY } from '../monsters/ai.js';
 import { hero, heroGoTo, startWarp } from '../heroes/hero.js';
 import { castSkill } from '../heroes/skills.js';
@@ -32,7 +34,7 @@ let rdrag = null; const keys = {};
 const cvs = renderer.domElement; cvs.addEventListener('contextmenu', e => e.preventDefault());
 function showRange(x, z, r, color = 0x9ae8ff) { rangeRing.visible = true; rangeRing.position.set(x, .25, z); rangeRing.scale.setScalar(r); rangeRing.material.color.set(color); rangeFill.material.color.set(color); }
 function tileInfo(t) {
-  if (t.tower) return `<b>${TOWERS[t.tower.type].n} Lv.${t.tower.lvl}${G.grow ? ' ' + '★'.repeat(t.tower.stars) : ''}</b> · 클릭하여 강화/판매`;
+  if (t.tower) return `<b>${TOWERS[t.tower.type].n} Lv.${t.tower.lvl}${t.tower.awk ? ` ✨${AWK[t.tower.type].n}` : ''}${G.grow ? ' ' + '★'.repeat(t.tower.stars) : ''}</b> · 클릭하여 강화/판매`;
   if (t.bar) return `<b>바리케이드</b> ${Math.ceil(t.bar.hp)}/${Math.ceil(t.bar.max)}`;
   if (isBlock(t.t)) return `<b>${blkName(t)}</b> 내구도 ${Math.ceil(t.hp)}/${t.max} · 개간 ${clearCost(t)}G`;
   if (t.lava) return '<b>용암 강</b> · 지나갈 수 없음 · 건설 불가';
@@ -101,7 +103,7 @@ document.querySelectorAll('.up').forEach(b => b.onclick = () => { const k = b.da
   if (k === 'bar') for (const col of G.tiles) for (const t of col) if (t.bar) { const r = t.bar.hp / t.bar.max; t.bar.max = barMaxHp(); t.bar.hp = t.bar.max * r; }
   Snd.play('upgrade'); Snd.play('levelUp', { vol: .6 }); if (hero) emit(P, hero.g.position.x, 1.5, hero.g.position.z, 24, 0xffe066, 4, .7); refreshHud(); });
 function select(o) { G.sel = o; $('tinfo').classList.toggle('hidden', !o); if (o && o.kind === 'tower') showRange(tileX(o.c), tileZ(o.r), o.S.range, 0xffe066); else rangeRing.visible = false; refreshHud(); }
-$('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { upgradeTower(G.sel); select(G.sel); } };
+$('tUp').onclick = () => { if (G.sel && G.sel.kind === 'tower') { if (G.sel.lvl < 3) upgradeTower(G.sel); else if (G.awkOpen && G.hard) awakenTower(G.sel); /* ✨ 초월 (하드 전용) */ select(G.sel); } };
 $('tRep').onclick = () => { if (G.sel && G.sel.kind === 'tower') { repairTower(G.sel); select(G.sel); } };
 $('tSell').onclick = () => { const s = G.sel; if (!s) return; if (s.kind === 'tower') sellTower(s); else { G.gold += BARRICADE.refund; removeBarricade(s.t, false); refreshHud(); } };
 

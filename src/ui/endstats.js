@@ -5,7 +5,7 @@ import { $, esc } from '../core/util.js';
 import { G } from '../core/state.js';
 import { CLASSES, heroLabel } from '../data/heroes.js';
 import { TOWERS } from '../data/towers.js';
-import { BRANCH } from '../data/growth.js';
+import { BRANCH, AWK } from '../data/growth.js';
 import { aggregate, TOWER_IC, fmtBig, fmtDps, fmtPct, fmtTime, fmtClock, waveLabel } from '../data/endstats.js';
 
 const st = { open: false, kind: null };
@@ -13,7 +13,7 @@ const st = { open: false, kind: null };
 export function collect() { const L = G.heroes && G.heroes.length ? G.heroes : G.hero ? [G.hero] : [];
   const heroes = L.map(h => ({ cls: h.cls, nm: (h.C && h.C.title) || heroLabel(h.cls), icon: (CLASSES[h.cls] || {}).icon || '', dm: h.dm, dead: h.dead > 0 }));
   const towers = (G.dmTowers || []).map(tw => { const B = tw.branch && BRANCH[tw.type] && BRANCH[tw.type][tw.branch], D = TOWERS[tw.type] || {};
-    return { type: tw.type, stars: tw.stars || 1, branch: tw.branch || null, n: B ? `${D.n || tw.type} · ${B.n}` : (D.n || tw.type), icon: B ? B.icon : TOWER_IC[tw.type], dmT: tw.dmT, dmK: tw.dmK, gone: !!tw.dead || !(G.towers || []).includes(tw) }; });
+    return { type: tw.type, stars: tw.stars || 1, branch: tw.branch || null, n: (B ? `${D.n || tw.type} · ${B.n}` : (D.n || tw.type)) + (tw.awk && AWK[tw.type] ? ` ✨${AWK[tw.type].n}` : ''), icon: B ? B.icon : TOWER_IC[tw.type], dmT: tw.dmT, dmK: tw.dmK, gone: !!tw.dead || !(G.towers || []).includes(tw) }; });
   return { heroes, other: G.dmOther, towers, waves: G.waveLog || [], t: G.t, dungeon: !!G.dungeon }; }
 export function snapEnd() { G.endStats = aggregate(collect()); return G.endStats; }
 
