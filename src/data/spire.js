@@ -11,11 +11,14 @@ export const SP_PICK_KEY = 'hd3d_sppick'; // 탑 전용 파티 (원정 hd3d_dgpi
 
 // ---------- 난이도 공식 (시뮬 T-5 뒤 조정 가능하게 상수 한 곳) ----------
 export const SP = {
-  hpBase: 2.2, hpGrow: 1.05,   // hpMul(n) = 2.2 × 1.05^(n−1)
-  dmgBase: 1.3, dmgGrow: 1.03, // dmgMul(n) = 1.3 × 1.03^(n−1)
+  // T-5 (tests/spbal.py 균형 시뮬로 조정): 처음 공식(2.2×1.05 · 1.3×1.03)은 무장비 3명이 5층(중간 보스)에서 벽 → 시작값을 낮추고 피해 성장을 조금 올림
+  hpBase: 1.9, hpGrow: 1.05,    // hpMul(n) = 1.9 × 1.05^(n−1)
+  dmgBase: 1.15, dmgGrow: 1.035, // dmgMul(n) = 1.15 × 1.035^(n−1)
   cntBase: 14, cntCap: 24,     // 웨이브당 마리 = min(24, 14 + ⌊n/3⌋)
   hordeK: 1.25, hordeCap: 30,  // 👥 대군: 마리 ×1.25 (상한 30) · 웨이브 간격 ×0.5
-  bossHpK: .55,                // 보스 체력 = 기본 × hpMul(n) × 0.55
+  bossHpK: .45,                // 보스 체력 = 기본 × hpMul(n) × 0.45
+  bossDmgK: .6,                // 보스(대보스·해골 군주) 근접 공격 × 0.6 (보스 층엔 축복이 아직 없으므로 — 던전 5층은 축복 4번 뒤)
+  escortK: .6,                 // 보스 층 호위 웨이브 마리 × 0.6
   everyBase: .6, everyStep: .004, everyMin: .4, gap: 4,
   awakenCd: .85,               // 60층부터(로테이션 2회차) 보스 능력 대기 ×0.85
 };
@@ -59,7 +62,7 @@ export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79
 export const floorRng = (n, week, salt = '') => rng(hash32(`${week}:${int(n)}${salt}`));
 
 // ---------- 어픽스 (층 변형) ----------
-// tier easy = T-4 구현 · mid = T-5 구현 (on:false 동안 뽑히지 않음) · good = 좋은 변형
+// tier easy = T-4 구현 · mid = T-5 구현 · good = 좋은 변형 (on:false 면 뽑히지 않음 — 속성 저항 resF 는 2차)
 export const SP_AFFIX = [
   { id: 'haste', icon: '💨', n: '가속', desc: '몬스터 이동 속도 +20%', tier: 'easy', on: true, spd: 1.2 },
   { id: 'armor', icon: '🛡', n: '철갑', desc: '몬스터 방어 +0.15', tier: 'easy', on: true, armor: .15 },
@@ -67,10 +70,10 @@ export const SP_AFFIX = [
   { id: 'horde', icon: '👥', n: '대군', desc: '몬스터 수 +25% · 웨이브 간격 절반', tier: 'easy', on: true },
   { id: 'elite', icon: '🔴', n: '정예 증가', desc: '웨이브마다 정예 +1', tier: 'easy', on: true },
   { id: 'blessed', icon: '✨', n: '축복의 층', desc: '이 층을 돌파하면 축복 1회 추가', tier: 'easy', on: true, good: true },
-  { id: 'frenzy', icon: '😡', n: '광폭', desc: '체력 30% 이하 몬스터의 공격 +30%', tier: 'mid', on: false },
-  { id: 'curse', icon: '💔', n: '저주', desc: '영웅 회복 −50%', tier: 'mid', on: false },
-  { id: 'resM', icon: '🔮', n: '마법 저항', desc: '마법사 영웅의 피해 −35%', tier: 'mid', on: false },
-  { id: 'resR', icon: '🏹', n: '원거리 저항', desc: '원거리 영웅의 피해 −35%', tier: 'mid', on: false },
+  { id: 'frenzy', icon: '😡', n: '광폭', desc: '체력 30% 이하 몬스터의 공격 +30%', tier: 'mid', on: true, at: .3, k: 1.3 },
+  { id: 'curse', icon: '💔', n: '저주', desc: '영웅 회복 −50% (층 사이 회복 · 재생의 축복)', tier: 'mid', on: true, k: .5 },
+  { id: 'resM', icon: '🔮', n: '마법 저항', desc: '마법사 영웅(루나)의 피해 −35%', tier: 'mid', on: true, role: 'caster', k: .65 },
+  { id: 'resR', icon: '🏹', n: '원거리 저항', desc: '원거리 영웅(실바·로즈)의 피해 −35%', tier: 'mid', on: true, role: 'ranged', k: .65 },
 ];
 export const SP_AFFIX_BY = Object.fromEntries(SP_AFFIX.map(a => [a.id, a]));
 export const SP_CLASH = [['horde', 'elite'], ['resM', 'resR'], ['blessed', 'curse']]; // 같은 층에 같이 안 나옴
@@ -84,12 +87,12 @@ export function affixesOf(n, week, pool = SP_AFFIX.filter(a => a.on).map(a => a.
 }
 
 // ---------- 보스 로테이션 ----------
-// 대보스 (10의 배수): 5회 주기. sp_* 는 T-5 에서 monsters.js VARIANTS 에 추가 (그 전에는 base 종류로 대체)
+// 대보스 (10의 배수): 5회 주기. sp_* = monsters.js VARIANTS (T-5: 영웅에게 통하는 능력만 · 기존 보스 데이터는 그대로)
 export const SP_BOSSES = [
-  { id: 'sp_forest', base: 'boss_forest', n: '🌳 숲의 군주' },
-  { id: 'sp_snow', base: 'boss_snow', n: '❄ 빙결의 군주', escort: 'icewolf' },
-  { id: 'sp_fire', base: 'boss_fire', n: '🔥 화염의 군주' },
-  { id: 'sp_ruins', base: 'boss_ruins', n: '👑 망국의 왕' },
+  { id: 'sp_forest', base: 'sp_forest', n: '🌳 숲의 군주' },
+  { id: 'sp_snow', base: 'sp_snow', n: '❄ 빙결의 군주', escort: 'icewolf' },
+  { id: 'sp_fire', base: 'sp_fire', n: '🔥 화염의 군주' },
+  { id: 'sp_ruins', base: 'sp_ruins', n: '👑 망국의 왕' },
   { id: DG_BOSS_TYPE, base: DG_BOSS_TYPE, n: '💀 망령 여왕 모르비아' },
 ];
 export function bossOf(n) { n = int(n); const t = floorType(n);
@@ -113,7 +116,7 @@ export function spireFloor(n, week = weekKey()) {
   const B = bossOf(n), plusE = aff.includes('elite') ? 1 : 0, waves = [], elite = [];
   if (type === 'normal' || type === 'elite') { const nw = type === 'elite' ? 2 : 3, e0 = type === 'elite' ? Math.min(4, 2 + Math.floor(n / 15)) : 0;
     for (let w = 0; w < nw; w++) { waves.push(mixWave(n, cnt, r)); elite.push(e0 + plusE); } }
-  else { waves.push(mixWave(n, cnt, r)); elite.push(plusE); // 호위 웨이브
+  else { waves.push(mixWave(n, Math.round(cnt * SP.escortK), r)); elite.push(plusE); // 호위 웨이브 (보통 웨이브의 60%)
     const last = B.knights ? [[B.base, B.knights], ['grunt', 4]] : [[B.base, 1], [B.escort || 'grunt', B.escort ? 4 : 2]];
     waves.push(last); elite.push(B.knights ? B.knights : 0); }
   const bless = (isBossFloor(n) ? 1 : 0) + (aff.includes('blessed') ? 1 : 0);
@@ -123,6 +126,16 @@ export function spireFloor(n, week = weekKey()) {
 // 이번 도전의 층 목록 (run.js 의 G.dg.floors 로 바꿔 끼움). 끝이 없으므로 필요한 만큼 이어 붙임
 export const spireFloors = (from, count, week = weekKey()) => Array.from({ length: Math.max(0, count | 0) }, (_, i) => spireFloor(int(from) + i, week));
 export const preview = (from, week = weekKey(), k = 5) => spireFloors(from, k, week).map(F => ({ floor: F.floor, type: F.type, affixes: F.affixes, boss: F.bossInfo && F.bossInfo.n }));
+
+// ---------- 보통 어픽스 (T-5) 순수 계산 — dungeon/spire.js 가 판에서 씀 ----------
+export const hasAff = (F, id) => !!(F && F.affixes && F.affixes.includes(id));
+export const frenzyK = (F, hp, max) => hasAff(F, 'frenzy') && max > 0 && hp > 0 && hp <= max * SP_AFFIX_BY.frenzy.at ? SP_AFFIX_BY.frenzy.k : 1; // 😡 몬스터 공격 배수
+export const healK = F => hasAff(F, 'curse') ? SP_AFFIX_BY.curse.k : 1; // 💔 영웅 회복 배수
+export const resK = (F, role) => { let k = 1; for (const id of ['resM', 'resR']) if (hasAff(F, id) && SP_AFFIX_BY[id].role === role) k *= SP_AFFIX_BY[id].k; return k; }; // 🔮🏹 역할별 영웅 피해 배수
+// 탑 몬스터 정의 보정 (보스 근접 피해 · 각성 능력 대기) — 순수 (ETYPES 원본은 안 바꿈)
+export function bossTune(E0, awaken) { if (!E0 || !E0.boss) return E0; const E = { ...E0, dps: E0.dps * SP.bossDmgK };
+  if (awaken && E0.ab) E.ab = Object.fromEntries(Object.entries(E0.ab).map(([k, v]) => [k, v && v.every ? { ...v, every: +(v.every * SP.awakenCd).toFixed(2), first: v.first !== undefined ? +(v.first * SP.awakenCd).toFixed(2) : v.first } : v]));
+  return E; }
 
 // ---------- 체크포인트 · 시작 층 ----------
 // 시작 가능 = 1 또는 돌파한 보스층(5k ≤ best) + 1

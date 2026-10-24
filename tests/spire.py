@@ -27,7 +27,7 @@ with sync_playwright() as pw:
     ok('enter_spire', st['sp'] and st['sp']['from'] == 1 and st['f0'] == 1 and st['n'] >= 3 and st['mode'] == 'practice' and 'spire=1' in st['url'], st)
     ok('hud_spire_line', st['hud'].startswith('🗼 1층') and '웨이브 1/3' in st['hud'], st['hud'])
     J(pg, "()=>G.sim(6)"); sp = J(pg, "()=>G.enemies.filter(e=>!e.dead).map(e=>[e.type, Math.round(e.max), !!e.elite])")
-    ok('floor1_spawns_scaled', sp and all(not x[2] for x in sp) and any(x[0] == 'imp' and abs(x[1] - 40 * 2.2) < 1 for x in sp) if any(x[0] == 'imp' for x in sp) else bool(sp), sp[:6])
+    ok('floor1_spawns_scaled', sp and all(not x[2] for x in sp) and any(x[0] == 'imp' and abs(x[1] - 40 * 1.9) < 1 for x in sp) if any(x[0] == 'imp' for x in sp) else bool(sp), sp[:6])
     r = J(pg, SKIP); ok('floor1_clear_no_bless_card', r[3] and not r[2] and not r[4], r)
     J(pg, "()=>G.sim(3.5)"); r = J(pg, "()=>[G.dg.floor, G.dg.floors[G.dg.floor].floor, G.dg.wave, document.getElementById('dgFloor').textContent]")
     ok('floor2_auto_next', r[1] == 2 and r[2] == 0 and '🗼 2층' in r[3], r)
@@ -38,7 +38,7 @@ with sync_playwright() as pw:
     J(pg, SKIP); J(pg, "()=>G.sim(3.5)"); J(pg, SKIP); J(pg, "()=>G.sim(3.5)")  # → 5층
     J(pg, HEAL); J(pg, "()=>{ const D=G.dg; D.wave=0; D.q=[]; for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9); }")
     J(pg, "()=>{ for (let i=0;i<300 && !G.enemies.some(e=>!e.dead&&e.type==='boss');i++) G.sim(.1); }")
-    bo = J(pg, "async()=>{ const S=await import('./src/data/spire.js'); const F=G.dg.floors[G.dg.floor]; const e=G.enemies.find(e=>!e.dead&&e.type==='boss'); return {f:F.floor, type:F.type, max:e&&Math.round(e.max), want:Math.round(3200*S.hpMul(5)*.55), hud:document.getElementById('dgFloor').textContent}; }")
+    bo = J(pg, "async()=>{ const S=await import('./src/data/spire.js'); const F=G.dg.floors[G.dg.floor]; const e=G.enemies.find(e=>!e.dead&&e.type==='boss'); return {f:F.floor, type:F.type, max:e&&Math.round(e.max), want:Math.round(3200*S.hpMul(5)*S.SP.bossHpK), hud:document.getElementById('dgFloor').textContent}; }")
     ok('floor5_midboss_hp', bo['f'] == 5 and bo['type'] == 'mid' and bo['max'] and abs(bo['max'] - bo['want']) <= 1 and '해골 군주' in bo['hud'], bo)
     r = J(pg, SKIP); bl = J(pg, "()=>{ const el=document.getElementById('dgBless'); return el && !el.classList.contains('hidden') && el.querySelector('.dgBT').textContent; }")
     ok('floor5_bless_card', r[2] and bl and '5층' in bl, (r, bl))
@@ -63,6 +63,28 @@ with sync_playwright() as pw:
     J(pg, "()=>G.dgTakeBless(G.dg.blessing[0])"); s4 = J(pg, "()=>({bless:!!G.dg.blessing, f:G.dg.floors[G.dg.floor].floor, n:Object.values(G.dg.bless).reduce((a,b)=>a+b,0), hud:document.getElementById('dgFloor').textContent, hp:Math.round(G.dg.floors[0].hpMul*100)})")
     ok('catchup_two_then_21', s3['bless'] and s4 and not s4['bless'] and s4['f'] == 21 and s4['n'] == 2 and '🗼 21층' in s4['hud'], (s3, s4))
     ok('errors_0_run2', not errs, errs[:4]); errs.clear()
+    # T-5: 탑 보스 sp_* (영웅 대상 능력) · 보통 어픽스 (광폭·저주·역할 저항)
+    J(pg, HEAL); bs = J(pg, """async()=>{ const En=await import('./src/monsters/enemy.js'), S=await import('./src/data/spire.js'); const F=G.dg.floors[G.dg.floor]; F.affixes=[]; const out={};
+        for (const e of [...G.enemies]) if (!e.dead) G.hurt(e,1e9); G.dg.q=[];
+        for (const t of ['sp_forest','sp_snow','sp_fire','sp_ruins']) { const s0={...G.stats}; const e=En.spawnEnemy(t, F.hpMul); e.g.position.set(G.heroes[0].g.position.x+3, 0, G.heroes[0].g.position.z);
+          for (let i=0;i<160;i++) { G.sim(.1); G.heroes.forEach(h=>{ if (h.dead<=0) h.hp=Math.max(h.hp, h.max*.6); }); if (t==='sp_ruins'||t==='sp_fire') { if (e.hp>e.max*.45) e.hp=e.max*.45; } }
+          const d=k=>(G.stats[k]||0)-(s0[k]||0); out[t]={max:Math.round(e.max), want:Math.round(3200*(t==='sp_fire'?3400/3200:t==='sp_ruins'?3600/3200:1)*F.hpMul*S.SP.bossHpK), dps:e.E.dps, heal:d('heals')+d('healed'), summon:d('summons'), meteorHero:d('meteorHero'), enr:!!e.enraged, dread:d('dreads'), dreadHero:d('dreadHero'), adds:G.enemies.filter(o=>!o.dead&&o!==e).length};
+          for (const o of [...G.enemies]) if (!o.dead) G.hurt(o,1e9); G.sim(.5); G.heroes.forEach(h=>{ if (h.dead>0) { h.dead=0; h.hb&&h.hb.show(true); } h.hp=h.max; }); }
+        return out; }""")
+    ok('sp_bosses_hp_dps', all(abs(v['max'] - v['want']) <= 2 and v['dps'] < 170 for v in bs.values()), bs)
+    ok('sp_fire_meteor_heroes', bs['sp_fire']['meteorHero'] >= 1 and bs['sp_fire']['enr'], bs['sp_fire'])
+    ok('sp_ruins_dread_summon', bs['sp_ruins']['dread'] >= 1 and bs['sp_ruins']['dreadHero'] >= 1, bs['sp_ruins'])
+    ok('sp_forest_summon', bs['sp_forest']['adds'] >= 1, bs['sp_forest'])
+    af2 = J(pg, """async()=>{ const En=await import('./src/monsters/enemy.js'); const F=G.dg.floors[G.dg.floor]; const mage=G.heroes.find(h=>h.cls==='mage'), war=G.heroes.find(h=>h.cls==='warrior');
+        const hit=(aff, who)=>{ F.affixes=aff; const e=En.spawnEnemy('golem', 1); e.g.position.set(40,0,40); const w0=G.mWho; G.mWho=who; const h0=e.hp; G.hurt(e, 100); G.mWho=w0; const d=h0-e.hp; G.hurt(e,1e9); return Math.round(d); };
+        const r={none:hit([], mage), resM:hit(['resM'], mage), resMwar:hit(['resM'], war), resR:hit(['resR'], mage)};
+        F.affixes=['frenzy']; const e=En.spawnEnemy('grunt',1); r.fr0=G.spireAtkK(e); e.hp=e.max*.2; r.fr1=G.spireAtkK(e); F.affixes=[]; r.fr2=G.spireAtkK(e); G.hurt(e,1e9);
+        G.dg.floors[G.dg.floor+1].affixes=['curse']; const h=G.heroes[0]; h.hp=h.max*.5; G.dg.q=[]; G.dg.wave=F.waves.length-1; G.sim(.2); for (const o of [...G.enemies]) if (!o.dead) G.hurt(o,1e9); for (let i=0;i<60 && G.dg.floor===G.dg.floors.indexOf(F);i++) { G.sim(.1); if (G.dg.blessing) G.dgTakeBless(G.dg.blessing[0]); }
+        r.curseHp=Math.round(h.hp/h.max*1000)/10; r.fl=G.dg.floors[G.dg.floor].floor; return r; }""")
+    ok('affix_res_magic_ranged', abs(af2['resM'] - af2['none'] * .65) <= 1 and af2['resMwar'] == af2['none'] and af2['resR'] == af2['none'], af2)
+    ok('affix_frenzy', af2['fr0'] == 1 and af2['fr1'] == 1.3 and af2['fr2'] == 1, af2)
+    ok('affix_curse_heal_half', 56 <= af2['curseHp'] <= 64, af2)
+    ok('errors_0_t5', not errs, errs[:4]); errs.clear()
     # ?sptest 없음 → spire 무시 (일반 던전 원정)
     c2 = b.new_context(viewport={'width': 1280, 'height': 800}); c2.add_init_script(MOCK); p2 = c2.new_page(); p2.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     login(p2, '?seed=5152&rng=32&flow=1&dgtest=1', 'sp2@test.kr'); enter(p2, 6)

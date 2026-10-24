@@ -69,6 +69,15 @@ const VARIANTS = {
                  desc: '돌 껍질이 피해를 60% 막습니다. 9초마다 멈춰 2.2초간 석상이 되어(회색 돔) 무적 + 껍질 일부 회복. 체력의 30%만큼 맞으면 껍질이 깨져 방어력이 사라지는 대신 훨씬 빨라지고 더는 석상이 되지 못해요.' }],
   ruinroot:    ['treant', { n: '폐허 덩굴', icon: '🌿', tint: 0x8a9a7a, eye: 0xc07aff, hp: 540, ab: { root: { every: 7, first: 3, windup: 1.2, r: 6, n: 2, dur: 2.8 } }, desc: '무너진 성벽을 휘감은 덩굴 거인. 7초마다 가까운 타워 2개를 뿌리로 묶어 2.8초 동안 공격을 막습니다 (초록 고리 = 예고).' }],
   ruin_guard:  ['grunt', { n: '해골 근위병', tint: 0xc0b0ff, eye: 0x6affe8, hp: 110, gold: 2, child: true }],
+  // 🗼 무한의 탑 대보스 (T-5, data/spire.js SP_BOSSES · 탑에서만 나옴). 던전 맵엔 타워가 없으므로 영웅에게 통하는 능력만 (root·snowball·chill·lavapool·curse 제외). 원본 boss_* 는 그대로
+  sp_forest:   ['boss_forest', { spire: true, ab: { heal: { every: 12, first: 6, windup: 1, r: 5, pct: .08 }, summon: { every: 14, first: 5, windup: 1.4, n: 3, type: 'goblin', hp: .6, r: 2.4, extra: 0 } },
+                 desc: '🗼 무한의 탑 10층의 주인. 주변 몬스터를 치유하고, 14초마다 고블린 3마리를 불러냅니다 (보라 원 = 예고).' }],
+  sp_snow:     ['boss_snow', { spire: true, ab: { crack: { armor: .5, at: .2, after: .1, spd: 1.15, regen: 14 } },
+                 desc: '🗼 무한의 탑 20층의 주인. 얼음 갑옷이 피해를 50% 막고, 깨져도 14초 뒤 다시 얼어붙습니다. 서리늑대 무리를 거느려요.' }],
+  sp_fire:     ['boss_fire', { spire: true, ab: { meteor: { every: 11, first: 6, windup: 1.8, fall: .5, range: 16, n: 0, heroes: 2, r: 2.4, tower: 0, hero: 60 }, enrage: { at: .5, spd: 1.25, cd: .65, extra: 1 } },
+                 desc: '🗼 무한의 탑 30층의 주인. 가까운 영웅 2명 발밑에 빨간 원 → 화염 운석. 체력 50% 아래에서 분노: 더 빠르고, 더 자주, 운석 +1.' }],
+  sp_ruins:    ['boss_ruins', { spire: true, ab: { summon: { every: 15, first: 6, windup: 1.4, n: 3, type: 'ruin_guard', hp: .55, r: 2.4, extra: 2 }, dread: { at: .5, windup: 2.2, r: 8, tower: 0, hero: 70, stun: 0, shield: .12, cd: .7 } },
+                 desc: '🗼 무한의 탑 40층의 주인. 해골 근위병 3마리 소환, 체력 50%에서 어둠의 파동(보라 고리 안 영웅 피해 + 어둠 보호막) 뒤 더 자주·더 많이 소환.' }],
 };
 for (const [k, [b, o]] of Object.entries(VARIANTS)) ETYPES[k] = { ...ETYPES[b], ...o, base: b };
 

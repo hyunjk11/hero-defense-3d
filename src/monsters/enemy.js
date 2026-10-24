@@ -70,6 +70,7 @@ function shieldFactor(e, src) {
 // 타워 XP: 타워 공격 중(G.xpSrc)이면 실제로 깎은 체력 + 처치 보너스를 그 타워에 (성장 꺼짐이면 G.xpSrc는 항상 null)
 // 피해 미터: 실제로 깎인 체력만 기록 (주인 = G.mWho 가 정해졌으면 그것(null = 타워·공용), 아니면 현재 영웅 G.curHero) · 종류 G.mK (1 = 스킬)
 function hurt(e, dmg, color, big, src) { if (e.dead) return hurt0(e, dmg, color, big, src); const tw = G.xpSrc, w = G.mWho, own = w === undefined ? G.curHero : w, dm = own ? own.dm : G.dmOther;
+  if (G.spireDmgK && own && !tw) dmg *= G.spireDmgK(own); // 🗼 🔮마법·🏹원거리 저항 (탑에서만, dungeon/spire.js)
   if (!tw && !dm) return hurt0(e, dmg, color, big, src); const h0 = Math.max(0, e.hp); hurt0(e, dmg, color, big, src); const d = h0 - Math.max(0, e.hp);
   if (tw) towerXp(tw, d + (e.dead ? KILL_XP : 0)); if (dm) meterAdd(dm, d, G.t, G.mK, e.dead); if (!own && G.mTw) towerAdd(G.dmTowers, G.mTw, d, e.dead); }
 function hurt0(e, dmg, color = '#fff', big = false, src = null) {

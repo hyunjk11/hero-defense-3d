@@ -191,6 +191,8 @@
 | `speed` | ui/speed.js | 14 |  |
 | `spire` | dungeon/spire.js | 3 | 🗼 무한의 탑 판 상태 {from, week, top, practice} — 탑 판에서만 있음 (원정·일반 판 undefined) |
 | `spireE` | dungeon/spire.js | 1 | 🗼 탑 몬스터 정의 훅 (enemy.js spawnEnemy: 정예·보스 체력·가속·철갑) — 탑 판에서만 |
+| `spireAtkK` | dungeon/spire.js | 1 | 🗼 T-5 몬스터 근접 공격 배수 훅 (ai.js: 😡 광폭) — 탑 판에서만 |
+| `spireDmgK` | dungeon/spire.js | 1 | 🗼 T-5 영웅 피해 배수 훅 (enemy.js hurt: 🔮마법·🏹원거리 저항) — 탑 판에서만 |
 | `stage` | dungeon/run.js · ui/flow.js | 31 |  |
 | `STAGE_CFG` | main.js | 7 | main.js 가 노출하는 값/함수 |
 | `stageSel` | ui/flow.js | 30 |  |
