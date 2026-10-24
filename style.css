@@ -797,3 +797,8 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .spRecRes .spNew{color:#ffe066;font-size:17px;text-shadow:0 0 8px #ffb000}.spRecL b{color:var(--gold-hi)}.spRw{margin-top:4px;color:#ffe9a0}
 /* T-8: 탑 탭 파티 카드는 간단히 (860px 높이 안에 출발 버튼까지) */
 .spParty .dgCard{gap:3px;padding:8px}.spParty .dgSt,.spParty .dgLv{display:none}.spParty{margin:6px 0}
+/* T-9: 탑 주간 보상 · 칭호 · 관리자 이상 기록 */
+.spWkRw{display:flex;flex-direction:column;gap:4px;margin:4px auto;max-width:620px}.spWk{display:flex;align-items:center;gap:10px;justify-content:space-between;background:#2a1f10cc;border:1px solid #ffc86a88;border-radius:9px;padding:5px 10px;font-size:13px;color:#ffe8c0}
+.spWkR{color:#ffd27a;font-size:12.5px;margin-left:auto}.spTitles{color:#ffd27a;font-weight:bold}
+.spAdmList{display:flex;flex-direction:column;gap:6px;margin-top:8px}.spAdmRow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;background:#ffffff0a;border:1px solid #ffffff1a;border-radius:8px;padding:6px 10px;font-size:13px}
+.spAdmRow .gbtn{grid-row:1/4;grid-column:2}.spAdmR small,.spAdmU small{color:#a898c0}.spAdmRec li{font-size:12px}

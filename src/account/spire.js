@@ -5,9 +5,9 @@ import { A, ensureClient } from './account.js';
 import { isBannedErr, isMissingErr } from './adminlogic.js';
 import { snapFrom } from '../data/spire.js';
 
-export const SPS = { st: 'idle', uid: null, best: 0, cleared: 0, checkpoints: [1], week: null, weekBest: 0, weekRank: null, left: null, used: 0, limit: 30, banned: false, msg: '' }; // st: idle | guest | loading | ok | missing | error
+export const SPS = { st: 'idle', uid: null, best: 0, cleared: 0, checkpoints: [1], week: null, weekBest: 0, weekRank: null, left: null, used: 0, limit: 30, banned: false, msg: '', unclaimed: [], titles: [] }; // st: idle | guest | loading | ok | missing | error
 export const UPDATE_NEEDED = '서버 업데이트 필요';
-export const SP_REASON = { bad_from: '그 층에서는 시작할 수 없어요 (돌파한 체크포인트만)', daily_limit: '오늘은 더 시작할 수 없어요 (하루 30회 · 한국 시간 0시 초기화)', bad_token: '도전 정보가 맞지 않아요', used: '이미 끝난 도전이에요', expired: '도전 시간이 지났어요 (3시간)', bad_floor: '체크포인트 층이 아니에요', too_fast: '너무 빨라서 아직 체크포인트로 인정되지 않았어요', bad_kind: '랭킹 종류가 잘못됐어요' };
+export const SP_REASON = { bad_from: '그 층에서는 시작할 수 없어요 (돌파한 체크포인트만)', daily_limit: '오늘은 더 시작할 수 없어요 (하루 30회 · 한국 시간 0시 초기화)', bad_token: '도전 정보가 맞지 않아요', used: '이미 끝난 도전이에요', expired: '도전 시간이 지났어요 (3시간)', bad_floor: '체크포인트 층이 아니에요', not_ended: '아직 끝나지 않은 주예요 (한국 시간 월요일 0시 정산)', no_record: '그 주에는 기록이 없어요', claimed: '이미 받은 주간 보상이에요', bad_week: '주 정보가 맞지 않아요', too_fast: '너무 빨라서 아직 체크포인트로 인정되지 않았어요', bad_kind: '랭킹 종류가 잘못됐어요' };
 const TOK = 'hd3d_sptok'; // 출발 → 새로고침(?dungeon=1&run=1&spire=N) 사이에 token 을 넘기는 곳 (sessionStorage: 이 탭만)
 const ss = { get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }, del: k => { try { sessionStorage.removeItem(k); } catch (e) {} } };
 const uid = () => (A.user && A.user.id) || null;
@@ -23,13 +23,26 @@ const errMsg = (e, what) => isMissingErr(e) ? UPDATE_NEEDED : isBannedErr(e) ? '
 
 // 최고 층 · 체크포인트 · 이번 주 기록/순위 · 오늘 남은 시작 (서버)
 export async function spStatus() {
-  const u = uid(); if (!u) { Object.assign(SPS, { st: 'guest', uid: null, best: 0, cleared: 0, checkpoints: [1], weekBest: 0, weekRank: null, left: null, used: 0, banned: false, msg: '' }); return SPS; }
-  if (SPS.uid !== u) Object.assign(SPS, { uid: u, best: 0, cleared: 0, checkpoints: [1], weekBest: 0, weekRank: null, left: null, used: 0 }); SPS.st = SPS.st === 'ok' ? 'ok' : 'loading';
+  const u = uid(); if (!u) { Object.assign(SPS, { st: 'guest', uid: null, best: 0, cleared: 0, checkpoints: [1], weekBest: 0, weekRank: null, left: null, used: 0, banned: false, msg: '', unclaimed: [], titles: [] }); return SPS; }
+  if (SPS.uid !== u) Object.assign(SPS, { uid: u, best: 0, cleared: 0, checkpoints: [1], weekBest: 0, weekRank: null, left: null, used: 0, unclaimed: [], titles: [] }); SPS.st = SPS.st === 'ok' ? 'ok' : 'loading';
   const { data, error } = await rpc('hd3d_spire_status'); if (uid() !== u) return SPS;
   if (error || !data) { setErr(error || {}); return SPS; }
   const cp = ints(data.checkpoints); Object.assign(SPS, { st: 'ok', best: Math.max(0, +data.best || 0), cleared: Math.max(0, +data.cleared || 0), checkpoints: cp.length ? cp : [1], week: data.week || null,
-    weekBest: Math.max(0, +data.week_best || 0), weekRank: data.week_rank == null ? null : +data.week_rank, left: Math.max(0, +data.left || 0), used: +data.used || 0, limit: +data.limit || 30, banned: !!data.banned, msg: '' });
+    weekBest: Math.max(0, +data.week_best || 0), weekRank: data.week_rank == null ? null : +data.week_rank, left: Math.max(0, +data.left || 0), used: +data.used || 0, limit: +data.limit || 30, banned: !!data.banned, msg: '',
+    unclaimed: weeksOf(data.unclaimed), titles: Array.isArray(data.titles) ? data.titles.filter(t => typeof t === 'string' && /^spire_/.test(t)) : [] });
   return SPS;
+}
+// 받지 않은 지난 주 보상 (T-9 · 서버 hd3d_spire_status.unclaimed) — 서버가 T-6 판이면 없음 = []
+const weeksOf = a => (Array.isArray(a) ? a : []).filter(x => x && /^\d{4}-\d{2}-\d{2}$/.test(String(x.week))).slice(0, 8).map(x => ({ week: String(x.week), best: Math.max(0, +x.best || 0), rank: x.rank == null ? null : +x.rank,
+  title: typeof x.title === 'string' ? x.title : null, souls: Math.max(0, +x.souls || 0), medals: Math.max(0, +x.medals || 0) }));
+// 주간 정산 (T-9): 끝난 주 한 번 · 영혼석/메달 우편 · 지난주면 주간 칭호 교체 → { ok, week, best, rank, souls, medals, title, mail } | { ok:false, msg }
+export async function spClaimWeek(week) {
+  if (!uid()) return { ok: false, msg: '로그인이 필요해요.' };
+  const { data, error } = await rpc('hd3d_spire_claim_week', week ? { p_week: week } : {});
+  if (error) return { ok: false, offline: offline(error), msg: errMsg(error, '받을') };
+  if (!data || data.ok === false) { if (data && data.reason === 'claimed') SPS.unclaimed = SPS.unclaimed.filter(x => x.week !== week); return { ok: false, reason: data && data.reason, msg: SP_REASON[data && data.reason] || '받지 못했어요' }; }
+  SPS.unclaimed = SPS.unclaimed.filter(x => x.week !== String(data.week));
+  return { ok: true, week: String(data.week), best: +data.best || 0, rank: data.rank == null ? null : +data.rank, souls: +data.souls || 0, medals: +data.medals || 0, title: data.title || null, mail: data.mail || null };
 }
 // 출발: 서버에 도전 등록. → { mode: 'ranked', token, from } | { mode: 'practice', why: 'guest'|'missing'|'error' } | { blocked: true, msg }
 export async function spStart(from) {

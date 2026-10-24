@@ -446,7 +446,8 @@ begin
       'today', (select count(*) from public.hd3d_dungeon_runs r where r.user_id = p_user and r.day = (now() at time zone 'Asia/Seoul')::date),
       'runs', (select count(*) from public.hd3d_dungeon_runs r where r.user_id = p_user),
       'uniques', coalesce((select to_jsonb(w.uniques) from public.hd3d_dungeon_wallet w where w.user_id = p_user), '[]'::jsonb),
-      'uq_pity', coalesce((select w.uq_pity from public.hd3d_dungeon_wallet w where w.user_id = p_user), 0)));
+      'uq_pity', coalesce((select w.uq_pity from public.hd3d_dungeon_wallet w where w.user_id = p_user), 0)),
+    'spire', public.hd3d_admin_spire_card(p_user)); -- 2026-10-24 무한의 탑 T-9 (탑 절 실행 전이면 null)
 end $$;
 
 -- ---------- 2) 유료 영웅 지급 / 회수 (사유 필수) ----------
@@ -1011,21 +1012,7 @@ language sql stable security definer set search_path = '' as $$
   from public.hd3d_spire_weeks w where w.user_id = p_uid and w.week = p_week;
 $$;
 
-create or replace function public.hd3d_spire_status() returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
-declare v_me uuid := auth.uid(); v_day date := public.hd3d_kst_day(); v_week date := public.hd3d_kst_week(); c jsonb := public.hd3d_spire_const();
-  v_used int; b public.hd3d_spire_best%rowtype; v_wk int; v_cp int[];
-begin
-  if v_me is null then raise exception 'not authenticated' using errcode = '42501'; end if;
-  select count(*) into v_used from public.hd3d_spire_runs r where r.user_id = v_me and r.day = v_day;
-  select * into b from public.hd3d_spire_best x where x.user_id = v_me;
-  select best_floor into v_wk from public.hd3d_spire_weeks w where w.user_id = v_me and w.week = v_week;
-  select array_agg(g) into v_cp from (select 1 as g union all select k + 1 from generate_series(5, coalesce(b.best_floor, 0), 5) k) s;
-  return jsonb_build_object('ok', true, 'day', v_day, 'week', v_week, 'limit', (c ->> 'dailyCap')::int, 'used', v_used, 'left', greatest(0, (c ->> 'dailyCap')::int - v_used),
-    'best', coalesce(b.best_floor, 0), 'best_at', b.best_at, 'cleared', coalesce(b.cleared_bosses, 0), 'checkpoints', to_jsonb(v_cp),
-    'week_best', coalesce(v_wk, 0), 'week_rank', public.hd3d_spire_week_rank(v_me, v_week), 'banned', public.hd3d_is_banned(),
-    'active', exists (select 1 from public.hd3d_spire_runs r where r.user_id = v_me and r.status = 'active'));
-end $$;
+-- hd3d_spire_status() 는 아래 T-9 절 (unclaimed · titles 추가판)
 
 create or replace function public.hd3d_spire_start(p_from int) returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -1124,6 +1111,132 @@ begin
   return jsonb_build_object('ok', true, 'kind', p_kind, 'week', case when p_kind = 'week' then v_week end, 'top', coalesce(v_top, '[]'::jsonb), 'me', v_mine);
 end $$;
 
+-- =====================================================================================================
+-- 🗼 무한의 탑 T-9 ⚠ 스키마 2 (2026-10-24): 주간 정산 · 주간 칭호 · 관리자 이상 기록 화면. 이 절도 idempotent.
+--   hd3d_spire_claim_week(week)      → 끝난 주(KST 월요일 키)만 · 주당 한 번 · 영혼석 min(1500, W×30) + 메달 min(25, ⌊W/5⌋×2) 우편
+--                                      지난주(= 이번 주 − 7일) 정산 때만 주간 칭호 교체: 1위 spire_w1 · 2~10위 spire_w10 · 그 밖 = 주간 칭호 제거
+--   hd3d_spire_status() 에 unclaimed(받지 않은 지난 주 최대 8개) · titles(지갑의 탑 칭호) 추가
+--   관리자: hd3d_admin_spire(days, limit) 이상 기록 목록 · hd3d_admin_spire_reset(user, reason) 기록 초기화(첫 돌파 보상 기준 cleared 는 유지 = 보상 재수령 불가) · hd3d_admin_user 에 spire 요약
+-- 주간 보상 공식은 src/data/spire.js weekReward 와 같음 (tests/schema_pg.py 가 비교).
+-- =====================================================================================================
+create or replace function public.hd3d_spire_week_reward(p_best int) returns jsonb
+language sql immutable set search_path = '' as $$
+  select jsonb_build_object('souls', least(1500, greatest(0, coalesce(p_best, 0)) * 30), 'medals', least(25, (greatest(0, coalesce(p_best, 0)) / 5) * 2));
+$$;
+create or replace function public.hd3d_spire_week_title(p_rank int) returns text
+language sql immutable set search_path = '' as $$
+  select case when p_rank = 1 then 'spire_w1' when p_rank between 2 and 10 then 'spire_w10' end;
+$$;
+
+create or replace function public.hd3d_spire_claim_week(p_week date default null) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_me uuid := auth.uid(); v_cur date := public.hd3d_kst_week(); v_week date := coalesce(p_week, public.hd3d_kst_week() - 7);
+  w public.hd3d_spire_weeks%rowtype; v_rank int; rw jsonb; v_title text; v_mid bigint; v_last boolean;
+begin
+  if v_me is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  if public.hd3d_is_banned() then raise exception 'banned' using errcode = '42501', hint = 'banned'; end if;
+  if extract(isodow from v_week) <> 1 then return jsonb_build_object('ok', false, 'reason', 'bad_week'); end if;
+  if v_week >= v_cur then return jsonb_build_object('ok', false, 'reason', 'not_ended', 'week', v_week); end if;
+  perform pg_advisory_xact_lock(hashtext('hd3d_spire:' || v_me::text));
+  select * into w from public.hd3d_spire_weeks x where x.user_id = v_me and x.week = v_week for update;
+  if not found or w.best_floor <= 0 then return jsonb_build_object('ok', false, 'reason', 'no_record', 'week', v_week); end if;
+  if w.claimed then return jsonb_build_object('ok', false, 'reason', 'claimed', 'week', v_week); end if;
+  v_rank := public.hd3d_spire_week_rank(v_me, v_week);
+  rw := public.hd3d_spire_week_reward(w.best_floor);
+  v_last := v_week = v_cur - 7;
+  v_title := case when v_last then public.hd3d_spire_week_title(v_rank) end;
+  update public.hd3d_spire_weeks set claimed = true where user_id = v_me and week = v_week;
+  if (rw ->> 'souls')::int > 0 or (rw ->> 'medals')::int > 0 then
+    insert into public.hd3d_mail (user_id, title, body, reward)
+      values (v_me, '🗼 무한의 탑 주간 보상', left(to_char(v_week, 'YYYY-MM-DD') || ' 주 최고 ' || w.best_floor || '층 (주간 ' || coalesce(v_rank::text, '-') || '위) 보상입니다. ''받기''를 눌러 받으세요.', 1000),
+        jsonb_strip_nulls(jsonb_build_object('souls', nullif((rw ->> 'souls')::int, 0), 'medals', nullif((rw ->> 'medals')::int, 0)))) returning id into v_mid;
+  end if;
+  -- 주간 칭호: 지난주 정산일 때만 교체 (더 오래된 주를 늦게 받으면 보상만)
+  if v_last then
+    insert into public.hd3d_dungeon_wallet (user_id, titles) values (v_me, case when v_title is null then '{}'::text[] else array[v_title] end)
+      on conflict (user_id) do update set titles = (select coalesce(array_agg(distinct t order by t), '{}') from unnest(
+        array_remove(array_remove(public.hd3d_dungeon_wallet.titles, 'spire_w1'), 'spire_w10') || excluded.titles) t), updated_at = now();
+  end if;
+  return jsonb_build_object('ok', true, 'week', v_week, 'best', w.best_floor, 'rank', v_rank, 'souls', (rw ->> 'souls')::int, 'medals', (rw ->> 'medals')::int, 'title', v_title, 'mail', v_mid);
+end $$;
+
+-- 상태 (T-6 판 + unclaimed · titles)
+create or replace function public.hd3d_spire_status() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare v_me uuid := auth.uid(); v_day date := public.hd3d_kst_day(); v_week date := public.hd3d_kst_week(); c jsonb := public.hd3d_spire_const();
+  v_used int; b public.hd3d_spire_best%rowtype; v_wk int; v_cp int[];
+begin
+  if v_me is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  select count(*) into v_used from public.hd3d_spire_runs r where r.user_id = v_me and r.day = v_day;
+  select * into b from public.hd3d_spire_best x where x.user_id = v_me;
+  select best_floor into v_wk from public.hd3d_spire_weeks w where w.user_id = v_me and w.week = v_week;
+  select array_agg(g) into v_cp from (select 1 as g union all select k + 1 from generate_series(5, coalesce(b.best_floor, 0), 5) k) s;
+  return jsonb_build_object('ok', true, 'day', v_day, 'week', v_week, 'limit', (c ->> 'dailyCap')::int, 'used', v_used, 'left', greatest(0, (c ->> 'dailyCap')::int - v_used),
+    'best', coalesce(b.best_floor, 0), 'best_at', b.best_at, 'cleared', coalesce(b.cleared_bosses, 0), 'checkpoints', to_jsonb(v_cp),
+    'week_best', coalesce(v_wk, 0), 'week_rank', public.hd3d_spire_week_rank(v_me, v_week), 'banned', public.hd3d_is_banned(),
+    'active', exists (select 1 from public.hd3d_spire_runs r where r.user_id = v_me and r.status = 'active'),
+    'unclaimed', coalesce((select jsonb_agg(jsonb_build_object('week', u.week, 'best', u.best_floor, 'rank', public.hd3d_spire_week_rank(v_me, u.week),
+        'title', case when u.week = v_week - 7 then public.hd3d_spire_week_title(public.hd3d_spire_week_rank(v_me, u.week)) end) || public.hd3d_spire_week_reward(u.best_floor) order by u.week desc)
+      from (select * from public.hd3d_spire_weeks w where w.user_id = v_me and w.week < v_week and not w.claimed and w.best_floor > 0 order by w.week desc limit 8) u), '[]'::jsonb),
+    'titles', coalesce((select to_jsonb(array(select t from unnest(x.titles) t where t like 'spire\_%' order by t)) from public.hd3d_dungeon_wallet x where x.user_id = v_me), '[]'::jsonb));
+end $$;
+
+-- 관리자: 이상 기록 (최근 p_days 일, 깃발 있는 판만) — fast: 경과 시간이 최소 시간의 1.25배 미만 · capped: 서버가 층을 깎음 · day50: 그날 +50층 넘게
+create or replace function public.hd3d_admin_spire(p_days int default 7, p_limit int default 50) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare v_rows jsonb; v_days int := least(60, greatest(1, coalesce(p_days, 7))); v_lim int := least(200, greatest(1, coalesce(p_limit, 50)));
+begin
+  if not public.hd3d_is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
+  with r as (
+    select x.*, extract(epoch from (coalesce(x.finished_at, x.last_ping_at, now()) - x.started_at))::int as sec,
+      public.hd3d_spire_minsec(x.from_floor, x.top_floor) as need,
+      sum(greatest(0, x.top_floor - x.from_floor + 1)) over (partition by x.user_id, x.day) as day_gain
+    from public.hd3d_spire_runs x where x.started_at > now() - make_interval(days => v_days) and x.top_floor >= x.from_floor),
+  f as (
+    select r.*, array_remove(array[case when r.sec < r.need * 1.25 then 'fast' end, case when r.capped then 'capped' end, case when r.day_gain > 50 then 'day50' end], null) as flags from r)
+  select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'user_id', f.user_id, 'nick', coalesce(p.nickname, '용사'), 'email', u.email,
+      'from', f.from_floor, 'top', f.top_floor, 'status', f.status, 'sec', f.sec, 'need', f.need, 'day_gain', f.day_gain, 'flags', to_jsonb(f.flags),
+      'best', coalesce(b.best_floor, 0), 'banned', exists (select 1 from public.hd3d_bans z where z.user_id = f.user_id),
+      'at', coalesce(f.finished_at, f.started_at), 'summary', f.summary) order by coalesce(f.finished_at, f.started_at) desc), '[]'::jsonb) into v_rows
+  from (select * from f where cardinality(f.flags) > 0 order by coalesce(f.finished_at, f.started_at) desc limit v_lim) f
+    left join public.hd3d_profiles p on p.id = f.user_id left join auth.users u on u.id = f.user_id left join public.hd3d_spire_best b on b.user_id = f.user_id;
+  return jsonb_build_object('ok', true, 'days', v_days, 'rows', v_rows);
+end $$;
+
+-- 관리자: 탑 기록 초기화 (최고 층 0 · 이번 주 기록 삭제 · 진행 중 판 포기). cleared_bosses 는 그대로 → 첫 돌파 보상 다시 못 받음
+create or replace function public.hd3d_admin_spire_reset(p_user uuid, p_reason text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare r text := public.hd3d_reason(p_reason); v_prev int; v_wk int;
+begin
+  if not public.hd3d_is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
+  if r is null then return jsonb_build_object('ok', false, 'reason', 'bad_reason'); end if;
+  if p_user is null or not exists (select 1 from auth.users u where u.id = p_user) then return jsonb_build_object('ok', false, 'reason', 'no_user'); end if;
+  perform pg_advisory_xact_lock(hashtext('hd3d_spire:' || p_user::text));
+  select best_floor into v_prev from public.hd3d_spire_best where user_id = p_user;
+  select best_floor into v_wk from public.hd3d_spire_weeks where user_id = p_user and week = public.hd3d_kst_week();
+  update public.hd3d_spire_best set best_floor = 0, best_at = null, updated_at = now() where user_id = p_user;
+  delete from public.hd3d_spire_weeks where user_id = p_user and week = public.hd3d_kst_week();
+  update public.hd3d_spire_runs set status = 'abandoned', finished_at = now() where user_id = p_user and status = 'active';
+  perform public.hd3d_log('spire_reset', p_user, jsonb_build_object('reason', r, 'best', coalesce(v_prev, 0), 'week_best', coalesce(v_wk, 0)));
+  return jsonb_build_object('ok', true, 'prev', coalesce(v_prev, 0), 'week_prev', coalesce(v_wk, 0));
+end $$;
+
+-- 관리자 유저 상세용 탑 요약 (hd3d_admin_user 가 부름 · 탑 테이블이 없으면 null)
+create or replace function public.hd3d_admin_spire_card(p_user uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if to_regclass('public.hd3d_spire_runs') is null then return null; end if;
+  return jsonb_build_object(
+    'best', coalesce((select b.best_floor from public.hd3d_spire_best b where b.user_id = p_user), 0),
+    'cleared', coalesce((select b.cleared_bosses from public.hd3d_spire_best b where b.user_id = p_user), 0),
+    'week_best', coalesce((select w.best_floor from public.hd3d_spire_weeks w where w.user_id = p_user and w.week = public.hd3d_kst_week()), 0),
+    'today', (select count(*) from public.hd3d_spire_runs r where r.user_id = p_user and r.day = public.hd3d_kst_day()),
+    'runs', (select count(*) from public.hd3d_spire_runs r where r.user_id = p_user),
+    'recent', coalesce((select jsonb_agg(jsonb_build_object('from', r.from_floor, 'top', r.top_floor, 'status', r.status, 'capped', r.capped,
+        'sec', extract(epoch from (coalesce(r.finished_at, r.last_ping_at, now()) - r.started_at))::int, 'need', public.hd3d_spire_minsec(r.from_floor, r.top_floor), 'at', r.started_at) order by r.started_at desc)
+      from (select * from public.hd3d_spire_runs x where x.user_id = p_user order by x.started_at desc limit 10) r), '[]'::jsonb));
+end $$;
+
 -- ---------- privileges (spire T-6) ----------
 revoke all on public.hd3d_spire_runs, public.hd3d_spire_best, public.hd3d_spire_weeks from anon, authenticated;
 grant select on public.hd3d_spire_runs, public.hd3d_spire_best, public.hd3d_spire_weeks to authenticated; -- RLS: 본인 것만 (관리자 전체), 쓰기는 위 함수로만
@@ -1131,5 +1244,10 @@ revoke all on function public.hd3d_spire_const(), public.hd3d_kst_week(), public
   public.hd3d_spire_record(uuid, bigint, int), public.hd3d_spire_week_rank(uuid, date) from public, anon, authenticated;
 revoke all on function public.hd3d_spire_status(), public.hd3d_spire_start(int), public.hd3d_spire_ping(uuid, int), public.hd3d_spire_finish(uuid, int, jsonb), public.hd3d_spire_rank(text, date) from public, anon;
 grant execute on function public.hd3d_spire_status(), public.hd3d_spire_start(int), public.hd3d_spire_ping(uuid, int), public.hd3d_spire_finish(uuid, int, jsonb), public.hd3d_spire_rank(text, date) to authenticated;
+
+-- ---------- privileges (spire T-9) ----------
+revoke all on function public.hd3d_spire_week_reward(int), public.hd3d_spire_week_title(int), public.hd3d_admin_spire_card(uuid) from public, anon, authenticated;
+revoke all on function public.hd3d_spire_claim_week(date), public.hd3d_admin_spire(int, int), public.hd3d_admin_spire_reset(uuid, text) from public, anon;
+grant execute on function public.hd3d_spire_claim_week(date), public.hd3d_admin_spire(int, int), public.hd3d_admin_spire_reset(uuid, text) to authenticated; -- 관리자 함수는 안에서 hd3d_is_admin 확인
 
 notify pgrst, 'reload schema';

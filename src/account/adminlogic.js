@@ -52,9 +52,9 @@ export const localToIso = v => { if (!v) return null; const t = Date.parse(v); r
 export const isoToLocal = s => { if (!s) return ''; const d = new Date(s); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 // 관리 기록
 export const ACTION_N = { order_approve: '주문 승인', order_reject: '주문 거절', order_refund: '환불 처리', mail_send: '우편 보내기', broadcast: '전체 우편', hero_grant: '영웅 지급', hero_revoke: '영웅 회수',
-  ban: '계정 정지', unban: '정지 해제', notice_create: '공지 작성', notice_update: '공지 수정', notice_activate: '공지 게시', notice_deactivate: '공지 내림', admin_add: '관리자 추가', admin_remove: '관리자 삭제' };
+  ban: '계정 정지', unban: '정지 해제', notice_create: '공지 작성', notice_update: '공지 수정', notice_activate: '공지 게시', notice_deactivate: '공지 내림', admin_add: '관리자 추가', admin_remove: '관리자 삭제', spire_reset: '탑 기록 초기화' };
 export function logDetail(l, rewardText = () => '') { const d = l && l.detail || {}, o = [];
   if (d.item) o.push(d.item === 'hero_gunner' ? '로즈' : d.item === 'hero_mechanic' ? '버들' : d.item === 'hero_fighter' ? '서윤' : d.item); if (d.order) o.push('주문 #' + d.order); if (d.title) o.push('「' + d.title + '」');
-  if (d.reward) { const t = rewardText(d.reward); if (t) o.push(t); } if (d.recipients != null) o.push(d.recipients + '명'); if (d.notice) o.push('공지 #' + d.notice); if (d.reason) o.push('사유: ' + d.reason); return o.join(' · '); }
+  if (d.reward) { const t = rewardText(d.reward); if (t) o.push(t); } if (d.recipients != null) o.push(d.recipients + '명'); if (d.notice) o.push('공지 #' + d.notice); if (d.best != null) o.push(`이전 최고 ${d.best}층 · 이번 주 ${d.week_best || 0}층`); if (d.reason) o.push('사유: ' + d.reason); return o.join(' · '); }
 // 전체 우편 확인 문구
 export function broadcastConfirmText(count, rewardText) { return `이 게임의 사용자 <b>${count}명</b> 모두에게 우편을 보냅니다.${rewardText ? `<br>보상: <b>${rewardText}</b> (1인당)` : ''}<br>보낸 뒤에는 되돌릴 수 없습니다.`; }

@@ -25,7 +25,7 @@ function headHtml() { const S = SS.SPS;
   if (S.st === 'missing') return '<span class="dgUpd">⚠ 서버 업데이트 필요</span> · 지금은 기록·보상 없는 <b>연습 탑</b> (1층부터)';
   if (S.st === 'error') return '<span class="dgUpd">서버에 연결할 수 없어요</span> · 출발하면 기록 없는 연습 탑';
   if (S.st !== 'ok') return '<span class="dim">기록 확인 중…</span>';
-  return `🗼 최고 <b id="spBest">${S.best}층</b> · 이번 주 <b id="spWeek">${S.weekBest}층</b>${S.weekRank ? ` (주간 <b>${S.weekRank}위</b>)` : ''} · 오늘 남은 도전 <b id="spLeft">${S.left}</b>/${S.limit}<small> · 한국 시간 월요일 0시에 주간 기록 초기화</small>`; }
+  return `🗼 최고 <b id="spBest">${S.best}층</b> · 이번 주 <b id="spWeek">${S.weekBest}층</b>${S.weekRank ? ` (주간 <b>${S.weekRank}위</b>)` : ''}${S.titles.length ? ` · <span class="spTitles" id="spTitles">${S.titles.map(t => esc(SP_TITLES[t] || t)).join(' ')}</span>` : ''} · 오늘 남은 도전 <b id="spLeft">${S.left}</b>/${S.limit}<small> · 한국 시간 월요일 0시에 주간 기록 초기화</small>`; }
 const affChip = id => { const A = SP_AFFIX_BY[id]; return A ? `<span class="spAff${A.good ? ' good' : ''}" title="${esc(A.n + ' — ' + A.desc)}">${A.icon} ${esc(A.n)}</span>` : ''; };
 function previewHtml(f) { return preview(f, weekKey(), 5).map(x => { const T = SP_TYPE[x.type] || SP_TYPE.normal;
   return `<div class="spPv ${x.type}"><b class="spPvN">${x.floor}층</b><span class="spPvT">${T.icon || '▫'} ${esc(x.boss || T.n)}</span><span class="spPvA">${x.affixes.length ? x.affixes.map(affChip).join('') : '<span class="dim">변형 없음</span>'}</span></div>`; }).join(''); }
@@ -35,20 +35,29 @@ function nextRewardHtml() { const base = ranked() ? Math.max(SS.SPS.cleared, Mat
 export function renderSpire(p, h) { H = h; if (sub === 'rank') return renderRank(p);
   const s = Acc.load(), cands = dungeonParty(c => Sh.heroOwned(c)), party = pickOf(cands, h.dgPick()), f = curFrom(), L = cps(), cu = catchupBless(f);
   const nextLock = ranked() ? (Math.floor(SS.SPS.best / 5) + 1) * 5 + 1 : 6, chipsL = L.length > 9 ? [L[0], ...L.slice(-8)] : L;
+  const wk = weekRwHtml(); // 받을 주간 보상이 있으면 규칙 안내 줄 대신 (860px 높이에 맞춤)
   p.innerHTML = `<button id="dgClose" class="gbtn sm xbtn ui-x">✕</button><div class="gtitle">🗼 무한의 탑</div>${h.tabs('spire')}
     <div class="labSub">끝없이 오르는 탑 · 5층마다 체크포인트 · 주마다 바뀌는 층 변형(어픽스)에 맞춰 편성하세요</div>
     <div class="dgDay spHead" id="spHead">${headHtml()}</div>
     <div class="spRow"><span class="spLbl">시작 층</span><div class="ftabs spChips" id="spChips">${chipsL.map(n => `<button class="ftab spChip${n === f ? ' on' : ''}" data-from="${n}">${n}층</button>`).join('')}<button class="ftab spChip lock" disabled title="${nextLock - 1}층을 돌파하면 열려요">🔒 ${nextLock}층</button></div>
       <small class="spCu">${cu ? `출발 축복 ${cu}번 (따라잡기)` : '출발 축복 없음'} · ${esc(bandOf(f).n)}</small></div>
     <div class="spPrev" id="spPrev"><div class="spPvH">다음 5개 층 미리보기 <small>(이번 주 · 모두 같은 탑)</small></div>${previewHtml(f)}</div>
-    <div class="spNext" id="spNext">${nextRewardHtml()}</div>
+    <div class="spNext" id="spNext">${nextRewardHtml()}</div>${wk}
     <div class="dgPickN" id="spPickN">출전 <b>${party.length}</b> / ${DG_MAX}명 <small>· 탑 파티는 원정과 따로 저장돼요</small></div>
     <div class="dgParty spParty">${cands.map(c => h.card(s, c, party.includes(c))).join('')}</div>
-    <div class="dgInfo"><small>층 사이 생존 영웅 체력 +15% · 쓰러진 영웅은 다음 층에 30% 로 복귀 · 보스 층(5의 배수) 돌파 = 축복 3택1 + 체크포인트 저장 · 한 도전 최대 +${SP_SERVER.maxPerRun}층</small></div>
+    ${wk ? '' : `<div class="dgInfo"><small>층 사이 생존 영웅 체력 +15% · 쓰러진 영웅은 다음 층에 30% 로 복귀 · 보스 층(5의 배수) 돌파 = 축복 3택1 + 체크포인트 저장 · 한 도전 최대 +${SP_SERVER.maxPerRun}층</small></div>`}
     <div class="dgGo"><button id="spRankBtn" class="gbtn">🏆 랭킹</button><button id="spGo" class="gbtn main">🗼 ${f}층부터 오르기</button></div>`;
   h.wire(p); $('spRankBtn').onclick = () => { Snd.play('ui'); sub = 'rank'; rank = null; renderSpire(p, h); loadRank(p); }; $('spGo').onclick = () => depart();
+  p.querySelectorAll('.spWkBtn').forEach(b => b.onclick = () => claimWeek(p, b));
   paintGo(); p.querySelectorAll('.spChip[data-from]').forEach(b => b.onclick = () => { Snd.play('select'); from = +b.dataset.from; picked = true; renderSpire(p, h); });
   p.querySelectorAll('.dgCard.pick').forEach(b => b.onclick = () => { const r = togglePick(party, b.dataset.cls, cands); if (r.msg) { Snd.play('error'); banner(r.msg, '#ffb06a', 1100); return; } Snd.play('select'); savePick(r.pick); renderSpire(p, h); }); }
+// 지난 주 기록 보상 (T-9): 받지 않은 주마다 한 줄 · 받기 → 우편함
+function weekRwHtml() { const U = ranked() ? SS.SPS.unclaimed : []; if (!U.length) return '';
+  return `<div class="spWkRw" id="spWkRw">${U.slice(0, 2).map(x => `<div class="spWk"><span class="spWkT">📅 <b>${esc(x.week.slice(5).replace('-', '/'))}</b> 주 · 최고 <b>${x.best}층</b>${x.rank ? ` · 주간 ${x.rank}위` : ''}</span><span class="spWkR">영혼석 ${x.souls}${x.medals ? ` · 🏅 ${x.medals}` : ''}${x.title ? ` · 칭호 ${esc(SP_TITLES[x.title] || x.title)}` : ''}</span><button class="gbtn sm main spWkBtn" data-week="${esc(x.week)}">받기</button></div>`).join('')}</div>`; }
+async function claimWeek(p, b) { if (b.disabled) return; b.disabled = true; b.textContent = '받는 중…'; const r = await SS.spClaimWeek(b.dataset.week); G.spClaim = r;
+  if (r.ok) { Snd.play('confirm'); banner(`📮 주간 보상 (영혼석 ${r.souls}${r.medals ? ` · 🏅 메달 ${r.medals}` : ''}) 을 우편함으로 보냈어요${r.title ? ` · 칭호 ${SP_TITLES[r.title] || r.title}` : ''}`, '#ffd27a', 2600); Sh.refresh().catch(() => {}); await SS.spStatus(); }
+  else { Snd.play('error'); banner(r.msg, '#ffb06a', 2200); }
+  if (H && H.isOpen() && H.view() === 'spire' && sub === 'main') renderSpire(p, H); }
 function paintGo() { const b = $('spGo'); if (!b || departing) return; const none = ranked() && SS.SPS.left === 0; b.disabled = none; b.textContent = none ? '오늘 도전 끝 (0시 초기화)' : `🗼 ${curFrom()}층부터 오르기`; }
 function renderRank(p) { const h = H, R = rank, me = R && R.ok && R.me;
   const rows = !Acc.A.user ? '<div class="spRkMsg">로그인하면 랭킹을 볼 수 있어요.</div>' : !R ? '<div class="spRkMsg dim">불러오는 중…</div>' : !R.ok ? `<div class="spRkMsg dgUpd">⚠ ${esc(R.msg)}</div>`
