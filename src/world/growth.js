@@ -57,7 +57,7 @@ export function updDeco(tw, dt) { const D = tw.deco; if (!D) return; D.bill.quat
   if (D.spin) D.spin.forEach(s => { const a = s.userData.a + t * 4; s.position.set(Math.cos(a) * .9, Math.sin(t * 5 + s.userData.a) * .2, Math.sin(a) * .9); });
   if (D.awk) { const A = D.awk; A.crown.rotation.y += dt * .8; A.runes.forEach(r => { const a = r.userData.a + t * 1.1; r.position.set(Math.cos(a) * 1.55, 2.1 + Math.sin(t * 1.7 + r.userData.a) * .3, Math.sin(a) * 1.55); r.rotation.y += dt * 2.5; });
     if (A.aura) { const k = .5 + .5 * Math.sin(t * 2.4 + tw.c); A.aura.scale.setScalar(1 + k * .1); A.aura.rotation.z += dt * .6; } } }
-export function updGrowFx(dt) { for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; const k = f.t / f.dur; f.m.scale.set(1 + k * .6, 1 + k * 1.5, 1 + k * .6); f.m.material.opacity = (1 - k) * .85; if (k >= 1) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); fx.splice(i, 1); } } }
+export function updGrowFx(dt) { for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; const k = f.t / f.dur; f.m.scale.set(1 + k * .6, 1 + k * 1.5, 1 + k * .6); f.m.material.opacity = (1 - k) * (f.op || .85); if (k >= 1) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); fx.splice(i, 1); } } }
 // XP 획득 (성장 켜짐 + 살아 있는 타워만). 반환: 오른 별 수
 export function towerXp(tw, amt) {
   if (!G.grow || !tw || tw.dead || !(amt > 0) || tw.stars >= 3) return 0; tw.xp += amt; const ns = starsFor(tw.xp); if (ns <= tw.stars) { if (tw.deco && (G.t - (tw._xpT || 0) > .1)) { tw._xpT = G.t; updXpBar(tw); } return 0; }
@@ -94,7 +94,7 @@ function awkDeco(tw, g, D) { const M = awkMat(tw.type), crown = new THREE.Group(
   for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5, sp = new THREE.Mesh(spikeGeo, crownM); sp.position.set(Math.cos(a) * .62, .2, Math.sin(a) * .62); crown.add(sp); }
   for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(runeGeo, M.rune); r.userData.a = k * Math.PI * 2 / 3; r.scale.y = 1.8; g.add(r); A.runes.push(r); }
   const aura = new THREE.Mesh(awAuraGeo, M.aura); aura.rotation.x = -Math.PI / 2; aura.position.y = .55; g.add(aura); A.aura = aura; }
-function awkPillar(p, c, h = 12, dur = 1.2) { if (Q.perf) return; const pil = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.5, h, 24, 1, true), add(0, c, .9)); pil.position.set(p.x, h / 2, p.z); scene.add(pil); fx.push({ m: pil, t: 0, dur }); }
+function awkPillar(p, c, h = 12, dur = 1.2) { if (Q.perf) return; const pil = new THREE.Mesh(new THREE.CylinderGeometry(.75, 1.05, h, 24, 1, true), add(0, c, .4)); pil.position.set(p.x, h / 2, p.z); scene.add(pil); fx.push({ m: pil, t: 0, dur, op: .4 }); } /* 세 기둥이 겹쳐도 블룸에 하얗게 타지 않게 */
 const pk = n => Q.perf ? Math.ceil(n / 3) : n; // 성능 모드 파티클 1/3
 // 해금 확인 — chooseBranch · upgradeTower 끝에서만 (매 프레임 아님). 하드 스테이지(G.hard) 판에서만: 던전·무한의 탑·노말 제외
 export function checkAwaken() {
