@@ -18,7 +18,9 @@ import { hpBar } from '../render/hpbars.js';
 import { select } from '../ui/input.js';
 import { BRANCH, resMods, starsFor } from '../data/growth.js';
 import { advTowerMods } from '../data/advance.js';
-import { decorate, recalc, updDeco, updGrowFx } from './growth.js';
+import { decorate, recalc, updDeco, updGrowFx, checkAwaken, awkCnt } from './growth.js';
+import { AWK } from '../data/growth.js';
+import { Q } from '../render/quality.js';
 import { towerCdStep } from '../combat/towerstatus.js';
 
 // ================= 타워 =================
@@ -70,7 +72,7 @@ function placeTower(t, type) {
 function upgradeTower(tw) {
   if (tw.lvl >= 3) return; const c = TOWERS[tw.type].up[tw.lvl - 1]; if (G.gold < c) return Snd.play('error'); G.gold -= c; tw.invest += c; tw.lvl++; { const nm = TOWERS[tw.type].hp[tw.lvl - 1]; tw.hp += nm - tw.max; tw.max = nm; tw.hb.set(tw.hp / tw.max); } Snd.play('upgrade', { pos: { x: tileX(tw.c), z: tileZ(tw.r) } }); Snd.play('levelUp', { vol: .7 });
   const ry = tw.m.head.rotation.y; scene.remove(tw.m.g); tw.m = towerModel(tw.type, tw.lvl); tw.m.head.rotation.y = ry; tw.m.g.position.set(tileX(tw.c), 0, tileZ(tw.r)); scene.add(tw.m.g); tw.pop = 0; recalc(tw); decorate(tw);
-  const p = tw.m.g.position; emit(P, p.x, 1, p.z, 50, 0xffe066, 6, .9, -4, 2); emit(PB, p.x, 2, p.z, 10, 0xffd23a, 3, .8, 2, 1); ringFx(p, 2.5, 0xffd23a, .6); banner(`${TOWERS[tw.type].n} Lv.${tw.lvl}!`, '#ffe066', 900); refreshHud();
+  const p = tw.m.g.position; emit(P, p.x, 1, p.z, 50, 0xffe066, 6, .9, -4, 2); emit(PB, p.x, 2, p.z, 10, 0xffd23a, 3, .8, 2, 1); ringFx(p, 2.5, 0xffd23a, .6); banner(`${TOWERS[tw.type].n} Lv.${tw.lvl}!`, '#ffe066', 900); refreshHud(); checkAwaken();
 }
 function sellTower(tw) {
   const v = Math.floor(tw.invest * .7 * (tw.hp / tw.max >= .999 ? 1 : .5 + .5 * tw.hp / tw.max)); G.gold += v; Snd.play('sell'); Snd.play('breakWood', { pos: { x: tileX(tw.c), z: tileZ(tw.r) }, vol: .5 }); const hpK = tw.hp / tw.max; scene.remove(tw.m.g); removeTowerObj(tw);
@@ -121,25 +123,41 @@ function updTowers0(dt) {
     const want = Math.atan2(best.g.position.x - p.x, best.g.position.z - p.z); let d = want - m.head.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.head.rotation.y += d * Math.min(1, dt * 10);
     if (tw.type === 'cannon') { const k = tw.recoil * .25; m.head.position.x = -Math.sin(m.head.rotation.y) * k; m.head.position.z = -Math.cos(m.head.rotation.y) * k; }
     if (tw.cd > 0) continue; tw.cd = 1 / S.rate; tw.shots++; const from = new THREE.Vector3(); m.muzzle.getWorldPosition(from);
-    if (tw.type === 'arrow') { if (many) { many.sort((a, b) => a[0] - b[0]); for (const [, e] of many.slice(0, B.targets)) shoot('arrow', from, e, S.dmg, { spd: 36, color: 0x7affc0, tw }); }
-      else shoot('arrow', from, best, S.dmg, B ? { spd: 60, color: 0xff7a9a, tw, ap: true, big: true } : { spd: 34, color: L >= 2 ? 0x9affff : 0xfff0c0, tw }); Snd.play('arrow', { pos: from, rate: B && !many ? .8 : 1.15 }); }
+    if (tw.type === 'arrow') { const aw = tw.awk ? awkArrow(tw, B) : null, aw2 = aw && aw.x2 ? AWK.arrow.snipeX2 : 1; /* ✨ 천궁: 꿰뚫기 · 6타마다 일제사격(저격: 피해 ×2) */
+      if (many) { many.sort((a, b) => a[0] - b[0]); for (const [, e] of many.slice(0, B.targets)) shoot('arrow', from, e, S.dmg, aw ? { spd: 36, color: 0xfff6a0, tw, awk: aw } : { spd: 36, color: 0x7affc0, tw }); }
+      else shoot('arrow', from, best, S.dmg * aw2, B ? { spd: 60, color: aw ? 0xfff6a0 : 0xff7a9a, tw, ap: true, big: true, awk: aw } : { spd: 34, color: aw ? 0xfff6a0 : L >= 2 ? 0x9affff : 0xfff0c0, tw, awk: aw }); Snd.play('arrow', { pos: from, rate: B && !many ? .8 : 1.15 });
+      if (aw && aw.volley) volley(tw, from, p, rng, S.dmg * AWK.arrow.volleyK); }
     else if (B && B.pierce) { const dir = new THREE.Vector3(best.g.position.x - from.x, 0, best.g.position.z - from.z).normalize(), shell = mk(new THREE.CapsuleGeometry(.14, .7, 4, 8), glow(0x9ad8ff, 2.2), from.x, from.y, from.z, scene, .02);
-      shell.lookAt(from.clone().add(dir)); shell.rotateX(Math.PI / 2); G.projs.push({ kind: 'pierce', m: shell, dir, left: S.range + 2, spd: 30, dmg: S.dmg, hit: new Set(), tw });
+      shell.lookAt(from.clone().add(dir)); shell.rotateX(Math.PI / 2); G.projs.push({ kind: 'pierce', m: shell, dir, left: S.range + 2, spd: 30, dmg: S.dmg, hit: new Set(), tw, awkLine: tw.awk ? { x: from.x, z: from.z } : null }); /* ✨ 화염 포루(관통): 지나간 직선에 불길 */
       tw.recoil = 1.3; emit(P, from.x, from.y, from.z, 20, 0x9ad8ff, 5, .35, 0, .5); Snd.play('cannon', { pos: from, rate: .8 }); Snd.play('zap', { pos: from, vol: .5 }); }
     else if (tw.type === 'cannon') { const dest = best.g.position.clone(); if (best.next) { const v = new THREE.Vector3(tileX(best.next[0]) - dest.x, 0, tileZ(best.next[1]) - dest.z); if (v.length() > .01) dest.addScaledVector(v.normalize(), Math.min(1.5, best.E.spd * .6)); }
-      const ball = mk(new THREE.SphereGeometry(.22 + L * .04, 12, 8), toon(0x26282e), from.x, from.y, from.z, scene, .02); G.projs.push({ kind: 'ball', m: ball, from: from.clone(), dest, t: 0, dur: .7, dmg: S.dmg, r: S.splash, tw, cluster: B ? B : null });
+      const ball = mk(new THREE.SphereGeometry(.22 + L * .04, 12, 8), tw.awk ? glow(0xff6a2a, 2.4) : toon(0x26282e), from.x, from.y, from.z, scene, .02); G.projs.push({ kind: 'ball', m: ball, from: from.clone(), dest, t: 0, dur: .7, dmg: S.dmg, r: S.splash, tw, cluster: B ? B : null, awk: !!tw.awk }); /* ✨ 화염 포루: 착탄 불바다 */
       tw.recoil = 1; emit(P, from.x, from.y, from.z, 14, 0xffaa4a, 4, .35, 0, .5); emit(P, from.x, from.y, from.z, 8, 0x8a8a8a, 2, .8, 1.5, .5); Snd.play('cannon', { pos: from }); }
     else chainLightning(from, best, S.dmg, S.chain, S.slow, tw, S, B);
   }
 }
 function chainLightning(from, first, dmg, n, slow, tw, S, B) {
-  const hit = new Set(); let cur = first, a = from.clone(); const fo = S ? S.falloff : .85, hop = S ? S.hop : 3.8, frost = B && B.freezeEvery, cA = frost ? 0x8ae8ff : B ? 0xd8b0ff : 0x9ae8ff, cB = frost ? 0xc8f4ff : 0xc0a0ff;
+  const hit = new Set(), fp = first.g.position.clone(); let cur = first, a = from.clone(); const fo = S ? S.falloff : .85, hop = S ? S.hop : 3.8, frost = B && B.freezeEvery, cA = frost ? 0x8ae8ff : B ? 0xd8b0ff : 0x9ae8ff, cB = frost ? 0xc8f4ff : 0xc0a0ff;
   G.xpSrc = G.grow ? tw : null;
   for (let k = 0; k < n && cur; k++) { const b = enemyAim(cur); bolt(a, b, k ? cB : cA); const ce = cur; hit.add(ce); ce.slowT = B && B.slowT ? B.slowT : 1.3; ce.slowAmt = slow; hurt(ce, dmg * Math.pow(fo, k), frost ? '#bff4ff' : '#c8b8ff'); emit(P, b.x, b.y, b.z, 8, frost ? 0xbff4ff : 0xb8a0ff, 4, .35, 0, .5);
     if (frost && k === 0 && !ce.dead && tw.shots % B.freezeEvery === 0) { ce.stunT = ce.E.boss ? B.freezeBoss : B.freezeT; ce.frozen = true; emit(PB, b.x, b.y, b.z, 8, 0x8ae8ff, 3, .6, 0, .8); emit(P, b.x, b.y, b.z, 30, 0xe0fbff, 5, .7, -3, 1); ringFx(ce.g.position, 2, 0x8ae8ff, .4); Snd.play('glass', { pos: b, vol: .45 }); }
     a = b; let nb = null, nd = hop * hop; for (const e of G.enemies) { if (e.dead || hit.has(e)) continue; const d = e.g.position.distanceToSquared(ce.g.position); if (d < nd) { nd = d; nb = e; } } cur = nb; }
+  if (tw.awk && tw.shots % AWK.magic.boltEvery === 0) skyBolt(tw, fp, dmg); /* ✨ 뇌전 첨탑: 8타마다 천뢰 */
   G.xpSrc = null; Snd.crackle(first.g.position);
 }
+// ---- ✨ 초월 발사 효과 (docs/TOWER_AWAKEN_2026-10-24.md) ----
+function awkArrow(tw, B) { const A = AWK.arrow, snipe = !!(B && B.prio === 'hp'), six = tw.shots % A.volleyEvery === 0; return { pl: 0, hit: null, ap: snipe, x2: snipe && six, volley: !snipe && six }; }
+// 일제사격: 사거리 안 서로 다른 적 5명(공중 포함, 가까운 순), 각 60% · 꿰뚫기 없음
+function volley(tw, from, p, rng, dmg) { const A = AWK.arrow, L = [];
+  for (const e of G.enemies) { if (e.dead || e.immT > G.t) continue; const dx = e.g.position.x - p.x, dz = e.g.position.z - p.z, d = dx * dx + dz * dz; if (d <= rng * rng) L.push([d, e]); }
+  L.sort((a, b) => a[0] - b[0]); const T2 = L.slice(0, A.volleyN); T2.forEach(([, e], k) => shoot('arrow', from.clone().add(new THREE.Vector3((k - 2) * .18, .15 * (k % 2), 0)), e, dmg, { spd: 44, color: 0xffe27a, tw, awk: { pl: A.pierce } }));
+  if (T2.length) { awkCnt('volley'); emit(P, from.x, from.y, from.z, Q.perf ? 4 : 12, 0xfff3a0, 4, .35, 0, .6); Snd.play('arrow', { pos: from, rate: .7, vol: .8 }); } }
+// 천뢰: 첫 대상 자리에 금색 낙뢰, 반경 3 광역 200% + 기절 0.8초 (보스 0.25초, 같은 보스 4초 쿨)
+function skyBolt(tw, pos, dmg) { const A = AWK.magic, top = pos.clone().setY(14); bolt(top, pos.clone().setY(.4), 0xffe27a); if (!Q.perf) bolt(top.clone().add(new THREE.Vector3(.6, 0, -.4)), pos.clone().setY(.4), 0xfff6c0);
+  ringFx(pos, A.boltR, 0xffd23a, .45); emit(PB, pos.x, .8, pos.z, Q.perf ? 3 : 10, 0xffe27a, 5, .5, 0, 1); emit(P, pos.x, .5, pos.z, Q.perf ? 10 : 40, 0xfff3a0, 7, .5, -6, 1.2); G.shake = Math.max(G.shake, .12); awkCnt('thunder');
+  for (const e of [...G.enemies]) { if (e.dead) continue; const dx = e.g.position.x - pos.x, dz = e.g.position.z - pos.z; if (dx * dx + dz * dz > A.boltR * A.boltR) continue; hurt(e, dmg * A.boltK, '#ffe27a', true); if (e.dead) continue;
+    if (e.E.boss) { if (!(e.awkStunCd > G.t)) { e.awkStunCd = G.t + A.bossCd; e.stunT = Math.max(e.stunT || 0, A.stunBoss); awkCnt('stun'); } } else { e.stunT = Math.max(e.stunT || 0, A.stunT); awkCnt('stun'); } }
+  Snd.play('zap', { pos, vol: .7 }); Snd.play('boom', { pos, vol: .35, rate: 1.4 }); }
 function bolt(a, b, color) {
   for (let w = 0; w < 2; w++) { const pts = [], n = 9; for (let i = 0; i <= n; i++) { const p = a.clone().lerp(b, i / n); if (i > 0 && i < n) p.add(new THREE.Vector3(rnd(-.4, .4), rnd(-.4, .4), rnd(-.4, .4))); pts.push(p); }
     const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: w ? 0xffffff : color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); scene.add(l); G.fxs.push({ m: l, t: 0, dur: .2, kind: 'fade' }); }
