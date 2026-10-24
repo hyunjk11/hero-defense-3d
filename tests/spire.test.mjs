@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // 🗼 무한의 탑 순수 로직 (src/data/spire.js) — T-2
 import assert from 'node:assert/strict';
 import * as S from '../src/data/spire.js';
@@ -42,4 +43,12 @@ t('T-5 보통 어픽스: 뽑힘 · 광폭 · 저주 · 역할 저항', () => { c
   const F = { affixes: ['frenzy', 'curse', 'resM'] }; assert.equal(S.frenzyK(F, 29, 100), 1.3); assert.equal(S.frenzyK(F, 31, 100), 1); assert.equal(S.frenzyK(F, 0, 100), 1); assert.equal(S.frenzyK({ affixes: [] }, 10, 100), 1);
   assert.equal(S.healK(F), .5); assert.equal(S.healK({ affixes: ['haste'] }), 1); assert.equal(S.healK(null), 1);
   assert.equal(S.resK(F, 'caster'), .65); assert.equal(S.resK(F, 'ranged'), 1); assert.equal(S.resK({ affixes: ['resR'] }, 'ranged'), .65); assert.equal(S.resK(F, 'tank'), 1); });
+// ---- T-6: 서버 상수(schema.sql) = 클라이언트 상수 ----
+t('T-6 schema.sql hd3d_spire_const = SP_SERVER · 첫 돌파 공식 · 권한', () => { const sql = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  const m = /hd3d_spire_const\(\) returns jsonb[\s\S]*?select '(\{[^']+\})'::jsonb/.exec(sql); assert.ok(m, 'hd3d_spire_const'); const C = JSON.parse(m[1]), V = S.SP_SERVER;
+  assert.deepEqual(C, { dailyCap: V.dailyCap, maxPerRun: V.maxPerRun, minNormal: V.minSec.normal, minBoss: V.minSec.boss, pingMinSec: V.pingMinSec, expireH: V.expireH });
+  assert.ok(sql.includes("'souls', case when p_n <= 100 then 300 + 100 * (p_n / 5) else 0 end") && sql.includes("when p_n <= 100 then 5 + p_n / 10 else 10 end") && sql.includes("when 30 then 'spire_30' when 50 then 'spire_50'"));
+  for (const f of ['hd3d_spire_status()', 'hd3d_spire_start(int)', 'hd3d_spire_ping(uuid, int)', 'hd3d_spire_finish(uuid, int, jsonb)', 'hd3d_spire_rank(text, date)']) assert.ok(sql.includes('public.' + f), f);
+  assert.ok(/revoke all on function [^;]*public\.hd3d_spire_record\(uuid, bigint, int\)[^;]*from public, anon, authenticated;/.test(sql), 'record 내부 전용');
+  assert.ok(!S.SP_LIVE, 'SP_LIVE 는 T-10 까지 false'); });
 console.log(`spire.test: ${ok} OK`);
