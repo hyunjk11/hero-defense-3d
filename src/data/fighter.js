@@ -29,8 +29,9 @@ export const comboHeal = (dealt, max, o) => (o.leech > 0 && dealt > 0 ? Math.min
 export const jpWants = (d, meleeR, fly, jpR = FT.jpRange) => d <= jpR && (fly || d > meleeR);
 // [Q] 전직 스킬 수치 — 백호진천권(TQ) · 천룡파(DW)
 // 🐯 백호진천권 (2026-10-24, 백호난무 대체): 제자리에서 기를 모아(windT) 땅을 내려침 → 반경 R 지상 적 mul 피해 + 기절(보스 제외) → 땅 충격파 고리가 waveR 까지 퍼지며 지상 적마다 1회 waveMul
+// 2026-10-24 범위 증가: R 4.6 → 6 · waveR 7.5 → 10 · waveSpd 16 → 21.3 (고리가 끝까지 퍼지는 시간 ≈0.47초 그대로) · 배수(500% + 기절 0.8 / 200%)는 그대로
 //   중심 적 합계 5 + 2 = 7.0 = 옛 백호난무(6×0.75 + 2.5) 와 같음 · 넉백 없음 · 시전 중(dur) 받는 피해 -guard · 도약/이동 없음
-export const TQ = { windT: .42, R: 4.6, mul: 5, stun: .8, waveR: 7.5, waveMul: 2, waveSpd: 16, guard: .3, dur: .95, hitStop: .12 };
+export const TQ = { windT: .42, R: 6, mul: 5, stun: .8, waveR: 10, waveMul: 2, waveSpd: 21.3, guard: .3, dur: .95, hitStop: .12 };
 // 🐉 천룡파 (2026-10-24 강화): 더 큰 용(scale) · 가까운 '아직 안 맞은' 적을 쫓아 방향을 틀며(turn rad/s, seek 반경) 비행 거리 len 까지 · 반폭 w 관통 500% (적마다 1회)
 export const DW = { len: 24, w: 1.9, mul: 5, stun: 1, bossSlow: .25, bossSlowT: 2, spd: 28, castT: .32, turn: 7, seek: 9, cone: .17, scale: 1.6 };
 // 유도: 현재 방향(dx,dz 단위)에서 목표 쪽으로 최대 turn*dt 만큼 회전한 새 단위 방향 [x, z]

@@ -175,8 +175,8 @@ with sync_playwright() as pw:
         J(pg, "()=>{ G.manual=true; G.hero.C={...G.hero.C, armor:1}; }"); J(pg, SPOT); J(pg, "()=>G.sim(.3)")
     depart('tiger')
     ok('tq_hud', J(pg, "()=>G.hero.adv && G.hero.adv.k==='tiger' && document.getElementById('skillName').textContent==='백호진천권' && !!G.hero.ch.acts.QuakeS"), J(pg, "()=>[document.getElementById('skillName').textContent, Object.keys(G.hero.ch.acts)]"))
-    # 앞·뒤·옆 지상 적 6 (반경 4.6 안) + 바깥 지상 2 (6.2 · 충격파만) + 박쥐 1
-    J(pg, PUT, [['grunt', 2.5, 0], ['grunt', -2.5, .5], ['imp', 0, 3], ['grunt', 0, -3.2], ['grunt', 3, 2.5], ['imp', -2.8, -2.4], ['grunt', 6.2, 0], ['grunt', -6.2, 1], ['bat', 2, -1]])
+    # 앞·뒤·옆 지상 적 6 (반경 6 안 — 그중 2 는 예전 반경 4.6 밖 5.3) + 바깥 지상 2 (8 · 8.5 = 충격파만, waveR 10 안) + 박쥐 1
+    J(pg, PUT, [['grunt', 2.5, 0], ['grunt', -2.5, .5], ['imp', 0, 3], ['grunt', 0, -5.3], ['grunt', 3, 2.5], ['imp', -4.1, -3.4], ['grunt', 8, 0], ['grunt', -8.5, 1], ['bat', 2, -1]])
     J(pg, "()=>{ G.hero.cd=0; G.hero.atkT=0; G.hero.skillCd=0; G.ftN.tq=0; G.ftN.tqImpact=0; G.ftN.tqHits=0; G.ftN.tqStop=0; G.ftN.tqWaveHits=0; G.ftN.tiger=0; }")
     n0 = J(pg, FTN); p0 = J(pg, "()=>G.hero.g.position.toArray()")
     pg.keyboard.press('q'); J(pg, "()=>G.sim(.2)")
@@ -186,6 +186,7 @@ with sync_playwright() as pw:
     pos = J(pg, "()=>G.hero.g.position.toArray()")
     ok('tq_no_jump', ((pos[0] - p0[0]) ** 2 + (pos[2] - p0[2]) ** 2) ** .5 < .15 and abs(pos[1] - p0[1]) < .05, (p0, pos))
     ok('tq_impact', n1.get('tqImpact') == 1 and n1.get('tqStop') == 1 and n1.get('tiger') == 1 and n1.get('tqHits', 0) >= 6, n1)
+    ok('tq_radius', J(pg, "async()=>{ const {TQ}=await import('./src/data/fighter.js'); const h=G.hero.g.position, d=e=>Math.hypot(e.g.position.x-h.x, e.g.position.z-h.z); return TQ.R===6 && TQ.waveR===10 && [3,5].every(i=>d(window.__bp[i])>4.6 && d(window.__bp[i])<=6) && [6,7].every(i=>d(window.__bp[i])>6 && !(window.__bp[i].stunT>0)); }"), J(pg, "()=>window.__bp.map(e=>+Math.hypot(e.g.position.x-G.hero.g.position.x, e.g.position.z-G.hero.g.position.z).toFixed(2))"))
     ok('tq_damage_stun', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); const L=window.__bp.slice(0,6); return L.every(e=>e.max-e.hp >= stat.dmg()*5*0.6 && e.stunT>0); }"), J(pg, "()=>window.__bp.map(e=>[Math.round(e.max-e.hp), +(e.stunT||0).toFixed(2)])"))
     ok('tq_bat_untouched', J(pg, "()=>!(window.__bp[8].stunT>0)"))
     ok('tq_fx_spawned', J(pg, "()=>(G.ftN.tqLive||0) >= 8"), J(pg, "()=>G.ftN.tqLive"))
