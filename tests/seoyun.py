@@ -191,14 +191,14 @@ with sync_playwright() as pw:
     ok('tq_fx_spawned', J(pg, "()=>(G.ftN.tqLive||0) >= 8"), J(pg, "()=>G.ftN.tqLive"))
     J(pg, "()=>G.sim(.6)"); aft = frame(pg, 'tq_after', 12, .5, .85)
     ok('tq_shockwave', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); return G.ftN.tqWave===1 && G.ftN.tqWaveHits>=8 && [6,7].every(i=>window.__bp[i].max-window.__bp[i].hp >= stat.dmg()*2*0.6); }"), J(pg, "()=>[G.ftN.tqWave, G.ftN.tqWaveHits, window.__bp.map(e=>Math.round(e.max-e.hp))]"))
-    ok('tq_cast_ends', J(pg, "()=>!G.hero.ft.leap && G.hero.skillCd>3"))
+    J(pg, "()=>G.sim(.3)"); ok('tq_cast_ends', J(pg, "()=>!G.hero.ft.leap && G.hero.skillCd>3"), J(pg, "()=>[G.hero.ft.leap&&G.hero.ft.leap.t, G.hero.skillCd]"))  # 히트스톱만큼 게임 시간이 늦음
     J(pg, "()=>{ G.hero.cd=99; G.sim(3); G.hero.cd=0; }"); ok('tq_fx_cleaned', J(pg, "()=>(G.ftN.tqLive||0)===0"), J(pg, "()=>G.ftN.tqLive"))
     ok('tq_no_nan', J(pg, FIN)); ok('tq_not_black', min(imp, aft) > 25, (imp, aft))
-    # 🐉 천룡파: 축에서 벗어난 적 3 (직선 폭 밖) → 용이 꺾어 쫓아가 맞힘
+    # 🐉 천룡파: 축에서 벗어난 적 3 (직선 폭 밖) → 용이 휘어 쫓아가 맞힘
     J(pg, CLEAR); town(pg); depart('dragon')
-    J(pg, PUT, [['grunt', 6, 3.5], ['grunt', 10, -4], ['grunt', 14, 4]])
-    J(pg, "()=>{ const h=G.hero.g.position, f=G.hero.face; G.mouseGround.set(h.x+Math.sin(f)*8, 0, h.z+Math.cos(f)*8); G.hero.cd=0; G.hero.atkT=0; G.hero.skillCd=0; G.ftN.dw=0; G.ftN.dwHits=0; G.ftN.dwTurn=0; G.ftN.dwHome=0; }")
-    pg.mouse.move(5, 5); pg.keyboard.press('q'); J(pg, "()=>G.sim(.55)"); dr = frame(pg, 'dragon_homing', 15, .5, .85)
+    J(pg, PUT, [['grunt', 7, 3.2], ['grunt', 12, 4.6], ['grunt', 17, 4.2]])  # 직선(반폭 1.9) 밖 한쪽으로 휘어진 줄
+    pg.mouse.move(5, 5); J(pg, "()=>{ const h=G.hero.g.position, f=G.hero.face; G.mouseGround.set(h.x+Math.sin(f)*8, 0, h.z+Math.cos(f)*8); G.hero.cd=0; G.hero.atkT=0; G.hero.skillCd=0; G.ftN.dw=0; G.ftN.dwHits=0; G.ftN.dwTurn=0; G.ftN.dwHome=0; }")
+    pg.keyboard.press('q'); J(pg, "()=>G.sim(.55)"); dr = frame(pg, 'dragon_homing', 15, .5, .85)
     J(pg, "()=>G.sim(1.2)"); n2 = J(pg, FTN)
     ok('dw_homing', n2.get('dw') == 1 and n2.get('dwTurn', 0) > 0 and n2.get('dwHits', 0) >= 3, n2)
     ok('dw_offaxis_hit', J(pg, "async()=>{ const {stat}=await import('./src/heroes/hero.js'); return window.__bp.every(e=>e.max-e.hp >= stat.dmg()*5*0.6); }"), J(pg, "()=>window.__bp.map(e=>Math.round(e.max-e.hp))"))

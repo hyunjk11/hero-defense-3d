@@ -310,9 +310,9 @@ function dragonFly(start, dir0, mul) { const col = hero.adv.col, S = DW.scale, d
     if (!Q.perf && i % 2 === 0 && i < N - 2) { const fin = new THREE.Mesh(new THREE.ConeGeometry(r * .35, r * 1.3, 4), SOLID(0xf4fbff, .95)); fin.position.y = r * .95; b.add(fin); } // 등지느러미
     if (i === N - 1) { const tail = new THREE.Mesh(new THREE.ConeGeometry(r * 1.4, r * 2.6, 6), SOLID(0x9af0ff, .9)); tail.rotation.x = Math.PI / 2; b.add(tail); } scene.add(b); body.push(b); }
   G.shake = Math.max(G.shake || 0, .6); Snd.play('boom', { pos: start, vol: .6, rate: 1.1, force: true }); Snd.whoosh(start, .9, 200, 3600, .7); Snd.play('magic', { pos: start, rate: 1.4, force: true }); if (Snd.roar) Snd.roar(start);
-  const pick = () => { let b = null, bd = DW.seek * DW.seek; for (const e of alive()) { if (hit.has(e)) continue; const d = d2(e, px, pz); if (d < bd) { bd = d; b = e; } } return b; }; // 유도 대상: 머리에서 seek 안의 가장 가까운 '안 맞은' 적
+  const pick = () => { let b = null, bd = DW.seek * DW.seek; for (const e of alive()) { if (hit.has(e)) continue; const ex = e.g.position.x - px, ez = e.g.position.z - pz, d = ex * ex + ez * ez; if (d >= bd || ex * dx + ez * dz < DW.cone * Math.sqrt(d)) continue; bd = d; b = e; } return b; }; // 유도 대상: 머리 앞쪽(±80°) seek 안의 가장 가까운 '안 맞은' 적 (뒤로 U턴하며 맴돌지 않게)
   FX.push(dt => { t += dt;
-    if (!done) { if (!tgt || tgt.dead || hit.has(tgt) || tgt.immT > G.t) tgt = pick();
+    if (!done) { if (!tgt || tgt.dead || hit.has(tgt) || tgt.immT > G.t || (tgt.g.position.x - px) * dx + (tgt.g.position.z - pz) * dz < 0) tgt = pick();
       if (tgt) { const [nx, nz] = steer(dx, dz, tgt.g.position.x - px, tgt.g.position.z - pz, DW.turn * dt); G.ftN.dwTurn = (G.ftN.dwTurn || 0) + Math.abs(Math.atan2(dx * nz - dz * nx, dx * nx + dz * nz)); dx = nx; dz = nz; G.ftN.dwHome = (G.ftN.dwHome || 0) + 1; }
       const st = Math.min(DW.spd * dt, DW.len - dist), x0 = px, z0 = pz; dist += st; px += dx * st; pz += dz * st;
       const wob = Math.sin(dist * .9) * .5; head.position.set(px + dz * wob, y + Math.sin(dist * .6) * .35, pz - dx * wob); head.lookAt(head.position.x + dx, head.position.y, head.position.z + dz);

@@ -32,7 +32,7 @@ export const jpWants = (d, meleeR, fly, jpR = FT.jpRange) => d <= jpR && (fly ||
 //   중심 적 합계 5 + 2 = 7.0 = 옛 백호난무(6×0.75 + 2.5) 와 같음 · 넉백 없음 · 시전 중(dur) 받는 피해 -guard · 도약/이동 없음
 export const TQ = { windT: .42, R: 4.6, mul: 5, stun: .8, waveR: 7.5, waveMul: 2, waveSpd: 16, guard: .3, dur: .95, hitStop: .12 };
 // 🐉 천룡파 (2026-10-24 강화): 더 큰 용(scale) · 가까운 '아직 안 맞은' 적을 쫓아 방향을 틀며(turn rad/s, seek 반경) 비행 거리 len 까지 · 반폭 w 관통 500% (적마다 1회)
-export const DW = { len: 24, w: 1.9, mul: 5, stun: 1, bossSlow: .25, bossSlowT: 2, spd: 28, castT: .32, turn: 5, seek: 9, scale: 1.6 };
+export const DW = { len: 24, w: 1.9, mul: 5, stun: 1, bossSlow: .25, bossSlowT: 2, spd: 28, castT: .32, turn: 7, seek: 9, cone: .17, scale: 1.6 };
 // 유도: 현재 방향(dx,dz 단위)에서 목표 쪽으로 최대 turn*dt 만큼 회전한 새 단위 방향 [x, z]
 export const steer = (dx, dz, tx, tz, maxA) => { const a0 = Math.atan2(dx, dz), a1 = Math.atan2(tx, tz); let d = a1 - a0; d = Math.atan2(Math.sin(d), Math.cos(d)); const a = a0 + Math.max(-maxA, Math.min(maxA, d)); return [Math.sin(a), Math.cos(a)]; };
 // 옛 저장/데이터의 스킬 id 별칭 (백호난무 tigerfury → 백호진천권 tigerquake). 저장에는 분기 키(tiger)만 있으나 혹시 남은 옛 id 도 새 스킬로
