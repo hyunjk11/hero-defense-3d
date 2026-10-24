@@ -36,6 +36,7 @@ import { Q } from './render/quality.js';
 import './ui/gfx.js';
 import './ui/speed.js';
 import { updAutoWave } from './ui/autowave.js'; // Q-13 다음 웨이브 자동 시작 (설정, 기본 off)
+import { updAutoSkill } from './heroes/autoskill.js'; // ⚡ 스킬 자동 사용 (설정, 기본 off)
 import './ui/help.js'; // Q-3 단축키 안내 (H/?)
 import { hero, heroDamage, heroGoTo, updHero, updParty } from './heroes/hero.js';
 import { castSkill } from './heroes/skills.js';
@@ -87,7 +88,7 @@ function step(dt) {
   if (hero && G.phase !== 'over' && G.phase !== 'select') {
     if (G.prof) { const pf = G.prof, tm = (k, f) => { const t0 = performance.now(); f(); pf[k] = (pf[k] || 0) + performance.now() - t0; };
       tm('hero', () => updHero(dt)); tm('enemies', () => updEnemies(dt)); tm('separate', () => separate(dt)); tm('towers', () => updTowers(dt)); tm('projs', () => updProjs(dt)); updLegend(dt); }
-    else { if (G.heroes.length > 1) updParty(dt); else updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); updLegend(dt); } if (hero.skillCd > 0) hero.skillCd -= dt;
+    else { if (G.heroes.length > 1) updParty(dt); else updHero(dt); updEnemies(dt); separate(dt); updTowers(dt); updProjs(dt); updLegend(dt); } if (hero.skillCd > 0) hero.skillCd -= dt; updAutoSkill(dt);
     if (keys.w || keys.a || keys.s || keys.d || hero.path.length) cam.target.lerp(new THREE.Vector3(hero.g.position.x * .4, 0, hero.g.position.z * .4 + 1), dt * 2);
   }
   G.distT -= dt; if (G.distDirty && G.distT <= 0) { computeDist(); G.distT = .35; }

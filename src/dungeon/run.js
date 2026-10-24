@@ -24,6 +24,7 @@ import * as DS from '../account/dungeon.js';
 import * as SS from '../account/spire.js'; // 🗼 T-7 탑 서버 기록 (token · 체크포인트 ping · 정산)
 import { partyWiped } from '../core/party.js';
 import { rolePlan } from './logic.js';
+import { skillBusy } from '../core/autoskill.js';
 import { cam } from '../render/scene.js';
 import { MON_ASSETS, ensureModels, heroAssets, loadModel } from '../render/characters.js';
 import { core } from '../world/terrain.js';
@@ -141,7 +142,7 @@ function partyAI(h, dt) {
   h.aiT = (h.aiT || 0) - dt; if (h.aiT > 0) return; h.aiT = .3 + G.heroes.indexOf(h) * .04;
   const role = ROLE[h.cls] || 'ranged', En = G.enemies.filter(e => !e.dead && e.dying === undefined && !(e.immT > G.t) && e.state !== 'spawn');
   const tank = G.heroes.find(x => x !== h && x.dead <= 0 && ROLE[x.cls] === 'tank'), lead = G.hero !== h && G.hero.dead <= 0 ? pos(G.hero) : null;
-  const busy = h.spinT > 0 || h.roseT > 0 || h.snipeT > 0 || h.leap || (h.mech && h.mech.busy > 0) || (h.ft && h.ft.leap);
+  const busy = skillBusy(h); // core/autoskill.js (스킬 자동 사용과 같은 판정)
   const dz = bossDodge(h); if (dz) { const g0 = h.aiGoal; if (!g0 || Math.hypot(g0.x - dz.x, g0.z - dz.z) > .8 || !h.path.length) { heroGoTo(_v.set(dz.x, 0, dz.z)); h.aiGoal = dz; } h.aiT = .15; return; } // 5층 보스: 원 피하기 · 창 막기 (dungeon/boss.js)
   const P = rolePlan(role, { ...pos(h), range: stat.range(), jp: FT.jpRange, qSelf: h.adv && ftSkillId(h.adv.skill) === 'tigerquake' ? TQ.R * .85 : 0, skillReady: h.skillCd <= 0 && !busy }, { lead, tank: tank ? pos(tank) : null, enemies: En.map(e => ({ ...pos(e), r: isRangedFoe(e.E), fly: !!e.E.fly })), backs: G.heroes.filter(x => x !== h && x.dead <= 0 && ROLE[x.cls] !== 'tank').map(pos) });
   h.aiTgt = P.focus !== null && P.focus !== undefined ? En[P.focus] : null;
