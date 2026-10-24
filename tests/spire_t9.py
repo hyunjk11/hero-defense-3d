@@ -19,7 +19,7 @@ txt = lambda pg, sel: J(pg, f"()=>(document.querySelector('{sel}')||{{}}).innerT
 db = lambda pg: J(pg, "()=>JSON.parse(localStorage.getItem('__mockdb'))")
 def boot(c, q):
     pg = c.new_page(); pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300])); pg.on('console', lambda m: m.type == 'error' and errs.append('CE ' + m.text[:300]))
-    pg.goto(url + q); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000); return pg
+    pg.goto(url + q, timeout=180000); pg.wait_for_function('()=>window.G&&G.ready&&G.screen', timeout=240000); return pg
 def login(pg, email):
     if J(pg, '()=>G.screen') == 'intro': pg.mouse.click(640, 400); pg.wait_for_timeout(300)
     if J(pg, '()=>G.screen') == 'menu': pg.click('#mnAuth'); pg.wait_for_timeout(500)
@@ -82,6 +82,7 @@ with sync_playwright() as pw:
     d = db(pg); lg = [x for x in d['hd3d_admin_log'].values() if x['action'] == 'spire_reset']
     ok('reset_done', d['sp_best']['ume']['best'] == 0 and d['sp_best']['ume']['cleared'] == 20 and len(lg) == 1 and lg[0]['detail']['best'] == 22 and '0층' in txt(pg, '#udSpire') and '탑 기록 초기화' in txt(pg, '#admBody'), (d['sp_best']['ume'], lg))
     ok('errors_0_admin', not errs, errs[:4])
+    pg.close()  # 첫 페이지 렌더 루프가 CPU 를 잡아 두 번째 goto 'load' 30초 초과 → 닫고 진행
     pg2 = boot(c, '?seed=5193&flow=1')
     if J(pg2, '()=>G.screen') == 'intro': pg2.mouse.click(640, 400); pg2.wait_for_timeout(300)
     pg2.wait_for_function("()=>G.shop.Sh.S.me.st!=='idle'", timeout=15000); town(pg2); pg2.click('#twAdmin'); pg2.wait_for_timeout(500)
