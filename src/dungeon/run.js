@@ -21,6 +21,7 @@ import * as E from '../account/equip.js';
 import * as Acc from '../account/account.js';
 import * as Sh from '../account/shop.js';
 import * as DS from '../account/dungeon.js';
+import * as SS from '../account/spire.js'; // 🗼 T-7 탑 서버 기록 (token · 체크포인트 ping · 정산)
 import { partyWiped } from '../core/party.js';
 import { rolePlan } from './logic.js';
 import { cam } from '../render/scene.js';
@@ -35,19 +36,20 @@ import { banner } from '../ui/hud.js';
 import * as HUD from '../ui/dungeonhud.js';
 import { updBossFx, clearBossFx, bossDodge } from './boss.js';
 import * as SPR from './spire.js'; // 🗼 무한의 탑 (G.spire 일 때만)
-import { floorLabel, affixIcons } from '../data/spire.js';
+import { floorLabel, affixIcons, isBossFloor, SP_PICK_KEY, SP_TITLES, firstClear } from '../data/spire.js';
 
 const D = G.dg = { floors: FLOORS, floor: 0, wave: -1, q: [], spawnT: 0, gapT: 2.5, over: false, kills: 0, t: 0, swap: false, party: [], bless: {}, blessing: null, cleared: 0, joints: 0, k0: 0 };
 // 영웅별 출정 정보 (일반 출정 ui/flow.js startStageRun2 와 같은 계산)
 export const loadoutOf = (s, c) => ({ perm: s.heroLv[c], equip: E.bonus(s, c), legend: E.legendOf(s, c), adv: AD.advOf(c, (s.adv || {})[c]), uq: E.uniquesOf(s, c) });
 
 // 입장 화면에서 고른 파티 (이 기기 localStorage, 소유는 위에서 서버로 다시 확인)
-export const loadPick = () => { try { const a = JSON.parse(localStorage.getItem(DG_PICK_KEY) || 'null'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 8) : null; } catch (e) { return null; } };
+export const loadPick = () => { try { const a = JSON.parse((G.spire && localStorage.getItem(SP_PICK_KEY)) || localStorage.getItem(DG_PICK_KEY) || 'null'); /* 🗼 탑 전용 파티(hd3d_sppick), 없으면 원정 파티 */ return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 8) : null; } catch (e) { return null; } };
 export async function startDungeonRun() { setDmgCap(30); // U-11: 던전 피해 숫자 동시 표시 상한 30 (전투 60)
   $('loadTxt').textContent = '파티 확인 중…'; $('loading').classList.remove('hidden');
   D.floors = FLOORS; // T-1: 이번 판의 층 목록 (원정 = FLOORS, 무한의 탑은 층 목록을 바꿔 끼움)
   const spFrom = SPR.spireFrom(), SPI = spFrom ? SPR.spireInit(spFrom) : null; if (SPI) D.floors = SPI.floors; // 🗼 T-4 연습 탑: ?sptest=1&spire=N
-  D.entry = SPI ? { mode: 'practice', why: 'spire' } : DS.takeEntry(); G.dgEntryMode = D.entry.mode; // 5단계: 출발 때 서버가 준 1회용 입장 token (없으면 연습 원정 — 메달 없음)
+  D.entry = SPI ? SS.takeEntry(spFrom) : DS.takeEntry(); G.dgEntryMode = D.entry.mode; // 🗼 T-7: 탑 = 출발 때 서버가 준 token (없으면 연습 탑)
+  if (SPI) { const S = G.spire; Object.assign(S, { practice: D.entry.mode !== 'ranked', why: D.entry.why || null, token: D.entry.token || null, prevBest: D.entry.best || 0, pings: [], ft: [], chain: Promise.resolve() }); D.ft0 = 0; if (!S.practice) SS.spStatus().catch(() => {}); } // 5단계: 출발 때 서버가 준 1회용 입장 token (없으면 연습 원정 — 메달 없음)
   await Sh.verifyOwned(); // 로즈: 서버 소유 기록(hd3d_owned)만 믿음 — 저장 데이터의 영웅 값은 쓰지 않음
   const s = Acc.load(), party = pickParty(dungeonParty(c => Sh.heroOwned(c)), loadPick()), L = Object.fromEntries(party.map(c => [c, loadoutOf(s, c)]));
   const need = [...MON_ASSETS, ...party.flatMap(c => heroAssets(c, true))], opt = party.flatMap(c => AD.advModels(L[c].adv));
@@ -98,8 +100,13 @@ export function updDungeon(dt) {
 // 층 돌파: 마지막 층이면 완주, 아니면 축복 3택1 → 다음 층
 function floorClear() { waveEnd(G.waveLog, G.t); D.cleared = D.floor + 1; if (G.spire) return spireClear(); if (D.floor >= D.floors.length - 1) return finish(true); openBless(); }
 // 🗼 층 돌파: 보스층(5의 배수)·✨축복의 층 = 축복 3택1 (+추가), 나머지 = 3초 카드 후 다음 층 (생존 15% 회복 · 쓰러짐 30% 복귀는 startFloor)
-function spireClear() { const F = D.floors[D.floor]; G.spire.top = F.floor; SPR.ensureFloors(D);
+function spireClear() { const F = D.floors[D.floor], S = G.spire; S.top = F.floor; SPR.ensureFloors(D); S.ft.push(Math.round(D.t - (D.ft0 || 0))); if (S.ft.length > 40) S.ft.shift(); D.ft0 = D.t;
+  if (!S.practice && isBossFloor(F.floor)) spirePing(F.floor);
   if (F.bless > 0) { D.blessQ = F.bless - 1; openBless(); return; } D.nextT = 3; banner(`✔ ${F.floor}층 돌파 → ${F.floor + 1}층으로…`, '#9ad8ff', 2400); refreshBar(); }
+// 🗼 T-7 보스층 돌파 = 서버 체크포인트 (순서대로 한 번에 하나 · 연결 오류면 다시 시도). 실패해도 판은 계속 — 정산(finish)이 시간으로 다시 인정
+function spirePing(fl) { const S = G.spire; S.chain = S.chain.then(() => SS.spPing(S.token, fl)).then(r => { r.at = fl; S.pings.push(r); if (D.over || G.spire !== S) return;
+  if (r.ok) { const w = r.reward; banner(`✔ 체크포인트 ${fl}층 저장${r.newBest ? ' · 🎉 신기록' : ''}${w.souls || w.medals ? ` · 📮 첫 돌파 보상${w.souls ? ' 영혼석 ' + w.souls : ''}${w.medals ? ' · 메달 ' + w.medals : ''}` : ''}`, '#9affb0', 2600); if (w.mail) Sh.refresh().catch(() => {}); }
+  else if (r.reason !== 'too_fast') banner(`⚠ 체크포인트 ${fl}층 저장 실패 — ${r.msg} (도전이 끝날 때 다시 기록해요)`, '#ffb06a', 2600); }).catch(e => console.warn('spire ping', e)); }
 function openBless() { const roles = [...new Set(G.heroes.map(h => ROLE[h.cls]))], ch = blessChoices(D.bless, roles, G.dgRnd || Math.random); D.blessing = ch;
   Snd.play('levelUp', { force: true }); let el = $('dgBless'); if (!el) { el = document.createElement('div'); el.id = 'dgBless'; $('stageClear').parentNode.appendChild(el); }
   const nf = D.floors[D.floor + 1], down = G.heroes.filter(h => h.dead > 0).length, cf = D.floors[D.floor], more = D.blessQ > 0 ? ` (한 번 더 · 남은 ${D.blessQ})` : '';
@@ -175,16 +182,31 @@ function finish(win) { if (D.over) return; D.over = true; clearBossFx(); G.phase
     if (r.ok && r.uq) { m.innerHTML += `<div class="dgUqDrop" id="dgUqDrop">🐾 모르비아가 <b>${esc((UQ[r.uq] || {}).n || r.uq)}</b> 을(를) 떨어뜨렸어요! <small>📮 우편함에서 받기</small></div>`; Snd.play('levelUp', { force: true }); Sh.refresh().catch(() => {}); }
     if (r.ok && r.medals > 0) Snd.play('coin', { force: true }); }); }
 }
-// 🗼 연습 탑 결과 (기록·보상 없음 — 서버 기록은 T-6/T-7)
-function spireFinish() { const S = G.spire, sec = Math.round(D.t), el = $('stageClear'), F = D.floors[Math.max(0, D.floor)], top = S.top, up = Math.max(0, top - S.from + 1);
+// 🗼 탑 결과: 정식(로그인 + 서버 token) = 서버 정산(최고 기록 · 이번 주 · 첫 돌파 보상) · 연습(게스트·서버 업데이트 전·오프라인·새로고침) = 기록·보상 없음
+const SP_PR = { guest: '게스트 연습 탑 — 로그인하면 기록과 첫 돌파 보상이 저장돼요', missing: '⚠ 서버 업데이트 필요 — 지금은 기록·보상 없는 연습 탑이에요', error: '서버에 연결할 수 없어 연습 탑으로 진행했어요 (기록·보상 없음)', reload: '새로고침·직접 입장한 도전은 연습이라 기록·보상이 없어요' };
+function spireFinish() { const S = G.spire, sec = Math.round(D.t), el = $('stageClear'), F = D.floors[Math.max(0, D.floor)], top = S.top, up = Math.max(0, top - S.from + 1), ranked = !S.practice && !!S.token;
   Snd.setMusic('none'); Snd.play(up ? 'victory' : 'error', { force: true, exact: !!up });
   const dots = D.floors.slice(0, Math.max(0, D.floor) + 1).map((f, i) => { const done = f.floor <= top; return `<span class="${done ? 'ok' : 'fail'}" title="${esc(f.n)}">${done ? '✔' : '✖'}${f.floor}</span>`; }).slice(-12).join('');
   const bl = Object.entries(D.bless).map(([id, n]) => `${BLESS_BY[id].icon} ${esc(BLESS_BY[id].n)}${n > 1 ? ` ×${n}` : ''}`).join(' · ');
   el.innerHTML = `<div class="scBox dgRes lose spRes"><div class="scT">🗼 무한의 탑 · ${top >= S.from ? `${top}층 돌파` : `${S.from}층 도전 실패`}</div><div class="scS">시작 ${S.from}층 → 이번 도전 <b>+${up}층</b> · ${esc(F ? F.n : '')}에서 파티 전멸 · ${Math.floor(sec / 60)}분 ${sec % 60}초${D.joints ? ` · 합동 공격 ${D.joints}회` : ''}</div>
     <div class="dgFloors">${dots}</div>
     <div class="dgResParty">${G.heroes.map(h => `<span class="${h.dead > 0 ? 'down' : ''}">${CLASSES[h.cls].icon} ${esc(CLASSES[h.cls].nm)}</span>`).join('')}</div>${bl ? `<div class="dgResBl">${bl}</div>` : ''}
-    <div class="scRw"><small class="dgPrNote">연습 탑 — 아직 기록·보상이 없어요 (서버 기록은 다음 업데이트)</small></div><button class="gbtn" id="spAgain">🗼 다시 오르기 (${S.from}층)</button> <button class="gbtn main" id="dgTown">🏠 마을로 귀환</button></div>`;
-  el.classList.remove('hidden'); $('dgTown').onclick = () => { Snd.play('confirm'); goTownD(); }; $('spAgain').onclick = () => { Snd.play('confirm'); $('fade').classList.add('on'); go({ spire: S.from }, 400); };
-  if (G.endStatsShow) G.endStatsShow('dungeon'); G.dgResult = { spire: true, win: false, from: S.from, top, up, sec, floor: F ? F.floor : S.from, joints: D.joints, bless: { ...D.bless }, mode: 'practice', why: 'spire' }; }
+    <div class="scRw">${ranked ? '<div id="spRecRes" class="dgMedalRes spRecRes">🗼 기록 저장 중…</div>' : `<small class="dgPrNote">${esc(SP_PR[S.why] || SP_PR.reload)}</small>`}</div><button class="gbtn" id="spAgain">🗼 다시 오르기 (${S.from}층)</button> <button class="gbtn main" id="dgTown">🏠 마을로 귀환</button></div>`;
+  el.classList.remove('hidden'); $('dgTown').onclick = () => { Snd.play('confirm'); goTownD(); }; $('spAgain').onclick = () => spireAgain(S.from);
+  if (G.endStatsShow) G.endStatsShow('dungeon'); G.dgResult = { spire: true, win: false, from: S.from, top, up, sec, floor: F ? F.floor : S.from, joints: D.joints, bless: { ...D.bless }, mode: ranked ? 'ranked' : 'practice', why: ranked ? null : (S.why || 'reload'), server: null };
+  if (!ranked) return; const tok = S.token, R = G.dgResult; S.token = null;
+  const summary = { v: 1, party: D.party.slice(0, 5), from: S.from, top, sec, ft: S.ft.slice(-40), kills: Math.max(0, killCount()), joints: D.joints, bless: { ...D.bless }, week: S.week };
+  S.chain.then(() => SS.spFinish(tok, top, summary)).then(r => { R.server = r; const pr = SS.mergeRewards([...S.pings, r]); R.rewards = pr; const m = $('spRecRes'); if (!m) return;
+    if (!r.ok) { m.innerHTML = `<span class="dgUpd">⚠ ${esc(r.msg)}</span>${pr.floors.length ? `<br><small>체크포인트로 이미 저장된 첫 돌파 보상: ${pr.floors.join('·')}층 (📮 우편함)</small>` : ''}`; return; }
+    const rec = r.top > (S.prevBest || 0); R.newRecord = rec;
+    const tt = pr.titles.map(t => SP_TITLES[t]).filter(Boolean).join(' ');
+    m.innerHTML = `<div class="spRecL">${rec ? '<b class="spNew">🎉 신기록!</b> ' : ''}인정 <b>${r.top}층</b> · 최고 기록 <b>${r.best}층</b> · 이번 주 <b>${r.weekBest}층</b></div>${r.capped ? `<small>너무 빨리 끝나 ${r.top}층까지만 인정됐어요</small>` : ''}`
+      + (pr.floors.length ? `<div class="spRw">📮 첫 돌파 보상 (${pr.floors.join('·')}층)${pr.souls ? ` · 영혼석 <b>+${pr.souls}</b>` : ''}${pr.medals ? ` · 🏅 던전 메달 <b>+${pr.medals}</b>` : ''}${tt ? ` · 칭호 <b>${esc(tt)}</b>` : ''}<br><small>우편함에서 받기를 눌러 주세요</small></div>` : nextFirstHtml(r.best));
+    if (rec) Snd.play('levelUp', { force: true }); if (pr.mails.length) { Snd.play('coin', { force: true }); Sh.refresh().catch(() => {}); } }).catch(e => console.warn('spire finish', e)); }
+const nextFirstHtml = best => { const n = (Math.floor(Math.max(0, best) / 5) + 1) * 5, x = firstClear(n); return x ? `<small>다음 첫 돌파 보상: ${n}층 — ${x.souls ? '영혼석 ' + x.souls : ''}${x.medals ? ' · 던전 메달 ' + x.medals : ''}${x.title ? ' · 칭호 ' + esc(SP_TITLES[x.title]) : ''}</small>` : ''; };
+// 다시 오르기: 로그인 계정은 서버에 새 도전 등록 (하루 30회), 게스트·서버 업데이트 전은 연습
+async function spireAgain(from) { const b = $('spAgain'); if (!b || b.disabled) return; b.disabled = true; b.textContent = '입장 확인 중…';
+  const r = await SS.spStart(from); if (r.blocked) { Snd.play('error'); banner(r.msg, '#ffb06a', 2600); b.disabled = false; b.textContent = `🗼 다시 오르기 (${from}층)`; return; }
+  if (r.mode === 'practice') SS.markPractice(r.why, r.from); Snd.play('confirm'); $('fade').classList.add('on'); go({ spire: r.from || from }, 400); }
 function goTownD() { $('fade').classList.add('on'); go({ town: 1 }, 400); }
 export { finish as dgFinish };
