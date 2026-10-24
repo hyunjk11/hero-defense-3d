@@ -18,6 +18,10 @@
 | `advModelFail` | dungeon/run.js · ui/flow.js · ui/select.js | 1 |  |
 | `advN` | heroes/advfx.js | 43 | 계측/카운터 (테스트·통계용) |
 | `allModels` | main.js | 3 | main.js 가 노출하는 값/함수 |
+| `autoSkill` | heroes/autoskill.js | 0 | ⚡ 스킬 자동 사용 켜짐 여부 (localStorage hd3d_autoSkill, 기본 false · 2026-10-24) |
+| `autoSkillLast` | heroes/autoskill.js | 0 | ⚡ 마지막 자동 시전 {cls, skill, why(cluster/boss/elite/line/hp), n, x, z, t} (테스트·디버그용) |
+| `autoSkillN` | heroes/autoskill.js | 0 | ⚡ 자동 시전 횟수 (계측/카운터, 테스트용) |
+| `autoSkillT` | heroes/autoskill.js | 0 | ⚡ 다음 자동 판단까지 남은 시간 (게임 시간, 0.25초 주기) |
 | `autoWaveAt` | ui/autowave.js | 0 | Q-13 다음 웨이브 자동 시작 시각 (G.t 기준, 0 = 꺼짐) |
 | `barRes` | ui/flow.js | 1 | 🧱 바리케이드 보강 연구 배수 (account/steel.js barMul, 판 시작 시 · 2026-10-24) |
 | `BARS` | main.js | 1 | main.js 가 노출하는 값/함수 |
@@ -84,9 +88,9 @@
 | `field` | main.js | 2 | main.js 가 노출하는 값/함수 |
 | `fieldInfo` | main.js | 2 | main.js 가 노출하는 값/함수 |
 | `frameN` | monsters/ai.js | 0 | 계측/카운터 (테스트·통계용) |
-| `ftN` | heroes/fighter.js | 25 | 계측/카운터 (테스트·통계용) |
+| `ftN` | heroes/fighter.js | 48 | 계측/카운터 (테스트·통계용) |
 | `fxs` | core/state.js | 0 | 기본 상태 (state.js 초기값) |
-| `gear` | ui/flow.js | 237 | 장비 UI·세이브 핸들 (E·Acc·P·openInv…). 2026-10-24 📦 창고: 새 키 `G.gear.SG` = account/storage.js 모듈 (테스트용 · 새 최상위 G 속성 없음), `openInv('stor')` 로 창고 탭 |
+| `gear` | ui/flow.js | 252 | 장비 UI·세이브 핸들 (E·Acc·P·openInv…). 2026-10-24 📦 창고: 새 키 `G.gear.SG` = account/storage.js 모듈 (테스트용 · 새 최상위 G 속성 없음), `openInv('stor')` 로 창고 탭 |
 | `GH` | main.js | 23 | main.js 가 노출하는 값/함수 |
 | `GL` | main.js | 8 | main.js 가 노출하는 값/함수 |
 | `gold` | core/state.js · core/waves.js · dungeon/run.js · monsters/enemy.js · ui/flow.js · ui/input.js · world/towers.js | 60 | 기본 상태 (state.js 초기값) |
@@ -96,7 +100,7 @@
 | `GW` | main.js | 20 | main.js 가 노출하는 값/함수 |
 | `hard` | dungeon/run.js · main.js · ui/flow.js | 5 |  |
 | `help` | ui/help.js | 1 | Q-3 단축키 안내 { openHelp, closeHelp, helpOpen, HELP } |
-| `hero` | heroes/hero.js | 524 |  |
+| `hero` | heroes/hero.js | 562 |  |
 | `heroDamage` | main.js | 18 | main.js 가 노출하는 값/함수 |
 | `heroes` | heroes/hero.js | 131 |  |
 | `heroGoTo` | main.js | 5 | 함수 훅 (다른 모듈·테스트가 호출) |
@@ -120,10 +124,10 @@
 | `loadPlan` | main.js | 0 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `lowQ` | monsters/ai.js | 0 |  |
 | `makeEnemyModel` | main.js | 2 | main.js 가 노출하는 값/함수 |
-| `manual` | core/state.js | 70 | 기본 상태 (state.js 초기값) |
+| `manual` | core/state.js | 71 | 기본 상태 (state.js 초기값) |
 | `mechN` | heroes/mechanic.js | 18 | 계측/카운터 (테스트·통계용) |
 | `mK` | combat/projectiles.js · core/state.js · dungeon/run.js · heroes/hero.js | 0 | 기본 상태 (state.js 초기값) |
-| `mouseGround` | main.js | 23 | main.js 가 노출하는 값/함수 |
+| `mouseGround` | main.js | 24 | main.js 가 노출하는 값/함수 |
 | `mTw` | combat/projectiles.js · world/towers.js | 0 |  |
 | `mWho` | combat/projectiles.js · dungeon/run.js · world/towers.js | 3 |  |
 | `nextStep` | main.js | 1 | main.js 가 노출하는 값/함수 |
@@ -144,12 +148,12 @@
 | `paused` | dungeon/run.js · ui/speed.js | 19 |  |
 | `pendingSpawns` | main.js | 0 | main.js 가 노출하는 값/함수 |
 | `perm` | ui/flow.js | 3 |  |
-| `phase` | core/waves.js · dungeon/run.js · ui/flow.js · ui/result.js · ui/select.js | 134 |  |
+| `phase` | core/waves.js · dungeon/run.js · ui/flow.js · ui/result.js · ui/select.js | 135 |  |
 | `pickBranch` | ui/branch.js | 0 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `play` | main.js | 3 | main.js 가 노출하는 값/함수 |
 | `projs` | core/state.js | 3 | 기본 상태 (state.js 초기값) |
 | `Q` | main.js | 14 | main.js 가 노출하는 값/함수 |
-| `ready` | core/state.js · main.js | 123 | 기본 상태 (state.js 초기값) |
+| `ready` | core/state.js · main.js | 127 | 기본 상태 (state.js 초기값) |
 | `refreshTile` | main.js | 5 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `renderer` | main.js | 11 | main.js 가 노출하는 값/함수 |
 | `repairAll` | main.js | 0 | main.js 가 노출하는 값/함수 |
@@ -165,21 +169,22 @@
 | `runSaved` | ui/result.js | 0 |  |
 | `runStart` | dungeon/run.js · ui/flow.js | 0 |  |
 | `scene` | main.js | 34 | main.js 가 노출하는 값/함수 |
-| `screen` | ui/flow.js | 174 |  |
+| `screen` | ui/flow.js | 182 |  |
 | `screenMusic` | ui/flow.js | 0 |  |
 | `seenMon` | core/waves.js | 2 |  |
 | `sel` | core/state.js · ui/input.js | 0 | 기본 상태 (state.js 초기값) |
 | `select` | main.js | 8 | main.js 가 노출하는 값/함수 |
 | `sellTower` | main.js | 4 | main.js 가 노출하는 값/함수 |
+| `setAutoSkill` | heroes/autoskill.js | 0 | ⚡ setAutoSkill(on, quiet) — 토글·저장·HUD/설정 칸 동기화 (함수 훅, 테스트도 사용) |
 | `setPaused` | ui/speed.js | 7 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `setSpeed` | ui/speed.js | 6 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `setTool` | main.js | 5 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `shake` | combat/projectiles.js · core/state.js · dungeon/boss.js · dungeon/run.js · heroes/advfx.js · heroes/fighter.js · heroes/gunner.js · heroes/hero.js · heroes/legend.js · heroes/mechanic.js · heroes/unique.js · main.js · monsters/abilities.js · monsters/ai.js · monsters/enemy.js · world/growth.js · world/terrain.js · world/towers.js | 1 | 기본 상태 (state.js 초기값) |
 | `shop` | ui/shop.js | 77 |  |
-| `sim` | main.js | 433 | main.js 가 노출하는 값/함수 |
-| `slowF` | heroes/mechanic.js | 0 |  |
+| `sim` | main.js | 447 | main.js 가 노출하는 값/함수 |
+| `slowF` | heroes/fighter.js · heroes/mechanic.js | 0 |  |
 | `slowN` | heroes/mechanic.js | 0 | 계측/카운터 (테스트·통계용) |
-| `slowT` | heroes/mechanic.js · main.js | 2 |  |
+| `slowT` | heroes/fighter.js · heroes/mechanic.js · main.js | 2 |  |
 | `Snd` | main.js | 23 | main.js 가 노출하는 값/함수 |
 | `SPAWN` | main.js | 4 | 계측/카운터 (테스트·통계용) |
 | `spawnE` | core/waves.js | 7 |  |
@@ -198,7 +203,7 @@
 | `spRank` | ui/spire.js | 2 | 🗼 T-8 마지막으로 불러온 랭킹 응답 (spRank: top·me) — 디버그·테스트용 |
 | `stage` | dungeon/run.js · ui/flow.js | 31 |  |
 | `STAGE_CFG` | main.js | 7 | main.js 가 노출하는 값/함수 |
-| `stageSel` | ui/flow.js | 30 |  |
+| `stageSel` | ui/flow.js | 31 |  |
 | `startWarp` | main.js | 6 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `startWave` | main.js | 47 | 함수 훅 (다른 모듈·테스트가 호출) |
 | `stats` | core/state.js | 51 | 기본 상태 (state.js 초기값) |

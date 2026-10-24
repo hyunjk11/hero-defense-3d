@@ -81,6 +81,11 @@ button.big{background:linear-gradient(#c0304a,#6a1020)!important;font-size:16px!
 #legBtn small{color:#ffd86a}#legBtn.hidden{display:none}#legCd{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#000c var(--p,0%),transparent 0);pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
 #legBtn:before{content:"";position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(#ffe07a calc(100% - var(--p,0%)),transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));pointer-events:none}
 #legBtn.ready{animation:lpulse 1.2s infinite}@keyframes lpulse{50%{box-shadow:0 0 34px var(--gold-glow),inset 0 0 18px #ffe07a88}}
+/* ⚡ 스킬 자동 사용 (2026-10-24, heroes/autoskill.js): Q 버튼 옆 AUTO 토글 — 꺼짐 = 회색, 켜짐 = 초록 빛 + 천천히 도는 테두리 */
+#autoSkillBtn{position:relative;width:62px;height:62px;border-radius:16px;border:3px solid #6a6480;background:linear-gradient(#2a2638,#141220);color:#b8b0c8;font:inherit;font-weight:bold;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;align-self:flex-end;box-shadow:0 0 8px #0008;transition:border-color .15s,box-shadow .15s,color .15s}
+#autoSkillBtn b{font-size:14px;letter-spacing:.5px}#autoSkillBtn .asSt{font-size:11px;opacity:.85}#autoSkillBtn small{font-size:10px;color:#8a84a0}
+#autoSkillBtn.on{border-color:#5affa0;background:linear-gradient(#1f6a48,#0a2a1c);color:#eafff2;box-shadow:0 0 16px #3aff8a99,inset 0 0 10px #8affc055;animation:aspulse 1.6s infinite}#autoSkillBtn.on .asSt{color:#8affc0;opacity:1}#autoSkillBtn.on small{color:#bfffe0}
+@keyframes aspulse{50%{box-shadow:0 0 26px #5affa0cc,inset 0 0 14px #8affc088}}
 #warpBtn.channel{animation:wpulse .25s infinite}@keyframes wpulse{50%{box-shadow:0 0 34px #bdf0ff;border-color:#fff}}
 #modeInd{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#0c0a16e8;border:2px solid #66ff88;border-radius:10px;padding:6px 14px;font-size:14px;color:#eaffea;z-index:var(--z-hud-top);pointer-events:none;box-shadow:0 0 16px #66ff8866}
 #modeInd.clear{border-color:#ffb03a;box-shadow:0 0 16px #ffb03a66;color:#fff1d8}#modeInd small{color:#bbb;margin-left:8px}
@@ -655,7 +660,7 @@ body:not(.dungeonRun) #dgJoint{display:none}
   #build{width:170px;padding:8px;gap:4px}#ups{width:190px;padding:8px;gap:4px}#tinfo{left:calc(192px + env(safe-area-inset-left))}
   .panel button{padding:6px 8px;font-size:12.5px}
   #build,#ups,#tinfo{max-height:calc(100dvh - 76px - 110px)}
-  #skillBtn{width:76px;height:76px}#warpBtn{width:58px;height:58px}#legBtn{width:64px;height:64px;font-size:12px}
+  #skillBtn{width:76px;height:76px}#warpBtn{width:58px;height:58px}#autoSkillBtn{width:56px;height:56px}#legBtn{width:64px;height:64px;font-size:12px}
   .bar.hp{width:190px}.bar{width:130px}.bar.boss{width:min(420px,60vw)}
   #bossHud{top:calc(54px + env(safe-area-inset-top))}
   #banner{font-size:clamp(20px,3.6vw,38px)}#banner.long{font-size:clamp(14px,2.1vw,22px)}
