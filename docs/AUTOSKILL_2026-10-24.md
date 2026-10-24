@@ -5,9 +5,9 @@
 ## 체크리스트
 - [x] A-0 코드 조사 (castSkill · 전직 Q · 던전 파티 AI rolePlan · 설정/자동 웨이브 패턴 · 단축키)
 - [x] A-1 순수 판단 로직 `src/core/autoskill.js` (스킬 모양 표 · 대상 고르기 · busy 판정) + node 테스트 tests/autoskill.test.mjs
-- [ ] A-2 런타임 `src/heroes/autoskill.js` (토글 저장 · HUD AUTO 버튼 · Z 키 · 매 0.25초 판단 → castSkill) + main.js 연결 · 파티 AI busy 공유
-- [ ] A-3 설정 칸(메뉴 ⚙ / 전투 ⚙) · 단축키 안내 · CSS · G_REGISTRY
-- [ ] A-4 Playwright tests/autoskill.py (스위트 등록)
+- [x] A-2 런타임 `src/heroes/autoskill.js` (토글 저장 · HUD AUTO 버튼 · Z 키 · 매 0.25초 판단 → castSkill) + main.js 연결 · 파티 AI busy 공유
+- [x] A-3 설정 칸(메뉴 ⚙ / 전투 ⚙) · 단축키 안내 · CSS · G_REGISTRY
+- [x] A-4 Playwright tests/autoskill.py (스위트 등록)
 - [ ] A-5 스위트 실행 · CHANGELOG · 병합 · 배포 · 스크린샷
 
 ## A-0 조사 결과
