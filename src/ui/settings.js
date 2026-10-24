@@ -7,7 +7,7 @@ const ROWS = [
   { n: '백그라운드에서 음소거', chk: ['stBgMute', 'bgMute'] },
   { n: '×2 배속을 다음 판에도 유지', chk: ['stKeepSpd', 'sndKeepSpd'] },
   { n: '다음 웨이브 자동 시작 (건설 15초 뒤)', chk: ['stAutoWave', 'sndAutoWave'] }, // Q-13 (ui/autowave.js)
-  { n: '⚡ 스킬 자동 사용 (전투 AUTO 버튼 · Z 키)', chk: ['stAutoSkill', 'sndAutoSkill'] }, // 2026-10-24 (heroes/autoskill.js)
+  { n: '⚡ 스킬 자동 사용 (AUTO · Z)', chk: ['stAutoSkill', 'sndAutoSkill'] }, // 2026-10-24 (heroes/autoskill.js)
 ];
 export const SETTING_IDS = ROWS.flatMap(r => [r.chk, r.rng].filter(Boolean)); // [[메뉴 id, 전투 id], …]
 export function settingsHtml(w) { // w = 0 메뉴, 1 전투
