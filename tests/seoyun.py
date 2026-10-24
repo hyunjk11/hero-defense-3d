@@ -101,9 +101,9 @@ with sync_playwright() as pw:
     ok('selected', J(pg, "()=>G.gear.Acc.load().hero") == 'fighter' and '서윤' in pg.inner_text('.hcard.sel'))
     ok('town_model_real', J(pg, "()=>{ const h=G.townHero(); return !!(h && h.acts && h.acts.includes('JabLs')) && !h.fallback; }"))
     pshot(pg, 'select', True)
-    # 전직 탭: '준비 중'
+    # 전직 탭: 서윤 전직(SA-1~4) 출시 뒤 = 두 갈래(🐯 백호권성 · 🐉 천기권사)와 조건 표시 ('준비 중' 시절 검사였음)
     adv = J(pg, "async()=>{ const m=await import('./src/ui/advance.js'); m.renderAdv(); return document.getElementById('twAdv').innerText; }")
-    ok('advance_soon', '준비 중' in adv and 'undefined' not in adv, adv[:200])
+    ok('advance_tab', '백호권성' in adv and '천기권사' in adv and 'undefined' not in adv, adv[:200])
     # ===== 3) 출정: 3연타 · 장풍 · Q =====
     J(pg, "()=>G.stageSel.departStage('1-1')"); pg.wait_for_function("()=>window.G&&G.ready&&G.phase==='build'&&G.hero", timeout=240000); pg.wait_for_timeout(500)
     ok('in_run', J(pg, "()=>G.hero.cls") == 'fighter' and J(pg, "()=>!!(G.hero.ft && G.hero.ch.acts.JabLs && G.hero.ch.acts.SpinK && G.hero.ch.acts.PalmS && G.hero.ch.acts.SlamS)"), J(pg, "()=>[G.hero.cls, Object.keys(G.hero.ch.acts)]"))

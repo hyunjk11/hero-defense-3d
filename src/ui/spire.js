@@ -1,6 +1,6 @@
 // ================= 🗼 무한의 탑 입장 화면 (T-8, 2026-10-24) — 던전 건물 패널(ui/dungeon.js)의 탭 [⚔ 던전 원정] [🗼 무한의 탑] [🏪 던전 상점] =================
 // 시작 층 칩(1 · 돌파한 체크포인트+1) · 다음 5개 층 어픽스 미리보기 · 다음 첫 돌파 보상 · 탑 전용 파티(hd3d_sppick) · 랭킹(주간/전체) · 출발(서버 등록 → 새로고침 진입)
-// SP_OPEN(SP_LIVE 또는 ?sptest=1) 일 때만 탭이 보임 → 공개 전에는 던전 패널이 기존과 똑같음
+// SP_OPEN(SP_LIVE 또는 ?sptest=1) 일 때만 탭이 보임 — T-10(2026-10-24) 부터 SP_LIVE=true 로 공개
 import { Snd } from '../audio/audio.js';
 import { $, esc } from '../core/util.js';
 import { go } from '../core/nav.js';

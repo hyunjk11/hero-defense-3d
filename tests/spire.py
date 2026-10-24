@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """🗼 무한의 탑 T-4 연습 탑 (가짜 Supabase tests/sbmock.js, ?sptest=1 · 데스크톱만)
  진입 go({spire:1}) → 탑 층 목록 · HUD 🗼 줄 · 1층 돌파 → 3초 뒤 2층(축복 없음) · 3층 정예(붉은 고리·체력 ×2.5) · 5층 중간 보스(해골 군주 체력 = 기본×hpMul×0.55) →
- 보스층 돌파 = 축복 3택1 → 6층 · 어픽스(가속·철갑·재생) 효과 · 전멸 → 탑 결과 화면 · 21층 시작 = 출발 축복 2번 · ?sptest 없으면 spire 무시(원정) · 콘솔 오류 0
+ 보스층 돌파 = 축복 3택1 → 6층 · 어픽스(가속·철갑·재생) 효과 · 전멸 → 탑 결과 화면 · 21층 시작 = 출발 축복 2번 · SP_LIVE(T-10 공개) = ?sptest 없어도 탑 판 · 콘솔 오류 0
 python3 tests/spire.py"""
 import sys, os, pathlib, json
 sys.path.insert(0, os.path.dirname(__file__))
@@ -85,11 +85,11 @@ with sync_playwright() as pw:
     ok('affix_frenzy', af2['fr0'] == 1 and af2['fr1'] == 1.3 and af2['fr2'] == 1, af2)
     ok('affix_curse_heal_half', 6.5 <= af2['gain'] <= 8.5, af2)  # 층 사이 회복 15% × 0.5 (층 넘어가는 그 순간의 증가분)
     ok('errors_0_t5', not errs, errs[:4]); errs.clear()
-    # ?sptest 없음 → spire 무시 (일반 던전 원정)
+    # T-10 공개: ?sptest 없어도 탑 판 (SP_LIVE)
     c2 = b.new_context(viewport={'width': 1280, 'height': 800}); c2.add_init_script(MOCK); p2 = c2.new_page(); p2.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     login(p2, '?seed=5152&rng=32&flow=1&dgtest=1', 'sp2@test.kr'); enter(p2, 6)
     s5 = J(p2, "()=>({sp:G.spire===undefined, spE:G.spireE===undefined, f:G.dg.floors[0].n, hud:document.getElementById('dgFloor').textContent})")
-    ok('no_sptest_is_dungeon', s5['sp'] and s5['spE'] and s5['f'].startswith('1층 · 해골 동굴') and s5['hud'].startswith('1층'), s5)
+    ok('live_no_sptest_spire', not s5['sp'] and not s5['f'].startswith('1층 · 해골 동굴') and '층' in s5['hud'], s5)
     ok('errors_0_run3', not errs, errs[:4])
     b.close()
 print('RESULT', 'PASS' if all(res.values()) else 'FAIL', sum(res.values()), '/', len(res))

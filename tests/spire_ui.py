@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """🗼 무한의 탑 T-8 입장 화면 (가짜 Supabase tests/sbmock.js · 데스크톱 1440x860 만 — 태블릿 테스트 없음)
- ?sptest 없으면 던전 패널 탭 없음(기존 그대로) · 탭 [⚔ 원정][🗼 무한의 탑][🏪 상점] · 시작 층 칩(체크포인트 · 🔒 다음) · 다음 5개 층 미리보기(어픽스) · 다음 첫 돌파 보상 ·
+ SP_LIVE(T-10 공개) = ?sptest 없어도 탭 · 탭 [⚔ 원정][🗼 무한의 탑][🏪 상점] · 시작 층 칩(체크포인트 · 🔒 다음) · 다음 5개 층 미리보기(어픽스) · 다음 첫 돌파 보상 ·
  탑 전용 파티(hd3d_sppick) · 랭킹(이번 주/전체 · 내 순위) · 11층 출발 = 정식 · HUD 🗼 줄 · 결과 화면 · 서버 업데이트 필요 · 콘솔 오류 0
 python3 tests/spire_ui.py [--shots]   (스크린샷 /workspace/report_shots/spire_*.png)"""
 import sys, os, pathlib, json
@@ -31,10 +31,10 @@ SEED = """()=>{ const d=JSON.parse(localStorage.getItem('__mockdb')); const me=O
   d.hd3d_profiles={...(d.hd3d_profiles||{}), o1:{nickname:'별빛기사'}, o2:{nickname:'눈꽃마녀'}, [me]:{...((d.hd3d_profiles||{})[me]||{}), nickname:'나의용사'}}; localStorage.setItem('__mockdb', JSON.stringify(d)); return wk; }"""
 with sync_playwright() as pw:
     b = pw.chromium.launch(args=ARGS)
-    # ---- ?sptest 없음: 기존 던전 패널 그대로 ----
+    # ---- T-10 공개: ?sptest 없어도 탭 [⚔ 원정][🗼 무한의 탑][🏪 상점] ----
     c0 = b.new_context(viewport={'width': 1440, 'height': 860}); c0.add_init_script(MOCK); p0 = c0.new_page(); p0.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
     login(p0, '?seed=5171&rng=51&flow=1&dgtest=1', 'spu0@test.kr'); town(p0); openp(p0)
-    ok('no_sptest_no_tabs', J(p0, "()=>!document.getElementById('dgTabs') && !!document.getElementById('dgStart') && !!document.getElementById('dgShopBtn')"), txt(p0, '#dgPanel .gtitle'))
+    ok('live_no_sptest_tabs', J(p0, "()=>!!document.getElementById('dgTabs') && !!document.querySelector('#dgTabs [data-view=spire]')"), txt(p0, '#dgPanel .gtitle'))
     c0.close()
     c = b.new_context(viewport={'width': 1440, 'height': 860}); c.add_init_script(MOCK); pg = c.new_page(); pg.on('dialog', lambda d: d.accept())
     pg.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300])); pg.on('console', lambda m: m.type == 'error' and errs.append('CE ' + m.text[:300]))

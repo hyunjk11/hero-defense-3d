@@ -7,7 +7,7 @@ import { waveList } from '../src/data/dungeon.js';
 let ok = 0; const t = (name, fn) => { fn(); ok++; console.log('OK', name); };
 const W = '2026-10-19';
 t('표시 · 시작 층 내림', () => { const F = S.spireFloor(13, W); assert.ok(S.floorLabel(F, 0).startsWith('🗼 13층 · 🔴 정예')); assert.ok(S.floorLabel(F, 1).endsWith('웨이브 2/2')); assert.equal(S.snapFrom(23), 21); assert.equal(S.snapFrom(1), 1); assert.equal(S.snapFrom(0), 1); assert.equal(S.snapFrom('x'), 1); assert.equal(S.snapFrom(26), 26); });
-t('공개 스위치 꺼짐', () => { assert.equal(S.SP_LIVE, false); assert.equal(S.SP_OPEN, false); });
+t('공개 스위치 켜짐 (T-10)', () => { assert.equal(S.SP_LIVE, true); assert.equal(S.SP_OPEN, true); });
 t('층 종류: 보스 주기', () => { assert.equal(S.floorType(10), 'boss'); assert.equal(S.floorType(5), 'mid'); assert.equal(S.floorType(15), 'mid'); assert.equal(S.floorType(3), 'elite'); assert.equal(S.floorType(8), 'elite'); assert.equal(S.floorType(1), 'normal'); assert.equal(S.floorType(13), 'elite'); });
 t('배수 단조 증가 · 표 값', () => { for (let n = 2; n <= 120; n++) { assert.ok(S.hpMul(n) > S.hpMul(n - 1)); assert.ok(S.dmgMul(n) > S.dmgMul(n - 1)); assert.ok(S.countOf(n) >= S.countOf(n - 1)); assert.ok(S.everyOf(n) <= S.everyOf(n - 1)); }
   assert.equal(+S.hpMul(1).toFixed(2), 1.9); assert.equal(+S.hpMul(10).toFixed(2), 2.95); assert.equal(+S.hpMul(50).toFixed(2), 20.75); assert.equal(+S.dmgMul(1).toFixed(2), 1.15); assert.equal(+S.dmgMul(30).toFixed(2), 3.12); /* T-5 spbal 조정값 */ assert.equal(S.everyOf(100), .4); });
@@ -50,5 +50,5 @@ t('T-6 schema.sql hd3d_spire_const = SP_SERVER · 첫 돌파 공식 · 권한', 
   assert.ok(sql.includes("'souls', case when p_n <= 100 then 300 + 100 * (p_n / 5) else 0 end") && sql.includes("when p_n <= 100 then 5 + p_n / 10 else 10 end") && sql.includes("when 30 then 'spire_30' when 50 then 'spire_50'"));
   for (const f of ['hd3d_spire_status()', 'hd3d_spire_start(int)', 'hd3d_spire_ping(uuid, int)', 'hd3d_spire_finish(uuid, int, jsonb)', 'hd3d_spire_rank(text, date)']) assert.ok(sql.includes('public.' + f), f);
   assert.ok(/revoke all on function [^;]*public\.hd3d_spire_record\(uuid, bigint, int\)[^;]*from public, anon, authenticated;/.test(sql), 'record 내부 전용');
-  assert.ok(!S.SP_LIVE, 'SP_LIVE 는 T-10 까지 false'); });
+  assert.ok(S.SP_LIVE, 'T-10 공개 = SP_LIVE true'); });
 console.log(`spire.test: ${ok} OK`);
