@@ -40,7 +40,8 @@ export function rolePlan(role, self, { lead = null, tank = null, enemies = [], b
     const idx = E.map((e, i) => i), ground = idx.filter(i => !E[i].fly), rg = ground.filter(i => E[i].r), pool = rg.length ? rg : ground;
     if (pool.length) { let ti = pool[0], td = Infinity; for (const i of pool) { const d = dist(E[i], self); if (d < td) { td = d; ti = i; } } out.focus = ti; if (td > self.range * .8) out.move = { x: E[ti].x, z: E[ti].z }; }
     else { const jp = self.jp || 10, f = E[near.i]; if (near.d > jp * .85) { const k = (near.d - jp * .6) / near.d; out.move = { x: self.x + (f.x - self.x) * k, z: self.z + (f.z - self.z) * k }; } }
-    if (self.skillReady) { const cl = bestCluster(E.filter(e => !e.fly), 3.5, self, 9); if (cl && cl.n >= 3) out.skill = { x: cl.x, z: cl.z }; }
+    if (self.skillReady) { if (self.qSelf) { const n = E.filter(e => !e.fly && dist(e, self) <= self.qSelf).length; if (n >= 3) out.skill = { x: self.x, z: self.z }; } // 백호진천권: 제자리 광역 → 주변 지상 적 3+ 일 때만
+      else { const cl = bestCluster(E.filter(e => !e.fly), 3.5, self, 9); if (cl && cl.n >= 3) out.skill = { x: cl.x, z: cl.z }; } }
     return out; }
   // ranged / caster: 너무 가까우면 탱커 쪽(없으면 반대쪽)으로 물러나고, 사거리 밖이면 다가감
   const e0 = E[near.i];

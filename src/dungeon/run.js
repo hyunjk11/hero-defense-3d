@@ -12,7 +12,7 @@ import { CLASSES } from '../data/heroes.js';
 import { DG_TITLES } from '../data/dungeon.js';
 import { UQ } from '../data/items.js';
 import { FLOORS, ROLE, BLESS_BY, ULT_MAX, DG_PICK_KEY, dungeonParty, pickParty, waveList, dungeonReward, nextFloorHp, blessChoices, blessMods, ultGain, jointReady, jointDamage } from '../data/dungeon.js';
-import { FT, isRangedFoe } from '../data/fighter.js';
+import { FT, isRangedFoe, TQ, ftSkillId } from '../data/fighter.js';
 import { later } from '../core/state.js';
 import { P as PT, PB, emit, ringFx, setDmgCap } from '../render/vfx.js';
 import { play } from '../render/characters.js';
@@ -143,7 +143,7 @@ function partyAI(h, dt) {
   const tank = G.heroes.find(x => x !== h && x.dead <= 0 && ROLE[x.cls] === 'tank'), lead = G.hero !== h && G.hero.dead <= 0 ? pos(G.hero) : null;
   const busy = h.spinT > 0 || h.roseT > 0 || h.snipeT > 0 || h.leap || (h.mech && h.mech.busy > 0) || (h.ft && h.ft.leap);
   const dz = bossDodge(h); if (dz) { const g0 = h.aiGoal; if (!g0 || Math.hypot(g0.x - dz.x, g0.z - dz.z) > .8 || !h.path.length) { heroGoTo(_v.set(dz.x, 0, dz.z)); h.aiGoal = dz; } h.aiT = .15; return; } // 5층 보스: 원 피하기 · 창 막기 (dungeon/boss.js)
-  const P = rolePlan(role, { ...pos(h), range: stat.range(), jp: FT.jpRange, skillReady: h.skillCd <= 0 && !busy }, { lead, tank: tank ? pos(tank) : null, enemies: En.map(e => ({ ...pos(e), r: isRangedFoe(e.E), fly: !!e.E.fly })), backs: G.heroes.filter(x => x !== h && x.dead <= 0 && ROLE[x.cls] !== 'tank').map(pos) });
+  const P = rolePlan(role, { ...pos(h), range: stat.range(), jp: FT.jpRange, qSelf: h.adv && ftSkillId(h.adv.skill) === 'tigerquake' ? TQ.R * .85 : 0, skillReady: h.skillCd <= 0 && !busy }, { lead, tank: tank ? pos(tank) : null, enemies: En.map(e => ({ ...pos(e), r: isRangedFoe(e.E), fly: !!e.E.fly })), backs: G.heroes.filter(x => x !== h && x.dead <= 0 && ROLE[x.cls] !== 'tank').map(pos) });
   h.aiTgt = P.focus !== null && P.focus !== undefined ? En[P.focus] : null;
   if (P.move) { const g0 = h.aiGoal; if (!g0 || Math.hypot(g0.x - P.move.x, g0.z - P.move.z) > 1.2 || !h.path.length) { heroGoTo(_v.set(P.move.x, 0, P.move.z)); h.aiGoal = P.move; } }
   else if (role !== 'tank' && En.length && h.path.length) { h.path = []; h.aiGoal = null; } // 사거리 안: 멈춰서 사격

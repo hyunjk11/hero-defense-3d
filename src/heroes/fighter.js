@@ -1,4 +1,4 @@
-// ================= 격투가 진서윤: 빠른 3연타(주먹·주먹·회전 돌려차기 넉백) · 장풍 충전(0.4초 약 / 1.2초 관통) · [Q] 냥냥 진각 · 전설(냥냥 난타 / 맹호 돌진) =================
+// ================= 격투가 진서윤: 3연타(주먹·주먹·회전 돌려차기 · 넉백 없음) · 장풍 충전(0.4초 약 / 1.2초 관통) · [Q] 냥냥 진각 · 전설(냥냥 난타 / 맹호 돌진) =================
 // cls === 'fighter' 일 때만 호출됨 (다른 영웅 코드 경로 불변). 수치 = data/fighter.js FT. 시각 효과 난수는 Math.random (게임 난수 rand() 미사용 → 회귀 결정성)
 import { Snd } from '../audio/audio.js';
 import * as THREE from 'three';
@@ -12,8 +12,9 @@ import { banner } from '../ui/hud.js';
 import { hero, passAt, stat } from './hero.js';
 import { knock } from './mechanic.js';
 import { legendProc } from './legend.js';
-import { FT, comboMul, isKick, isRangedFoe, jpLevel, jpMul, ftOpt, comboHeal, TF, DW, inLine } from '../data/fighter.js';
+import { FT, comboMul, isKick, jpLevel, jpMul, ftOpt, comboHeal, TQ, DW, steer, jpWants, ftSkillId } from '../data/fighter.js';
 import { Q } from '../render/quality.js';
+import { toon } from '../render/toon.js';
 import { awakeMul } from '../data/items.js';
 
 const FX = heroFx();
@@ -71,7 +72,7 @@ function jabHit(t, mul, side) {
 }
 function kickHit(mul) {
   const h = hero, F = h.ft, c = h.g.position, fk = F.fin ? 1 + F.o.fin : 1; let n = 0; G.ftN.kick++;
-  for (const e of alive()) if (!e.E.fly && d2(e, c.x, c.z) < FT.kickR * FT.kickR) { F.dealt += dealt(e, stat.dmg() * mul * fk, F.fin ? '#ff8a5a' : '#ffb07a', true, { x: c.x, z: c.z, kind: 'melee' }); if (!e.dead) knock(e, c.x, c.z, FT.kickKb, .45); n++; }
+  for (const e of alive()) if (!e.E.fly && d2(e, c.x, c.z) < FT.kickR * FT.kickR) { F.dealt += dealt(e, stat.dmg() * mul * fk, F.fin ? '#ff8a5a' : '#ffb07a', true, { x: c.x, z: c.z, kind: 'melee' }); n++; } // 2026-10-24 패치: 넉백 없음 (FT.kickKb = 0)
   G.ftN.kickHits += n; if (n && F.fin) finUsed(); if (n) comboDone(c); ringFx(c, FT.kickR, ORANGE, .35); ringFx(c, FT.kickR * .6, 0xffffff, .25);
   const arc = new THREE.Mesh(new THREE.RingGeometry(FT.kickR * .45, FT.kickR, 32), ADD(0xffb06a, .6)); arc.rotation.x = -Math.PI / 2; arc.position.set(c.x, c.y + .9, c.z); fade(arc, .25);
   emit(P, c.x, c.y + .8, c.z, 24, 0xffc07a, 7, .3, 0, 1.5); Snd.play('stomp', { pos: c, rate: 1.6, vol: .6 }); if (n) Snd.play('hitArmor', { pos: c, rate: 1.3 });
@@ -80,7 +81,7 @@ function kickHit(mul) {
 function comboDone(c) { const h = hero, F = h.ft, o = F.o; if (o.fin > 0) { F.fin = true; ringFx(c, 1.3, h.adv.col, .25); }
   const v = comboHeal(F.dealt, h.max, o); F.dealt = 0; if (v > 0 && h.dead <= 0) { h.hp = Math.min(h.max, h.hp + v); G.advHeal = (G.advHeal || 0) + v; G.ftN.leech++; emit(P, c.x, 1.4, c.z, 6, 0xff5a3a, 2, .4, 2, .4); } }
 function finUsed() { const h = hero, p = h.g.position; h.ft.fin = false; G.ftN.fin++; const q = p.clone().addScaledVector(fwd(), 1.3).setY(p.y + 1.2); clawFx(q, h.adv ? h.adv.col : ORANGE, 1); Snd.play('hitArmor', { pos: q, rate: .9, vol: .6 }); }
-// 발톱 자국 3줄 (백호권성 피니시 · 백호난무)
+// 발톱 자국 3줄 (백호권성 피니시)
 function clawFx(p, col, s = 1) { const g = new THREE.Group(), m = ADD(col, .95); for (let i = -1; i <= 1; i++) { const b = new THREE.Mesh(new THREE.PlaneGeometry(.12, 1.5), m); b.position.x = i * .32; b.rotation.z = .5; g.add(b); }
   g.position.copy(p); g.scale.setScalar(s); g.lookAt(p.x - Math.sin(hero.face) * 5, p.y, p.z - Math.cos(hero.face) * 5); scene.add(g); let t = 0;
   FX.push(dt => { t += dt; const k = t / .22; m.opacity = .95 * (1 - k); g.scale.setScalar(s * (1 + k * .4)); if (k < 1) return true; scene.remove(g); m.dispose(); g.traverse(o => o.geometry && o.geometry.dispose()); return false; }); }
@@ -93,9 +94,9 @@ function pawMark(p, s, dur, col = ORANGE, flat = false) {
 }
 
 // ---------- 장풍 ----------
-// 대상: 원거리/비행 적 중 장풍 사거리(10) 안 · 근접 사거리 밖(비행은 근접이 안 닿으므로 가까워도 대상)
-function jpTarget() { const h = hero.g.position, mr = stat.range(); let best = null, bd = FT.jpRange * FT.jpRange;
-  for (const e of alive()) { if (!isRangedFoe(e.E)) continue; const d = d2(e, h.x, h.z); if (d < bd && (e.E.fly || d > mr * mr)) { bd = d; best = e; } } return best; }
+// 대상 (2026-10-24 패치): 공격 사거리(기본 2.6) 밖 ~ 장풍 사거리 10 의 가장 가까운 적 — 종류 무관 (비행은 근접이 안 닿으므로 가까워도 대상). 사거리 안 지상 적은 주먹·발차기
+function jpTarget() { const h = hero.g.position, mr = stat.range(); let best = null, bd = Infinity;
+  for (const e of alive()) { const d = Math.sqrt(d2(e, h.x, h.z)); if (d < bd && jpWants(d, mr, !!e.E.fly)) { bd = d; best = e; } } return best; }
 function startCharge(t) { const h = hero; h.ft.jp = { t: 0, tgt: t, lvl: 'none', snd: 0 }; G.ftN.charge++; faceTo(t.g.position); h.path = [];
   play(h.ch, h.ch.acts.ChargeIn ? 'ChargeIn' : 'Idle', { once: true, force: true, speed: 1.2 }); h.atkT = .3; Snd.play('magic', { pos: h.g.position, rate: .5, vol: .5 }); }
 function charge(dt, meleeTgt, moving) {
@@ -136,7 +137,7 @@ function wave(from, dir, mul) {
 
 // ---------- [Q] 냥냥 진각: 도약 → 내려찍기 (반경 4.5 · 400% · 1초 기절) + 땅 갈라짐 ----------
 export function fighterSkill(at, mul) {
-  const h = hero; if (h.ft.leap) return false; const k = h.adv && h.adv.skill; if (k === 'tigerfury') return tigerFury(at, mul); if (k === 'dragonwave') return dragonWave(at, mul); // 전직 Q
+  const h = hero; if (h.ft.leap) return false; const k = ftSkillId(h.adv && h.adv.skill); if (k === 'tigerquake') return tigerQuake(at, mul); if (k === 'dragonwave') return dragonWave(at, mul); // 전직 Q (옛 id tigerfury → tigerquake 별칭)
   ftStop(); const p = h.g.position, from = p.clone(); let tg = at ? at.clone().setY(0) : from.clone().addScaledVector(fwd(), 4);
   if (tg.distanceTo(from) > FT.qLeap) tg.sub(from).setY(0).setLength(FT.qLeap).add(from);
   let to = tg.clone(); for (let k = 0; k <= 16 && !passAt(to.x, to.z); k++) to = tg.clone().lerp(from, k / 16); if (!passAt(to.x, to.z)) to = from.clone();
@@ -146,7 +147,7 @@ export function fighterSkill(at, mul) {
 }
 // hero.js updHero: 도약/돌진 중이면 true (나머지 갱신 생략)
 export function updFtLeap(dt) {
-  const L = hero.ft.leap, p = hero.g.position; L.t += dt; if (L.kind === 'fury') return furyTick(L, p); const k = Math.min(1, L.t / L.dur);
+  const L = hero.ft.leap, p = hero.g.position; L.t += dt; if (L.kind === 'quake') return quakeTick(L, p); const k = Math.min(1, L.t / L.dur);
   p.x = L.from.x + (L.to.x - L.from.x) * k; p.z = L.from.z + (L.to.z - L.from.z) * k; hero.g.rotation.y = hero.face;
   if (L.kind === 'q') { p.y = groundY(p.x, p.z) + Math.sin(k * Math.PI) * 3.2; emit(P, p.x, p.y + 1, p.z, 1, ORANGE, 1, .3, 0, .3); }
   else { p.y = groundY(p.x, p.z); dashHits(L); emit(P, p.x, p.y + 1, p.z, 4, ORANGE, 2, .3, 0, .5); }
@@ -171,82 +172,162 @@ function slam(c, mul) {
   Snd.play('boom', { pos: c, force: true }); Snd.play('breakRock', { pos: c, force: true }); Snd.play('stomp', { pos: c, rate: .8, force: true });
 }
 
-// ---------- 전직 Q ① 🐯 백호난무 (백호권성): 짧은 돌진 → 6연타(각 75%) → 250% 회전 발차기 + 넉백(보스 제외) · 시전 중 받는 피해 -30% ----------
-// 도약과 같은 hero.ft.leap(kind 'fury') 로 진행 → 사망·워프·판 종료 때 ftStop 이 함께 정리, 타격은 시전 시각 기준(sim 결정적)
+// ---------- 전직 Q ① 🐯 백호진천권 (백호권성, 2026-10-24 — 백호난무 대체) ----------
+// 제자리(도약·이동 없음): 0 ~ windT 기 모으기(주먹을 머리 위로 · 백호 기운이 모임) → windT 땅 내려치기: 반경 R 지상 적 500% + 0.8초 기절(보스 제외)
+// → 화면 흔들림 · 히트스톱(G.slowT 짧은 슬로 모션 = 게임 시간 전체가 같이 느려짐 → 로직 안전) · 빛나는 땅 균열 · 충격파 고리(waveR 까지 퍼지며 지상 적마다 1회 200%) · 바위 파편/솟는 바위/흙먼지 · 포효하는 백호 기운
+// 넉백 없음 · 시전 중 받는 피해 -30% (ftGuard). hero.ft.leap(kind 'quake') 로 진행 → 사망·워프·판 종료 때 ftStop 이 정리 (이미 생긴 이펙트는 FX 목록이 수명대로 정리·dispose)
+// 메시: 공유 지오메트리(QG, 한 번 만들고 재사용 — dispose 안 함) + 시전마다 재질 몇 개(끝나면 dispose). G.ftN.tqLive = 장면에 남은 진천권 이펙트 수 (테스트: 끝나면 0)
 const ground = () => alive().filter(e => !e.E.fly);
+let QG = null, ROCKM = null;
+const qgeo = () => QG || (QG = { plane: new THREE.PlaneGeometry(1, 1).translate(0, .5, 0), ring: new THREE.RingGeometry(.84, 1, 72), ring2: new THREE.RingGeometry(.55, 1, 72), wall: new THREE.CylinderGeometry(1, 1, 1, 48, 1, true).translate(0, .5, 0),
+  disc: new THREE.CircleGeometry(1, 48), sph: new THREE.SphereGeometry(1, 20, 14), spike: new THREE.ConeGeometry(.42, 1.9, 5).translate(0, .95, 0), pillar: new THREE.CylinderGeometry(1, 1.4, 1, 32, 1, true).translate(0, .5, 0) });
+const qAdd = o => { scene.add(o); G.ftN.tqLive = (G.ftN.tqLive || 0) + 1; G.ftN.tqFx = (G.ftN.tqFx || 0) + 1; return o; };
+const qRm = (o, ...mats) => { scene.remove(o); G.ftN.tqLive--; for (const m of mats) if (m) { m.map = null; m.dispose(); } };
+const NORM = (c, o = .9) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+function tigerQuake(at, mul) { const h = hero, c = h.g.position.clone(); ftStop();
+  if (at && (at.x - c.x) ** 2 + (at.z - c.z) ** 2 > .25) faceTo(at); else { const t = furyPick(c.x, c.z, 8); if (t) faceTo(t.g.position); } h.g.rotation.y = h.face; // 바라보는 방향만 (제자리)
+  h.path = []; h.ft.idle = 0; h.ft.leap = { kind: 'quake', t: 0, dur: TQ.dur, c, mul, hit: false }; G.ftN.q++; G.ftN.tq = (G.ftN.tq || 0) + 1;
+  banner('백호진천권!', h.adv.c, 1100);
+  // 모션: GroundSlam 하위 클립 QuakeS (주먹을 머리 위로 → 땅에 내리꽂음 · 타격 = 클립 1.15초) — windT 에 맞춰 속도. 대체 모델은 SlamS/PalmS
+  const nm = h.ch.acts.QuakeS ? 'QuakeS' : h.ch.acts.PalmS ? 'PalmS' : null, hitAt = nm === 'QuakeS' ? 1.15 : HIT.PalmS; h.ft.leap.act = nm ? play(h.ch, nm, { once: true, force: true, speed: hitAt / TQ.windT }) : null; h.atkT = TQ.dur + .1;
+  glow(true, 1); for (const x of h.ft.glow) x.halo.material.color.setHex(0xfff4e0);
+  Snd.play('magic', { pos: c, rate: .55, vol: .8, force: true }); Snd.whoosh(c, TQ.windT, 180, 1400, .45);
+  const gy = groundY(c.x, c.z); qPillar(c, gy); ringFx(c, 3.2, h.adv.col, TQ.windT); ringFx(c, 2, 0xffffff, TQ.windT * .8); return true; }
 function furyPick(x, z, r) { let b = null, bd = r * r; for (const e of ground()) { const d = d2(e, x, z); if (d < bd) { bd = d; b = e; } } return b; }
-function tigerFury(at, mul) { const h = hero, from = h.g.position.clone(); ftStop(); const reach = TF.dash + stat.range() + 1;
-  let tgt = at ? furyPick(at.x, at.z, 3) : null; if (tgt && d2(tgt, from.x, from.z) > reach * reach) tgt = null; if (!tgt) tgt = furyPick(from.x, from.z, reach);
-  let dir = tgt ? new THREE.Vector3(tgt.g.position.x - from.x, 0, tgt.g.position.z - from.z) : at ? new THREE.Vector3(at.x - from.x, 0, at.z - from.z) : fwd(); if (dir.lengthSq() < .01) dir = fwd();
-  const dist = tgt ? Math.max(0, Math.min(TF.dash, dir.length() - 1.3)) : Math.min(TF.dash, dir.length()); dir.normalize(); h.face = Math.atan2(dir.x, dir.z);
-  let to = from.clone(); for (let k = 1; k <= 8; k++) { const q = from.clone().addScaledVector(dir, dist * k / 8); if (!passAt(q.x, q.z)) break; to = q; }
-  h.path = []; h.ft.leap = { kind: 'fury', t: 0, dur: TF.dur, from, to, mul, tgt, i: 0, fin: false }; G.ftN.q++; G.ftN.tf++;
-  banner('백호난무!', h.adv.c, 1000); if (h.ch.acts.PunchCombo) play(h.ch, 'PunchCombo', { once: true, force: true, speed: 2.4 }); h.atkT = TF.dur + .1;
-  Snd.whoosh(from, .3, 400, 2600, .5); Snd.play('stomp', { pos: from, rate: 1.6 }); emit(P, from.x, .3, from.z, 16, h.adv.col, 4, .4, -4, 1); return true; }
-function furyTick(L, p) { const h = hero, k = Math.min(1, L.t / TF.dashT); p.x = L.from.x + (L.to.x - L.from.x) * k; p.z = L.from.z + (L.to.z - L.from.z) * k; p.y = groundY(p.x, p.z);
-  if (L.tgt && !L.tgt.dead) faceTo(L.tgt.g.position); h.g.rotation.y = h.face; if (k < 1) emit(P, p.x, p.y + 1, p.z, 3, h.adv.col, 2, .3, 0, .5);
-  while (L.i < TF.hits && L.t >= TF.hit0 + L.i * TF.hitGap) furyJab(L, L.i++);
-  if (!L.fin && L.t >= TF.finT) { L.fin = true; furyFinish(L); }
-  if (L.t >= L.dur) { h.ft.leap = null; h.atkT = .15; h.ft.idle = 0; } }
-function furyJab(L, i) { const h = hero, c = h.g.position, R = stat.range() + 1.2;
-  if (!L.tgt || L.tgt.dead || L.tgt.dying !== undefined || L.tgt.immT > G.t || d2(L.tgt, c.x, c.z) > R * R) L.tgt = furyPick(c.x, c.z, R); // 대상이 죽거나 멀어지면 가까운 지상 적으로
-  const nm = i % 2 ? 'JabRs' : 'JabLs'; if (h.ch.acts[nm]) play(h.ch, nm, { once: true, force: true, speed: 3.2 });
-  const e = L.tgt, q = e ? e.g.position.clone().setY(e.g.position.y + 1.1) : c.clone().addScaledVector(fwd(), 1.4).setY(c.y + 1.2);
-  if (e) { faceTo(e.g.position); hurt(e, stat.dmg() * TF.hitMul * L.mul, '#ff9a6a', i === TF.hits - 1, { x: c.x, z: c.z, kind: 'melee' }); G.ftN.tfHits++; if (!e.dead && !e.E.boss) e.stunT = Math.max(e.stunT || 0, .15); } // 붙잡기: 일반 적은 연타 동안 잠깐 경직
-  pawMark(q, .5, .16, i % 2 ? 0xffd0a0 : hero.adv.col); if (i % 2 === 0) clawFx(q, hero.adv.col, .8); if (!Q.perf) emit(P, q.x, q.y, q.z, 6, 0xffe0b0, 4, .2, 0, .2);
-  Snd.play(e ? 'hit' : 'sword', { pos: q, rate: 1.4 + i * .06, vol: .6 }); Snd.whoosh(q, .12, 900, 2600, .2); }
-function furyFinish(L) { const h = hero, c = h.g.position.clone(), R = TF.finR, dmg = stat.dmg() * TF.finMul * L.mul; let n = 0; G.ftN.tfFin++; G.shake = Math.max(G.shake || 0, .55);
-  if (h.ch.acts.SpinK) play(h.ch, 'SpinK', { once: true, force: true, speed: 1.9 });
-  for (const e of ground()) if (d2(e, c.x, c.z) <= R * R) { hurt(e, dmg, '#ff7a4a', true, { x: c.x, z: c.z, kind: 'melee' }); n++; if (!e.dead && !e.E.boss) knock(e, c.x, c.z, TF.finKb, .6); } // 보스: 넉백 면역 존중 (피해만)
-  G.ftN.tfHits += n; ringFx(c, R, hero.adv.col, .35); ringFx(c, R * .55, 0xffe0b0, .25);
-  const arc = new THREE.Mesh(new THREE.RingGeometry(R * .4, R, 36), ADD(hero.adv.col, .65)); arc.rotation.x = -Math.PI / 2; arc.position.set(c.x, c.y + .9, c.z); fade(arc, .3);
-  tigerGhost(c); emit(P, c.x, c.y + .8, c.z, Q.perf ? 16 : 40, 0xff8a5a, 8, .4, 0, 1.6); Snd.play('stomp', { pos: c, rate: 1.2, force: true }); Snd.play('hitArmor', { pos: c, rate: .8, force: true }); Snd.play('boom', { pos: c, vol: .4, rate: 1.6 }); }
-// 붉은 백호 실루엣 (0.4초): 캔버스로 그린 호랑이 머리 — 가산 스프라이트 (새 모델·텍스처 파일 없음)
+function quakeTick(L, p) { const h = hero; p.x = L.c.x; p.z = L.c.z; p.y = groundY(p.x, p.z); h.g.rotation.y = h.face; // 제자리 고정 (점프 없음)
+  if (!L.hit) { const k = Math.min(1, L.t / TQ.windT); glow(true, .4 + k); // 기 모으기: 주변에서 빛 알갱이가 빨려 들어옴
+    if (Math.random() < (Q.perf ? .5 : 1)) { const a = Math.random() * 6.28, r = 3.2 - k * 1.8; emit(P, p.x + Math.cos(a) * r, p.y + .3 + Math.random() * 2.2, p.z + Math.sin(a) * r, 1, k > .7 ? 0xffffff : h.adv.col, -3.5, .22, 0, 0); }
+    if (L.t >= TQ.windT) { L.hit = true; glow(false); quakeImpact(L); } }
+  if (L.t >= L.dur) { h.ft.leap = null; h.atkT = .12; h.ft.idle = 0; } }
+function quakeImpact(L) { const h = hero, c = L.c, gy = groundY(c.x, c.z), R = TQ.R, dmg = stat.dmg() * TQ.mul * L.mul, col = h.adv.col; let n = 0; G.ftN.tqImpact = (G.ftN.tqImpact || 0) + 1;
+  const f = fwd(), fist = new THREE.Vector3(c.x + f.x * .9, gy + .15, c.z + f.z * .9);
+  for (const e of ground()) if (d2(e, c.x, c.z) <= R * R) { hurt(e, dmg, '#ffe6b0', true, { x: c.x, z: c.z, kind: 'melee' }); n++; if (e.flash > .03) e.flash = .03; /* 히트스톱 동안 하얀 피격 번쩍임이 길게 남아 화면이 하얗게 뜨지 않게 */ if (!e.dead && !e.E.boss) { e.stunT = Math.max(e.stunT || 0, TQ.stun); e.frozen = false; G.ftN.tqStun = (G.ftN.tqStun || 0) + 1; } } // 넉백 없음
+  G.ftN.tqHits = (G.ftN.tqHits || 0) + n;
+  // 화면 흔들림 + 히트스톱 (이미 다른 슬로 모션 중이면 건드리지 않음)
+  G.shake = Math.max(G.shake || 0, 1.4); if (!(G.slowT > 0)) { G.slowF = .12; G.slowT = TQ.hitStop * .12; G.ftN.tqStop = (G.ftN.tqStop || 0) + 1; }
+  if (L.act) L.act.timeScale = 1.5; // 내리꽂은 자세를 잠깐 유지하듯 남은 동작은 천천히
+  Snd.play('boom', { pos: c, force: true }); Snd.play('breakRock', { pos: c, force: true, rate: .8 }); Snd.play('stomp', { pos: c, rate: .6, force: true }); Snd.play('hitArmor', { pos: c, rate: .7, force: true }); if (Snd.roar) later(.05, () => Snd.roar(c));
+  qFlash(fist); qGlow(c, gy, R); qCracks(c, gy); qShock(c, gy, L.mul); qSpikes(c, gy); qDust(c, gy); tigerSpirit(c, gy);
+  debris(c.x, gy + .3, c.z, Q.perf ? 18 : 40, [0x7a6a5a, 0x5a4a3a, 0xa08a6a, 0x8a7a62], 11);
+  emit(PB, fist.x, gy + .4, fist.z, Q.perf ? 8 : 16, 0xff9a3a, 10, .6, -10, 2); emit(P, c.x, gy + .4, c.z, Q.perf ? 14 : 30, 0xff8a30, 13, .55, -14, 3.5); emit(P, c.x, gy + .4, c.z, Q.perf ? 10 : 24, 0x7fd4ff, 9, .6, -8, 2.5);
+  pawMark(new THREE.Vector3(c.x, gy + .32, c.z), 1.6, .8, 0xfff0d0, true); }
+// 기 모으기 빛기둥 (windT 동안 커지다 내려칠 때 사라짐)
+function qPillar(c, gy) { const m = NORM(0xffc070, 0); m.blending = THREE.AdditiveBlending; const o = qAdd(new THREE.Mesh(qgeo().pillar, m)); o.position.set(c.x, gy, c.z); o.scale.set(.4, 7, .4); let t = 0;
+  FX.push(dt => { t += dt; const k = t / TQ.windT; if (k < 1) { m.opacity = .3 * k; o.scale.set(1.3 - k * .8, 7 + k * 2, 1.3 - k * .8); o.rotation.y += dt * 3; return true; }
+    const k2 = (t - TQ.windT) / .07; m.opacity = .2 * (1 - k2); o.scale.set(.5 - k2 * .3, 9 + k2 * 3, .5 - k2 * .3); if (k2 < 1) return true; qRm(o, m); return false; }); }
+// 내려친 순간 섬광 (주먹 위치)
+function qFlash(p) { const m = ADD(0xffb860, .55), o = qAdd(new THREE.Mesh(qgeo().sph, m)); o.position.copy(p); o.scale.setScalar(.4); let t = 0;
+  FX.push(dt => { t += dt; const k = t / .1; o.scale.set(.4 + k * 1.4, .3 + k * .7, .4 + k * 1.4); m.opacity = .55 * (1 - k); if (k < 1) return true; qRm(o, m); return false; }); }
+// 바닥 열기 (빛나는 원형 — 캔버스 방사 그라디언트, 한 번 만들어 재사용)
+let glowTex = null, dustTex = null;
+function qGlowTex() { if (glowTex) return glowTex; const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,200,120,.8)'); g.addColorStop(.25, 'rgba(255,140,50,.6)'); g.addColorStop(.6, 'rgba(230,80,20,.3)'); g.addColorStop(1, 'rgba(255,80,20,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); glowTex = new THREE.CanvasTexture(cv); glowTex.colorSpace = THREE.SRGBColorSpace; return glowTex; }
+function qGlow(c, gy, R) { const m = new THREE.MeshBasicMaterial({ map: qGlowTex(), transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), o = qAdd(new THREE.Mesh(qgeo().disc, m));
+  const ms = new THREE.MeshBasicMaterial({ map: qDustTex(), color: 0x1c0e04, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }), so = qAdd(new THREE.Mesh(qgeo().disc, ms)); // 어두운 그을음 (밝은 땅 위에서 빛나는 균열이 또렷하게)
+  o.rotation.x = so.rotation.x = -Math.PI / 2; o.position.set(c.x, gy + .2, c.z); so.position.set(c.x, gy + .19, c.z); o.scale.setScalar(R * .3); so.scale.setScalar(R * 1.25); let t = 0;
+  FX.push(dt => { t += dt; o.scale.setScalar(R * (.3 + Math.min(1, t / .12) * .3)); m.opacity = .45 * (t < .25 ? 1 : Math.max(0, 1 - (t - .25) / .9)); ms.opacity = .62 * Math.min(1, t / .05) * (t < 1.2 ? 1 : Math.max(0, 1 - (t - 1.2) / 1.1));
+    if (t < 2.3) return true; qRm(o, m); qRm(so, ms); return false; }); }
+// 땅 균열: 방사형 갈라짐(꺾인 3마디 + 곁가지) — 어두운 틈 위에 빛나는 금. 바깥으로 자라며 생기고 천천히 식음
+function qCracks(c, gy) { const G0 = qgeo().plane, mg = NORM(0xffa53a, 1), mw = NORM(0xfff2c8, 1), md = NORM(0x140a04, .9), segs = [], N = Q.perf ? 10 : 16;
+  const seg = (x, z, a, len, w, delay) => { const cx = x, cz = z; for (const [m, ww, yo] of [[md, w * 2.6, .21], [mg, w, .23], [mw, w * .35, .24]]) { if (m === mw && Q.perf) continue; const o = qAdd(new THREE.Mesh(G0, m)); o.rotation.set(-Math.PI / 2, 0, Math.PI + a); /* 평면 +Y(길이) → 월드 (sin a, 0, cos a) */ o.position.set(cx, gy + yo, cz); o.scale.set(ww, .001, 1); segs.push({ o, len, delay }); } };
+  for (let i = 0; i < N; i++) { let a = i / N * 6.28 + Math.random() * .25, x = c.x, z = c.z, w = .26;
+    for (let s = 0; s < 3; s++) { const len = (s ? 1.1 : 1.6) + Math.random() * 1.2; seg(x, z, a, len, w, s * .05);
+      if (s === 1 && !Q.perf && Math.random() < .6) { const b = a + (Math.random() < .5 ? -1 : 1) * (.5 + Math.random() * .4); seg(x + Math.sin(a) * len * .5, z + Math.cos(a) * len * .5, b, .8 + Math.random() * .8, w * .6, .1); }
+      x += Math.sin(a) * len; z += Math.cos(a) * len; a += (Math.random() - .5) * .8; w *= .72; } }
+  let t = 0;
+  FX.push(dt => { t += dt; for (const s of segs) s.o.scale.y = s.len * Math.min(1, Math.max(s.delay ? .001 : .45, (t - s.delay * .6) / .07)); /* 첫 마디는 히트스톱 순간부터 보임 */
+    const k = Math.max(0, (t - .6) / 1.4); mg.opacity = 1 - k; mw.opacity = 1 - Math.min(1, k * 1.6); md.opacity = .85 * Math.max(0, 1 - Math.max(0, (t - .9) / 1.5)); mg.color.setHex(t < .5 ? 0xffb347 : 0xff7a2a);
+    if (t < 2.4) return true; for (const s of segs) { scene.remove(s.o); G.ftN.tqLive--; } mg.dispose(); mw.dispose(); md.dispose(); return false; }); }
+// 충격파: 흰 고리 + 백호색 굵은 고리 + 낮은 충격 벽이 waveR 까지 퍼짐 · 고리가 지나가는 지상 적마다 1회 200% (넉백 없음)
+function qShock(c, gy, mul) { const q = qgeo(), col = hero.adv.col, dmg = stat.dmg() * TQ.waveMul * mul, hit = new Set(), T = TQ.waveR / TQ.waveSpd;
+  const m1 = NORM(0xffe4a0, .95), m2 = NORM(0x7fd4ff, .8), m3 = NORM(0xc9a77a, .38), r1 = qAdd(new THREE.Mesh(q.ring, m1)), r2 = qAdd(new THREE.Mesh(q.ring2, m2)), w = qAdd(new THREE.Mesh(q.wall, m3));
+  for (const o of [r1, r2]) { o.rotation.x = -Math.PI / 2; o.position.set(c.x, gy + .26, c.z); } w.position.set(c.x, gy, c.z); let t = 0; G.ftN.tqWave = (G.ftN.tqWave || 0) + 1;
+  FX.push(dt => { t += dt; const k = Math.min(1, t / T), r = 1.2 + k * (TQ.waveR - 1.2), k2 = Math.min(1, t / (T * 1.35)), rr = .9 + k2 * (TQ.waveR * .85);
+    r1.scale.setScalar(r); m1.opacity = .95 * (1 - k * k); r2.scale.setScalar(rr); m2.opacity = .8 * (1 - k2); w.scale.set(r, 1.3 * (1 - k * .6), r); m3.opacity = .38 * (1 - k);
+    if (k < 1) for (const e of ground()) { if (hit.has(e)) continue; if (d2(e, c.x, c.z) <= r * r) { hit.add(e); hurt(e, dmg, '#ffcf8a', false, { x: c.x, z: c.z, kind: 'melee' }); if (e.flash > .04) e.flash = .04; G.ftN.tqWaveHits = (G.ftN.tqWaveHits || 0) + 1; if (!Q.perf) emit(P, e.g.position.x, gy + .5, e.g.position.z, 5, 0xb09070, 4, .35, -6, .8); } }
+    if (Math.random() < (Q.perf ? .3 : .8)) { const a = Math.random() * 6.28; emit(P, c.x + Math.cos(a) * r, gy + .3, c.z + Math.sin(a) * r, 2, 0xd8c4a0, 3, .45, -5, .4); }
+    if (k2 < 1) return true; qRm(r1, m1); qRm(r2, m2); qRm(w, m3); return false; }); }
+// 솟구치는 바위: 균열 사이로 뾰족 바위가 순간 솟았다가 가라앉음 (공유 지오메트리·재질)
+function qSpikes(c, gy) { if (!ROCKM) ROCKM = toon(0x7d6b56); const N = Q.perf ? 6 : 11, L = [];
+  for (let i = 0; i < N; i++) { const a = i / N * 6.28 + Math.random() * .4, r = 1.7 + Math.random() * 1.7, s = .7 + Math.random() * .6, o = qAdd(new THREE.Mesh(qgeo().spike, ROCKM));
+    o.position.set(c.x + Math.sin(a) * r, gy - 2, c.z + Math.cos(a) * r); o.rotation.set(Math.cos(a) * .45, Math.random() * 3, -Math.sin(a) * .45); o.scale.set(s, s * (.8 + Math.random() * .7), s); if (!Q.perf) o.castShadow = true; L.push({ o, d: Math.random() * .08 }); }
+  let t = 0; FX.push(dt => { t += dt; for (const x of L) { const u = t - x.d, y = u < 0 ? -2 : u < .09 ? -2 + 2 * (u / .09) : u < .55 ? 0 : -2 * Math.min(1, (u - .55) / .45); x.o.position.y = gy + y - .05; }
+    if (t < 1.1) return true; for (const x of L) { scene.remove(x.o); G.ftN.tqLive--; } return false; }); }
+// 흙먼지: 보통 혼합 스프라이트가 바깥으로 퍼지며 커지고 옅어짐
+function qDustTex() { if (dustTex) return dustTex; const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(.55, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); dustTex = new THREE.CanvasTexture(cv); return dustTex; }
+function qDust(c, gy) { const N = Q.perf ? 6 : 14, L = [];
+  for (let i = 0; i < N; i++) { const a = i / N * 6.28 + Math.random() * .4, m = new THREE.SpriteMaterial({ map: qDustTex(), color: i % 3 ? 0x8a7458 : 0xa89272, transparent: true, opacity: .6, depthWrite: false }), o = qAdd(new THREE.Sprite(m));
+    o.position.set(c.x + Math.sin(a) * 2, gy + .4 + Math.random() * .4, c.z + Math.cos(a) * 2); o.scale.setScalar(1.1); L.push({ o, m, vx: Math.sin(a) * (4 + Math.random() * 3), vz: Math.cos(a) * (4 + Math.random() * 3), vy: .8 + Math.random() * 1.6 }); }
+  let t = 0; FX.push(dt => { t += dt; const k = t / 1.3, drag = Math.max(0, 1 - dt * 2.5); for (const x of L) { x.o.position.x += x.vx * dt; x.o.position.z += x.vz * dt; x.o.position.y += x.vy * dt; x.vx *= drag; x.vz *= drag; x.o.scale.setScalar(1.1 + k * 2.6); x.m.opacity = .6 * (1 - k) * Math.min(1, t / .08); }
+    if (k < 1) return true; for (const x of L) qRm(x.o, x.m); return false; }); }
+// 포효하는 백호 기운: 캔버스로 그린 흰 호랑이 머리(입 벌림 · 검은 줄무늬 · 빛나는 눈) + 가산 혼합 잔상 — 솟아오르며 커졌다 사라짐 (새 모델·텍스처 파일 없음)
 let tigerTex = null;
-function tigerTexture() { if (tigerTex) return tigerTex; const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d');
-  const gr = x.createRadialGradient(128, 140, 20, 128, 140, 120); gr.addColorStop(0, '#ffb070'); gr.addColorStop(.7, '#ff3a1a'); gr.addColorStop(1, 'rgba(255,40,10,0)'); x.fillStyle = gr;
-  x.beginPath(); x.moveTo(40, 70); x.lineTo(70, 20); x.lineTo(100, 60); x.lineTo(156, 60); x.lineTo(186, 20); x.lineTo(216, 70); x.quadraticCurveTo(250, 150, 200, 210); x.quadraticCurveTo(128, 260, 56, 210); x.quadraticCurveTo(6, 150, 40, 70); x.fill();
-  x.strokeStyle = '#000'; x.lineWidth = 9; x.lineCap = 'round'; for (const [a, b, c2, d] of [[128, 62, 128, 100], [100, 66, 108, 96], [156, 66, 148, 96], [40, 130, 82, 138], [36, 160, 80, 160], [216, 130, 174, 138], [220, 160, 176, 160]]) { x.beginPath(); x.moveTo(a, b); x.lineTo(c2, d); x.stroke(); }
-  x.fillStyle = '#fff6a0'; for (const ex of [94, 162]) { x.beginPath(); x.ellipse(ex, 128, 15, 8, ex < 128 ? .35 : -.35, 0, 6.3); x.fill(); }
-  x.fillStyle = '#000'; x.beginPath(); x.moveTo(114, 166); x.lineTo(142, 166); x.lineTo(128, 182); x.fill();
+function tigerTexture() { if (tigerTex) return tigerTex; const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S; const x = cv.getContext('2d'); x.scale(2, 2);
+  const og = x.createRadialGradient(128, 136, 30, 128, 136, 128); og.addColorStop(0, 'rgba(120,200,255,.4)'); og.addColorStop(.7, 'rgba(80,160,255,.18)'); og.addColorStop(1, 'rgba(120,200,255,0)'); x.fillStyle = og; x.fillRect(0, 0, 256, 256); // 기운
+  const hg = x.createLinearGradient(0, 30, 0, 240); hg.addColorStop(0, '#ffffff'); hg.addColorStop(1, '#bcdcff'); x.fillStyle = hg; x.strokeStyle = '#2f8ee0'; x.lineWidth = 7;
+  x.beginPath(); x.moveTo(44, 78); x.lineTo(62, 22); x.lineTo(102, 56); x.quadraticCurveTo(128, 48, 154, 56); x.lineTo(194, 22); x.lineTo(212, 78); x.quadraticCurveTo(246, 120, 226, 168); x.lineTo(200, 200); x.quadraticCurveTo(128, 250, 56, 200); x.lineTo(30, 168); x.quadraticCurveTo(10, 120, 44, 78); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#ffc0cc'; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(128 + s * 64, 36); x.lineTo(128 + s * 52, 62); x.lineTo(128 + s * 80, 62); x.fill(); } // 귀 안쪽
+  x.strokeStyle = '#141820'; x.lineCap = 'round'; x.lineWidth = 8; // 줄무늬
+  for (const [a, b, c2, d] of [[128, 60, 128, 92], [108, 62, 114, 88], [148, 62, 142, 88], [40, 112, 80, 122], [34, 140, 76, 146], [42, 168, 78, 166], [216, 112, 176, 122], [222, 140, 180, 146], [214, 168, 178, 166], [84, 84, 96, 104], [172, 84, 160, 104]]) { x.beginPath(); x.moveTo(a, b); x.quadraticCurveTo((a + c2) / 2 + 4, (b + d) / 2, c2, d); x.stroke(); }
+  for (const s of [-1, 1]) { const ex = 128 + s * 36; x.fillStyle = '#141820'; x.beginPath(); x.ellipse(ex, 120, 20, 11, s * -.4, 0, 6.3); x.fill(); x.fillStyle = '#7ff0ff'; x.shadowColor = '#7ff0ff'; x.shadowBlur = 14; x.beginPath(); x.ellipse(ex, 120, 14, 7, s * -.4, 0, 6.3); x.fill(); x.shadowBlur = 0; x.fillStyle = '#0a1a2a'; x.beginPath(); x.ellipse(ex, 120, 3, 6, 0, 0, 6.3); x.fill(); } // 눈
+  x.fillStyle = '#3a2028'; x.beginPath(); x.moveTo(116, 142); x.lineTo(140, 142); x.lineTo(128, 154); x.fill(); // 코
+  x.fillStyle = '#5a0e1a'; x.beginPath(); x.moveTo(84, 168); x.quadraticCurveTo(128, 150, 172, 168); x.quadraticCurveTo(168, 222, 128, 228); x.quadraticCurveTo(88, 222, 84, 168); x.fill(); // 포효하는 입
+  x.fillStyle = '#ff7a8a'; x.beginPath(); x.ellipse(128, 210, 22, 10, 0, 0, 6.3); x.fill(); x.fillStyle = '#ffffff'; // 송곳니
+  for (const [px, py, dy] of [[96, 166, 22], [160, 166, 22], [104, 222, -16], [152, 222, -16]]) { x.beginPath(); x.moveTo(px - 6, py); x.lineTo(px + 6, py); x.lineTo(px, py + dy); x.fill(); }
+  x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 2; for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(128 + s * 30, 150 + i * 6); x.lineTo(128 + s * 78, 140 + i * 12); x.stroke(); } // 수염
   tigerTex = new THREE.CanvasTexture(cv); tigerTex.colorSpace = THREE.SRGBColorSpace; return tigerTex; }
-function tigerGhost(c) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tigerTexture(), transparent: true, opacity: .9, depthWrite: false, depthTest: false, toneMapped: false })); sp.renderOrder = 5; // 보통 혼합: 밝은 바닥에서도 줄무늬가 보이게
-  sp.position.set(c.x, c.y + 2.6, c.z); sp.scale.setScalar(3); scene.add(sp); G.ftN.tiger = (G.ftN.tiger || 0) + 1; let t = 0;
-  FX.push(dt => { t += dt; const k = t / .4; sp.scale.setScalar(3 + k * 2.2); sp.position.y = c.y + 2.6 + k * .8; sp.material.opacity = .9 * (1 - k * k); if (k < 1) return true; scene.remove(sp); sp.material.dispose(); return false; }); }
-// hero.js 피격: 백호난무 시전 중이면 받는 피해 ×0.7
-export const ftGuard = () => (hero && hero.ft && hero.ft.leap && hero.ft.leap.kind === 'fury' ? 1 - TF.guard : 1);
-// ---------- 전직 Q ② 🐉 천룡파 (천기권사): 푸른 용 기파 — 직선 16 · 폭 3(중심선 ±1.5) 관통 500% (적마다 1회) · 일반 적 1초 기절 / 보스 2초 25% 둔화 ----------
+function tigerSpirit(c, gy) { const f = fwd(), m1 = new THREE.SpriteMaterial({ map: tigerTexture(), color: 0xdcefff, transparent: true, opacity: 0, depthWrite: false, depthTest: false }),
+    m2 = new THREE.SpriteMaterial({ map: tigerTexture(), color: 0x9adfff, transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  const s1 = qAdd(new THREE.Sprite(m1)), s2 = qAdd(new THREE.Sprite(m2)); s1.renderOrder = 6; s2.renderOrder = 7; G.ftN.tiger = (G.ftN.tiger || 0) + 1; let t = 0; const D = Q.perf ? .9 : 1.15;
+  FX.push(dt => { t += dt; const k = t / D, grow = 1 - Math.pow(1 - Math.min(1, .25 + k * 2.2), 3), roar = 1 + Math.sin(Math.min(1, k * 3) * Math.PI) * .12; // 튀어나오며 커지고 포효하듯 한 번 부풂
+    const sc = (1.9 + grow * 2.5) * roar, y = gy + 3.3 + grow * 1.9; s1.position.set(c.x - f.x * (.6 + grow * .6), y, c.z - f.z * (.6 + grow * .6)); /* 서윤 등 뒤 위로 솟음 */ s1.scale.setScalar(sc); s2.position.copy(s1.position); s2.scale.setScalar(sc * (1.06 + k * .35));
+    const a = k < .04 ? k / .04 : Math.max(0, 1 - (k - .5) / .5); m1.opacity = .85 * a; m2.opacity = .22 * a * (1 - k * .5);
+    if (k < 1) return true; qRm(s1, m1); qRm(s2, m2); return false; }); }
+// hero.js 피격: 백호진천권 시전 중이면 받는 피해 ×0.7
+export const ftGuard = () => (hero && hero.ft && hero.ft.leap && hero.ft.leap.kind === 'quake' ? 1 - TQ.guard : 1);
+// ---------- 전직 Q ② 🐉 천룡파 (천기권사, 2026-10-24 강화): 거대한 푸른 용(×1.6)이 가장 가까운 '아직 안 맞은' 적을 쫓아 날아감 — 비행 24 · 반폭 1.9 관통 500% (적마다 1회) · 일반 적 1초 기절 / 보스 2초 25% 둔화 ----------
 function dragonWave(at, mul) { const h = hero; ftStop(); const p = h.g.position; let dir = at ? new THREE.Vector3(at.x - p.x, 0, at.z - p.z) : fwd(); if (dir.lengthSq() < .01) dir = fwd(); dir.normalize();
   h.face = Math.atan2(dir.x, dir.z); h.path = []; h.ft.idle = 0; G.ftN.q++; G.ftN.dw++; banner('천룡파!', h.adv.c, 1000);
   const spd = HIT.PalmS / DW.castT; if (h.ch.acts.PalmS) play(h.ch, 'PalmS', { once: true, force: true, speed: spd }); h.atkT = DW.castT + .4; glow(true, 1);
-  Snd.play('magic', { pos: p, rate: .8, force: true }); ringFx(p, 2, h.adv.col, DW.castT); emit(P, p.x, 1.2, p.z, Q.perf ? 12 : 30, h.adv.col, -3, .35, 0, 1.2);
+  Snd.play('magic', { pos: p, rate: .8, force: true }); ringFx(p, 2.6, h.adv.col, DW.castT); emit(P, p.x, 1.2, p.z, Q.perf ? 12 : 30, h.adv.col, -3, .35, 0, 1.2);
   later(DW.castT, () => { glow(false); if (!hero || hero.dead > 0) return; dragonFly(hero.g.position.clone(), dir, mul); }); return true; }
 const SOLID = (c, o = .9) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, toneMapped: false }); // 보통 혼합 (밝은 바닥에서 가산 혼합은 하얗게 날아감)
-function dragonHead(col) { const g = new THREE.Group(), m = SOLID(0x1a8ad8, .95), w = SOLID(0xf4fbff, 1);
-  const head = new THREE.Mesh(new THREE.ConeGeometry(.75, 2, 10).rotateX(Math.PI / 2), m); g.add(head); const jaw = new THREE.Mesh(new THREE.SphereGeometry(.85, 14, 10), SOLID(0x2ab8f0, .9)); const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 10), ADD(col, .35)); halo.scale.set(1, .8, 1.4); g.add(halo); jaw.scale.set(1, .8, 1.2); jaw.position.z = -.5; g.add(jaw);
-  for (const sx of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(.12, 1.3, 6), w); horn.position.set(sx * .45, .7, -.9); horn.rotation.x = -1.1; horn.rotation.z = sx * -.3; g.add(horn);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(.15, 8, 6), SOLID(0xfff27a, 1)); eye.position.set(sx * .38, .32, .1); g.add(eye); }
-  return g; }
-function dragonFly(start, dir, mul) { const col = hero.adv.col, dmg = stat.dmg() * DW.mul * mul, hit = new Set(), y = start.y + 1.2, N = Q.perf ? 6 : 12, head = dragonHead(col), body = [], hist = [];
-  const side = new THREE.Vector3(dir.z, 0, -dir.x); let dist = 0, t = 0, px = start.x, pz = start.z, done = false;
-  head.position.set(start.x, y, start.z); head.lookAt(start.x + dir.x, y, start.z + dir.z); scene.add(head);
-  for (let i = 0; i < N; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.62 * (1 - i / (N + 2)), 12, 8), SOLID(i % 2 ? 0x1a8ad8 : 0x42c8f4, .9 - i * .03)); b.position.copy(head.position); b.visible = false; scene.add(b); body.push(b); }
-  G.shake = Math.max(G.shake || 0, .5); Snd.play('boom', { pos: start, vol: .6, rate: 1.1, force: true }); Snd.whoosh(start, .7, 200, 3600, .7); Snd.play('magic', { pos: start, rate: 1.4, force: true });
+function dragonHead(col) { const g = new THREE.Group(), m = SOLID(0x1a8ad8, .97), m2 = SOLID(0x2ab8f0, .95), w = SOLID(0xf4fbff, 1), gold = SOLID(0xffe27a, 1);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(.75, 2, 10).rotateX(Math.PI / 2), m); g.add(head); const jaw = new THREE.Mesh(new THREE.SphereGeometry(.85, 14, 10), m2); jaw.scale.set(1, .8, 1.2); jaw.position.z = -.5; g.add(jaw);
+  const low = new THREE.Mesh(new THREE.ConeGeometry(.5, 1.5, 8).rotateX(Math.PI / 2), m2); low.position.set(0, -.42, .25); low.rotation.x = .35; g.add(low); // 벌린 아래턱
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(1.6, 14, 10), ADD(col, .32)); halo.scale.set(1, .8, 1.5); g.add(halo);
+  for (const sx of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(.13, 1.6, 6), w); horn.position.set(sx * .45, .75, -.95); horn.rotation.x = -1.15; horn.rotation.z = sx * -.35; g.add(horn);
+    const tine = new THREE.Mesh(new THREE.ConeGeometry(.08, .6, 5), w); tine.position.set(sx * .62, .95, -1.05); tine.rotation.z = sx * -1.1; g.add(tine); // 사슴뿔 곁가지
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.17, 8, 6), gold); eye.position.set(sx * .4, .34, .1); g.add(eye);
+    const wh = new THREE.Mesh(new THREE.CylinderGeometry(.025, .05, 2.4, 4), w); wh.position.set(sx * .75, -.05, .1); wh.rotation.set(1.2, 0, sx * .9); g.add(wh); // 수염
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(.22, .9, 4), m2); fin.position.set(sx * .7, .25, -.8); fin.rotation.set(-1.3, 0, sx * -.9); g.add(fin); } // 귀 지느러미
+  for (let i = 0; i < 3; i++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(.14, .7, 5), w); sp.position.set(0, .7 - i * .05, -.6 - i * .45); sp.rotation.x = -.7; g.add(sp); } // 갈기
+  g.scale.setScalar(DW.scale); return g; }
+function dragonFly(start, dir0, mul) { const col = hero.adv.col, S = DW.scale, dmg = stat.dmg() * DW.mul * mul, hit = new Set(), y = start.y + 1.6, N = Q.perf ? 9 : 16, head = dragonHead(col), body = [], hist = [], SP = .5;
+  let dist = 0, t = 0, px = start.x, pz = start.z, dx = dir0.x, dz = dir0.z, done = false, tgt = null; G.ftN.dwLive = (G.ftN.dwLive || 0) + 1;
+  head.position.set(px, y, pz); head.lookAt(px + dx, y, pz + dz); scene.add(head); hist.push(head.position.clone());
+  for (let i = 0; i < N; i++) { const r = .66 * S * (1 - i / (N + 3)), b = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), SOLID(i % 2 ? 0x1a8ad8 : 0x42c8f4, .93 - i * .02)); b.position.copy(head.position); b.visible = false;
+    if (!Q.perf && i % 2 === 0 && i < N - 2) { const fin = new THREE.Mesh(new THREE.ConeGeometry(r * .35, r * 1.3, 4), SOLID(0xf4fbff, .95)); fin.position.y = r * .95; b.add(fin); } // 등지느러미
+    if (i === N - 1) { const tail = new THREE.Mesh(new THREE.ConeGeometry(r * 1.4, r * 2.6, 6), SOLID(0x9af0ff, .9)); tail.rotation.x = Math.PI / 2; b.add(tail); } scene.add(b); body.push(b); }
+  G.shake = Math.max(G.shake || 0, .6); Snd.play('boom', { pos: start, vol: .6, rate: 1.1, force: true }); Snd.whoosh(start, .9, 200, 3600, .7); Snd.play('magic', { pos: start, rate: 1.4, force: true }); if (Snd.roar) Snd.roar(start);
+  const pick = () => { let b = null, bd = DW.seek * DW.seek; for (const e of alive()) { if (hit.has(e)) continue; const ex = e.g.position.x - px, ez = e.g.position.z - pz, d = ex * ex + ez * ez; if (d >= bd || ex * dx + ez * dz < DW.cone * Math.sqrt(d)) continue; bd = d; b = e; } return b; }; // 유도 대상: 머리 앞쪽(±80°) seek 안의 가장 가까운 '안 맞은' 적 (뒤로 U턴하며 맴돌지 않게)
   FX.push(dt => { t += dt;
-    if (!done) { const st = Math.min(DW.spd * dt, DW.len - dist), x0 = px, z0 = pz; dist += st; px = start.x + dir.x * dist; pz = start.z + dir.z * dist;
-      const wob = Math.sin(dist * .9) * .6; head.position.set(px + side.x * wob, y + Math.sin(dist * .6) * .25, pz + side.z * wob); head.lookAt(head.position.x + dir.x, head.position.y, head.position.z + dir.z);
-      // 판정: 이번 프레임 이동 구간(x0,z0 → px,pz) 에서 반폭 DW.w 안 (용의 흔들림은 겉모양만 — 판정은 직선)
-      for (const e of alive()) { if (hit.has(e)) continue; const ex = e.g.position.x - x0, ez = e.g.position.z - z0, k = Math.max(0, Math.min(st, ex * dir.x + ez * dir.z)), qx = ex - dir.x * k, qz = ez - dir.z * k; if (qx * qx + qz * qz > DW.w * DW.w) continue;
+    if (!done) { if (!tgt || tgt.dead || hit.has(tgt) || tgt.immT > G.t || (tgt.g.position.x - px) * dx + (tgt.g.position.z - pz) * dz < 0) tgt = pick();
+      if (tgt) { const [nx, nz] = steer(dx, dz, tgt.g.position.x - px, tgt.g.position.z - pz, DW.turn * dt); G.ftN.dwTurn = (G.ftN.dwTurn || 0) + Math.abs(Math.atan2(dx * nz - dz * nx, dx * nx + dz * nz)); dx = nx; dz = nz; G.ftN.dwHome = (G.ftN.dwHome || 0) + 1; }
+      const st = Math.min(DW.spd * dt, DW.len - dist), x0 = px, z0 = pz; dist += st; px += dx * st; pz += dz * st;
+      const wob = Math.sin(dist * .9) * .5; head.position.set(px + dz * wob, y + Math.sin(dist * .6) * .35, pz - dx * wob); head.lookAt(head.position.x + dx, head.position.y, head.position.z + dz);
+      // 판정: 이번 프레임 이동 구간(x0,z0 → px,pz) 에서 반폭 DW.w 안 (흔들림은 겉모양만)
+      for (const e of alive()) { if (hit.has(e)) continue; const ex = e.g.position.x - x0, ez = e.g.position.z - z0, k = Math.max(0, Math.min(st, ex * dx + ez * dz)), qx = ex - dx * k, qz = ez - dz * k; if (qx * qx + qz * qz > DW.w * DW.w) continue;
         hit.add(e); G.ftN.dwHits++; hurt(e, dmg, '#9af0ff', true); if (!e.dead) { if (e.E.boss) { e.slowAmt = e.slowT > 0 ? Math.max(e.slowAmt || 0, DW.bossSlow) : DW.bossSlow; e.slowT = Math.max(e.slowT || 0, DW.bossSlowT); } else { e.stunT = Math.max(e.stunT || 0, DW.stun); e.frozen = false; G.ftN.dwStun++; } }
-        emit(P, e.g.position.x, 1.4, e.g.position.z, Q.perf ? 8 : 18, col, 6, .45); }
-      if (!Q.perf || Math.random() < .5) { emit(PB, head.position.x, head.position.y, head.position.z, 2, col, .8, .45, 0, .4); emit(P, head.position.x, head.position.y, head.position.z, 4, 0xe0fbff, 1.6, .4, 0, .6); }
-      if (dist >= DW.len) { done = true; t = 0; ringFx(new THREE.Vector3(px, 0, pz), 2.4, col, .4); emit(P, px, y, pz, Q.perf ? 16 : 40, col, 8, .5); Snd.play('glass', { pos: head.position, vol: .4, rate: .8 }); } }
-    hist.unshift(head.position.clone()); if (hist.length > N * 3 + 2) hist.length = N * 3 + 2;
-    for (let i = 0; i < N; i++) { const q = hist[Math.min(hist.length - 1, (i + 1) * 3)]; body[i].position.copy(q); body[i].visible = hist.length > (i + 1) * 3 || done; }
-    if (done) { const k = Math.min(1, t / .35); head.scale.setScalar(1 + k); for (const o of [head, ...body]) o.traverse(m => { if (m.material) m.material.opacity *= .82; });
-      if (k < 1) return true; for (const o of [head, ...body]) { scene.remove(o); o.traverse(m => { if (m.geometry) { m.geometry.dispose(); m.material.dispose(); } }); } return false; }
+        emit(P, e.g.position.x, 1.4, e.g.position.z, Q.perf ? 8 : 18, col, 6, .45); ringFx(e.g.position, 1.4, col, .25); }
+      if (!Q.perf || Math.random() < .5) { emit(PB, head.position.x, head.position.y, head.position.z, 2, col, .8, .5, 0, .6); emit(P, head.position.x, head.position.y, head.position.z, 5, 0xe0fbff, 1.8, .45, 0, .9); }
+      if (dist >= DW.len) { done = true; t = 0; ringFx(new THREE.Vector3(px, 0, pz), 3, col, .45); emit(P, px, y, pz, Q.perf ? 16 : 44, col, 9, .55); Snd.play('glass', { pos: head.position, vol: .4, rate: .8 }); } }
+    { const last = hist[0], L = head.position.distanceTo(last); if (L >= SP) { const n = Math.min(8, Math.floor(L / SP)); for (let k = 1; k <= n; k++) hist.unshift(last.clone().lerp(head.position, k * SP / L)); } if (hist.length > N * 2 + 4) hist.length = N * 2 + 4; } // 거리 간격으로 꼬리 궤적 (프레임 속도 무관)
+    for (let i = 0; i < N; i++) { const j = (i + 1) * 2; body[i].position.copy(hist[Math.min(hist.length - 1, j)]); body[i].visible = hist.length > j || done; if (j + 1 < hist.length) body[i].lookAt(hist[j - 1]); }
+    if (done) { const k = Math.min(1, t / .35); head.scale.setScalar(S * (1 + k)); for (const o of [head, ...body]) o.traverse(m => { if (m.material) m.material.opacity *= .82; });
+      if (k < 1) return true; for (const o of [head, ...body]) { scene.remove(o); o.traverse(m => { if (m.geometry) { m.geometry.dispose(); m.material.dispose(); } }); } G.ftN.dwLive--; return false; }
     return true; }); }
-
 // ---------- 전설 무기 ----------
 // 냥냥 난타 (proc): 앞쪽 부채꼴 6연타 (각 45%)
 export function pawstorm(t, s) { G.ftN.paw++; const h = hero;

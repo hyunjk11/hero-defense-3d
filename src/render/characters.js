@@ -98,9 +98,9 @@ const MESHY = {
     calm: [{ clips: ['Hit'], bones: ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'], k: .85, ref: 'Ready' }],
     rifle: { s: .85, grip: [.44, -.01, 0], fore: [-.28, .06, 0], muz: [-.95, .085, .008], aim: ['Aim', 'AimRun'], one: ['Death', 'Flourish'], pitch: .05 } },
   // Meshy 격투가 진서윤 (고양이 귀 후드 = 몸 메시 일부, 무기·부착물 없음). 클립: /workspace/seoyun3d (merge.json · build.mjs), 타격 시점은 heroes/fighter.js HIT
-  // JabLs/JabRs = 가드에서 왼/오른 잽 · SpinK = 회전 돌려차기 · ChargeIn/ChargeHold = 장풍 기 모으기(두 손 가슴 앞) · PalmS = 두 손 장풍 내지르기 · SlamS = 뛰어올라 내려찍기
+  // JabLs/JabRs = 가드에서 왼/오른 잽 · SpinK = 회전 돌려차기 · ChargeIn/ChargeHold = 장풍 기 모으기(두 손 가슴 앞) · PalmS = 두 손 장풍 내지르기 · SlamS = 뛰어올라 내려찍기 · QuakeS = 제자리 땅 내려치기(백호진천권, 주먹을 머리 위로 → 1.15초에 땅)
   seoyun_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'CheerJ', Melee_Show: 'SpinK', IdleLookAround: 'Combat' },
-    sub: [['JabLs', 'JabL', .25, .95], ['JabRs', 'JabR', .3, 1.0], ['SpinK', 'SpinKick', .55, 1.55], ['PalmS', 'Palm', 1.2, 2.3], ['ChargeIn', 'Charge', .27, .75], ['ChargeHold', 'Charge', .75, 1.45], ['SlamS', 'Slam', .25, 1.9], ['CheerJ', 'Cheer', 0, 3.2]] },
+    sub: [['JabLs', 'JabL', .25, .95], ['JabRs', 'JabR', .3, 1.0], ['SpinK', 'SpinKick', .55, 1.55], ['PalmS', 'Palm', 1.2, 2.3], ['ChargeIn', 'Charge', .27, .75], ['ChargeHold', 'Charge', .75, 1.45], ['SlamS', 'Slam', .25, 1.9], ['QuakeS', 'GroundSlam', .55, 2.45], ['CheerJ', 'Cheer', 0, 3.2]] },
   lich_meshy: {}, // 던전 5층 보스 '망령 여왕 모르비아' (몬스터, 지연 로딩 · 클립 이름은 makeLich 에서 해골 클립 이름으로도 연결)
   warrior_meshy: { alias: { Running_A: 'Run', Death_A: 'Death', Cheer: 'IdleLookAround', '1H_Melee_Attack_Chop': 'Slash', '1H_Melee_Attack_Slice_Horizontal': 'Slash', '2H_Melee_Attack_Spinning': 'Spin', Melee_Show: 'SlashHeavy' }, hitAt: .53 },
 };
