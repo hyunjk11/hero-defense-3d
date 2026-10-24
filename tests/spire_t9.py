@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """🗼 무한의 탑 T-9 (가짜 Supabase tests/sbmock.js · 데스크톱 1440x860 만 — 태블릿 테스트 없음)
  주간 보상 받기(지난주 = 칭호 교체 · 더 오래된 주 = 보상만) · 탑 칭호 표시 · 서버 T-9 미실행(noSpire9) 이면 카드 없음 ·
- 관리자 🗼 탑 기록 탭(이상 기록 깃발 · 유저 보기 · 탑 요약 · 기록 초기화 + 사유) · ?sptest 없으면 탭 숨김 · 콘솔 오류 0
+ 관리자 🗼 탑 기록 탭(이상 기록 깃발 · 유저 보기 · 탑 요약 · 기록 초기화 + 사유) · SP_LIVE(T-10 공개) = ?sptest 없어도 탭 보임 · 콘솔 오류 0
 python3 tests/spire_t9.py [--shots]   (스크린샷 /workspace/report_shots/spire_week.png · spire_admin.png)"""
 import sys, os, pathlib, json
 sys.path.insert(0, os.path.dirname(__file__))
@@ -86,7 +86,7 @@ with sync_playwright() as pw:
     pg2 = boot(c, '?seed=5193&flow=1')
     if J(pg2, '()=>G.screen') == 'intro': pg2.mouse.click(640, 400); pg2.wait_for_timeout(300)
     pg2.wait_for_function("()=>G.shop.Sh.S.me.st!=='idle'", timeout=15000); town(pg2); pg2.click('#twAdmin'); pg2.wait_for_timeout(500)
-    ok('no_sptest_tab_hidden', J(pg2, "()=>document.querySelector('#admTabs .ftab[data-t=spire]').classList.contains('hidden')"))
+    ok('live_no_sptest_tab_shown', J(pg2, "()=>!document.querySelector('#admTabs .ftab[data-t=spire]').classList.contains('hidden')"))
     ok('errors_0', not errs, errs[:4])
     b.close()
 print('RESULT', 'PASS' if all(res.values()) else 'FAIL', sum(res.values()), '/', len(res))

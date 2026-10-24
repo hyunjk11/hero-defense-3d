@@ -5,7 +5,7 @@
 // 층 번호 n 은 1부터. 층 객체는 data/dungeon.js FLOORS 와 같은 모양 {n, hpMul, dmgMul, gap, every, boss, waves} + 탑 전용 필드
 import { DG_BOSS_TYPE } from './dungeon.js';
 
-export const SP_LIVE = false; // T-10 에서 true (공개). 그 전에는 ?sptest=1 일 때만 열림
+export const SP_LIVE = true; // T-10 공개 (2026-10-24). false 로 되돌리면 ?sptest=1 일 때만 열림
 export const SP_OPEN = SP_LIVE || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('sptest'));
 export const SP_PICK_KEY = 'hd3d_sppick'; // 탑 전용 파티 (원정 hd3d_dgpick 과 따로)
 
