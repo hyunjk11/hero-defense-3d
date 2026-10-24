@@ -74,16 +74,16 @@ with sync_playwright() as pw:
     ok('sp_bosses_hp_dps', all(abs(v['max'] - v['want']) <= 2 and v['dps'] < 170 for v in bs.values()), bs)
     ok('sp_fire_meteor_heroes', bs['sp_fire']['meteorHero'] >= 1 and bs['sp_fire']['enr'], bs['sp_fire'])
     ok('sp_ruins_dread_summon', bs['sp_ruins']['dread'] >= 1 and bs['sp_ruins']['dreadHero'] >= 1, bs['sp_ruins'])
-    ok('sp_forest_summon', bs['sp_forest']['adds'] >= 1, bs['sp_forest'])
+    ok('sp_forest_summon', bs['sp_forest']['summon'] >= 1 and bs['sp_forest']['heal'] > 0, bs['sp_forest'])  # 소환된 고블린은 영웅이 금방 처치할 수 있어 남은 수(adds)는 안 봄
     af2 = J(pg, """async()=>{ const En=await import('./src/monsters/enemy.js'); const F=G.dg.floors[G.dg.floor]; const mage=G.heroes.find(h=>h.cls==='mage'), war=G.heroes.find(h=>h.cls==='warrior');
         const hit=(aff, who)=>{ F.affixes=aff; const e=En.spawnEnemy('golem', 1); e.g.position.set(40,0,40); const w0=G.mWho; G.mWho=who; const h0=e.hp; G.hurt(e, 100); G.mWho=w0; const d=h0-e.hp; G.hurt(e,1e9); return Math.round(d); };
         const r={none:hit([], mage), resM:hit(['resM'], mage), resMwar:hit(['resM'], war), resR:hit(['resR'], mage)};
         F.affixes=['frenzy']; const e=En.spawnEnemy('grunt',1); r.fr0=G.spireAtkK(e); e.hp=e.max*.2; r.fr1=G.spireAtkK(e); F.affixes=[]; r.fr2=G.spireAtkK(e); G.hurt(e,1e9);
-        G.dg.floors[G.dg.floor+1].affixes=['curse']; const h=G.heroes[0]; h.hp=h.max*.5; G.dg.q=[]; G.dg.wave=F.waves.length-1; G.sim(.2); for (const o of [...G.enemies]) if (!o.dead) G.hurt(o,1e9); for (let i=0;i<60 && G.dg.floor===G.dg.floors.indexOf(F);i++) { G.sim(.1); if (G.dg.blessing) G.dgTakeBless(G.dg.blessing[0]); }
-        r.curseHp=Math.round(h.hp/h.max*1000)/10; r.fl=G.dg.floors[G.dg.floor].floor; return r; }""")
+        G.dg.floors[G.dg.floor+1].affixes=['curse']; const M0=G.dgM; G.dgM=x=>({...M0(x), regen:0}); const h=G.heroes[0]; h.hp=h.max*.5; G.dg.q=[]; G.dg.wave=F.waves.length-1; G.sim(.2); for (const o of [...G.enemies]) if (!o.dead) G.hurt(o,1e9); let pre=h.hp; for (let i=0;i<60 && G.dg.floor===G.dg.floors.indexOf(F);i++) { pre=h.hp; G.sim(.1); if (G.dg.blessing) G.dgTakeBless(G.dg.blessing[0]); }
+        r.curseHp=Math.round(h.hp/h.max*1000)/10; r.preHp=Math.round(pre/h.max*1000)/10; r.gain=Math.round((h.hp-pre)/h.max*1000)/10; G.dgM=M0; r.fl=G.dg.floors[G.dg.floor].floor; return r; }""")
     ok('affix_res_magic_ranged', abs(af2['resM'] - af2['none'] * .65) <= 1 and af2['resMwar'] == af2['none'] and af2['resR'] == af2['none'], af2)
     ok('affix_frenzy', af2['fr0'] == 1 and af2['fr1'] == 1.3 and af2['fr2'] == 1, af2)
-    ok('affix_curse_heal_half', 56 <= af2['curseHp'] <= 64, af2)
+    ok('affix_curse_heal_half', 6.5 <= af2['gain'] <= 8.5, af2)  # 층 사이 회복 15% × 0.5 (층 넘어가는 그 순간의 증가분)
     ok('errors_0_t5', not errs, errs[:4]); errs.clear()
     # ?sptest 없음 → spire 무시 (일반 던전 원정)
     c2 = b.new_context(viewport={'width': 1280, 'height': 800}); c2.add_init_script(MOCK); p2 = c2.new_page(); p2.on('pageerror', lambda x: errs.append('PE ' + str(x)[:300]))
