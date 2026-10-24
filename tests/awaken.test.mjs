@@ -40,5 +40,5 @@ t('effects_math', () => { const r = (v) => Math.round(v * 1000) / 1000;
   assert.equal(AWK.cannon.poolMax, 8); assert.equal(AWK.cannon.poolR, 2.2); assert.equal(AWK.cannon.poolT, 3); assert.equal(AWK.magic.boltEvery, 8); assert.equal(AWK.arrow.volleyEvery, 6); });
 t('poolHits_strongest_only', () => { const P = [{ x: 0, z: 0, r: 2.2, dmg: 10 }, { x: 1, z: 0, r: 2.2, dmg: 25 }, { x: 0, z: 5, x2: 10, z2: 5, w: .8, dmg: 7 }];
   const h = GR.poolHits(P, [{ x: .5, z: 0 }, { x: -2, z: 0 }, { x: .5, z: 0, fly: true }, { x: 5, z: 5.5 }, { x: 5, z: 6 }, { x: 20, z: 20 }]);
-  assert.equal(h.get(0), 25); assert.equal(h.get(1), 10); assert.ok(!h.has(2), 'air'); assert.equal(h.get(3), 7); assert.ok(!h.has(4)); assert.ok(!h.has(5)); });
+  assert.equal(h.get(0).dmg, 25); assert.equal(h.get(1).dmg, 10); assert.ok(!h.has(2), 'air'); assert.equal(h.get(3).dmg, 7); assert.equal(h.get(3), P[2]); assert.ok(!h.has(4)); assert.ok(!h.has(5)); });
 console.log(`awaken.test: ${n} OK`);

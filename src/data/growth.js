@@ -99,8 +99,8 @@ export function awkBranch(type, branch, B) { if (!B) return B; const o = { ...B 
   if (branch === 'multi') o.targets = (B.targets || 1) + AWK.arrow.multiAdd; else if (branch === 'blast') o.cluster = (B.cluster || 0) + AWK.cannon.clusterAdd; else if (branch === 'frost') o.freezeEvery = AWK.magic.frostEvery; return o; }
 // 꿰뚫기 k번째(1부터) 피해 = 원래 화살 피해 × pierceK[k-1]
 export const pierceDmg = (base, k) => base * (AWK.arrow.pierceK[k - 1] || 0);
-// 불바다 틱: 적마다 덮는 불바다 중 가장 센 1개만. pools = [{x,z,r,dmg} | {x,z,x2,z2,w,dmg}(직선)], enemies = [{x,z,fly}] → 적 index → dmg
+// 불바다 틱: 적마다 덮는 불바다 중 가장 센 1개만. pools = [{x,z,r,dmg} | {x,z,x2,z2,w,dmg}(직선)], enemies = [{x,z,fly}] → Map(적 index → 그 불바다)
 export function poolHits(pools, enemies) { const out = new Map();
-  enemies.forEach((e, i) => { if (e.fly) return; let best = 0; for (const p of pools) { if (!(p.dmg > best)) continue; if (inPool(p, e.x, e.z)) best = p.dmg; } if (best > 0) out.set(i, best); }); return out; }
+  enemies.forEach((e, i) => { if (e.fly) return; let best = null; for (const p of pools) { if (best && !(p.dmg > best.dmg)) continue; if (inPool(p, e.x, e.z)) best = p; } if (best) out.set(i, best); }); return out; }
 export function inPool(p, x, z) { if (p.x2 === undefined) { const dx = x - p.x, dz = z - p.z; return dx * dx + dz * dz <= p.r * p.r; }
   const vx = p.x2 - p.x, vz = p.z2 - p.z, L2 = vx * vx + vz * vz || 1e-9, k = Math.max(0, Math.min(1, ((x - p.x) * vx + (z - p.z) * vz) / L2)), dx = x - (p.x + vx * k), dz = z - (p.z + vz * k); return dx * dx + dz * dz <= p.w * p.w; }
