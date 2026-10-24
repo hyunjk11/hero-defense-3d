@@ -782,3 +782,18 @@ body:not(.dungeonRun) #dgJoint{display:none}
 .xchPips{display:flex;gap:3px;width:min(420px,90%)}.xchPips i{flex:1;height:6px;border-radius:3px;background:linear-gradient(90deg,#3ac0ff,#bff0ff)}.xchPips i.on{background:#2a3050}
 .xchBtns{display:flex;gap:10px}.xchBtns .gbtn{min-height:var(--hit);min-width:120px;display:flex;flex-direction:column;align-items:center}.xchBtns .gbtn small{font-size:11px;opacity:.85}.xchMsg{min-height:20px;color:#ffb07a;font-size:13px}
 .labBarRow{margin-top:10px;border-color:#ffb03a99;background:linear-gradient(#3a2e20,#1a1410)}.labBarRow .lrTag{font-size:11px;color:#ffd27a;font-weight:normal}.labBarRow .lrPips i.on{background:linear-gradient(90deg,#ffb03a,#ffe0a0);box-shadow:0 0 5px #ffb03a}
+
+/* 🗼 무한의 탑 T-8 (2026-10-24): 던전 패널 탭 · 시작 층 칩 · 다음 5개 층 미리보기 · 랭킹 · 결과 기록 — SP_OPEN 일 때만 쓰임 */
+.dgTabs{justify-content:center;margin:6px 0 2px}.dgTabs .ftab{font-size:15px;padding:7px 18px;min-height:40px}
+.spRow{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 4px}.spLbl{color:#c9b88a;font-size:13px}.spChips{justify-content:center}.spChip{min-width:58px}.spChip.lock{opacity:.45;cursor:default}.spCu{color:#a898c0;font-size:12px}
+.spPrev{max-width:780px;margin:4px auto;display:flex;flex-direction:column;gap:3px}.spPvH{font-size:13px;color:#e8d8ff;text-align:center}.spPvH small{color:#a898c0}
+.spPv{display:grid;grid-template-columns:56px 190px 1fr;align-items:center;gap:8px;background:#120e22;border:1px solid #3a2e5a;border-radius:8px;padding:3px 10px;font-size:13px;color:#e8e0f8}
+.spPv.boss{border-color:#ff8a9a;background:#2a1020}.spPv.mid{border-color:#c9a24a}.spPv.elite{border-color:#ff6a4a88}.spPvN{color:var(--gold-hi)}
+.spAff{display:inline-block;background:#2a2246;border:1px solid #6a5a8a;border-radius:9px;padding:1px 8px;margin-right:4px;font-size:12px;cursor:help}.spAff.good{border-color:#9affb0;color:#c8ffd8}
+.spNext{text-align:center;font-size:13px;color:#ffe9a0;margin-top:4px}.spNext small{color:#a898c0}
+.spRkTabs{justify-content:center;margin:6px 0}.spRkList{max-width:540px;margin:8px auto;max-height:380px;overflow:auto;display:flex;flex-direction:column;gap:3px}
+.spRk{display:grid;grid-template-columns:50px 1fr 70px;align-items:center;padding:5px 12px;background:#120e22;border:1px solid #2a2246;border-radius:8px;font-size:14px;color:#e8e0f8}.spRk.me{border-color:var(--gold-hi);background:#2a2010}
+.spRkN{text-align:center}.spRkF{text-align:right;color:var(--gold-hi);font-weight:700}.spRkMe{text-align:center;font-size:14px;color:#e8d8ff}.spRkMe b{color:var(--gold-hi)}.spRkMsg{text-align:center;padding:20px;color:#e8d8ff}
+.spRecRes .spNew{color:#ffe066;font-size:17px;text-shadow:0 0 8px #ffb000}.spRecL b{color:var(--gold-hi)}.spRw{margin-top:4px;color:#ffe9a0}
+/* T-8: 탑 탭 파티 카드는 간단히 (860px 높이 안에 출발 버튼까지) */
+.spParty .dgCard{gap:3px;padding:8px}.spParty .dgSt,.spParty .dgLv{display:none}.spParty{margin:6px 0}

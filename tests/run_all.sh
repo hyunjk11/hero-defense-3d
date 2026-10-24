@@ -4,7 +4,7 @@
 #   bash tests/run_all.sh equip shop # 이름을 주면 해당 스위트만 (node 테스트는 항상 실행)
 # regress.py 는 알려진 차이 4개(KNOWN_DIFFS)까지 OK 로 봅니다. 로그: tests/logs/<이름>.log
 cd "$(dirname "$0")/.." || exit 1
-SUITES=(account equip unique items_ui advance rose_rifle lazy waveprev speed bgaudio chestall shop admin rose seoyun budeul legend clicks tower stages stages6 hard tablet gfx sync paths warp monsters roster flicker bossblack snowvis volcanovis ruinsvis dungeon)
+SUITES=(account equip unique items_ui advance rose_rifle lazy waveprev speed bgaudio chestall shop admin rose seoyun budeul legend clicks tower stages stages6 hard tablet gfx sync paths warp monsters roster flicker bossblack snowvis volcanovis ruinsvis dungeon spire spire_mon spire_srv spire_ui)
 [ $# -gt 0 ] && SUITES=("$@")
 KNOWN_DIFFS=4
 mkdir -p tests/logs; declare -a SUM; fail=0; T0=$SECONDS
