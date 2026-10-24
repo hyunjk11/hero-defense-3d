@@ -11,7 +11,7 @@
 - [x] P-5 백호난무 삭제 → 「백호진천권」(제자리 땅 내려치기: 기 모으기 → 내려찍기 · 화면 흔들림 · 히트스톱 · 빛나는 균열 · 충격파 고리 · 바위 파편·흙먼지 · 백호 기운) · 스킬 id tigerfury → tigerquake (옛 id 별칭)
 - [x] P-6 문구: 전직 탭 · 상점 · 주석 · CHANGELOG · 던전 AI(제자리 Q 는 주변에 적이 있을 때만)
 - [x] P-7 테스트: node 단위(seoyun/seoyun_adv/advance) · tests/seoyun.py 새 동작 · 스위트 node regress seoyun advance dungeon spire spire_ui gfx (하나씩)
-- [ ] P-8 병합 · push · Pages · 스크린샷 /workspace/report_shots/sypatch_*.png
+- [x] P-8 병합 · push · Pages · 스크린샷 /workspace/report_shots/sypatch_*.png
 
 ## 진행 기록
 - P-0: main b57e12e 에서 시작.
