@@ -26,8 +26,9 @@ t('어그로: 가까운 영웅, 탱커 보정', () => { const s = H('warrior', 6
 t('밀집 지점', () => { const E = [{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 0, z: 1 }, { x: 10, z: 10 }]; const c = bestCluster(E, 2); assert.equal(c.n, 3); assert.ok(Math.abs(c.x - 1 / 3) < 1e-9); assert.equal(bestCluster([], 2), null); });
 t('역할 AI: 탱커는 후방에 가까운 적에게', () => { const p = rolePlan('tank', { x: 0, z: 0, range: 2.8, skillReady: false }, { enemies: [{ x: 10, z: 0 }, { x: -6, z: 0 }], backs: [{ x: -3, z: 0 }] }); assert.equal(p.focus, 1); assert.deepEqual(p.move, { x: -6, z: 0 }); });
 t('역할 AI: 백호진천권(qSelf) = 제자리 · 주변 지상 3+ 일 때만', () => { const E = [{ x: 1, z: 0 }, { x: 0, z: 2 }, { x: -2, z: 1 }, { x: 8, z: 0 }];
-  let p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, qSelf: 3.9, skillReady: true }, { enemies: E }); assert.deepEqual(p.skill, { x: 0, z: 0 });
-  p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, qSelf: 3.9, skillReady: true }, { enemies: [E[0], { ...E[1], fly: true }, E[2], E[3]] }); assert.ok(!p.skill);
+  { const W = [{ x: 4.6, z: 0 }, { x: 0, z: -4.8 }, { x: -3.5, z: 3 }, { x: 9, z: 0 }]; /* 4.6~5 = 예전 qSelf 3.9 밖 · 지금 TQ.R(6)×0.85 = 5.1 안 */ assert.deepEqual(rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, qSelf: 5.1, skillReady: true }, { enemies: W }).skill, { x: 0, z: 0 }); }
+  let p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, qSelf: 5.1, skillReady: true }, { enemies: E }); assert.deepEqual(p.skill, { x: 0, z: 0 });
+  p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, qSelf: 5.1, skillReady: true }, { enemies: [E[0], { ...E[1], fly: true }, E[2], E[3]] }); assert.ok(!p.skill);
   p = rolePlan('bruiser', { x: 0, z: 0, range: 2.6, jp: 10, skillReady: true }, { enemies: [{ x: 6, z: 0 }, { x: 6.5, z: 1 }, { x: 6, z: -1 }] }); assert.ok(p.skill && p.skill.x > 5); });
 t('역할 AI: 탱커 회오리 (3명 이상 근접)', () => { const p = rolePlan('tank', { x: 0, z: 0, range: 2.8, skillReady: true }, { enemies: [{ x: 1, z: 0 }, { x: 0, z: 1 }, { x: -1, z: 0 }] }); assert.ok(p.skill); assert.equal(p.move, null); });
 t('역할 AI: 원거리는 가까운 적에게서 물러남', () => { const p = rolePlan('ranged', { x: 0, z: 0, range: 11, skillReady: false }, { enemies: [{ x: 2, z: 0 }] }); assert.ok(p.move.x < -3); });
