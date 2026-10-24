@@ -12,10 +12,11 @@ let ok = 0; const t = (n, f) => { f(); ok++; console.log('OK', n); };
 const C = CLASSES.fighter, W = CLASSES.warrior, sql = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
 t('영웅 데이터: 유료 · 👊 · 이름', () => { assert.ok(HERO_KEYS.includes('fighter') && C.paid && C.nm === '서윤' && C.n === '격투가' && C.icon === '👊' && C.skill === '냥냥 진각' && C.model === 'seoyun_meshy'); });
 t('세라보다 빠른 공격 · 낮은 체력/방어', () => { assert.ok(C.rate > W.rate * 1.5 && C.hp < W.hp && C.armor < W.armor && C.speed > W.speed); });
-t('살짝 사기캐: 단일 DPS 세라의 110~135% · 모든 영웅 중 최고 · 체력×(1/(1-방어)) 는 세라의 70% 이하', () => { const d = fighterDps(C), w = W.dmg * W.rate;
-  assert.ok(d > w * 1.1 && d < w * 1.35, `${d} vs ${w}`); for (const h of HERO_KEYS) if (h !== 'fighter') assert.ok(d > CLASSES[h].dmg * CLASSES[h].rate, h);
+// 2026-10-24 패치: 공격 속도 -20% (2.6 → 2.08) — 대신 넉백이 없어 콤보가 끊기지 않고, 사거리 밖 모든 적에게 장풍(최대 10) 이 나가 '살짝 사기캐' 유지
+t('공속 -20% 패치: rate 2.08 · 근접 단일 DPS 세라의 90~110% · 다른 원거리/마법 영웅보다 높음 · 체력×(1/(1-방어)) 는 세라의 70% 이하', () => { const d = fighterDps(C), w = W.dmg * W.rate;
+  assert.ok(Math.abs(C.rate - 2.6 * .8) < 1e-9, C.rate); assert.ok(d > w * .9 && d < w * 1.1, `${d} vs ${w}`); for (const h of HERO_KEYS) if (h !== 'fighter' && h !== 'warrior') assert.ok(d > CLASSES[h].dmg * CLASSES[h].rate, h);
   assert.ok(C.hp / (1 - C.armor) < .7 * W.hp / (1 - W.armor)); });
-t('3연타: 주먹·주먹·돌려차기(1.8 + 넉백)', () => { assert.deepEqual([0, 1, 2, 3, 4, 5].map(comboMul), [1, 1, 1.8, 1, 1, 1.8]); assert.deepEqual([0, 1, 2, 5].map(isKick), [false, false, true, true]); assert.ok(FT.kickKb > 0 && FT.kickR > C.range); });
+t('3연타: 주먹·주먹·돌려차기(1.8 · 넉백 없음)', () => { assert.deepEqual([0, 1, 2, 3, 4, 5].map(comboMul), [1, 1, 1.8, 1, 1, 1.8]); assert.deepEqual([0, 1, 2, 5].map(isKick), [false, false, true, true]); assert.ok(FT.kickKb === 0 && FT.kickR > C.range); });
 t('장풍 충전 단계: 0.4초 약 · 1.2초 완전(250%)', () => { assert.equal(jpLevel(0), 'none'); assert.equal(jpLevel(.39), 'none'); assert.equal(jpLevel(.4), 'weak'); assert.equal(jpLevel(1.19), 'weak'); assert.equal(jpLevel(1.2), 'full');
   assert.equal(jpMul(.2), 0); assert.ok(jpMul(.5) > 0 && jpMul(.5) < jpMul(1.3)); assert.equal(jpMul(2), 2.5); assert.ok(FT.jpRange > C.range * 3); });
 t('원거리/비행 적 판별 (몬스터 표)', () => { assert.ok(isRangedFoe(ETYPES.bat) && isRangedFoe(ETYPES.wisp)); assert.ok(!isRangedFoe(ETYPES.grunt) && !isRangedFoe(null)); assert.ok(isRangedFoe({ ab: { snowball: { range: 7 } } })); assert.ok(!isRangedFoe({ ab: { chill: { r: 3 } } }));

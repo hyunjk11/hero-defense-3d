@@ -50,12 +50,12 @@ assert.equal(A.advBlock(s, 'archer', 'wind'), '고유 정수 부족'); s.mat.ess
 s.adv = { archer: { b: 'wind', n: 1 } }; s.souls = 499; assert.equal(A.advBlock(s, 'archer', 'wind'), '현재 분기'); assert.equal(A.advBlock(s, 'archer', 'hawk'), '영혼석 부족'); s.souls = 500; assert.equal(A.advBlock(s, 'archer', 'hawk'), null);
 // 상한: 전직하면 15
 assert.equal(A.permMax(s, 'archer'), 15); assert.equal(A.permMax(s, 'mage'), 10); assert.equal(A.advTitle('archer', s.adv.archer), '실바 · 바람의 순찰자'); assert.equal(A.advTitle('mage', undefined), '');
-// 서윤 전직 (2026-10-24): 백호권성 / 천기권사 — 기본 DPS 각각 +8% (26×0.9×2.6×1.2 = 26×1.2×2.6×0.9 = 73.008), 두 분기 차이 0
+// 서윤 전직 (2026-10-24): 백호권성 / 천기권사 — 기본 DPS 각각 +8% (공속 -20% 패치 뒤: 26×0.9×2.08×1.2 = 26×1.2×2.08×0.9 = 58.4064), 두 분기 차이 0
 { const T = A.ADV.fighter.tiger, D = A.ADV.fighter.dragon, F = CLASSES.fighter; assert.deepEqual(A.branchesOf('fighter'), ['tiger', 'dragon']); assert.ok(A.ADV_HEROES.includes('fighter'));
-  assert.deepEqual([T.n, T.icon, T.skill, T.sk, D.n, D.icon, D.skill, D.sk], ['백호권성', '🐯', 'tigerfury', '백호난무', '천기권사', '🐉', 'dragonwave', '천룡파']);
-  const t = A.applyAdv(F, T), d = A.applyAdv(F, D); assert.ok(Math.abs(t.dmg - 23.4) < 1e-9 && Math.abs(t.rate - 3.12) < 1e-9 && t.hp === 760 && t.armor === .25 && t.speed === 8 && t.range === 2.6 && t.skill === '백호난무');
-  assert.ok(Math.abs(d.dmg - 31.2) < 1e-9 && Math.abs(d.rate - 2.34) < 1e-9 && d.hp === 760 && d.armor === .25 && d.skill === '천룡파'); assert.equal(F.skill, '냥냥 진각'); assert.equal(F.dmg, 26);
-  const dt = A.advDps('fighter', 'tiger'), dd = A.advDps('fighter', 'dragon'), b0 = A.advDps('fighter'); assert.ok(Math.abs(dt - 73.008) < 1e-6 && Math.abs(dd - 73.008) < 1e-6 && Math.abs(b0 - 67.6) < 1e-6);
+  assert.deepEqual([T.n, T.icon, T.skill, T.sk, D.n, D.icon, D.skill, D.sk], ['백호권성', '🐯', 'tigerquake', '백호진천권', '천기권사', '🐉', 'dragonwave', '천룡파']);
+  const t = A.applyAdv(F, T), d = A.applyAdv(F, D); assert.ok(Math.abs(t.dmg - 23.4) < 1e-9 && Math.abs(t.rate - 2.496) < 1e-9 && t.hp === 760 && t.armor === .25 && t.speed === 8 && t.range === 2.6 && t.skill === '백호진천권');
+  assert.ok(Math.abs(d.dmg - 31.2) < 1e-9 && Math.abs(d.rate - 1.872) < 1e-9 && d.hp === 760 && d.armor === .25 && d.skill === '천룡파'); assert.equal(F.skill, '냥냥 진각'); assert.equal(F.dmg, 26);
+  const dt = A.advDps('fighter', 'tiger'), dd = A.advDps('fighter', 'dragon'), b0 = A.advDps('fighter'); assert.ok(Math.abs(dt - 58.4064) < 1e-6 && Math.abs(dd - 58.4064) < 1e-6 && Math.abs(b0 - 54.08) < 1e-6);
   assert.equal(A.advTowerMods(T, 'arrow').rate, 1.05); assert.equal(A.advTowerMods(T, 'magic').rng, 1); assert.equal(A.advTowerMods(D, 'magic').rng, 1.06); assert.equal(A.advTowerMods(D, 'arrow').rate, 1);
   assert.deepEqual(A.advModels(T), []); assert.deepEqual(A.advModels(D), []);
   // 해금: 미보유면 불가(서버 소유권), 보유 + 조건 충족이면 가능 · 재전직 500

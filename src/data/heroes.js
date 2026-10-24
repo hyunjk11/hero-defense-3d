@@ -9,9 +9,9 @@ const CLASSES = {
   // 유료 영웅 2: 메카닉 버들 — 근접 브루저(가장 높은 체력·방어). 등의 로봇 팔로 드릴(다단 히트)·해머(작은 범위 넉백)를 번갈아 사용, [Q] 변신 → 10초간 거대 로봇
   mechanic: { n: '메카닉', nm: '버들', icon: '🛠️', model: 'budeul_meshy', hp: 1150, dmg: 36, rate: 1.15, range: 3.0, speed: 6.8, armor: .35, skill: '변신', cd: 26, color: 0x7aff5a, atk: 'Drill', atkSpd: 1.5, paid: true,
     hidden: true }, // 숨김(2026-10-20 사용자 요청, 리디자인 중): 선택·마을·상점에서 안 보이고 모델도 안 불러옴. 소유권·아이템·코드·schema 상품은 그대로 → false 로 바꾸면 복구
-  // 유료 영웅 3: 격투가 진서윤 (2026-10-22) — 빠른 근접 3연타(주먹·주먹·회전 돌려차기 넉백) · 사거리 밖 원거리/비행 적에게 장풍 충전(0.4초 약 / 1.2초 관통 250%) · [Q] 냥냥 진각(도약 내려찍기 400% + 1초 기절)
+  // 유료 영웅 3: 격투가 진서윤 (2026-10-22) — 근접 3연타(주먹·주먹·회전 돌려차기, 2026-10-24 패치: 넉백 없음 · 공속 2.6→2.08 = -20%) · 사거리 밖 모든 적(비행은 가까워도)에게 장풍 충전(0.4초 약 / 1.2초 관통 250%) · [Q] 냥냥 진각(도약 내려찍기 400% + 1초 기절)
   // 세라보다 공격이 빠르고 체력·방어는 낮음. 코드: src/heroes/fighter.js (cls === 'fighter' 일 때만 호출)
-  fighter: { n: '격투가', nm: '서윤', icon: '👊', model: 'seoyun_meshy', hp: 760, dmg: 26, rate: 2.6, range: 2.6, speed: 8.0, armor: .25, skill: '냥냥 진각', cd: 12, color: 0xff9a3a, atk: 'JabR', atkSpd: 1.7, paid: true },
+  fighter: { n: '격투가', nm: '서윤', icon: '👊', model: 'seoyun_meshy', hp: 760, dmg: 26, rate: 2.08, range: 2.6, speed: 8.0, armor: .25, skill: '냥냥 진각', cd: 12, color: 0xff9a3a, atk: 'JabR', atkSpd: 1.7, paid: true },
 };
 const UPS = {
   atk: { n: '공격력', d: '+15% 피해', base: 40 }, spd: { n: '공격 속도', d: '+10% 속도', base: 40 }, rng: { n: '사거리', d: '+8% 사거리', base: 45 },
